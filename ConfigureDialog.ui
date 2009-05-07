@@ -1,0 +1,512 @@
+<ui version="4.0" >
+ <class>ConfigureDialog</class>
+ <widget class="QDialog" name="ConfigureDialog" >
+  <property name="windowModality" >
+   <enum>Qt::ApplicationModal</enum>
+  </property>
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>476</width>
+    <height>540</height>
+   </rect>
+  </property>
+  <property name="windowTitle" >
+   <string>Configure Acquisition</string>
+  </property>
+  <property name="windowIcon" >
+   <iconset>Icon-Config.xpm</iconset>
+  </property>
+  <property name="toolTip" >
+   <string>The sampling rate in Hz per virtual AI channel.  (In external clock mode this rate is just a reference rate for saving with file meta data.)</string>
+  </property>
+  <property name="modal" >
+   <bool>true</bool>
+  </property>
+  <widget class="QDialogButtonBox" name="buttonBox" >
+   <property name="geometry" >
+    <rect>
+     <x>290</x>
+     <y>484</y>
+     <width>171</width>
+     <height>32</height>
+    </rect>
+   </property>
+   <property name="orientation" >
+    <enum>Qt::Horizontal</enum>
+   </property>
+   <property name="standardButtons" >
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::NoButton|QDialogButtonBox::Ok</set>
+   </property>
+  </widget>
+  <widget class="QLabel" name="outputFileLabel" >
+   <property name="geometry" >
+    <rect>
+     <x>20</x>
+     <y>21</y>
+     <width>101</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>Output filename:</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="outputFileLE" >
+   <property name="geometry" >
+    <rect>
+     <x>120</x>
+     <y>20</y>
+     <width>231</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>c:\blah</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="browseBut" >
+   <property name="geometry" >
+    <rect>
+     <x>360</x>
+     <y>19</y>
+     <width>75</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>Browse...</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="acqModeLabel" >
+   <property name="geometry" >
+    <rect>
+     <x>20</x>
+     <y>58</y>
+     <width>101</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>The acquisition mode: regular or INTAN demuxd</string>
+   </property>
+   <property name="text" >
+    <string>Acquisition Mode:</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="acqModeCB" >
+   <property name="geometry" >
+    <rect>
+     <x>130</x>
+     <y>57</y>
+     <width>175</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>The acquisition mode: regular or INTAN demuxd</string>
+   </property>
+   <item>
+    <property name="text" >
+     <string>AI 60 Demux (4 INTANs)</string>
+    </property>
+   </item>
+   <item>
+    <property name="text" >
+     <string>Straight AI</string>
+    </property>
+   </item>
+   <item>
+    <property name="text" >
+     <string>AI 120 Demux (8 INTANs)</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLineEdit" name="channelListLE" >
+   <property name="geometry" >
+    <rect>
+     <x>20</x>
+     <y>182</y>
+     <width>431</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>Enter a list of _real_ AI channels to acquire.  Ranges such as 0-3 or comma-separated-lists such as 1,2,3,4 are ok.</string>
+   </property>
+   <property name="text" >
+    <string>0:3</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="channelListLabel" >
+   <property name="geometry" >
+    <rect>
+     <x>20</x>
+     <y>156</y>
+     <width>421</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>Enter a list of _real_ AI channels to acquire.  Ranges such as 0:3 or comma-separated-lists such as 1,2,3,4 are ok.</string>
+   </property>
+   <property name="text" >
+    <string>AI Channel List: (ranges/lists of the form: 0:3, 5, 7, 9:10, etc)</string>
+   </property>
+  </widget>
+  <widget class="QGroupBox" name="aoPassthruGB" >
+   <property name="geometry" >
+    <rect>
+     <x>20</x>
+     <y>209</y>
+     <width>431</width>
+     <height>80</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>If enabled, specify a list of AO=AI chans to pass thru from AI to AO</string>
+   </property>
+   <property name="title" >
+    <string>AO Passthru</string>
+   </property>
+   <property name="checkable" >
+    <bool>true</bool>
+   </property>
+   <property name="checked" >
+    <bool>false</bool>
+   </property>
+   <widget class="QLineEdit" name="aoPassthruLE" >
+    <property name="geometry" >
+     <rect>
+      <x>10</x>
+      <y>43</y>
+      <width>401</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip" >
+     <string>Enter list of AO channels to passthru from AI.  List is of the form AOCHAN=AICHAN,...</string>
+    </property>
+    <property name="text" >
+     <string>0=4,1=2</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="aoPassthruLabel" >
+    <property name="geometry" >
+     <rect>
+      <x>10</x>
+      <y>19</y>
+      <width>411</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="toolTip" >
+     <string>Enter list of AO channels to passthru from AI.  List is of the form AOCHAN=AICHAN,...</string>
+    </property>
+    <property name="text" >
+     <string>Enter list of AO chans to echo from AI of the form AOCHAN=AICHAN,...</string>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QLabel" name="srateLabel" >
+   <property name="enabled" >
+    <bool>false</bool>
+   </property>
+   <property name="geometry" >
+    <rect>
+     <x>20</x>
+     <y>129</y>
+     <width>181</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>Sampling rate per (virtual) channel, if externally clocked this is only a reference rate for datafile metadata</string>
+   </property>
+   <property name="text" >
+    <string>Sampling Rate Hz (per channel):</string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="srateSB" >
+   <property name="enabled" >
+    <bool>false</bool>
+   </property>
+   <property name="geometry" >
+    <rect>
+     <x>210</x>
+     <y>126</y>
+     <width>101</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>Sampling rate per (virtual) channel, if externally clocked this is only a reference rate for datafile metadata</string>
+   </property>
+   <property name="minimum" >
+    <number>10</number>
+   </property>
+   <property name="maximum" >
+    <number>1000000</number>
+   </property>
+   <property name="value" >
+    <number>29630</number>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="clockCB" >
+   <property name="enabled" >
+    <bool>false</bool>
+   </property>
+   <property name="geometry" >
+    <rect>
+     <x>340</x>
+     <y>126</y>
+     <width>121</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <item>
+    <property name="text" >
+     <string>Ext. clock (PFI2)</string>
+    </property>
+   </item>
+   <item>
+    <property name="text" >
+     <string>Internal clock</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QCheckBox" name="disableGraphsChk" >
+   <property name="geometry" >
+    <rect>
+     <x>20</x>
+     <y>487</y>
+     <width>251</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>Disabling graphing of data saves on CPU/GPU load. Graphs can be re-enabled at any time from the system tray.</string>
+   </property>
+   <property name="text" >
+    <string>Disable data graphs (just save to disk)</string>
+   </property>
+  </widget>
+  <widget class="QGroupBox" name="acqStartEndGB" >
+   <property name="geometry" >
+    <rect>
+     <x>20</x>
+     <y>294</y>
+     <width>431</width>
+     <height>152</height>
+    </rect>
+   </property>
+   <property name="title" >
+    <string>Acquisition Start/End</string>
+   </property>
+   <widget class="QComboBox" name="acqStartEndCB" >
+    <property name="geometry" >
+     <rect>
+      <x>20</x>
+      <y>23</y>
+      <width>211</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="currentIndex" >
+     <number>0</number>
+    </property>
+    <item>
+     <property name="text" >
+      <string>Immediate Start</string>
+     </property>
+    </item>
+    <item>
+     <property name="text" >
+      <string>Photodiode Controlled Start &amp; End</string>
+     </property>
+    </item>
+    <item>
+     <property name="text" >
+      <string>Photodiode Controlled Start Only</string>
+     </property>
+    </item>
+    <item>
+     <property name="text" >
+      <string>Timed</string>
+     </property>
+    </item>
+    <item>
+     <property name="text" >
+      <string>StimulateOpenGLII Plugin Start &amp; End</string>
+     </property>
+    </item>
+    <item>
+     <property name="text" >
+      <string>StimulateOpenGLII Plugin Start Only</string>
+     </property>
+    </item>
+   </widget>
+   <widget class="QFrame" name="acqFrame" >
+    <property name="geometry" >
+     <rect>
+      <x>6</x>
+      <y>51</y>
+      <width>417</width>
+      <height>92</height>
+     </rect>
+    </property>
+    <property name="frameShape" >
+     <enum>QFrame::StyledPanel</enum>
+    </property>
+    <property name="frameShadow" >
+     <enum>QFrame::Raised</enum>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QLabel" name="aiRangeMinLbl" >
+   <property name="geometry" >
+    <rect>
+     <x>220</x>
+     <y>91</y>
+     <width>111</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>The AI Range to use for the acquisition</string>
+   </property>
+   <property name="text" >
+    <string>AI Range Min-Max:</string>
+   </property>
+   <property name="alignment" >
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="aiRangeCB" >
+   <property name="geometry" >
+    <rect>
+     <x>334</x>
+     <y>91</y>
+     <width>101</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>The AI Range to use for the acquisition</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="deviceLabel" >
+   <property name="geometry" >
+    <rect>
+     <x>21</x>
+     <y>92</y>
+     <width>59</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>The NI Device to use for the acquisition</string>
+   </property>
+   <property name="text" >
+    <string>Device:</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="deviceCB" >
+   <property name="geometry" >
+    <rect>
+     <x>76</x>
+     <y>92</y>
+     <width>121</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>The NI Device to use for the acquisition</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="doCtlLabel" >
+   <property name="geometry" >
+    <rect>
+     <x>310</x>
+     <y>59</y>
+     <width>51</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>(INTAN Mode only) The DO line to use for INTAN control</string>
+   </property>
+   <property name="text" >
+    <string>DO Ctl:</string>
+   </property>
+   <property name="alignment" >
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="doCtlCB" >
+   <property name="geometry" >
+    <rect>
+     <x>370</x>
+     <y>57</y>
+     <width>91</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>(INTAN Mode only) The DO line to use for INTAN control</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>ConfigureDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>ConfigureDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>aoPassthruGB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>aoPassthruLE</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>235</x>
+     <y>206</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>230</x>
+     <y>202</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

@@ -1,0 +1,112 @@
+<ui version="4.0" >
+ <class>AcqPDParams</class>
+ <widget class="QWidget" name="AcqPDParams" >
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>411</width>
+    <height>86</height>
+   </rect>
+  </property>
+  <property name="windowTitle" >
+   <string>Form</string>
+  </property>
+  <widget class="QCheckBox" name="pdAcqChk" >
+   <property name="geometry" >
+    <rect>
+     <x>10</x>
+     <y>39</y>
+     <width>271</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>Also save and graph this channel </string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="pdAIThreshSB" >
+   <property name="geometry" >
+    <rect>
+     <x>340</x>
+     <y>7</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="maximum" >
+    <number>65535</number>
+   </property>
+   <property name="value" >
+    <number>48000</number>
+   </property>
+  </widget>
+  <widget class="QLabel" name="pdAILabel" >
+   <property name="geometry" >
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>151</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>Photodiode AI channel:</string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="pdAISB" >
+   <property name="geometry" >
+    <rect>
+     <x>160</x>
+     <y>7</y>
+     <width>50</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="value" >
+    <number>4</number>
+   </property>
+  </widget>
+  <widget class="QLabel" name="pdAIThreshLabel" >
+   <property name="geometry" >
+    <rect>
+     <x>230</x>
+     <y>10</y>
+     <width>111</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>Threshold (int16)</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="pdPassthruAOChk" >
+   <property name="geometry" >
+    <rect>
+     <x>10</x>
+     <y>61</y>
+     <width>211</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>Also passthru this channel to AO:</string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="pdPassthruAOSB" >
+   <property name="enabled" >
+    <bool>false</bool>
+   </property>
+   <property name="geometry" >
+    <rect>
+     <x>230</x>
+     <y>60</y>
+     <width>50</width>
+     <height>22</height>
+    </rect>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

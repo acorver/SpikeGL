@@ -1,0 +1,83 @@
+<ui version="4.0" >
+ <class>AcqTimedParams</class>
+ <widget class="QWidget" name="AcqTimedParams" >
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>411</width>
+    <height>86</height>
+   </rect>
+  </property>
+  <property name="windowTitle" >
+   <string>Form</string>
+  </property>
+  <widget class="QLabel" name="acqStartLabel" >
+   <property name="geometry" >
+    <rect>
+     <x>20</x>
+     <y>16</y>
+     <width>141</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>Start time:</string>
+   </property>
+  </widget>
+  <widget class="QTimeEdit" name="acqStartTE" >
+   <property name="geometry" >
+    <rect>
+     <x>180</x>
+     <y>12</y>
+     <width>118</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="maximumDate" >
+    <date>
+     <year>2000</year>
+     <month>1</month>
+     <day>1</day>
+    </date>
+   </property>
+   <property name="displayFormat" >
+    <string>h:mm:ss AP</string>
+   </property>
+   <property name="calendarPopup" >
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="acqEndLabel" >
+   <property name="geometry" >
+    <rect>
+     <x>20</x>
+     <y>45</y>
+     <width>141</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>End time:</string>
+   </property>
+  </widget>
+  <widget class="QTimeEdit" name="acqEndTE" >
+   <property name="geometry" >
+    <rect>
+     <x>180</x>
+     <y>45</y>
+     <width>118</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="displayFormat" >
+    <string>h:mm:ss AP</string>
+   </property>
+   <property name="calendarPopup" >
+    <bool>false</bool>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
