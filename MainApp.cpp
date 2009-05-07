@@ -430,6 +430,11 @@ void MainApp::newAcq()
             QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(params.outputFile));
             return;
         }
+        if (!params.suppressGraphs) {
+            graphsWindow = new GraphsWindow(params, 0);
+            graphsWindow->show();
+            hideUnhideGraphsAct->setEnabled(true);
+        }
         task = new DAQ::Task(params, this);
         taskReadTimer = new QTimer(this);
         Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
@@ -439,11 +444,6 @@ void MainApp::newAcq()
         taskReadTimer->start(1000/TASK_READ_FREQ_HZ);
         stopAcq->setEnabled(true);
         task->start();
-        if (!params.suppressGraphs) {
-            graphsWindow = new GraphsWindow(params, 0);
-            graphsWindow->show();
-            hideUnhideGraphsAct->setEnabled(true);
-        }
         updateWindowTitles();
         Systray() << "Acquisition started";
         Status() << "Task started";
@@ -507,6 +507,7 @@ void MainApp::taskReadFunc()
     u64 firstSamp;
     int ct = 0;
     const int ctMax = 10;
+    double qFillPct;
     while (ct++ < ctMax && task->dequeueBuffer(scans, firstSamp)) {
         if (firstSamp != dataFile.sampleCount()) {
             QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree!\nAieeeee!!  Aborting acquisition!").arg(dataFile.sampleCount()).arg(firstSamp);
@@ -516,14 +517,19 @@ void MainApp::taskReadFunc()
             return;
         }
         dataFile.writeScans(scans);
-        if (graphsWindow && !graphsWindow->isHidden()) {
-            graphsWindow->putScans(scans, firstSamp);
+        qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
+        if (graphsWindow && !graphsWindow->isHidden()) {            
+            if (qFillPct > 70.0) {
+                Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
+            } else { 
+                graphsWindow->putScans(scans, firstSamp);
+            }
         }
         static double lastSBUpd = 0;
         double tNow = getTime();
 
         if (tNow-lastSBUpd > 0.25) { // every 1/4th of a second
-            Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz - " << dataFile.sampleCount() << " samples read - " << (double(task->dataQueueSize())/task->dataQueueMaxSize)*100.0 << "% buffer fill - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)";
+            Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz - " << dataFile.sampleCount() << " samples read - " << qFillPct << "% buffer fill - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)";
             lastSBUpd = tNow;
         }
     }

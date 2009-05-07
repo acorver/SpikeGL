@@ -2,4 +2,7 @@
 *.bin
 moc_*.cpp
 ui_*.h
+*.o
+LeoDAQGL
+Makefile
 

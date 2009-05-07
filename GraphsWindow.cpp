@@ -8,19 +8,6 @@
 #include "Util.h"
 #include <QCheckBox>
 
-class PointProcThread : public QThread, public SampleBufQ
-{
-public:
-    PointProcThread(GraphsWindow  & parent) : QThread(&parent), pleaseStop(false), g(parent) {}
-    ~PointProcThread() { if (!isFinished()) {pleaseStop = true; dataQCond.wakeAll();  wait();} }
-protected:
-    void run();
-    void overflowWarning();
-private:
-    volatile bool pleaseStop;
-    GraphsWindow &g;
-};
-
 GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     : QMainWindow(parent), params(p), downsampleRatio(1.), graphTimeSecs(3.0), tNow(0.), tLast(0.), tAvg(0.), tNum(0.)
 {    
@@ -54,72 +41,36 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
         }
     }
     points.resize(graphs.size());
+
+    setGraphTimeSecs(3.0);
+
     QTimer *t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateGraphs()));
     t->setSingleShot(false);
-    t->start(1000/TASK_READ_FREQ_HZ);
-    pointProcThread = new PointProcThread(*this);
-    pointProcThread->start();
-    
+    t->start(1000/TASK_READ_FREQ_HZ);    
 }
 
 GraphsWindow::~GraphsWindow()
 {
-    delete pointProcThread, pointProcThread = 0;
+}
+
+void GraphsWindow::setGraphTimeSecs(double t)
+{
+    graphTimeSecs = t;
+    npts = i64(graphTimeSecs*params.srate/downsampleRatio);
+    for (int i = 0; i < (int)points.size(); ++i) {
+        points[i].clear();
+        points[i].reserve(npts);
+        graphs[i]->setPoints(&points[i]);
+    }
 }
 
 void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
 {
-    pointProcThread->enqueueBuffer(data, firstSamp);
-}
-
-void GraphsWindow::updateGraphs()
-{
-    graphMut.lock();
-    // repaint all graphs..
-    for (int i = 0; i < (int)graphs.size(); ++i)
-        if (graphs[i]->needsUpdateGL())
-            graphs[i]->updateGL();
-    graphMut.unlock();
-}
-
-void GraphsWindow::downsampleChk(bool checked)
-{
-    if (checked) {
-        downsampleRatio = params.srate/double(DOWNSAMPLE_TARGET_HZ);
-        if (downsampleRatio < 1.) downsampleRatio = 1.;
-    } else
-        downsampleRatio = 1.;
-    graphMut.lock();
-    for (int i = 0; i < (int)graphs.size(); ++i) {
-        // clear all graphs..
-        points[i].clear();
-        graphs[i]->setPoints(&points[i]);
-    }
-    graphMut.unlock();
-}
-
-
-void PointProcThread::run()
-{
-    std::vector<int16> data;
-    u64 firstSamp = 0;
-    std::vector<GLGraph *> & graphs(g.graphs);
-    std::vector<std::vector<Vec2> > & points(g.points);
-    QMutex & graphMut (g.graphMut);
-    volatile double &tNow = g.tNow, &tLast = g.tLast, &tNum = g.tNum, &tAvg = g.tAvg;
-    
-    while (!pleaseStop) {
-        if (!dequeueBuffer(data, firstSamp, true)) {
-            continue;
-        }
-
         const int NGRAPHS (graphs.size());
-        const double DOWNSAMPLE_RATIO(g.downsampleRatio);
-        const int SRATE (g.params.srate);
-        const double graphTimeSecs(g.graphTimeSecs);
+        const double & DOWNSAMPLE_RATIO(downsampleRatio);
+        const int SRATE (params.srate);
 
-        const i64 npts = i64(graphTimeSecs*g.params.srate/DOWNSAMPLE_RATIO);
         int startpt = int(data.size()) - int(npts*NGRAPHS*DOWNSAMPLE_RATIO);
         i64 sidx = i64(firstSamp + u64(data.size())) - npts*i64(NGRAPHS*DOWNSAMPLE_RATIO);
         if (startpt < 0) {
@@ -128,8 +79,6 @@ void PointProcThread::run()
             startpt = 0;
         }
         int npergraph = int(MIN((data.size()/NGRAPHS/DOWNSAMPLE_RATIO), npts));
-
-        graphMut.lock();
 
         // for each graph, remove extra points (we limit each graph to npts)
         for (int i = 0; i < NGRAPHS; ++i) {
@@ -168,8 +117,6 @@ void PointProcThread::run()
             }
         }
         
-        graphMut.unlock();
-
         tNow = getTime();
 
         const double tDelta = tNow - tLast;
@@ -180,10 +127,24 @@ void PointProcThread::run()
             tAvg /= ++tNum;
         } 
         tLast = tNow;
-    }
 }
 
-void PointProcThread::overflowWarning()
+void GraphsWindow::updateGraphs()
 {
-    Warning() << "Graph data queue overflow! Graphs cannot update fast enough! Reduce the channel count, the number of seconds per graph, or try downsampling graphs!";   
+    // repaint all graphs..
+    for (int i = 0; i < (int)graphs.size(); ++i)
+        if (graphs[i]->needsUpdateGL())
+            graphs[i]->updateGL();
 }
+
+void GraphsWindow::downsampleChk(bool checked)
+{
+    if (checked) {
+        downsampleRatio = params.srate/double(DOWNSAMPLE_TARGET_HZ);
+        if (downsampleRatio < 1.) downsampleRatio = 1.;
+    } else
+        downsampleRatio = 1.;
+    setGraphTimeSecs(graphTimeSecs); // clear the points and reserve the right capacities.
+}
+
+
