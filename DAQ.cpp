@@ -246,13 +246,14 @@ namespace DAQ
         QFile f(fname);
         if (!f.open(QIODevice::ReadOnly)) {
             QString err = QString("Could not open %1!").arg(fname);
-            qCritical("%s", err.toUtf8().constData());
+            Error() << err;
             emit daqError(err);        
             return;
         }
         std::vector<int16> data;
+        const double onePd = int(params.srate/double(TASK_READ_FREQ_HZ));
         while (!pleaseStop) {
-            data.resize(60*1000);
+            data.resize(unsigned(params.nVAIChans*onePd));
             qint64 nread = f.read((char *)&data[0], data.size()*sizeof(int16));
             if (nread != data.size()*sizeof(int16)) {
                 f.seek(0);
@@ -263,7 +264,7 @@ namespace DAQ
       
                 totalRead += nread;
             }
-            usleep(int((1e6/29630.)*1000.));
+            usleep(int((1e6/params.srate)*onePd));
         }
     }
 
