@@ -103,7 +103,7 @@ bool DataFile::openForWrite(const DAQ::Params & dp)
     sRate = dp.srate;
     writeRateAvg = 0.;
     nWritesAvg = 0;
-    nWritesAvgMax = unsigned(sRate/10.);
+    nWritesAvgMax = /*unsigned(sRate/10.)*/10;
     if (!nWritesAvgMax) nWritesAvgMax = 1;
     params["outputFile"] = dp.outputFile;
     params["dev"] = dp.dev;

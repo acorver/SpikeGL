@@ -4,9 +4,10 @@
 #include <QMainWindow>
 #include "DAQ.h"
 #include "GLGraph.h"
-#include <vector>
 #include "TypeDefs.h"
 #include "Vec2WrapBuffer.h"
+#include <QVector>
+#include <vector>
 
 class QToolBar;
 class QLCDNumber;
@@ -31,8 +32,9 @@ private:
     QWidget *graphsWidget;
     QToolBar *graphCtls;
     QLCDNumber *chanLCD;
-    std::vector<Vec2WrapBuffer > points;
-    std::vector<GLGraph *> graphs;
+    QVector<Vec2WrapBuffer> points;
+    QVector<GLGraph *> graphs;
+
     double downsampleRatio, graphTimeSecs, tNow, tLast, tAvg, tNum;
     i64 npts;
 };

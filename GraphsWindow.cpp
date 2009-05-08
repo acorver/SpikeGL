@@ -7,7 +7,7 @@
 #include <QTimer>
 #include "Util.h"
 #include <QCheckBox>
-#include <QVarLengthArray>
+#include <QVector>
 #include <math.h>
 
 GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
@@ -85,23 +85,18 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
             if (NGRAPHS*DOWNSAMPLE_RATIO*ndiv < (int)data.size()) ndiv++;
             npergraph = int(MIN(ndiv, npts));
         }
-        QVarLengthArray<QVarLengthArray<Vec2> > tmpPts(NGRAPHS);
-        // make room!
-        for (int i = 0; i < NGRAPHS; ++i) tmpPts[i].reserve(npergraph);
 
         double t = double(double(sidx) / NGRAPHS) / double(SRATE);
         const double deltaT =  1.0/SRATE * double(DOWNSAMPLE_RATIO);
         // now, push new points to back of each graph, downsampling if need be
+        Vec2 v;
+        int idx = 0;
         for (int i = startpt; i < (int)data.size(); ++i) {
-            int idx = (sidx)%NGRAPHS;
-            Vec2 v;            
             v.x = t;
             v.y = data[i] / 32768.0; // hardcoded range of data
-            tmpPts[idx].append(v);
-//             if (tmpPts[idx].size() > npergraph) {
-//                  qWarning("Aieeee!  Guessed the size per graph wrong for graph %d! sz=%d  npergraph=%d", idx, (int)tmpPts[idx].size(), npergraph);
-//              }
-            if (!(++sidx%NGRAPHS)) {                
+            points[idx].putData(&v, 1);
+            if (!(++idx%NGRAPHS)) {                
+                idx = 0;
                 t += deltaT;
                 i = int((i-NGRAPHS) + DOWNSAMPLE_RATIO*NGRAPHS);
                 if ((i+1)%NGRAPHS) i -= (i+1)%NGRAPHS;
@@ -109,7 +104,6 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
         }
         for (int i = 0; i < NGRAPHS; ++i) {
             // now, copy in temp data
-            points[i].putData(&tmpPts[i][0], tmpPts[i].size());
             if (points[i].size() >= 2) {
                 // now, readjust x axis begin,end
                 graphs[i]->minx() = points[i].first().x;
