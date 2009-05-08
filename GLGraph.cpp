@@ -7,11 +7,14 @@
 GLGraph::GLGraph(QWidget *parent, QMutex *mut)
     : QGLWidget(parent), ptsMut(mut),
       bg_Color(0x2f, 0x4f, 0x4f), graph_Color(0xee, 0xdd, 0x82), grid_Color(0x87, 0xce, 0xfa, 0x7f),
-      nHGridLines(4), nVGridLines(4), min_x(0.), max_x(1.), auto_update(true), need_update(false)
+      nHGridLines(4), nVGridLines(4), min_x(0.), max_x(1.), 
+      gridLineStipplePattern(0xf0f0), // 4pix on 4 off 4 on 4 off
+      auto_update(true), need_update(false)
     
 {
     yscale = 1.;
-    pointsVec = 0;
+    pointsArr = 0;
+    nPts = 0;
     // setup grid points..
     gridHs.reserve(nHGridLines*2);
     for (unsigned i = 0; i < nHGridLines; ++i) {
@@ -71,7 +74,7 @@ void GLGraph::paintGL()
 
     if (ptsMut) ptsMut->lock();
 
-    if (pointsVec && pointsVec->size()) {
+    if (pointsArr && nPts) {
         glPushMatrix();
         if (fabs(max_x-min_x) > 0.) {
             glScaled(1./(max_x-min_x), yscale, 1.);
@@ -94,7 +97,7 @@ void GLGraph::drawGrid() const
     if (!wasEnabled)
         glEnable(GL_LINE_STIPPLE);
     
-    GLint savedPat(0), savedRepeat;
+    GLint savedPat(0), savedRepeat(0);
     GLfloat savedWidth;
     GLfloat savedColor[4];
     // save some values
@@ -103,12 +106,12 @@ void GLGraph::drawGrid() const
     glGetIntegerv(GL_LINE_STIPPLE_REPEAT, &savedRepeat);
     glGetFloatv(GL_LINE_WIDTH, &savedWidth);
 
-    glLineStipple(1, 0xff00); // 8 pixels on, 8 pixels off
+    glLineStipple(1, gridLineStipplePattern); 
     glLineWidth(1.f);
     glColor4f(grid_Color.redF(), grid_Color.greenF(), grid_Color.blueF(), grid_Color.alphaF());
-    glVertexPointer(2, GL_FLOAT, 0, &gridVs[0]);
+    glVertexPointer(2, GL_DOUBLE, 0, &gridVs[0]);
     glDrawArrays(GL_LINES, 0, nVGridLines*2);
-    glVertexPointer(2, GL_FLOAT, 0, &gridHs[0]);
+    glVertexPointer(2, GL_DOUBLE, 0, &gridHs[0]);
     glDrawArrays(GL_LINES, 0, nHGridLines*2);
 
     glLineStipple(1, 0xffff);
@@ -125,7 +128,7 @@ void GLGraph::drawGrid() const
 
 void GLGraph::drawPoints() const 
 {
-    const std::vector<Vec2> & pv = *pointsVec;
+    const Vec2 *pv = pointsArr;
 
     GLfloat savedColor[4];
     GLfloat savedWidth;
@@ -140,9 +143,9 @@ void GLGraph::drawPoints() const
 
     glColor4f(graph_Color.redF(), graph_Color.greenF(), graph_Color.blueF(), graph_Color.alphaF());
 
-    glVertexPointer(2, GL_DOUBLE, 0, &pv[0]);    
-    glDrawArrays(GL_LINE_STRIP, 0, pv.size());
-    //glDrawArrays(GL_POINTS, 0, pv.size());
+    glVertexPointer(2, GL_DOUBLE, 0, pv);    
+    glDrawArrays(GL_LINE_STRIP, 0, nPts);
+    //glDrawArrays(GL_POINTS, 0, nPts);
 
     // restore saved values
     glColor4f(savedColor[0], savedColor[1], savedColor[2], savedColor[3]);
@@ -150,9 +153,10 @@ void GLGraph::drawPoints() const
     glLineWidth(savedWidth);
 }
 
-void GLGraph::setPoints(const std::vector<Vec2> * pv)
+void GLGraph::setPoints(const Vec2 *vertexArray, unsigned arraySize)
 {
-    pointsVec = pv;
+    pointsArr = vertexArray;
+    nPts = arraySize;
     if (auto_update) updateGL();
     else need_update = true;
 }

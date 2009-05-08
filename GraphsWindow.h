@@ -31,9 +31,10 @@ private:
     QToolBar *graphCtls;
     QLCDNumber *chanLCD;
     std::vector<std::vector<Vec2> > points;
+    std::vector<unsigned> pointsP0;
     std::vector<GLGraph *> graphs;
     double downsampleRatio, graphTimeSecs, tNow, tLast, tAvg, tNum;
-    i64 npts;
+    i64 npts, nptsTotal;
 };
 
 

@@ -9,7 +9,7 @@
 #include <QCheckBox>
 
 GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
-    : QMainWindow(parent), params(p), downsampleRatio(1.), graphTimeSecs(3.0), tNow(0.), tLast(0.), tAvg(0.), tNum(0.)
+    : QMainWindow(parent), params(p), downsampleRatio(1.), graphTimeSecs(3.0), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), npts(0), nptsTotal(0)
 {    
     setCentralWidget(graphsWidget = new QWidget(this));
     setAttribute(Qt::WA_DeleteOnClose, false);
@@ -58,10 +58,15 @@ void GraphsWindow::setGraphTimeSecs(double t)
 {
     graphTimeSecs = t;
     npts = i64(graphTimeSecs*params.srate/downsampleRatio);
+    // the total points buffer per graph is 2x the number of points in the graph or 10 seconds, whichever is larger
+    //nptsTotal = MAX(npts * 2, i64(10.*params.srate/downsampleRatio));
+    nptsTotal = npts * 2;
+    pointsP0.resize(points.size());
     for (int i = 0; i < (int)points.size(); ++i) {
         points[i].clear();
-        points[i].reserve(npts);
-        graphs[i]->setPoints(&points[i]);
+        points[i].reserve(nptsTotal);
+        pointsP0[i] = 0;
+        graphs[i]->setPoints(0, 0);
     }
 }
 
@@ -82,12 +87,13 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
 
         // for each graph, remove extra points (we limit each graph to npts)
         for (int i = 0; i < NGRAPHS; ++i) {
-            if (points[i].size() + npergraph > npts) {
-                int n2erase = (points[i].size() + npergraph) - npts;
+            if (points[i].size() + npergraph > nptsTotal) {
+                int n2erase = /*(points[i].size() + npergraph) - npts*/ int(points[i].size())-npts;
                 if (n2erase > (int)points[i].size()) n2erase = points[i].size();
                 points[i].erase(points[i].begin(), points[i].begin() + n2erase);
+                pointsP0[i] = 0;
             }
-            if (points[i].capacity() < npts) points[i].reserve(npts);
+            if (points[i].capacity() < nptsTotal) points[i].reserve(nptsTotal);
         }
         double t = double(double(sidx) / NGRAPHS) / double(SRATE);
         const double deltaT =  1.0/SRATE * double(DOWNSAMPLE_RATIO);
@@ -108,12 +114,17 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
             }
         }
         for (int i = 0; i < NGRAPHS; ++i) {
+            int n, p0 = 0;
             // now, readjust x axis begin,end
-            if (points[i].size()) {
-                graphs[i]->minx() = points[i][0].x;
+            if ((n=points[i].size())) {
+                if (n > npts) {
+                    p0 = pointsP0[i] = points[i].size()-npts;
+                    n = npts;
+                }
+                graphs[i]->minx() = points[i][p0].x;
                 graphs[i]->maxx() = graphs[i]->minx() + graphTimeSecs;
                 // and, assign points
-                graphs[i]->setPoints(&points[i]);
+                graphs[i]->setPoints(&points[i][p0],n);
             }
         }
         

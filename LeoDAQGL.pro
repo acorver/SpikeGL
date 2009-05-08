@@ -22,5 +22,9 @@ win32 {
 }
 
 unix {
-        CONFIG += debug warn
+        CONFIG += debug warn_on 
+# Enable these for profiling!
+#        QMAKE_CFLAGS += -pg
+#        QMAKE_CXXFLAGS += -pg
+#        QMAKE_LFLAGS += -pg
 }
