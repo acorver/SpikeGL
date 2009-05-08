@@ -6,6 +6,7 @@
 #include "GLGraph.h"
 #include <vector>
 #include "TypeDefs.h"
+#include "Vec2WrapBuffer.h"
 
 class QToolBar;
 class QLCDNumber;
@@ -30,11 +31,10 @@ private:
     QWidget *graphsWidget;
     QToolBar *graphCtls;
     QLCDNumber *chanLCD;
-    std::vector<std::vector<Vec2> > points;
-    std::vector<unsigned> pointsP0;
+    std::vector<Vec2WrapBuffer > points;
     std::vector<GLGraph *> graphs;
     double downsampleRatio, graphTimeSecs, tNow, tLast, tAvg, tNum;
-    i64 npts, nptsTotal;
+    i64 npts;
 };
 
 

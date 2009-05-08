@@ -6,18 +6,7 @@
 #include <vector>
 class QMutex;
 
-struct Vec2 
-{
-    union {
-        struct {
-            double v1, v2;
-        };
-        struct {
-            double x, y;
-        };
-    };
-    Vec2() : x(0.), y(0.) {}
-};
+#include "Vec2WrapBuffer.h"
 
 class GLGraph : public QGLWidget
 {
@@ -26,7 +15,7 @@ public:
     GLGraph(QWidget *parent=0, QMutex *ptsMutex=0);
     virtual ~GLGraph();
 
-    void setPoints(const Vec2 *vertexArray, unsigned arraySize);
+    void setPoints(const Vec2WrapBuffer *pointsBuf);
 
     QColor & bgColor() { return bg_Color; }
     QColor & graphColor() { return graph_Color; }
@@ -59,8 +48,7 @@ private:
     unsigned nHGridLines, nVGridLines;
     double min_x, max_x, yscale;
     unsigned short gridLineStipplePattern;
-    const Vec2 *pointsArr;
-    unsigned nPts;
+    const Vec2WrapBuffer *pointsWB;
     std::vector<Vec2> gridVs, gridHs;
     bool auto_update, need_update;
 };

@@ -8,8 +8,8 @@ DEPENDPATH += .
 INCLUDEPATH += .
 
 # Input
-HEADERS += LeoDAQGL.h DataFile.h Params.h sha1.h Util.h TypeDefs.h ConsoleWindow.h MainApp.h Version.h ConfigureDialogController.h DAQ.h GraphsWindow.h GLGraph.h SampleBufQ.h
-SOURCES += DataFile.cpp osdep.cpp Params.cpp sha1.cpp Util.cpp MainApp.cpp ConsoleWindow.cpp main.cpp ConfigureDialogController.cpp DAQ.cpp GraphsWindow.cpp GLGraph.cpp SampleBufQ.cpp
+HEADERS += LeoDAQGL.h DataFile.h Params.h sha1.h Util.h TypeDefs.h ConsoleWindow.h MainApp.h Version.h ConfigureDialogController.h DAQ.h GraphsWindow.h GLGraph.h SampleBufQ.h Vec2.h WrapBuffer.h Vec2WrapBuffer.h
+SOURCES += DataFile.cpp osdep.cpp Params.cpp sha1.cpp Util.cpp MainApp.cpp ConsoleWindow.cpp main.cpp ConfigureDialogController.cpp DAQ.cpp GraphsWindow.cpp GLGraph.cpp SampleBufQ.cpp WrapBuffer.cpp
 
 FORMS += ConfigureDialog.ui AcqPDParams.ui AcqTimedParams.ui
 

@@ -7,9 +7,11 @@
 #include <QTimer>
 #include "Util.h"
 #include <QCheckBox>
+#include <QVarLengthArray>
+#include <math.h>
 
 GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
-    : QMainWindow(parent), params(p), downsampleRatio(1.), graphTimeSecs(3.0), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), npts(0), nptsTotal(0)
+    : QMainWindow(parent), params(p), downsampleRatio(1.), graphTimeSecs(3.0), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), npts(0)
 {    
     setCentralWidget(graphsWidget = new QWidget(this));
     setAttribute(Qt::WA_DeleteOnClose, false);
@@ -57,23 +59,17 @@ GraphsWindow::~GraphsWindow()
 void GraphsWindow::setGraphTimeSecs(double t)
 {
     graphTimeSecs = t;
-    npts = i64(graphTimeSecs*params.srate/downsampleRatio);
-    // the total points buffer per graph is 2x the number of points in the graph or 10 seconds, whichever is larger
-    //nptsTotal = MAX(npts * 2, i64(10.*params.srate/downsampleRatio));
-    nptsTotal = npts * 2;
-    pointsP0.resize(points.size());
+    npts = i64(ceil(graphTimeSecs*params.srate/downsampleRatio));
     for (int i = 0; i < (int)points.size(); ++i) {
-        points[i].clear();
-        points[i].reserve(nptsTotal);
-        pointsP0[i] = 0;
-        graphs[i]->setPoints(0, 0);
+        points[i].reserve(npts);
+        graphs[i]->setPoints(0);
     }
 }
 
 void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
 {
         const int NGRAPHS (graphs.size());
-        const double & DOWNSAMPLE_RATIO(downsampleRatio);
+        const int DOWNSAMPLE_RATIO((int)downsampleRatio);
         const int SRATE (params.srate);
 
         int startpt = int(data.size()) - int(npts*NGRAPHS*DOWNSAMPLE_RATIO);
@@ -83,30 +79,28 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
             sidx += -startpt;
             startpt = 0;
         }
-        int npergraph = int(MIN((data.size()/NGRAPHS/DOWNSAMPLE_RATIO), npts));
-
-        // for each graph, remove extra points (we limit each graph to npts)
-        for (int i = 0; i < NGRAPHS; ++i) {
-            if (points[i].size() + npergraph > nptsTotal) {
-                int n2erase = /*(points[i].size() + npergraph) - npts*/ int(points[i].size())-npts;
-                if (n2erase > (int)points[i].size()) n2erase = points[i].size();
-                points[i].erase(points[i].begin(), points[i].begin() + n2erase);
-                pointsP0[i] = 0;
-            }
-            if (points[i].capacity() < nptsTotal) points[i].reserve(nptsTotal);
+        int npergraph;
+        {
+            int ndiv = int(data.size()/NGRAPHS/DOWNSAMPLE_RATIO);
+            if (NGRAPHS*DOWNSAMPLE_RATIO*ndiv < (int)data.size()) ndiv++;
+            npergraph = int(MIN(ndiv, npts));
         }
+        QVarLengthArray<QVarLengthArray<Vec2> > tmpPts(NGRAPHS);
+        // make room!
+        for (int i = 0; i < NGRAPHS; ++i) tmpPts[i].reserve(npergraph);
+
         double t = double(double(sidx) / NGRAPHS) / double(SRATE);
         const double deltaT =  1.0/SRATE * double(DOWNSAMPLE_RATIO);
         // now, push new points to back of each graph, downsampling if need be
         for (int i = startpt; i < (int)data.size(); ++i) {
             int idx = (sidx)%NGRAPHS;
-            std::vector<Vec2> & pts (points[idx]);
-            unsigned oldsize = pts.size();
-            pts.resize(oldsize+1);
-            
-            Vec2 & v (pts[oldsize]);
+            Vec2 v;            
             v.x = t;
             v.y = data[i] / 32768.0; // hardcoded range of data
+            tmpPts[idx].append(v);
+//             if (tmpPts[idx].size() > npergraph) {
+//                  qWarning("Aieeee!  Guessed the size per graph wrong for graph %d! sz=%d  npergraph=%d", idx, (int)tmpPts[idx].size(), npergraph);
+//              }
             if (!(++sidx%NGRAPHS)) {                
                 t += deltaT;
                 i = int((i-NGRAPHS) + DOWNSAMPLE_RATIO*NGRAPHS);
@@ -114,18 +108,18 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
             }
         }
         for (int i = 0; i < NGRAPHS; ++i) {
-            int n, p0 = 0;
-            // now, readjust x axis begin,end
-            if ((n=points[i].size())) {
-                if (n > npts) {
-                    p0 = pointsP0[i] = points[i].size()-npts;
-                    n = npts;
-                }
-                graphs[i]->minx() = points[i][p0].x;
+            // now, copy in temp data
+            points[i].putData(&tmpPts[i][0], tmpPts[i].size());
+            if (points[i].size() >= 2) {
+                // now, readjust x axis begin,end
+                graphs[i]->minx() = points[i].first().x;
                 graphs[i]->maxx() = graphs[i]->minx() + graphTimeSecs;
-                // and, assign points
-                graphs[i]->setPoints(&points[i][p0],n);
-            }
+                // uncomment below 2 line if the empty gap at the end of the downsampled graph annoys you, or comment them out to remove this 'feature'
+                //if (!points[i].unusedCapacity())
+                //    graphs[i]->maxx() = points[i].last().x;
+            } 
+            // and, notify graph of new points
+            graphs[i]->setPoints(&points[i]);
         }
         
         tNow = getTime();

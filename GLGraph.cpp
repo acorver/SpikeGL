@@ -13,8 +13,7 @@ GLGraph::GLGraph(QWidget *parent, QMutex *mut)
     
 {
     yscale = 1.;
-    pointsArr = 0;
-    nPts = 0;
+    pointsWB = 0;
     // setup grid points..
     gridHs.reserve(nHGridLines*2);
     for (unsigned i = 0; i < nHGridLines; ++i) {
@@ -74,7 +73,7 @@ void GLGraph::paintGL()
 
     if (ptsMut) ptsMut->lock();
 
-    if (pointsArr && nPts) {
+    if (pointsWB && pointsWB->size()) {
         glPushMatrix();
         if (fabs(max_x-min_x) > 0.) {
             glScaled(1./(max_x-min_x), yscale, 1.);
@@ -128,7 +127,11 @@ void GLGraph::drawGrid() const
 
 void GLGraph::drawPoints() const 
 {
-    const Vec2 *pv = pointsArr;
+    const Vec2 *pv1(0), *pv2(0);
+    unsigned l1(0), l2(0);
+    
+    pointsWB->dataPtr1((Vec2 *&)pv1, l1);
+    pointsWB->dataPtr2((Vec2 *&)pv2, l2);
 
     GLfloat savedColor[4];
     GLfloat savedWidth;
@@ -143,8 +146,24 @@ void GLGraph::drawPoints() const
 
     glColor4f(graph_Color.redF(), graph_Color.greenF(), graph_Color.blueF(), graph_Color.alphaF());
 
-    glVertexPointer(2, GL_DOUBLE, 0, pv);    
-    glDrawArrays(GL_LINE_STRIP, 0, nPts);
+    if (l1 > 1) {
+        glVertexPointer(2, GL_DOUBLE, 0, pv1);
+        glDrawArrays(GL_LINE_STRIP, 0, l1);
+    }
+    if (pv2 && l2 > 1) {
+            glVertexPointer(2, GL_DOUBLE, 0, pv2);
+            glDrawArrays(GL_LINE_STRIP, 0, l2);
+            if (l1 > 1) {
+                // now, draw the connecting line between the 2 groups..
+                GLdouble cv[] = {
+                    pv1[l1-1].x, pv1[l1-1].y,
+                    pv2[0].x, pv2[0].y
+                };
+                glVertexPointer(2, GL_DOUBLE, 0, cv);
+                glDrawArrays(GL_LINES, 0, 2);
+            }
+    }
+    
     //glDrawArrays(GL_POINTS, 0, nPts);
 
     // restore saved values
@@ -153,10 +172,9 @@ void GLGraph::drawPoints() const
     glLineWidth(savedWidth);
 }
 
-void GLGraph::setPoints(const Vec2 *vertexArray, unsigned arraySize)
+void GLGraph::setPoints(const Vec2WrapBuffer *va)
 {
-    pointsArr = vertexArray;
-    nPts = arraySize;
+    pointsWB = va;
     if (auto_update) updateGL();
     else need_update = true;
 }
