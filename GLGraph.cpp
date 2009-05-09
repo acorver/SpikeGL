@@ -9,33 +9,17 @@
 GLGraph::GLGraph(QWidget *parent, QMutex *mut)
     : QGLWidget(parent), ptsMut(mut),
       bg_Color(0x2f, 0x4f, 0x4f), graph_Color(0xee, 0xdd, 0x82), grid_Color(0x87, 0xce, 0xfa, 0x7f),
-      nHGridLines(4), nVGridLines(4), min_x(0.), max_x(1.), 
+      min_x(0.), max_x(1.), 
       gridLineStipplePattern(0xf0f0), // 4pix on 4 off 4 on 4 off
       auto_update(true), need_update(false)
     
 {
     yscale = 1.;
     pointsWB = 0;
-    // setup grid points..
-    gridHs.reserve(nHGridLines*2);
-    for (unsigned i = 0; i < nHGridLines; ++i) {
-        Vec2 v;
-        v.x = 0.f;
-        v.y = double(i)/double(nHGridLines) * 2.0f - 1.0f;
-        gridHs.push_back(v);         
-        v.x = 1.f;
-        gridHs.push_back(v);         
-    }
-
-    gridVs.reserve(nVGridLines*2);
-    for (unsigned i = 0; i < nVGridLines; ++i) {
-        Vec2 v;
-        v.x = double(i)/double(nVGridLines);
-        v.y = -1.f;
-        gridVs.push_back(v);         
-        v.y = 1.f;
-        gridVs.push_back(v);                 
-    }
+    auto_update = false;
+    setNumHGridLines(4);
+    setNumVGridLines(4);
+    auto_update = true;
 
     setAutoBufferSwap(true);
 }
@@ -174,11 +158,54 @@ void GLGraph::drawPoints() const
     glLineWidth(savedWidth);
 }
 
+void GLGraph::setNumHGridLines(unsigned n)
+{
+    nHGridLines = n;
+    // setup grid points..
+    gridHs.clear();
+    gridHs.reserve(nHGridLines*2);
+    for (unsigned i = 0; i < nHGridLines; ++i) {
+        Vec2 v;
+        v.x = 0.f;
+        v.y = double(i)/double(nHGridLines) * 2.0f - 1.0f;
+        gridHs.push_back(v);         
+        v.x = 1.f;
+        gridHs.push_back(v);         
+    }
+    if (auto_update) updateGL();
+    else need_update = true;    
+}
+
+void GLGraph::setNumVGridLines(unsigned n)
+{
+    nVGridLines = n;
+    // setup grid points..
+    gridVs.clear();
+    gridVs.reserve(nVGridLines*2);
+    for (unsigned i = 0; i < nVGridLines; ++i) {
+        Vec2 v;
+        v.x = double(i)/double(nVGridLines);
+        v.y = -1.f;
+        gridVs.push_back(v);         
+        v.y = 1.f;
+        gridVs.push_back(v);                 
+    }
+    if (auto_update) updateGL();
+    else need_update = true;
+}
+
 void GLGraph::setPoints(const Vec2WrapBuffer *va)
 {
     pointsWB = va;
     if (auto_update) updateGL();
     else need_update = true;
+}
+
+void GLGraph::setYScale(double d)
+{
+    yscale = d;
+    if (auto_update) updateGL();
+    else need_update = true;    
 }
 
 void GLGraph::mouseMoveEvent(QMouseEvent *evt)
@@ -205,7 +232,7 @@ Vec2 GLGraph::pos2Vec(const QPoint & pos)
     ret.x = double(pos.x())/width();
     // invert Y
     int y = height()-pos.y();
-    ret.y = double(y)/height()*2.-1.;
+    ret.y = (double(y)/height()*2.-1.)/yscale;
     ret.x = (ret.x * (maxx()-minx()))+minx();
     return ret;
 }

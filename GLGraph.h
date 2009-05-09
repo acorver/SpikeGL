@@ -24,7 +24,14 @@ public:
     double & minx() { return min_x; }
     double & maxx() { return max_x; }
 
-    double & yScale() { return yscale; }
+    double yScale() const { return yscale; }
+    void setYScale(double);
+
+    unsigned numVGridLines() const { return nVGridLines; }
+    void setNumVGridLines(unsigned);
+
+    unsigned numHGridLines() const { return nHGridLines; }
+    void setNumHGridLines(unsigned);
 
     unsigned short & gridLineStipple() { return gridLineStipplePattern; }
 

@@ -16,5 +16,6 @@
 #define TASK_READ_FREQ_HZ 10
 #define APPNAME "LeoDAQGL"
 #define DOWNSAMPLE_TARGET_HZ 1000
+#define DEFAULT_GRAPH_TIME_SECS 3.0
 
 #endif
