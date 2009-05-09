@@ -165,6 +165,11 @@ void MainApp::processKey(QKeyEvent *event)
         hideUnhideConsoleAct->trigger();
         event->accept();
         break;
+    case 'g':
+    case 'G':
+        hideUnhideGraphsAct->trigger();
+        event->accept();
+        break;
     }
 }
 
@@ -175,7 +180,7 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
         // globally forward all keypresses
         // if they aren't handled, then return false for normal event prop.
         QKeyEvent *k = dynamic_cast<QKeyEvent *>(event);
-        if (k && (watched == consoleWindow || watched == consoleWindow->textEdit())) {
+        if (k && (watched == graphsWindow || watched == consoleWindow || watched == consoleWindow->textEdit())) {
             processKey(k);
             if (k->isAccepted()) {
                 return true;
@@ -382,6 +387,7 @@ void MainApp::hideUnhideGraphs()
 {
     if (graphsWindow) {
         if (graphsWindow->isHidden()) {
+            graphsWindow->clearGraph(-1);
             graphsWindow->show();
         } else {
             bool hadfocus = ( focusWidget() == graphsWindow );
@@ -432,8 +438,10 @@ void MainApp::newAcq()
         }
         if (!params.suppressGraphs) {
             graphsWindow = new GraphsWindow(params, 0);
+            graphsWindow->setWindowIcon(appIcon);
             graphsWindow->show();
             hideUnhideGraphsAct->setEnabled(true);
+            graphsWindow->installEventFilter(this);
         }
         task = new DAQ::Task(params, this);
         taskReadTimer = new QTimer(this);

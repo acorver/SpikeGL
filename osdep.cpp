@@ -60,15 +60,18 @@ void setRTPriority()
 double getTime()
 {
     static __int64 freq = 0;
-    static __int64 t0 = 0;
+    static double t0 = -1.;
     __int64 ct;
 
     if (!freq) {
         QueryPerformanceFrequency((LARGE_INTEGER *)&freq);
     }
-    QueryPerformanceCounter((LARGE_INTEGER *)&ct);   // reads the current time (in system units)
-    if (!t0) t0 = ct;
-    return double(ct-t0) / double(freq);
+    QueryPerformanceCounter((LARGE_INTEGER *)&ct);   // reads the current time (in system units)    
+    double t = double(ct)/double(freq);
+    if (t0 < 0.) {
+        t0 = t;
+    }
+    return t-t0;
 }
 
 #elif defined(Q_OS_LINUX)

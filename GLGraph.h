@@ -33,11 +33,21 @@ public:
 
     bool needsUpdateGL() const { return need_update; }
 
-    
+signals:    
+    // for all the below: x is a time value, y is a graph Y-pos in range [-1,1]
+    void cursorOver(double x, double y); 
+    void clicked(double x, double y);
+    void doubleClicked(double x, double y);
+
 protected:
     void initializeGL();
     void resizeGL(int w, int h);
     void paintGL();
+
+    Vec2 pos2Vec(const QPoint & pos);
+    void mouseMoveEvent(QMouseEvent *evt);
+    void mousePressEvent(QMouseEvent *evt);
+    void mouseDoubleClickEvent(QMouseEvent *evt);
 
 private:
     void drawGrid() const;

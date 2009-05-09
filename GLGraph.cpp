@@ -3,6 +3,8 @@
 #include <QPainter>
 #include <math.h>
 #include <QMutex>
+#include <QPoint>
+#include <QMouseEvent>
 
 GLGraph::GLGraph(QWidget *parent, QMutex *mut)
     : QGLWidget(parent), ptsMut(mut),
@@ -179,3 +181,31 @@ void GLGraph::setPoints(const Vec2WrapBuffer *va)
     else need_update = true;
 }
 
+void GLGraph::mouseMoveEvent(QMouseEvent *evt)
+{
+    Vec2 v(pos2Vec(evt->pos()));
+    emit(cursorOver(v.x,v.y));
+}
+
+void GLGraph::mousePressEvent(QMouseEvent *evt)
+{
+    Vec2 v(pos2Vec(evt->pos()));
+    emit(clicked(v.x,v.y));
+}
+
+void GLGraph::mouseDoubleClickEvent(QMouseEvent *evt)
+{
+    Vec2 v(pos2Vec(evt->pos()));
+    emit(doubleClicked(v.x,v.y));
+}
+
+Vec2 GLGraph::pos2Vec(const QPoint & pos)
+{
+    Vec2 ret;
+    ret.x = double(pos.x())/width();
+    // invert Y
+    int y = height()-pos.y();
+    ret.y = double(y)/height()*2.-1.;
+    ret.x = (ret.x * (maxx()-minx()))+minx();
+    return ret;
+}
