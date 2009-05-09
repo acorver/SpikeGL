@@ -2,14 +2,22 @@
 #include <string.h>
 
 WrapBuffer::WrapBuffer(unsigned theSize)
+    : buf(0), bufsz(0)
 {
     reserve(theSize);
 }
 
+WrapBuffer::~WrapBuffer()
+{
+    delete [] buf;
+    buf = 0;
+}
+
 void WrapBuffer::reserve(unsigned newSize)
 {
-    if (!newSize) buf.clear();
-    else buf.resize(newSize);
+    delete[] buf; buf = 0;
+    if (newSize) buf = new char[newSize];
+    bufsz = newSize;
     len = head = 0;
 }
 

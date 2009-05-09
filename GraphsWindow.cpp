@@ -112,9 +112,14 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
         const int NGRAPHS (graphs.size());
         const int DOWNSAMPLE_RATIO((int)downsampleRatio);
         const int SRATE (params.srate);
+        // avoid some operator[] and others..
+        const int DSIZE = data.size();
+        const int16 * const DPTR = &data[0];
+        const bool * const pgraphs = &pausedGraphs[0];
+        Vec2WrapBuffer * const pts = &points[0];
 
-        int startpt = int(data.size()) - int(npts*NGRAPHS*DOWNSAMPLE_RATIO);
-        i64 sidx = i64(firstSamp + u64(data.size())) - npts*i64(NGRAPHS*DOWNSAMPLE_RATIO);
+        int startpt = int(DSIZE) - int(npts*NGRAPHS*DOWNSAMPLE_RATIO);
+        i64 sidx = i64(firstSamp + u64(DSIZE)) - npts*i64(NGRAPHS*DOWNSAMPLE_RATIO);
         if (startpt < 0) {
             //qDebug("Startpt < 0 = %d", startpt);
             sidx += -startpt;
@@ -122,8 +127,8 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
         }
         int npergraph;
         {
-            int ndiv = int(data.size()/NGRAPHS/DOWNSAMPLE_RATIO);
-            if (NGRAPHS*DOWNSAMPLE_RATIO*ndiv < (int)data.size()) ndiv++;
+            int ndiv = int(DSIZE/NGRAPHS/DOWNSAMPLE_RATIO);
+            if (NGRAPHS*DOWNSAMPLE_RATIO*ndiv < DSIZE) ndiv++;
             npergraph = int(MIN(ndiv, npts));
         }
 
@@ -132,12 +137,13 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
         // now, push new points to back of each graph, downsampling if need be
         Vec2 v;
         int idx = 0;
-        int maximizedIdx = (maximized ? maximized->objectName().mid(8).toInt() : -1);
-        for (int i = startpt; i < (int)data.size(); ++i) {
+        const int maximizedIdx = (maximized ? maximized->objectName().mid(8).toInt() : -1);
+
+        for (int i = startpt; i < DSIZE; ++i) {
             v.x = t;
-            v.y = data[i] / 32768.0; // hardcoded range of data
-            if (!pausedGraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx))
-                points[idx].putData(&v, 1);
+            v.y = DPTR[i] / 32768.0; // hardcoded range of data
+            if (!pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx))
+                pts[idx].putData(&v, 1);
             if (!(++idx%NGRAPHS)) {                
                 idx = 0;
                 t += deltaT;
@@ -146,18 +152,18 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
             }
         }
         for (int i = 0; i < NGRAPHS; ++i) {
-            if (pausedGraphs[i]) continue;
+            if (pgraphs[i]) continue;
             // now, copy in temp data
-            if (points[i].size() >= 2) {
+            if (pts[i].size() >= 2) {
                 // now, readjust x axis begin,end
-                graphs[i]->minx() = points[i].first().x;
+                graphs[i]->minx() = pts[i].first().x;
                 graphs[i]->maxx() = graphs[i]->minx() + graphTimeSecs;
                 // uncomment below 2 line if the empty gap at the end of the downsampled graph annoys you, or comment them out to remove this 'feature'
                 //if (!points[i].unusedCapacity())
                 //    graphs[i]->maxx() = points[i].last().x;
             } 
             // and, notify graph of new points
-            graphs[i]->setPoints(&points[i]);
+            graphs[i]->setPoints(&pts[i]);
         }
         
         tNow = getTime();

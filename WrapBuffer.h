@@ -1,17 +1,16 @@
 #ifndef WrapBuffer_H
 #define WrapBuffer_H
 
-#include <vector>
-
 /// essentially a ring-buffer but it clobbers old data as you add new data.
 class WrapBuffer
 {
 public:
     WrapBuffer(unsigned size = 0); // initializes a wrapbuffer of size 0!
+    ~WrapBuffer();
 
     /// invalidates (clears) old data if reserve is called!
     void reserve(unsigned newSize);
-    unsigned capacity() const { return buf.size(); } ///< the capacity of the buffer in bytes
+    unsigned capacity() const { return bufsz; } ///< the capacity of the buffer in bytes
     void clear() { head = len = 0; }
 
     unsigned size() const { return len; } ///< the size in bytes of real valid data in the buffer.. tops off at size() bytes
@@ -29,7 +28,8 @@ public:
     void dataPtr2(void * & ptr, unsigned & lenBytes) const;
 
 private:
-    std::vector<char> buf;
+    char *buf;  
+    unsigned bufsz;
     int head, len; ///< head of buffer (first index) and length in bytes
 };
 
