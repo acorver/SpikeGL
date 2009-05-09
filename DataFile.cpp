@@ -74,8 +74,8 @@ bool DataFile::writeScans(const std::vector<int16> & scans)
     tWrite = getTime() - tWrite;
 
     // update write speed..
-    writeRateAvg = (writeRateAvg*nWritesAvg+(n2Write/tWrite))/double(++nWritesAvg);
-    if (nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;
+    writeRateAvg = (writeRateAvg*nWritesAvg+(n2Write/tWrite))/double(nWritesAvg+1);
+    if (++nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;
 
     return true;
 }
