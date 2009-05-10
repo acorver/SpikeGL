@@ -111,6 +111,8 @@ public slots:
     bool maybeCloseCurrentIfRunning();
 
     void updateWindowTitles();
+
+    void verifySha1();
    
 protected slots:
     /// Called from a timer every ~250 ms to update the status bar at the bottom of the console window
@@ -119,6 +121,10 @@ protected slots:
     void gotBufferOverrun();
     void gotDaqError(const QString & e);
     void taskReadFunc(); ///< called from a timer at 30Hz
+
+    void sha1VerifySuccess();
+    void sha1VerifyFailure();
+    void sha1VerifyCancel();
 
 private:
     /// Display a message to the status bar
@@ -158,7 +164,7 @@ public:
 /// Main application actions!
     QAction 
         *quitAct, *toggleDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
-        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq;
+        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon;

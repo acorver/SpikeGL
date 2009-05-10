@@ -27,6 +27,7 @@
 #include "Icon.xpm"
 #include "ConfigureDialogController.h"
 #include "GraphsWindow.h"
+#include "Sha1VerifyTask.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -423,6 +424,9 @@ void MainApp::initActions()
     Connect( stopAcq = new QAction("Stop Running Acquisition", this),
              SIGNAL(triggered()), this, SLOT(maybeCloseCurrentIfRunning()) );
     stopAcq->setEnabled(false);
+
+    Connect( verifySha1Act = new QAction("Verify SHA1...", this),
+             SIGNAL(triggered()), this, SLOT(verifySha1()) );
 }
 
 void MainApp::newAcq() 
@@ -436,12 +440,14 @@ void MainApp::newAcq()
             QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(params.outputFile));
             return;
         }
+        graphsWindow = new GraphsWindow(params, 0);
+        graphsWindow->setWindowIcon(appIcon);
+        hideUnhideGraphsAct->setEnabled(true);
+        graphsWindow->installEventFilter(this);
         if (!params.suppressGraphs) {
-            graphsWindow = new GraphsWindow(params, 0);
-            graphsWindow->setWindowIcon(appIcon);
             graphsWindow->show();
-            hideUnhideGraphsAct->setEnabled(true);
-            graphsWindow->installEventFilter(this);
+        } else {
+            graphsWindow->hide();
         }
         task = new DAQ::Task(params, this);
         taskReadTimer = new QTimer(this);
@@ -470,13 +476,11 @@ void MainApp::maybeQuit()
 
 void MainApp::stopTask()
 {
-    if (task) delete task;  
-    if (taskReadTimer) delete taskReadTimer;
-    if (graphsWindow) delete graphsWindow;
-    graphsWindow = 0;
+    if (!task) return;
+    delete task, task = 0;  
+    if (taskReadTimer) delete taskReadTimer, taskReadTimer = 0;
+    if (graphsWindow) delete graphsWindow, graphsWindow = 0;
     hideUnhideGraphsAct->setEnabled(false);
-    task = 0;
-    taskReadTimer = 0;
     Log() << "Task " << dataFile.fileName() << " stopped.";
     Status() << "Task stopped.";
     dataFile.closeAndFinalize();
@@ -558,4 +562,72 @@ void MainApp::updateWindowTitles()
         tit = QString(APPNAME) + " Graphs - " + stat;
         graphsWindow->setWindowTitle(tit);
     }
+}
+
+void MainApp::verifySha1()
+{
+    QString dataFile = QFileDialog::getOpenFileName ( consoleWindow, "Select data file for SHA1 verification", outputDirectory());
+    if (dataFile.isNull()) return;
+    QFileInfo pickedFI(dataFile);
+    Params p;
+
+
+    if (pickedFI.suffix() != "meta") {
+        pickedFI.setFile(pickedFI.path() + "/" + pickedFI.completeBaseName() + ".meta");
+    } else {
+        dataFile = ""; 
+    }
+    if (!pickedFI.exists()) {
+        QMessageBox::critical(consoleWindow, ".meta file does not exist!", "SHA1 verification requires the meta-file for the data file to exist.\n`" + pickedFI.fileName() + "' does not exist or is not readable!");
+        return;
+    }
+    if (!p.fromFile(pickedFI.filePath())) {
+        QMessageBox::critical(consoleWindow, pickedFI.fileName() + " could nto be read!", "SHA1 verification requires the meta-file for the data file to exist.\n`" + pickedFI.fileName() + "' could not be read!");
+        return;
+    }
+    if (!dataFile.length()) dataFile = p["outputFile"].toString();
+    
+    // now, spawn a new thread for the task..
+    Sha1VerifyTask *task = new Sha1VerifyTask(dataFile, p, this);
+    Connect(task, SIGNAL(success()), this, SLOT(sha1VerifySuccess()));
+    Connect(task, SIGNAL(failure()), this, SLOT(sha1VerifyFailure()));
+    Connect(task, SIGNAL(canceled()), this, SLOT(sha1VerifyCancel()));
+    task->start();
+}
+
+void MainApp::sha1VerifySuccess()
+{
+    Sha1VerifyTask *task = dynamic_cast<Sha1VerifyTask *>(sender());
+    QString fn;
+    if (task) fn = task->dataFileNameShort;    
+    QString str = fn + " SHA1 sum verified ok!";
+    QMessageBox::information(consoleWindow, fn + " verified", str);
+    Log() << str;
+    if (task) delete task;
+    else Error() << "sha1VerifySuccess error, no task!";
+}
+
+void MainApp::sha1VerifyFailure()
+{
+    Sha1VerifyTask *task = dynamic_cast<Sha1VerifyTask *>(sender());
+    QString err;
+    if (task) err = task->extendedError;
+    QString fn;
+    if (task) fn = task->dataFileNameShort;    
+    QString str = fn + " verify error:\n" + err;
+    QMessageBox::warning(consoleWindow, fn + " verify error", str);
+    Warning() << str;
+    if (task) delete task;
+    else Error() << "sha1VerifyFailure error, no task!";
+}
+
+void MainApp::sha1VerifyCancel()
+{
+    Sha1VerifyTask *task = dynamic_cast<Sha1VerifyTask *>(sender());
+    QString fn;
+    if (task) fn = task->dataFileNameShort;    
+    QString str = fn + " SHA1 verify canceled.";
+    Log() << str;
+    if (task) delete task;
+    else Error() << "sha1VerifyCancel error, no task!";
 }
