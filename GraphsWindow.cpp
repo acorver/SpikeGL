@@ -110,6 +110,9 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
             QFrame *f = graphFrames[num] = new QFrame(graphsWidget);
             QVBoxLayout *bl = new QVBoxLayout(f);
             graphs[num] = new GLGraph(f);
+            // do this for all the graphs.. disable vsync!
+            graphs[num]->makeCurrent();
+            Util::setVSyncMode(false, num == 0);
             bl->addWidget(graphs[num]);
             bl->setSpacing(0);
             bl->setContentsMargins(0,0,0,0);

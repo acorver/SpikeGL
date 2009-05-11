@@ -71,6 +71,13 @@ extern void setRTPriority();
 /// returns the filename without the last extension component, if any
 extern QString baseName(const QString &fname);
 
+/// Enable/disable vertical sync in OpenGL.  Defaults to on on Windows, 
+/// off on Linux. Make sure the GL context is current when you call this!
+extern void setVSyncMode(bool onoff, bool printToLog = false);
+
+/// Returns true if the implementation has the named extension.
+extern bool hasExt(const char *ext_name);
+
 /// Super class of Debug, Warning, Error classes.  
 class Log 
 {

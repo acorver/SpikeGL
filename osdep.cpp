@@ -231,4 +231,137 @@ unsigned  setCurrentThreadAffinityMask(unsigned mask)
 }
 #endif
 
+
+static const GLubyte *strChr(const GLubyte * str, GLubyte ch)
+{
+    while (str && *str && *str != ch) ++str;
+    return str;
 }
+
+static const char *gl_error_str(GLenum err)
+{
+    static char unkbuf[64];
+    switch(err) {
+    case GL_INVALID_OPERATION:
+        return "Invalid Operation";
+    case GL_INVALID_ENUM:
+        return "Invalid Enum";
+    case GL_NO_ERROR:
+        return "No Error";
+    case GL_INVALID_VALUE:
+        return "Invalid Value";
+    case GL_OUT_OF_MEMORY:
+        return "Out of Memory";
+    case GL_STACK_OVERFLOW:
+        return "Stack Overflow";
+    case GL_STACK_UNDERFLOW:
+        return "Stack Underflow";
+    default:
+        qsnprintf(unkbuf, sizeof(unkbuf), "UNKNOWN: %d", (int)err);
+        return unkbuf;
+    }
+    return 0; // not reached
+}
+
+bool hasExt(const char *ext_name)
+{
+    static const GLubyte * ext_str = 0;
+#ifdef Q_WS_X11
+    static const char *glx_exts = 0;
+#endif
+    static const GLubyte space = static_cast<GLubyte>(' ');
+    if (!ext_str) 
+        ext_str = glGetString(GL_EXTENSIONS);
+    if (!ext_str) {
+        Warning() << "Argh! Could not get GL_EXTENSIONS! (" << gl_error_str(glGetError()) << ")";
+    } else {
+        const GLubyte *cur, *prev, *s1;
+        const char *s2;
+        // loop through all space-delimited strings..
+        for (prev = ext_str, cur = strChr(prev+1, space); *prev; prev = cur+1, cur = strChr(prev, space)) {
+            // compare strings
+            for (s1 = prev, s2 = ext_name; *s1 && *s2 && *s1 == *s2 && s1 < cur; ++s1, ++s2)
+                ;
+            if (*s1 == *s2 || (!*s2 && *s1 == space)) return true; // voila! found it!
+        }
+    }
+
+#ifdef Q_WS_X11
+    if (!glx_exts) {
+     // nope.. not a standard gl extension.. try glx_exts
+     Display *dis;
+     int screen;
+
+     dis = XOpenDisplay((char *)0);
+     if (dis) {
+         screen = DefaultScreen(dis);
+         const char * glx_exts_tmp = glXQueryExtensionsString(dis, screen);
+         if (glx_exts_tmp)
+             glx_exts = strdup(glx_exts_tmp);
+         XCloseDisplay(dis);
+     }
+    }
+     if (glx_exts) {
+         const char *prev, *cur, *s1, *s2; 
+         const char space = ' ';
+         // loop through all space-delimited strings..
+         for (prev = glx_exts, cur = strchr(prev+1, space); *prev; prev = cur+1, cur = strchr(prev, space)) {
+        // compare strings
+             for (s1 = prev, s2 = ext_name; *s1 && *s2 && *s1 == *s2 && s1 < cur; ++s1, ++s2)
+            ;
+             if (*s1 == *s2 ||  (!*s2 && *s1 == space)) return true; // voila! found it!
+         }
+     }
+#endif
+    return false;
+}
+
+#ifdef Q_WS_X11
+void setVSyncMode(bool onoff, bool prt)
+{
+    if (hasExt("GLX_SGI_swap_control")) {
+        if (prt)
+            Log() << "Found `swap_control' GLX-extension, turning " << (onoff ? "on" : "off") <<  " \"wait for vsync\"";
+        int (*func)(int) = (int (*)(int))glXGetProcAddressARB((const GLubyte *)"glXSwapIntervalSGI");
+        if (func) {
+            func(onoff ? 1 : 0);
+        } else
+            Error() <<  "GLX_SGI_swap_control func not found!";
+    } else
+        Warning() << "Missing `swap_control' GLX-extension, cannot change vsync!";
+}
+#elif defined(Q_WS_WIN) /* Windows */
+typedef BOOL (APIENTRY *wglswapfn_t)(int);
+
+void setVSyncMode(bool onoff, bool prt)
+{
+    wglswapfn_t wglSwapIntervalEXT = (wglswapfn_t)QGLContext::currentContext()->getProcAddress( "wglSwapIntervalEXT" );
+    if( wglSwapIntervalEXT ) {
+        wglSwapIntervalEXT(onoff ? 1 : 0);
+        if (prt)
+            Log() << "VSync mode " << (onoff ? "enabled" : "disabled") << " using wglSwapIntervalEXT().";
+    } else {
+        Warning() << "VSync mode could not be changed because wglSwapIntervalEXT is missing.";
+    }
+}
+#elif defined (Q_WS_MACX)
+
+void setVSyncMode(bool onoff, bool prt)
+{
+    GLint tmp = onoff ? 1 : 0;
+    AGLContext ctx = aglGetCurrentContext();
+    if (aglEnable(ctx, AGL_SWAP_INTERVAL) == GL_FALSE)
+        Warning() << "VSync mode could not be changed becuse aglEnable AGL_SWAP_INTERVAL returned false!";
+    else {
+        if ( aglSetInteger(ctx, AGL_SWAP_INTERVAL, &tmp) == GL_FALSE )
+            Warning() << "VSync mode could not be changed because aglSetInteger returned false!";
+        else if (prt)
+            Log() << "VSync mode " << (onoff ? "enabled" : "disabled") << " using aglSetInteger().";
+    }
+}
+
+#else
+#  error Unknown platform, need to implement setVSyncMode()!
+#endif
+
+} // end namespace Util
