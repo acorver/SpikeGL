@@ -6,10 +6,15 @@
 #include <QCloseEvent>
 #include <QTextEdit>
 #include "MainApp.h"
-
+#include <QDir>
+#ifdef Q_OS_WIN
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <QFile>
+#endif
 Par2Window::Par2Window(QWidget *parent)
     : QWidget(parent)
-{    
+{       
     process = 0;
     gui = new Ui::Par2Window;
     gui->setupUi(this);
@@ -22,6 +27,11 @@ Par2Window::Par2Window(QWidget *parent)
     Connect(gui->goBut, SIGNAL(clicked()), this, SLOT(goButClicked()));
     Connect(gui->forceCancelBut, SIGNAL(clicked()), this, SLOT(forceCancelButClicked()));
     gui->forceCancelBut->setEnabled(false);
+}
+
+Par2Window::~Par2Window()
+{
+    killProc();
 }
 
 void Par2Window::browseButClicked()
@@ -58,6 +68,10 @@ void Par2Window::killProc()
     }
     gui->specifyGB->setEnabled(true);
     gui->forceCancelBut->setEnabled(false);
+    gui->goBut->setEnabled(true);
+#ifdef Q_OS_WIN
+    QFile::remove(QDir::tempPath() + "/par2.exe");
+#endif
 }
 
 void Par2Window::forceCancelButClicked()
@@ -69,17 +83,28 @@ void Par2Window::forceCancelButClicked()
 void Par2Window::procStarted()
 {
     if (process) {
-        Debug() << "Process " << process->pid() << " started.";
+#ifdef Q_OS_WIN
+        int pid = process->pid() ? process->pid()->dwProcessId : 0;
+#else
+        int pid = process->pid();
+#endif
+        Debug() << "Process " << pid << " started.";
     } else {
         Error() << "procStarted with no process!";
     }
     gui->forceCancelBut->setEnabled(true);
+    gui->goBut->setEnabled(false);
 
 }
 
 void Par2Window::procFinished(int exitCode,QProcess::ExitStatus status)
 {
-    Debug() << "Process " << (process?QString::number(process->pid()):"") << " finished code:" << exitCode << " status: " << (status == QProcess::CrashExit ? "(CRASH!)" : "(Normal)");
+#ifdef Q_OS_WIN
+    int pid = process && process->pid() ? process->pid()->dwProcessId : 0;
+#else
+    int pid = process ? process->pid() : 0;
+#endif
+    Debug() << "Process " << (process?QString::number(pid):"") << " finished code:" << exitCode << " status: " << (status == QProcess::CrashExit ? "(CRASH!)" : "(Normal)");
     killProc();
 }
 
@@ -94,7 +119,12 @@ void Par2Window::procError(QProcess::ProcessError err)
     case QProcess::ReadError: s = "Process read error."; break;
     default: s = "An unknown error occurred"; break;
     }
-    Error() << "Process " << (process ? QString::number(process->pid()) : "") << " error: " << s;
+#ifdef Q_OS_WIN
+    int pid = process && process->pid() ? process->pid()->dwProcessId : 0;
+#else
+    int pid = process ? process->pid() : 0;
+#endif   
+    Error() << "Process " << (process ? QString::number(pid) : "") << " error: " << s;
     killProc();
 }
 
@@ -137,18 +167,43 @@ void Par2Window::goButClicked()
         if (fi.suffix() == ".par2") {
             files = fi.path() + "/" + fi.baseName() + ".bin";
             gui->fileLE->setText(files);
+            files = QString("\"") + files + "\"";
         }
         opStr += QString(" -r%1").arg(gui->redundancySB->value());
         QString par2 = fi.path() + "/" + fi.baseName() + ".par2";
-        files = par2 + " " + files;
+        files = QString("\"") + par2 + "\" \"" + files + "\"";
     } else if (!files.endsWith(".par2")) {
         QFileInfo fi(files.trimmed());
         files = fi.path() + "/" + fi.baseName() + ".par2";
         gui->fileLE->setText(files);
+        files = QString("\"") + files + "\"";
+    } else {
+        files = QString("\"") + files + "\"";
     }
-    QString cmd = QString("par2 %1 %2").arg(opStr).arg(files);
+    QString par2Prog = "par2";
+#ifdef Q_OS_WIN
+    par2Prog = QDir::tempPath() + "/par2.exe";
+   {
+       QFile f(par2Prog), f_in(":/par2.exe");        
+        if (f.open( QIODevice::WriteOnly | QIODevice::Truncate )
+            && f_in.open(QIODevice::ReadOnly)) {
+            char buf[16384];
+            qint64 ret, nCopied = 0;
+            while ((ret = f_in.read(buf, sizeof(buf))) > 0) {
+                f.write(buf, ret);
+                nCopied += ret;
+            }
+            Debug() << "Copied " << nCopied << " bytes of resource par2.exe to filesystem at " << f.fileName();
+            f_in.close();
+            f.close();
+        }
+   }
+#endif
+    QString cmd = QString("\"%1\" %2 %3").arg(par2Prog).arg(opStr).arg(files);
     Debug() << "Executing: " << cmd;
     process->start(cmd);
+    gui->goBut->setEnabled(false);
+    gui->forceCancelBut->setEnabled(true);
 }
 
 void Par2Window::readyOutput()
@@ -157,9 +212,11 @@ void Par2Window::readyOutput()
     QTextEdit *te = gui->outputTE;
     te->moveCursor(QTextCursor::End);
     QString out = process->readAllStandardOutput();
-        
-    // clobber lines that were supposed to be clobbered with the '\r' char..
+#ifdef Q_OS_WIN
+    out.replace("\r\n", "\n");
+#endif
 
+    // clobber lines that were supposed to be clobbered with the '\r' char..
     if (out.endsWith("\r") || out.startsWith("\r")) {
         te->moveCursor(QTextCursor::StartOfLine, QTextCursor::KeepAnchor);
         te->textCursor().removeSelectedText();

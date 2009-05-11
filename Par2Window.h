@@ -10,6 +10,7 @@ class Par2Window : public QWidget
     Q_OBJECT
 public:
     Par2Window(QWidget *parent = 0);
+    ~Par2Window();
 
 protected:
     void closeEvent(QCloseEvent *);
