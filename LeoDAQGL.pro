@@ -20,6 +20,7 @@ win32 {
         LIBS += NI/NIDAQmx.lib WS2_32.lib
         DEFINES += HAVE_NIDAQmx _CRT_SECURE_NO_WARNINGS
 	RESOURCES += Resources.qrc
+        RC_FILE += WinResources.rc
 }
 
 unix {
