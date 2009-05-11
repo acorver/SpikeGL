@@ -27,6 +27,7 @@ class QSystemTrayIcon;
 class QAction;
 class ConfigureDialogController;
 class GraphsWindow;
+class Par2Window;
 
 /**
    \brief The central class to the program that more-or-less encapsulates most objects and data in the program.
@@ -126,6 +127,8 @@ protected slots:
     void sha1VerifyFailure();
     void sha1VerifyCancel();
 
+    void showPar2Win();
+
 private:
     /// Display a message to the status bar
     void statusMsg(const QString & message, int timeout_msecs = 0);
@@ -158,13 +161,14 @@ private:
     DataFile dataFile;
     QTimer *taskReadTimer;
     GraphsWindow *graphsWindow;
+    Par2Window *par2Win;
 
 public:
 
 /// Main application actions!
     QAction 
         *quitAct, *toggleDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
-        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act;
+        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon;

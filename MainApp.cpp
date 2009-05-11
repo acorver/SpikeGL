@@ -24,10 +24,13 @@
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QAction>
+#include <QProgressDialog>
 #include "Icon.xpm"
+#include "ParWindowIcon.xpm"
 #include "ConfigureDialogController.h"
 #include "GraphsWindow.h"
 #include "Sha1VerifyTask.h"
+#include "Par2Window.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -88,6 +91,7 @@ MainApp::MainApp(int & argc, char ** argv)
 
     consoleWindow = new ConsoleWindow;
     defaultLogColor = consoleWindow->textEdit()->textColor();
+    consoleWindow->setAttribute(Qt::WA_DeleteOnClose, false);
 
     sysTray = new QSystemTrayIcon(this);
     sysTray->setContextMenu(new QMenu(consoleWindow));
@@ -99,6 +103,11 @@ MainApp::MainApp(int & argc, char ** argv)
     sysTray->contextMenu()->addAction(quitAct);
     sysTray->setIcon(appIcon);
     sysTray->show();
+
+    par2Win = new Par2Window(0);
+    par2Win->setAttribute(Qt::WA_DeleteOnClose, false); 
+    par2Win->setWindowTitle(QString(APPNAME) + " - Par2 Redundancy Tool");
+    par2Win->setWindowIcon(QPixmap(ParWindowIcon_xpm));
 
     Log() << "Application started";
 
@@ -130,6 +139,7 @@ MainApp::~MainApp()
     Log() << "Application shutting down..";
     Status() << "Application shutting down.";
     saveSettings();
+    delete par2Win, par2Win = 0;
     delete configCtl, configCtl = 0;
     delete sysTray, sysTray = 0;
     singleton = 0;
@@ -427,6 +437,9 @@ void MainApp::initActions()
 
     Connect( verifySha1Act = new QAction("Verify SHA1...", this),
              SIGNAL(triggered()), this, SLOT(verifySha1()) );
+
+    Connect( par2Act = new QAction("PAR2 Redundancy Tool", this),
+             SIGNAL(triggered()), this, SLOT(showPar2Win()) );
 }
 
 void MainApp::newAcq() 
@@ -441,6 +454,8 @@ void MainApp::newAcq()
             return;
         }
         graphsWindow = new GraphsWindow(params, 0);
+        graphsWindow->setAttribute(Qt::WA_DeleteOnClose, false);
+
         graphsWindow->setWindowIcon(appIcon);
         hideUnhideGraphsAct->setEnabled(true);
         graphsWindow->installEventFilter(this);
@@ -582,16 +597,22 @@ void MainApp::verifySha1()
         return;
     }
     if (!p.fromFile(pickedFI.filePath())) {
-        QMessageBox::critical(consoleWindow, pickedFI.fileName() + " could nto be read!", "SHA1 verification requires the meta-file for the data file to exist.\n`" + pickedFI.fileName() + "' could not be read!");
+        QMessageBox::critical(consoleWindow, pickedFI.fileName() + " could not be read!", "SHA1 verification requires the meta-file for the data file to exist.\n`" + pickedFI.fileName() + "' could not be read!");
         return;
     }
     if (!dataFile.length()) dataFile = p["outputFile"].toString();
     
+    if (this->task && QFileInfo(dataFile) == QFileInfo(this->dataFile.fileName())) {
+        QMessageBox::critical(consoleWindow, "Acquisition is running on file", "Cannot verify SHA1 hash on this file as it is currently open and being used as the datafile for the currently-running acquisition!");
+        return;
+    }
+
     // now, spawn a new thread for the task..
     Sha1VerifyTask *task = new Sha1VerifyTask(dataFile, p, this);
     Connect(task, SIGNAL(success()), this, SLOT(sha1VerifySuccess()));
     Connect(task, SIGNAL(failure()), this, SLOT(sha1VerifyFailure()));
     Connect(task, SIGNAL(canceled()), this, SLOT(sha1VerifyCancel()));
+    task->prog->show();
     task->start();
 }
 
@@ -601,8 +622,8 @@ void MainApp::sha1VerifySuccess()
     QString fn;
     if (task) fn = task->dataFileNameShort;    
     QString str = fn + " SHA1 sum verified ok!";
-    QMessageBox::information(consoleWindow, fn + " verified", str);
     Log() << str;
+    QMessageBox::information(consoleWindow, fn + " verified", str);
     if (task) delete task;
     else Error() << "sha1VerifySuccess error, no task!";
 }
@@ -615,8 +636,8 @@ void MainApp::sha1VerifyFailure()
     QString fn;
     if (task) fn = task->dataFileNameShort;    
     QString str = fn + " verify error:\n" + err;
-    QMessageBox::warning(consoleWindow, fn + " verify error", str);
     Warning() << str;
+    QMessageBox::warning(consoleWindow, fn + " verify error", str);
     if (task) delete task;
     else Error() << "sha1VerifyFailure error, no task!";
 }
@@ -630,4 +651,9 @@ void MainApp::sha1VerifyCancel()
     Log() << str;
     if (task) delete task;
     else Error() << "sha1VerifyCancel error, no task!";
+}
+
+void MainApp::showPar2Win()
+{
+    par2Win->show();
 }

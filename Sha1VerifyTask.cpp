@@ -13,9 +13,8 @@ Sha1VerifyTask::Sha1VerifyTask(const QString & dataFileName,
 {
     dataFileNameShort = QFileInfo(dataFileName).fileName();
     prog = new QProgressDialog(QString("Verifying SHA1 hash of " + dataFileNameShort + "..."), "Cancel", 0, 100, mainApp()->console());
-    
     Connect(this, SIGNAL(progress(int)), prog, SLOT(setValue(int)));
-    Connect(prog, SIGNAL(canceled()), this, SLOT(cancel()));    
+    Connect(prog, SIGNAL(canceled()), this, SLOT(cancel()));
 }
 
 Sha1VerifyTask::~Sha1VerifyTask()
@@ -37,6 +36,14 @@ void Sha1VerifyTask::run()
     QFile f(dataFileName);
     QFileInfo fi(dataFileName);
     SHA1 sha1;
+    QString sha1FromMeta = params["sha1"].toString().trimmed();
+
+    if (sha1FromMeta.isNull() || !sha1FromMeta.length()) {
+        extendedError = "Meta file for " + dataFileNameShort + " does not appear to contain a saved sha1 sum!";
+        emit failure();        
+        return;
+    }
+
     if (!f.open(QIODevice::ReadOnly)) {
         extendedError = dataFileNameShort + " could not be opened for reading!";
         emit failure();
@@ -68,7 +75,7 @@ void Sha1VerifyTask::run()
     if (!pleaseStop && f.atEnd() && extendedError.isNull()) {
         emit progress(prog->maximum());
         sha1.Final();
-        if (params["sha1"].toString().trimmed().compare(sha1.ReportHash().c_str(), Qt::CaseInsensitive) == 0) {
+        if (sha1FromMeta.compare(sha1.ReportHash().c_str(), Qt::CaseInsensitive) == 0) {
             emit success();
         } else {
             extendedError = "Computed SHA1 does not match saved hash in meta file!\n(This probably means the data file was corrupt!)";

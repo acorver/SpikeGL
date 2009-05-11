@@ -48,7 +48,6 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
 {    
     initIcons();
     setCentralWidget(graphsWidget = new QWidget(this));
-    setAttribute(Qt::WA_DeleteOnClose, false);
     statusBar();
     resize(1024,768);
     graphCtls = addToolBar("Graph Controls");
