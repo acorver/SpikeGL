@@ -30,6 +30,7 @@ ConsoleWindow::ConsoleWindow(QWidget *p, Qt::WindowFlags f)
     m->addAction(app->chooseOutputDirAct);
     m->addAction(app->hideUnhideConsoleAct);
     m->addAction(app->hideUnhideGraphsAct);
+    m->addAction(app->stimGLIntOptionsAct);
     m = mb->addMenu("&Tools");
     m->addAction(app->verifySha1Act);
     m->addAction(app->par2Act);

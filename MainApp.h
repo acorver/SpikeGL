@@ -28,6 +28,7 @@ class QAction;
 class ConfigureDialogController;
 class GraphsWindow;
 class Par2Window;
+#include "StimGL_LeoDAQGL_Integration.h"
 
 /**
    \brief The central class to the program that more-or-less encapsulates most objects and data in the program.
@@ -129,6 +130,11 @@ protected slots:
 
     void showPar2Win();
 
+    void stimGLIntegrationDialog();
+
+    void stimGL_PluginStarted(const QString &, const QMap<QString, QVariant>  &);
+    void stimGL_PluginEnded(const QString &, const QMap<QString, QVariant>  &);
+
 private:
     /// Display a message to the status bar
     void statusMsg(const QString & message, int timeout_msecs = 0);
@@ -138,6 +144,7 @@ private:
     void createAppIcon();
     void processKey(QKeyEvent *);
     void stopTask();
+    bool setupStimGLIntegration(bool doQuitOnFail=true);
 
     mutable QMutex mut; ///< used to lock outDir param for now
     ConfigureDialogController *configCtl;
@@ -150,7 +157,11 @@ private:
     QString sb_String;
     int sb_Timeout;
     QSystemTrayIcon *sysTray;
-
+    struct StimGLIntegrationParams {
+        QString iface;
+        unsigned short port;
+        int timeout_ms;
+    } stimGLIntParams;
 #ifndef Q_OS_WIN
     unsigned refresh;
 #endif
@@ -162,13 +173,14 @@ private:
     QTimer *taskReadTimer;
     GraphsWindow *graphsWindow;
     Par2Window *par2Win;
+    StimGL_LeoDAQGL_Integration::NotifyServer *notifyServer;
 
 public:
 
 /// Main application actions!
     QAction 
         *quitAct, *toggleDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
-        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act;
+        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon;

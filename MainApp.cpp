@@ -31,6 +31,8 @@
 #include "GraphsWindow.h"
 #include "Sha1VerifyTask.h"
 #include "Par2Window.h"
+#include "ui_StimGLIntegration.h"
+#include "StimGL_LeoDAQGL_Integration.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -69,7 +71,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), debug(false), initializing(true), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0)
+    : QApplication(argc, argv, true), debug(false), initializing(true), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -117,7 +119,7 @@ MainApp::MainApp(int & argc, char ** argv)
     consoleWindow->resize(800, 300);
     consoleWindow->show();
 
-
+    setupStimGLIntegration();
 
 #ifdef Q_OS_WIN
     initializing = false;
@@ -270,7 +272,11 @@ void MainApp::loadSettings()
     outDir = settings.value("outDir", QDir::homePath() ).toString();
 #endif
     mut.unlock();
-
+    StimGLIntegrationParams & p(stimGLIntParams);
+    p.iface = settings.value("StimGLInt_Listen_Interface", "0.0.0.0").toString();
+    p.port = settings.value("StimGLInt_Listen_Port",  LEODAQ_GL_NOTIFY_DEFAULT_PORT).toUInt();
+    p.timeout_ms = settings.value("StimGLInt_TimeoutMS", LEODAQ_GL_NOTIFY_DEFAULT_TIMEOUT_MSECS ).toInt(); 
+    
 }
 
 void MainApp::saveSettings()
@@ -282,6 +288,10 @@ void MainApp::saveSettings()
     mut.lock();
     settings.setValue("outDir", outDir);
     mut.unlock();
+    StimGLIntegrationParams & p(stimGLIntParams);
+    settings.setValue("StimGLInt_Listen_Interface", p.iface);
+    settings.setValue("StimGLInt_Listen_Port",  p.port);
+    settings.setValue("StimGLInt_TimeoutMS", p.timeout_ms); 
 }
 
 
@@ -440,6 +450,9 @@ void MainApp::initActions()
 
     Connect( par2Act = new QAction("PAR2 Redundancy Tool", this),
              SIGNAL(triggered()), this, SLOT(showPar2Win()) );
+
+    Connect( stimGLIntOptionsAct = new QAction("StimGL Integration Options", this),
+             SIGNAL(triggered()), this, SLOT(stimGLIntegrationDialog()) );
 }
 
 void MainApp::newAcq() 
@@ -656,4 +669,72 @@ void MainApp::sha1VerifyCancel()
 void MainApp::showPar2Win()
 {
     par2Win->show();
+}
+
+void MainApp::stimGLIntegrationDialog()
+{
+    bool again = false;
+    QDialog dlg(0);
+    dlg.setWindowIcon(consoleWindow->windowIcon());
+    dlg.setWindowTitle("StimGL Integration Options");    
+    dlg.setModal(true);
+    StimGLIntegrationParams & p (stimGLIntParams);
+        
+    Ui::StimGLIntegration controls;
+    controls.setupUi(&dlg);
+    controls.interfaceLE->setText(p.iface);
+    controls.portSB->setValue(p.port);
+    controls.timeoutSB->setValue(p.timeout_ms);    
+    do {     
+        again = false;
+        if ( dlg.exec() == QDialog::Accepted ) {
+            p.iface = controls.interfaceLE->text();
+            p.port = controls.portSB->value();
+            p.timeout_ms = controls.timeoutSB->value();
+            if (!setupStimGLIntegration(false)) {
+                QMessageBox::critical(0, "Listen Error", "Notification server could not listen on " + p.iface + ":" + QString::number(p.port) + "\nTry the options again again!");
+                loadSettings();
+                again = true;
+                continue;
+            }
+        } else {
+            loadSettings();
+            if (!notifyServer) setupStimGLIntegration();
+            return;
+        }
+    } while (again);
+
+    saveSettings();
+}
+
+bool MainApp::setupStimGLIntegration(bool doQuitOnFail)
+{
+    if (notifyServer) delete notifyServer;
+    notifyServer = new StimGL_LeoDAQGL_Integration::NotifyServer(this);
+    StimGLIntegrationParams & p (stimGLIntParams);
+    if (!notifyServer->beginListening(p.iface, p.port, p.timeout_ms)) {
+        if (doQuitOnFail) {
+            int but = QMessageBox::critical(0, "Listen Error", "Notification server could not listen on port " + QString::number(p.port) + "\nAnother copy of this program might already be running.\nContinue anyway?", QMessageBox::Abort, QMessageBox::Ignore);
+            if (but == QMessageBox::Abort) postEvent(this, new QEvent((QEvent::Type)QuitEventType)); // quit doesn't work here because we are in appliation c'tor
+        }
+        Error() << "Failed to start StimGLII integration notification server!";
+        delete notifyServer, notifyServer = 0;
+        return false;
+    }
+    Connect(notifyServer, SIGNAL(gotPluginStartNotification(const QString &, const QMap<QString, QVariant>  &)), this, SLOT(stimGL_PluginStarted(const QString &, const QMap<QString, QVariant>  &)));
+    Connect(notifyServer, SIGNAL(gotPluginEndNotification(const QString &, const QMap<QString, QVariant>  &)), this, SLOT(stimGL_PluginEnded(const QString &, const QMap<QString, QVariant>  &)));
+    return true;
+}
+
+
+void MainApp::stimGL_PluginStarted(const QString &p, const QMap<QString, QVariant>  &pm)
+{
+    (void)pm;
+    Log() << "Stim GL plugin `" << p << "' started.\n";
+}
+
+void MainApp::stimGL_PluginEnded(const QString &p, const QMap<QString, QVariant>  &pm)
+{
+    (void)pm;
+    Log() << "Stim GL plugin `" << p << "' ended.\n";
 }
