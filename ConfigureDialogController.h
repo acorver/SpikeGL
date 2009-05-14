@@ -6,7 +6,6 @@
 #include "ui_AcqTimedParams.h"
 #include <QObject>
 #include "LeoDAQGL.h"
-#include <QMap>
 #include <QVector>
 #include "DAQ.h"
 
@@ -30,7 +29,10 @@ protected slots:
     void acqStartEndCBChanged();
     void acqModeCBChanged();
     void deviceCBChanged();
+    void aoDeviceCBChanged();
     void browseButClicked();
+    void aoPassthruChkd();
+    void aoPDChanChkd();
 
 private:
     void loadSettings();
@@ -38,7 +40,8 @@ private:
     void resetFromParams();
     QWidget *dialogW, *acqPdParamsW, *acqTimedParamsW;
     DAQ::DeviceRangeMap aiDevRanges, aoDevRanges;
-    QVector<QString> devNames;
+    QVector<QString> devNames, aoDevNames;
+    DAQ::DeviceChanMap aiChanLists, aoChanLists;
 
     static QString parseAIChanString(const QString & aichanstr, QVector<unsigned> & aiChannels_out, bool *parse_error = 0);
     static QMap<unsigned,unsigned> parseAOPassthruString(const QString & aochanstr, bool *parse_error = 0);

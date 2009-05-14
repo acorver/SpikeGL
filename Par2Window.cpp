@@ -164,17 +164,17 @@ void Par2Window::goButClicked()
     QString files = gui->fileLE->text();
     if (op == Create) {        
         QFileInfo fi(files.trimmed());
-        if (fi.suffix() == ".par2") {
+        if (fi.suffix().compare(".par2", Qt::CaseInsensitive) == 0) {
             files = fi.path() + "/" + fi.baseName() + ".bin";
             gui->fileLE->setText(files);
             files = QString("\"") + files + "\"";
         }
         opStr += QString(" -r%1").arg(gui->redundancySB->value());
-        QString par2 = fi.path() + "/" + fi.baseName() + ".par2";
+        QString par2 = fi.path() + "/" + fi.fileName() + ".par2";
         files = QString("\"") + par2 + "\" \"" + files + "\"";
     } else if (!files.endsWith(".par2")) {
         QFileInfo fi(files.trimmed());
-        files = fi.path() + "/" + fi.baseName() + ".par2";
+        files = fi.path() + "/" + fi.fileName() + ".par2";
         gui->fileLE->setText(files);
         files = QString("\"") + files + "\"";
     } else {
@@ -212,25 +212,30 @@ void Par2Window::readyOutput()
     QTextEdit *te = gui->outputTE;
     te->moveCursor(QTextCursor::End);
     QString out = process->readAllStandardOutput();
-#ifdef Q_OS_WIN
+
+    /*QString tmp = out;
+    tmp.replace("\r", "|r");
+    tmp.replace("\n", "|n");
+    Debug() << "process sent: " << tmp;*/
+    
     out.replace("\r\n", "\n");
-#endif
+        
+    QStringList lines = out.split("\n", QString::KeepEmptyParts);
+    for (QStringList::iterator it = lines.begin(); it != lines.end(); ++it) {
+        QStringList strs = (*it).split("\r", QString::SkipEmptyParts);
+        const bool rem = strs.count() > 1 || (*it).startsWith("\r") || (*it).endsWith("\r");
+        for (QStringList::iterator it2 = strs.begin(); it2 != strs.end(); ++it2) {
+            if (rem) {
+                te->moveCursor(QTextCursor::StartOfLine, QTextCursor::KeepAnchor);
+                te->textCursor().removeSelectedText();
+                te->textCursor().deletePreviousChar();
+            }
+            te->append(*it2);
+            te->moveCursor(QTextCursor::End);    
 
-    // clobber lines that were supposed to be clobbered with the '\r' char..
-    if (out.endsWith("\r") || out.startsWith("\r")) {
-        te->moveCursor(QTextCursor::StartOfLine, QTextCursor::KeepAnchor);
-        te->textCursor().removeSelectedText();
-        te->textCursor().deletePreviousChar();
+        }        
     }
-
-    QStringList strs = out.split("\r", QString::SkipEmptyParts);
-    out = "";
-    for (QStringList::iterator it = strs.begin(); it != strs.end(); ++it) {
-        out = *it;
-    }
-
-    te->append(out);
-    te->moveCursor(QTextCursor::End);    
+    
 }
 
 void Par2Window::radioButtonsClicked()

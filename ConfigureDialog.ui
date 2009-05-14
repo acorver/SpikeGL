@@ -9,17 +9,18 @@
     <x>0</x>
     <y>0</y>
     <width>476</width>
-    <height>540</height>
+    <height>590</height>
    </rect>
   </property>
   <property name="windowTitle" >
    <string>Configure Acquisition</string>
   </property>
   <property name="windowIcon" >
-   <iconset>Icon-Config.xpm</iconset>
+   <iconset>
+    <normaloff>Icon-Config.xpm</normaloff>Icon-Config.xpm</iconset>
   </property>
   <property name="toolTip" >
-   <string>The sampling rate in Hz per virtual AI channel.  (In external clock mode this rate is just a reference rate for saving with file meta data.)</string>
+   <string/>
   </property>
   <property name="modal" >
    <bool>true</bool>
@@ -28,7 +29,7 @@
    <property name="geometry" >
     <rect>
      <x>290</x>
-     <y>484</y>
+     <y>528</y>
      <width>171</width>
      <height>32</height>
     </rect>
@@ -37,7 +38,7 @@
     <enum>Qt::Horizontal</enum>
    </property>
    <property name="standardButtons" >
-    <set>QDialogButtonBox::Cancel|QDialogButtonBox::NoButton|QDialogButtonBox::Ok</set>
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
    </property>
   </widget>
   <widget class="QLabel" name="outputFileLabel" >
@@ -159,9 +160,9 @@
    <property name="geometry" >
     <rect>
      <x>20</x>
-     <y>209</y>
+     <y>213</y>
      <width>431</width>
-     <height>80</height>
+     <height>115</height>
     </rect>
    </property>
    <property name="toolTip" >
@@ -180,7 +181,7 @@
     <property name="geometry" >
      <rect>
       <x>10</x>
-      <y>43</y>
+      <y>75</y>
       <width>401</width>
       <height>22</height>
      </rect>
@@ -196,7 +197,7 @@
     <property name="geometry" >
      <rect>
       <x>10</x>
-      <y>19</y>
+      <y>51</y>
       <width>411</width>
       <height>16</height>
      </rect>
@@ -206,6 +207,67 @@
     </property>
     <property name="text" >
      <string>Enter list of AO chans to echo from AI of the form AOCHAN=AICHAN,...</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="aoDeviceCB" >
+    <property name="geometry" >
+     <rect>
+      <x>70</x>
+      <y>21</y>
+      <width>118</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip" >
+     <string>The NI Device to use for analog output</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="aoRangeCB" >
+    <property name="geometry" >
+     <rect>
+      <x>313</x>
+      <y>21</y>
+      <width>99</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip" >
+     <string>The AO range to use for analog output</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="aoDeviceLabel" >
+    <property name="geometry" >
+     <rect>
+      <x>11</x>
+      <y>21</y>
+      <width>58</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip" >
+     <string>The NI Device to use for analog output</string>
+    </property>
+    <property name="text" >
+     <string>Device:</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="aoRangeLbl" >
+    <property name="geometry" >
+     <rect>
+      <x>199</x>
+      <y>21</y>
+      <width>108</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip" >
+     <string>The AO range to use for analog output</string>
+    </property>
+    <property name="text" >
+     <string>Range Min-Max:</string>
+    </property>
+    <property name="alignment" >
+     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
     </property>
    </widget>
   </widget>
@@ -280,7 +342,7 @@
    <property name="geometry" >
     <rect>
      <x>20</x>
-     <y>487</y>
+     <y>531</y>
      <width>251</width>
      <height>21</height>
     </rect>
@@ -296,10 +358,13 @@
    <property name="geometry" >
     <rect>
      <x>20</x>
-     <y>294</y>
+     <y>338</y>
      <width>431</width>
      <height>152</height>
     </rect>
+   </property>
+   <property name="toolTip" >
+    <string>Specify timed or triggered acquisitions here</string>
    </property>
    <property name="title" >
     <string>Acquisition Start/End</string>
@@ -312,6 +377,9 @@
       <width>321</width>
       <height>22</height>
      </rect>
+    </property>
+    <property name="toolTip" >
+     <string>Choose the acquisition trigger type, or Immediate for immediate mode</string>
     </property>
     <property name="currentIndex" >
      <number>0</number>
@@ -362,6 +430,29 @@
     <property name="frameShadow" >
      <enum>QFrame::Raised</enum>
     </property>
+    <widget class="QLabel" name="acqStartEndDescrLbl" >
+     <property name="geometry" >
+      <rect>
+       <x>15</x>
+       <y>9</y>
+       <width>381</width>
+       <height>69</height>
+      </rect>
+     </property>
+     <property name="text" >
+      <string>&lt;!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+&lt;html>&lt;head>&lt;meta name="qrichtext" content="1" />&lt;style type="text/css">
+p, li { white-space: pre-wrap; }
+&lt;/style>&lt;/head>&lt;body style=" font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;">
+&lt;p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">&lt;span style=" font-size:10pt; font-style:italic; color:#294928;">The acquisition will start immediately.&lt;/span>&lt;/p>&lt;/body>&lt;/html></string>
+     </property>
+     <property name="alignment" >
+      <set>Qt::AlignCenter</set>
+     </property>
+     <property name="wordWrap" >
+      <bool>true</bool>
+     </property>
+    </widget>
    </widget>
   </widget>
   <widget class="QLabel" name="aiRangeMinLbl" >
@@ -489,22 +580,6 @@
     <hint type="destinationlabel" >
      <x>286</x>
      <y>274</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>aoPassthruGB</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>aoPassthruLE</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel" >
-     <x>235</x>
-     <y>206</y>
-    </hint>
-    <hint type="destinationlabel" >
-     <x>230</x>
-     <y>202</y>
     </hint>
    </hints>
   </connection>

@@ -20,6 +20,9 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     acqTimedParams = new Ui::AcqTimedParams;
     aiDevRanges = DAQ::ProbeAllAIRanges();
     aoDevRanges = DAQ::ProbeAllAORanges();
+    
+    aiChanLists = DAQ::ProbeAllAIChannels();
+    aoChanLists = DAQ::ProbeAllAOChannels();
 
     dialog->setupUi((QDialog *)dialogW);
     acqPdParamsW = new QWidget(dialog->acqFrame);
@@ -32,8 +35,10 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     Connect(dialog->acqStartEndCB, SIGNAL(activated(int)), this, SLOT(acqStartEndCBChanged()));
     Connect(dialog->acqModeCB, SIGNAL(activated(int)), this, SLOT(acqModeCBChanged()));
     Connect(dialog->deviceCB, SIGNAL(activated(const QString &)), this, SLOT(deviceCBChanged()));
+    Connect(dialog->aoDeviceCB, SIGNAL(activated(const QString &)), this, SLOT(aoDeviceCBChanged()));
     Connect(dialog->browseBut, SIGNAL(clicked()), this, SLOT(browseButClicked()));
-
+    Connect(dialog->aoPassthruGB, SIGNAL(toggled(bool)), this, SLOT(aoPassthruChkd()));
+    Connect(acqPdParams->pdPassthruAOChk, SIGNAL(toggled(bool)), this, SLOT(aoPDChanChkd()));
 }
 
 ConfigureDialogController::~ConfigureDialogController()
@@ -62,15 +67,26 @@ void ConfigureDialogController::resetFromParams()
     dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
     dialog->channelListLE->setText(p.aiString);
     dialog->acqStartEndCB->setCurrentIndex((int)p.acqStartEndMode);
-    QList<QString> devs = aiDevRanges.uniqueKeys();
+    QList<QString> devs = aiChanLists.uniqueKeys();
     devNames.clear();
     int sel = 0, i = 0;
     for (QList<QString>::const_iterator it = devs.begin(); it != devs.end(); ++it, ++i) {
         if (p.dev == *it) sel = i;
         dialog->deviceCB->addItem(QString("%1 (%2)").arg(*it).arg(DAQ::GetProductName(*it)));
         devNames.push_back(*it);
-    }
+    }    
     dialog->deviceCB->setCurrentIndex(sel);
+
+    aoDevNames.clear();
+    devs = aoChanLists.uniqueKeys();
+    sel = 0, i = 0;
+    for (QList<QString>::const_iterator it = devs.begin(); it != devs.end(); ++it, ++i) {
+        if (p.aoDev == *it) sel = i;
+        dialog->aoDeviceCB->addItem(QString("%1 (%2)").arg(*it).arg(DAQ::GetProductName(*it)));
+        aoDevNames.push_back(*it);
+    }
+    dialog->aoDeviceCB->setCurrentIndex(sel);
+    
     dialog->disableGraphsChk->setChecked(p.suppressGraphs);
     
     // now the timed params stuff
@@ -87,25 +103,39 @@ void ConfigureDialogController::resetFromParams()
     acqStartEndCBChanged();
     acqModeCBChanged();
     deviceCBChanged();
+    aoDeviceCBChanged();
+    aoPassthruChkd();
+    aoPDChanChkd();
 }
 
 void ConfigureDialogController::acqStartEndCBChanged()
 {
-    //acqPdParamsW->setParent(0);
-    //acqTimedParamsW->setParent(0);
     acqPdParamsW->hide();
     acqTimedParamsW->hide();
-    int idx = dialog->acqStartEndCB->currentIndex();
-
-    switch (idx) {
-    case 1:
-    case 2:
+    DAQ::AcqStartEndMode mode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
+    dialog->acqStartEndDescrLbl->hide();
+    
+    switch (mode) {
+    case DAQ::Immediate:
+        dialog->acqStartEndDescrLbl->setText("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\"><html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">p, li { white-space: pre-wrap; }</style></head><body style=\" font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;\"><p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:10pt; font-style:italic; \">The acquisition will start immediately.</span></p></body></html>");
+        dialog->acqStartEndDescrLbl->show();
+        break;
+    case DAQ::PDStartEnd:
+    case DAQ::PDStart:
         acqPdParamsW->setParent(dialog->acqFrame);
         acqPdParamsW->show();
         break;
-    case 3:
+    case DAQ::Timed:
         acqTimedParamsW->setParent(dialog->acqFrame);
         acqTimedParamsW->show();
+        break;
+    case DAQ::StimGLStartEnd:
+        dialog->acqStartEndDescrLbl->setText("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\"><html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">p, li { white-space: pre-wrap; }</style></head><body style=\" font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;\"><p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:10pt; font-style:italic; color:#294928;\">The acquisition will be triggered to start and end by the external StimGL II program.</span></p></body></html>");
+        dialog->acqStartEndDescrLbl->show();
+        break;
+    case DAQ::StimGLStart:
+        dialog->acqStartEndDescrLbl->setText("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\"><html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">p, li { white-space: pre-wrap; }</style></head><body style=\" font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;\"><p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:10pt; font-style:italic; color:#294928;\">The acquisition will be triggered to start by the external StimGL II program.</span></p></body></html>");
+        dialog->acqStartEndDescrLbl->show();
         break;
     }
 }
@@ -162,10 +192,43 @@ void ConfigureDialogController::deviceCBChanged()
     dialog->srateSB->setMaximum((unsigned)DAQ::MaximumSampleRate(devStr));
 }
 
+void ConfigureDialogController::aoDeviceCBChanged()
+{
+    QString devStr = aoDevNames[dialog->aoDeviceCB->currentIndex()];
+    QList<DAQ::Range> ranges = aoDevRanges.values(devStr);
+    QString curr = dialog->aoRangeCB->currentText();
+
+    if (!curr.length()) {
+        curr = QString("%1 - %2").arg(acceptedParams.aoRange.min).arg(acceptedParams.aoRange.max);
+    }
+    int sel = 0, i = 0;
+    dialog->aoRangeCB->clear();
+    for (QList<DAQ::Range>::const_iterator it = ranges.begin(); it != ranges.end(); ++it, ++i) {
+        const DAQ::Range & r (*it);
+        QString txt = QString("%1 - %2").arg(r.min).arg(r.max);
+        if (txt == curr) sel = i;
+        dialog->aoRangeCB->insertItem(i, txt);
+    }
+    dialog->aoRangeCB->setCurrentIndex(sel);
+}
+
 void ConfigureDialogController::browseButClicked()
 {
     QString fn = QFileDialog::getSaveFileName(dialogW, "Select output file", dialog->outputFileLE->text());
     if (fn.length()) dialog->outputFileLE->setText(fn);
+}
+
+void ConfigureDialogController::aoPassthruChkd()
+{
+    bool chk = dialog->aoPassthruGB->isChecked();
+    acqPdParams->pdPassthruAOChk->setEnabled(chk);
+    acqPdParams->pdPassthruAOSB->setEnabled(chk && acqPdParams->pdPassthruAOChk->isChecked());
+}
+
+void ConfigureDialogController::aoPDChanChkd()
+{
+    bool chk = acqPdParams->pdPassthruAOChk->isChecked();
+    acqPdParams->pdPassthruAOSB->setEnabled(chk);
 }
 
 int ConfigureDialogController::exec()
@@ -182,7 +245,7 @@ int ConfigureDialogController::exec()
         // TODO process/validate form here... reject on invalid params!
     
         if (ret == QDialog::Accepted) {
-            QString dev = devNames[dialog->deviceCB->currentIndex()];
+            const QString dev = devNames[dialog->deviceCB->currentIndex()];
             bool err;
             QVector<unsigned> chanVect;
             QString chans = parseAIChanString(dialog->channelListLE->text(), chanVect, &err);
@@ -191,7 +254,7 @@ int ConfigureDialogController::exec()
                 again = true;
                 continue;
             }
-            DAQ::Mode acqMode = (DAQ::Mode)dialog->acqModeCB->currentIndex();
+            const DAQ::Mode acqMode = (DAQ::Mode)dialog->acqModeCB->currentIndex();
 
             if ( (acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux)
                  && !DAQ::SupportsAISimultaneousSampling(dev) ) {
@@ -211,16 +274,43 @@ int ConfigureDialogController::exec()
             if (dialog->aoPassthruGB->isChecked()) {
                 aopass = parseAOPassthruString(dialog->aoPassthruLE->text(), &err);
                 if (err) {
-                    QMessageBox::critical(dialogW, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form AOCHAN=DEMUXED_AICHAN!");
+                    QMessageBox::critical(dialogW, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=DEMUXED_AICHAN!");
                     again = true;
                     continue;
                 }                
             }
-            unsigned srate = dialog->srateSB->value();
+            QVector<unsigned> aoChanVect = aopass.uniqueKeys().toVector();
+
+            const unsigned srate = dialog->srateSB->value();
             if (srate > DAQ::MaximumSampleRate(dev, chanVect.size())) {
                 QMessageBox::critical(dialogW, "Sampling Rate Invalid", QString().sprintf("The sample rate specified (%d) is too high for the number of channels (%d)!", (int)srate, (int)chanVect.size()));
                 again = true;
                 continue;
+            }
+
+            const DAQ::AcqStartEndMode acqStartEndMode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
+
+            const QString & aoDev = aoDevNames[dialog->aoDeviceCB->currentIndex()];
+            int pdChan = acqPdParams->pdAISB->value();
+            if ((acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart)
+                && (chanVect.contains(pdChan) || pdChan < 0 || pdChan >= aiChanLists[dev].count())
+                ) {
+                QMessageBox::critical(dialogW, "PDChannel Invalid", QString().sprintf("Specified photodiode channel (%d) is invalid or clashes with another AI channel!", pdChan));
+                again = true;
+                continue;
+            }
+            int pdAOChan = acqPdParams->pdPassthruAOSB->value();
+            if ((acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart)
+                && acqPdParams->pdPassthruAOChk->isChecked() 
+                && (aoChanVect.contains(pdAOChan) || pdAOChan < 0 || pdAOChan >= aoChanLists[aoDev].count())) {
+                QMessageBox::critical(dialogW, "PDChannel AO Invalid", QString().sprintf("Specified photodiode AO passthru channel (%d) is invalid or clashes with another AO passthru channel!", pdAOChan));
+                again = true;
+                continue;
+            } 
+            if (!acqPdParams->pdPassthruAOChk->isChecked()) {
+                pdAOChan = -1;
+            } else {
+                aoChanVect.push_back(pdAOChan);
             }
 
             DAQ::Params & p (acceptedParams);
@@ -245,11 +335,21 @@ int ConfigureDialogController::exec()
             p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());
 
             p.aoPassthru = dialog->aoPassthruGB->isChecked();
+            p.aoDev = aoDev;
+            p.aoSrate = p.srate;
+            rngs = dialog->aoRangeCB->currentText().split(" - ");
+            if (rngs.count() != 2) {
+                Error() << "INTERNAL ERROR: AO Range ComboBox needs numbers of the form REAL - REAL!";
+                return QDialog::Rejected;
+            }            
+            p.aoRange.min = rngs.first().toDouble();
+            p.aoRange.max = rngs.last().toDouble();
             p.aoPassthruMap = aopass;
+            p.aoChannels = aoChanVect;
             p.aoPassthruString = dialog->aoPassthruLE->text();
             p.suppressGraphs = dialog->disableGraphsChk->isChecked();
 
-            p.acqStartEndMode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
+            p.acqStartEndMode = acqStartEndMode;
             p.isIndefinite = acqTimedParams->indefCB->isChecked();
             p.isImmediate = acqTimedParams->nowCB->isChecked();
             p.startIn = acqTimedParams->startHrsSB->value()*60.*60. 
@@ -258,7 +358,12 @@ int ConfigureDialogController::exec()
             p.duration = acqTimedParams->durHrsSB->value()*60.*60. 
                         +acqTimedParams->durMinsSB->value()*60
                         +acqTimedParams->durSecsSB->value();
-
+            
+            p.pdChan = pdChan;
+            p.alsoSaveGraphPD = acqPdParams->pdAcqChk->isChecked();
+            p.pdThresh = static_cast<signed short>(acqPdParams->pdAIThreshSB->value() - 32768);
+            p.pdPassThruToAO = pdAOChan;
+            
             saveSettings();
         }
     } while (again);
@@ -342,7 +447,12 @@ ConfigureDialogController::parseAOPassthruString(const QString & str,
                 if (parse_error) *parse_error = true;
                 return QMap<unsigned,unsigned>();                
             }
-            ret.insert(n,v);
+            if (!ret.contains(n))
+                ret.insert(n,v);
+            else {
+                if (parse_error) *parse_error = true;
+                return QMap<unsigned,unsigned>();
+            }
         } else {
             if (parse_error) *parse_error = true;
             return QMap<unsigned,unsigned>();
@@ -372,6 +482,7 @@ void ConfigureDialogController::loadSettings()
     p.aiString = settings.value("aiString", "0:3").toString();
     p.aoPassthru = settings.value("aoPassthru", false).toBool();
     p.aoPassthruString = settings.value("aoPassthruString", "0=1,1=2").toString();
+    p.aoDev = settings.value("aoDev", "").toString();
     p.suppressGraphs = settings.value("suppressGraphs", false).toBool();
 
     p.acqStartEndMode =  (DAQ::AcqStartEndMode)settings.value("acqStartEndMode", 0).toInt();
@@ -400,6 +511,7 @@ void ConfigureDialogController::saveSettings()
     settings.setValue("srate", p.srate);
     settings.setValue("extClock", p.extClock);
     settings.setValue("aiString", p.aiString);
+    settings.setValue("aoDev", p.aoDev);
     settings.setValue("aoPassthru", p.aoPassthru);
     settings.value("aoPassthruString", p.aoPassthruString);
     settings.setValue("suppressGraphs", p.suppressGraphs);    

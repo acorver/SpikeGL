@@ -78,7 +78,7 @@ void Sha1VerifyTask::run()
         if (sha1FromMeta.compare(sha1.ReportHash().c_str(), Qt::CaseInsensitive) == 0) {
             emit success();
         } else {
-            extendedError = "Computed SHA1 does not match saved hash in meta file!\n(This probably means the data file was corrupt!)";
+            extendedError = "Computed SHA1 does not match saved hash in meta file!\n(This could mean the data file has some corruption!)";
             emit failure();
         }
     }

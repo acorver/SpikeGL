@@ -9,6 +9,8 @@
 #include <QMutexLocker>
 #include <vector>
 #include <deque>
+#include <QMap>
+#include <QStringList>
 #ifdef Q_OS_WIN
 // Argh!  Windows for some reason has this macro defined..
 #undef min
@@ -47,7 +49,11 @@ namespace DAQ
         QVector<unsigned> aiChannels;
         unsigned nVAIChans; ///< number of virtual (demuxed) AI chans
         bool aoPassthru;
+        QString aoDev;
+        Range aoRange;
+        unsigned aoSrate; ///< for now, always the same as srate
         QMap<unsigned, unsigned> aoPassthruMap;
+        QVector<unsigned> aoChannels; ///< the AO channels from the above map, plus possibly the photodiode-passthru channel
         QString aoPassthruString;
         /// etc...
 
@@ -60,6 +66,9 @@ namespace DAQ
 
         // for threshold crossing of PD chan
         int16 pdThresh;
+        int pdChan;
+        bool alsoSaveGraphPD;
+        int pdPassThruToAO; ///< if negative, don't
 
         bool suppressGraphs;
     };
@@ -72,8 +81,26 @@ namespace DAQ
     DeviceRangeMap ProbeAllAIRanges();
     /// if empty map returned, no devices with AO!
     DeviceRangeMap ProbeAllAORanges();
+
+    typedef QMap<QString, QStringList> DeviceChanMap;
+    
+    /// returns a list of Devicename->ai channel names for all devices containing AI subdevices in the system
+    DeviceChanMap ProbeAllAIChannels();
+    /// returns a list of Devicename->ai channel names for all devices containing AO subdevices in the system
+    DeviceChanMap ProbeAllAOChannels();
+
     /// returns the NI channel list of DO chans for a devname, or empty list on failure
     QStringList GetDOChans(const QString & devname);
+
+    /// returns the NI channel list of AI chans for a devname, or empty list on failure
+    QStringList GetAIChans(const QString & devname);
+    /// returns the NI channel list of AO chans for a devname, or empty list on failure
+    QStringList GetAOChans(const QString & devname);
+
+    /// returns the number of physical channels in the AI subdevice for this device, or 0 if AI not supported on this device
+    unsigned GetNAIChans(const QString & devname);
+    /// returns the number of physical channels in the AO subdevice for this device, or 0 if AO not supported on this device
+    unsigned GetNAOChans(const QString & devname);
 
     /// returns true iff the device supports AI simultaneous sampling
     bool     SupportsAISimultaneousSampling(const QString & devname);

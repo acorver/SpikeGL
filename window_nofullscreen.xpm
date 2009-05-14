@@ -1,5 +1,5 @@
 /* XPM */
-static char * window_nofullscreen_xpm[] = {
+static const char * window_nofullscreen_xpm[] = {
 "32 32 117 2",
 "  	c None",
 ". 	c #587DAE",

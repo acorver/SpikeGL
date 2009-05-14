@@ -21,6 +21,9 @@
      <height>21</height>
     </rect>
    </property>
+   <property name="toolTip" >
+    <string>Click here to also save and graph the photodiode channel</string>
+   </property>
    <property name="text" >
     <string>Also save and graph this channel </string>
    </property>
@@ -33,6 +36,9 @@
      <width>71</width>
      <height>22</height>
     </rect>
+   </property>
+   <property name="toolTip" >
+    <string>The threshold to use for crossings.  Note this is a 16-bit value in the range 0-65535</string>
    </property>
    <property name="maximum" >
     <number>65535</number>
@@ -50,6 +56,9 @@
      <height>16</height>
     </rect>
    </property>
+   <property name="toolTip" >
+    <string>The physical AI channel to monitor for photodiode threshold crossings</string>
+   </property>
    <property name="text" >
     <string>Photodiode AI channel:</string>
    </property>
@@ -62,6 +71,9 @@
      <width>50</width>
      <height>22</height>
     </rect>
+   </property>
+   <property name="toolTip" >
+    <string>The physical AI channel to monitor for photodiode threshold crossings</string>
    </property>
    <property name="value" >
     <number>4</number>
@@ -76,6 +88,9 @@
      <height>16</height>
     </rect>
    </property>
+   <property name="toolTip" >
+    <string>The threshold to use for crossings.  Note this is a 16-bit value in the range 0-65535</string>
+   </property>
    <property name="text" >
     <string>Threshold (int16)</string>
    </property>
@@ -85,9 +100,12 @@
     <rect>
      <x>10</x>
      <y>61</y>
-     <width>211</width>
+     <width>221</width>
      <height>21</height>
     </rect>
+   </property>
+   <property name="toolTip" >
+    <string>Optionally, you may pass thru the photodiode electrode channel back to AO. </string>
    </property>
    <property name="text" >
     <string>Also passthru this channel to AO:</string>
@@ -99,11 +117,14 @@
    </property>
    <property name="geometry" >
     <rect>
-     <x>230</x>
+     <x>240</x>
      <y>60</y>
      <width>50</width>
      <height>22</height>
     </rect>
+   </property>
+   <property name="toolTip" >
+    <string>The AO channel to pass PD input back out to.  Node this is on the AO device selected above</string>
    </property>
   </widget>
  </widget>

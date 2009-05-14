@@ -20,6 +20,8 @@
 
 namespace DAQ 
 {
+    static bool noDaqErrPrint = false;
+
     /// if empty map returned, no devices with AI!
     DeviceRangeMap ProbeAllAIRanges() 
     {
@@ -79,32 +81,112 @@ namespace DAQ
         return ret;
     }
 
+    DeviceChanMap ProbeAllAIChannels() {
+        bool savedPrt = noDaqErrPrint;
+        noDaqErrPrint = true;
+        DeviceChanMap ret;
+        for (int devnum = 1; devnum <= 16; ++devnum) {
+            QString dev( QString("Dev%1").arg(devnum) );
+            QStringList l = GetAIChans(dev);
+            if (!l.empty()) {
+                ret[dev] = l;
+            }
+        }
+        noDaqErrPrint = savedPrt;
+        return ret;
+    }
 
-    QStringList GetDOChans(const QString & devname) 
+    DeviceChanMap ProbeAllAOChannels() {
+        DeviceChanMap ret;
+        for (int devnum = 1; devnum <= 16; ++devnum) {
+            QString dev( QString("Dev%1").arg(devnum) );
+            QStringList l = GetAOChans(dev);
+            if (!l.empty()) {
+                ret[dev] = l;
+            }
+        }
+        return ret;
+    }
+    
+
+#if HAVE_NIDAQmx
+    typedef int32 (__CFUNC *QueryFunc_t)(const char [], char *, uInt32);
+    
+    static QStringList GetPhysChans(const QString &devname, QueryFunc_t queryFunc, const QString & fn = "") 
     {
-#ifdef HAVE_NIDAQmx
         int error;
         const char *callStr = "";
-        char errBuff[2048];
-        
-        char buf[256000] = "";
-        DAQmxErrChk(DAQmxGetDevDOLines(devname.toUtf8().constData(), buf, sizeof(buf)));
+        char errBuff[2048];        
+        char buf[65536] = "";
+        QString funcName = fn;
+
+        if (!funcName.length()) {
+            funcName = "??";
+        }
+
+        DAQmxErrChk(queryFunc(devname.toUtf8().constData(), buf, sizeof(buf)));
         return QString(buf).split(QRegExp("\\s*,\\s*"), QString::SkipEmptyParts);
         
     Error_Out:
         if( DAQmxFailed(error) )
             DAQmxGetExtendedErrorInfo(errBuff,2048);
         if( DAQmxFailed(error) ) {
-            Error() << "DAQmx Error: " << errBuff;
-            Error() << "DAQMxBase Call: " << callStr;
+            if (!noDaqErrPrint) {
+                Error() << "DAQmx Error: " << errBuff;
+                Error() << "DAQMxBase Call: " << funcName << "(" << devname << ",buf," << sizeof(buf) << ")";
+            }
         }
         
-        return QStringList();;
-        
+        return QStringList();         
+    }
+#endif
+
+    QStringList GetDOChans(const QString & devname) 
+    {
+#ifdef HAVE_NIDAQmx
+        return GetPhysChans(devname, DAQmxGetDevDOLines, "DAQmxGetDevDOLines");
 #else // !HAVE_NIDAQmx, emulated, 1 chan
         return QStringList(QString("%1/port0/line0").arg(devname));
 #endif
     }
+
+    QStringList GetAIChans(const QString & devname)
+    {
+#ifdef HAVE_NIDAQmx
+        return GetPhysChans(devname, DAQmxGetDevAIPhysicalChans, "DAQmxGetDevAIPhysicalChans");
+#else // !HAVE_NIDAQmx, emulated, 60 chans
+        QStringList ret;
+        for (int i = 0; i < 60; ++i) {
+            ret.push_back(QString("%1/ai%2").arg(devname).arg(i));
+        }
+        return ret;
+#endif
+    }
+
+    QStringList GetAOChans(const QString & devname)
+    {
+#ifdef HAVE_NIDAQmx
+        return GetPhysChans(devname, DAQmxGetDevAOPhysicalChans, "DAQmxGetDevAOPhysicalChans");
+#else // !HAVE_NIDAQmx, emulated, 2 chans
+        QStringList ret;
+        for (int i = 0; i < 2; ++i) {
+            ret.push_back(QString("%1/ao%2").arg(devname).arg(i));
+        }
+        return ret;
+#endif
+    }
+
+    /// returns the number of physical channels in the AI subdevice for this device, or 0 if AI not supported on this device
+    unsigned GetNAIChans(const QString & devname)
+    {
+        return GetAIChans(devname).count();
+    }
+    /// returns the number of physical channels in the AO subdevice for this device, or 0 if AO not supported on this device
+    unsigned GetNAOChans(const QString & devname)
+    {
+        return GetAOChans(devname).count();
+    }
+
 
     /// returns true iff the device supports AI simultaneous sampling
     bool     SupportsAISimultaneousSampling(const QString & devname)
@@ -374,9 +456,12 @@ namespace DAQ
         if( DAQmxFailed(error) ) {
             QString e;
             e.sprintf("DAQmx Error: %s\nDAQMxBase Call: %s",errBuff, callStr);
-            Error() << e;
+            if (!noDaqErrPrint) {
+                Error() << e;
+            }
             emit daqError(e);
         }
+        
     }
 
 
@@ -431,7 +516,8 @@ namespace DAQ
         if (error) {
             QString e;
             e.sprintf("DAQmx Error %d: %s", error, errBuff);
-            Error() << e;
+            if (!noDaqErrPrint) 
+                Error() << e;
             emit daqError(e);
         }
     }

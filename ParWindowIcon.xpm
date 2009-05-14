@@ -1,5 +1,5 @@
 /* XPM */
-static char * ParWindowIcon_xpm[] = {
+static const char * ParWindowIcon_xpm[] = {
 "48 48 2 1",
 " 	c None",
 ".	c #966565",

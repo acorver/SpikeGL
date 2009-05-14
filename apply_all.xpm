@@ -1,5 +1,5 @@
 /* XPM */
-static char * apply_all_xpm[] = {
+static const char * apply_all_xpm[] = {
 "32 32 150 2",
 "  	c None",
 ". 	c #FBFBFB",
