@@ -653,15 +653,20 @@ void MainApp::detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp
         }
         break;
     case DAQ::PDStartEnd:
-    case DAQ::PDStart:
+    case DAQ::PDStart: {
         // NB: photodiode channel is always the last channel
-        if (scans.back() > p.pdThresh) {
-            if (last5PDSamples.size() >= 5) 
-                triggered = true, lastSeenPD = tNow;
-            else 
-                last5PDSamples.push_back(scans.back());
-        } else
-            last5PDSamples.clear();
+        const int sz = scans.size();
+        for (int i = p.nVAIChans-1; i < sz; i += p.nVAIChans) {
+            int16 samp = scans[i];
+            if (samp > p.pdThresh) {
+                if (last5PDSamples.size() >= 5) 
+                    triggered = true, lastSeenPD = tNow, i = sz;                
+                else 
+                    last5PDSamples.push_back(samp);
+            } else
+                last5PDSamples.clear();
+        }
+    }
         break;
     case DAQ::StimGLStart:
     case DAQ::StimGLStartEnd:
