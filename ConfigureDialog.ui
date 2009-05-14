@@ -350,8 +350,8 @@
    <widget class="QFrame" name="acqFrame" >
     <property name="geometry" >
      <rect>
-      <x>6</x>
-      <y>51</y>
+      <x>7</x>
+      <y>55</y>
       <width>417</width>
       <height>92</height>
      </rect>

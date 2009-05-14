@@ -5,79 +5,500 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>411</width>
+    <width>488</width>
     <height>86</height>
    </rect>
   </property>
   <property name="windowTitle" >
    <string>Form</string>
   </property>
-  <widget class="QLabel" name="acqStartLabel" >
+  <property name="toolTip" >
+   <string>Specify start and duration times for the acquisition</string>
+  </property>
+  <widget class="QWidget" name="layoutWidget" >
    <property name="geometry" >
     <rect>
-     <x>20</x>
-     <y>16</y>
-     <width>141</width>
-     <height>16</height>
+     <x>10</x>
+     <y>11</y>
+     <width>411</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <layout class="QHBoxLayout" >
+    <item>
+     <widget class="QLabel" name="startLbl" >
+      <property name="text" >
+       <string>Start in:  </string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <spacer>
+      <property name="orientation" >
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" >
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
+     <widget class="QSpinBox" name="startHrsSB" >
+      <property name="maximum" >
+       <number>23</number>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="hrsLbl" >
+      <property name="text" >
+       <string>Hrs</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <spacer>
+      <property name="orientation" >
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" >
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
+     <widget class="QSpinBox" name="startMinsSB" >
+      <property name="maximum" >
+       <number>59</number>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="minsLbl" >
+      <property name="text" >
+       <string>Mins</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <spacer>
+      <property name="orientation" >
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" >
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
+     <widget class="QSpinBox" name="startSecsSB" >
+      <property name="maximum" >
+       <number>59</number>
+      </property>
+      <property name="value" >
+       <number>10</number>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="secsLbl" >
+      <property name="text" >
+       <string>Secs</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <spacer>
+      <property name="orientation" >
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" >
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QCheckBox" name="nowCB" >
+   <property name="geometry" >
+    <rect>
+     <x>430</x>
+     <y>14</y>
+     <width>80</width>
+     <height>21</height>
     </rect>
    </property>
    <property name="text" >
-    <string>Start time:</string>
+    <string>Now</string>
    </property>
   </widget>
-  <widget class="QTimeEdit" name="acqStartTE" >
+  <widget class="QCheckBox" name="indefCB" >
    <property name="geometry" >
     <rect>
-     <x>180</x>
-     <y>12</y>
-     <width>118</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="maximumDate" >
-    <date>
-     <year>2000</year>
-     <month>1</month>
-     <day>1</day>
-    </date>
-   </property>
-   <property name="displayFormat" >
-    <string>h:mm:ss AP</string>
-   </property>
-   <property name="calendarPopup" >
-    <bool>false</bool>
-   </property>
-  </widget>
-  <widget class="QLabel" name="acqEndLabel" >
-   <property name="geometry" >
-    <rect>
-     <x>20</x>
-     <y>45</y>
-     <width>141</width>
-     <height>16</height>
+     <x>430</x>
+     <y>41</y>
+     <width>80</width>
+     <height>21</height>
     </rect>
    </property>
    <property name="text" >
-    <string>End time:</string>
+    <string>Indef.</string>
    </property>
   </widget>
-  <widget class="QTimeEdit" name="acqEndTE" >
+  <widget class="QWidget" name="layoutWidget" >
    <property name="geometry" >
     <rect>
-     <x>180</x>
-     <y>45</y>
-     <width>118</width>
-     <height>22</height>
+     <x>10</x>
+     <y>42</y>
+     <width>411</width>
+     <height>23</height>
     </rect>
    </property>
-   <property name="displayFormat" >
-    <string>h:mm:ss AP</string>
-   </property>
-   <property name="calendarPopup" >
-    <bool>false</bool>
-   </property>
+   <layout class="QHBoxLayout" >
+    <item>
+     <widget class="QLabel" name="durLbl" >
+      <property name="text" >
+       <string>Duration:</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <spacer>
+      <property name="orientation" >
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" >
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
+     <widget class="QSpinBox" name="durHrsSB" >
+      <property name="maximum" >
+       <number>23</number>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="hrsLbl2" >
+      <property name="text" >
+       <string>Hrs</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <spacer>
+      <property name="orientation" >
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" >
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
+     <widget class="QSpinBox" name="durMinsSB" >
+      <property name="maximum" >
+       <number>59</number>
+      </property>
+      <property name="value" >
+       <number>1</number>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="minsLbl2" >
+      <property name="text" >
+       <string>Mins</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <spacer>
+      <property name="orientation" >
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" >
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
+     <widget class="QSpinBox" name="durSecsSB" >
+      <property name="maximum" >
+       <number>59</number>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="secsLbl2" >
+      <property name="text" >
+       <string>Secs</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <spacer>
+      <property name="orientation" >
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" >
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+   </layout>
   </widget>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>nowCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>startLbl</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>35</x>
+     <y>22</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>nowCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>startHrsSB</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>115</x>
+     <y>22</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>nowCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>hrsLbl</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>157</x>
+     <y>22</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>nowCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>startMinsSB</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>221</x>
+     <y>22</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>nowCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>minsLbl</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>267</x>
+     <y>22</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>nowCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>startSecsSB</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>336</x>
+     <y>22</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>nowCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>secsLbl</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>382</x>
+     <y>22</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>indefCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>durLbl</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>51</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>35</x>
+     <y>53</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>indefCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>durHrsSB</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>51</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>115</x>
+     <y>53</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>indefCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>durMinsSB</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>51</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>221</x>
+     <y>53</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>indefCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>durSecsSB</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>51</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>336</x>
+     <y>53</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>indefCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>hrsLbl2</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>51</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>157</x>
+     <y>53</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>indefCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>minsLbl2</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>51</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>267</x>
+     <y>53</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>indefCB</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>secsLbl2</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>469</x>
+     <y>51</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>382</x>
+     <y>53</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

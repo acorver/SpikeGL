@@ -52,8 +52,6 @@ void ConfigureDialogController::resetFromParams()
     DAQ::Params & p (acceptedParams); // this just got populated from settings
 
     // initialize the dialogs with some values from settings
-    acqTimedParams->acqStartTE->setTime(QTime::currentTime());
-    acqTimedParams->acqEndTE->setTime(QTime::currentTime().addSecs(60*60));
     dialog->outputFileLE->setText(p.outputFile);
     dialog->acqModeCB->setCurrentIndex((int)p.mode);
     dialog->aoPassthruLE->setText(p.aoPassthruString);
@@ -63,6 +61,7 @@ void ConfigureDialogController::resetFromParams()
     dialog->aoPassthruGB->setChecked(p.aoPassthru);
     dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
     dialog->channelListLE->setText(p.aiString);
+    dialog->acqStartEndCB->setCurrentIndex((int)p.acqStartEndMode);
     QList<QString> devs = aiDevRanges.uniqueKeys();
     devNames.clear();
     int sel = 0, i = 0;
@@ -73,7 +72,17 @@ void ConfigureDialogController::resetFromParams()
     }
     dialog->deviceCB->setCurrentIndex(sel);
     dialog->disableGraphsChk->setChecked(p.suppressGraphs);
-
+    
+    // now the timed params stuff
+    acqTimedParams->startHrsSB->setValue(int(p.startIn/(60.*60.)));
+    acqTimedParams->startMinsSB->setValue(int((int(p.startIn)%(60*60))/60.));
+    acqTimedParams->startSecsSB->setValue(int((int(p.startIn)%(60*60)))%60);
+    acqTimedParams->durHrsSB->setValue(int(p.duration/(60.*60.)));
+    acqTimedParams->durMinsSB->setValue(int((int(p.duration)%(60*60))/60.));
+    acqTimedParams->durSecsSB->setValue((int(p.duration)%(60*60))%60);
+    acqTimedParams->indefCB->setChecked(p.isIndefinite);
+    acqTimedParams->nowCB->setChecked(p.isImmediate);
+    
     // fire off the slots to polish?
     acqStartEndCBChanged();
     acqModeCBChanged();
@@ -240,6 +249,16 @@ int ConfigureDialogController::exec()
             p.aoPassthruString = dialog->aoPassthruLE->text();
             p.suppressGraphs = dialog->disableGraphsChk->isChecked();
 
+            p.acqStartEndMode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
+            p.isIndefinite = acqTimedParams->indefCB->isChecked();
+            p.isImmediate = acqTimedParams->nowCB->isChecked();
+            p.startIn = acqTimedParams->startHrsSB->value()*60.*60. 
+                       +acqTimedParams->startMinsSB->value()*60
+                       +acqTimedParams->startSecsSB->value();
+            p.duration = acqTimedParams->durHrsSB->value()*60.*60. 
+                        +acqTimedParams->durMinsSB->value()*60
+                        +acqTimedParams->durSecsSB->value();
+
             saveSettings();
         }
     } while (again);
@@ -354,6 +373,12 @@ void ConfigureDialogController::loadSettings()
     p.aoPassthru = settings.value("aoPassthru", false).toBool();
     p.aoPassthruString = settings.value("aoPassthruString", "0=1,1=2").toString();
     p.suppressGraphs = settings.value("suppressGraphs", false).toBool();
+
+    p.acqStartEndMode =  (DAQ::AcqStartEndMode)settings.value("acqStartEndMode", 0).toInt();
+    p.isImmediate = settings.value("acqStartTimedImmed", false).toBool();
+    p.isIndefinite = settings.value("acqStartTimedIndef", false).toBool();
+    p.startIn = settings.value("acqStartTimedTime", 0.0).toDouble();
+    p.duration = settings.value("acqStartTimedDuration", 60.0).toDouble();
 }
 
 void ConfigureDialogController::saveSettings()
@@ -378,4 +403,11 @@ void ConfigureDialogController::saveSettings()
     settings.setValue("aoPassthru", p.aoPassthru);
     settings.value("aoPassthruString", p.aoPassthruString);
     settings.setValue("suppressGraphs", p.suppressGraphs);    
+    
+    settings.setValue("acqStartEndMode", (int)p.acqStartEndMode);
+    settings.setValue("acqStartTimedImmed", p.isImmediate);
+    settings.setValue("acqStartTimedIndef", p.isIndefinite);
+    settings.setValue("acqStartTimedTime", p.startIn);
+    settings.setValue("acqStartTimedDuration", p.duration);
+
 }

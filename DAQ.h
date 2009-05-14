@@ -26,6 +26,12 @@ namespace DAQ
         AI60Demux=0, AIRegular, AI120Demux, N_Modes, AIUnknown = N_Modes
     };
 
+    enum AcqStartEndMode { 
+        /* these correspond to items in 'acqStartEndCB' combobox in 
+           the Ui::ConfigureDialog form */
+        Immediate, PDStartEnd, PDStart, Timed, StimGLStartEnd, StimGLStart
+    };
+
     const QString & ModeToString(Mode m);
     Mode StringToMode(const QString &);
 
@@ -44,6 +50,16 @@ namespace DAQ
         QMap<unsigned, unsigned> aoPassthruMap;
         QString aoPassthruString;
         /// etc...
+
+        /// index into the acqStartEndCB in Ui::ConfigureDialog
+        AcqStartEndMode acqStartEndMode;
+
+        // for acqStartEndMode == timed
+        bool isIndefinite, isImmediate;
+        double startIn, duration;
+
+        // for threshold crossing of PD chan
+        int16 pdThresh;
 
         bool suppressGraphs;
     };

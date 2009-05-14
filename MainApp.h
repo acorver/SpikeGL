@@ -130,10 +130,11 @@ protected slots:
 
     void showPar2Win();
 
-    void stimGLIntegrationDialog();
+    void execStimGLIntegrationDialog();
 
     void stimGL_PluginStarted(const QString &, const QMap<QString, QVariant>  &);
     void stimGL_PluginEnded(const QString &, const QMap<QString, QVariant>  &);
+
 
 private:
     /// Display a message to the status bar
@@ -145,6 +146,9 @@ private:
     void processKey(QKeyEvent *);
     void stopTask();
     bool setupStimGLIntegration(bool doQuitOnFail=true);
+    void detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp);
+    void triggerTask();
+    bool detectStopTask(const std::vector<int16> & scans);
 
     mutable QMutex mut; ///< used to lock outDir param for now
     ConfigureDialogController *configCtl;
@@ -168,8 +172,13 @@ private:
     static MainApp *singleton;
     unsigned nLinesInLog, nLinesInLogMax;
 
+    double tNow, lastSeenPD;
     DAQ::Task *task;
+    bool taskWaitingForTrigger, taskWaitingForStop, 
+        taskShouldStop; ///< used for StimGL trigger to stop the task when the queue empties
+    i64 scan0Fudge, scanCt, startScanCt, stopScanCt;
     DataFile dataFile;
+    std::vector<int16> last5PDSamples;
     QTimer *taskReadTimer;
     GraphsWindow *graphsWindow;
     Par2Window *par2Win;

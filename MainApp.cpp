@@ -452,7 +452,7 @@ void MainApp::initActions()
              SIGNAL(triggered()), this, SLOT(showPar2Win()) );
 
     Connect( stimGLIntOptionsAct = new QAction("StimGL Integration Options", this),
-             SIGNAL(triggered()), this, SLOT(stimGLIntegrationDialog()) );
+             SIGNAL(triggered()), this, SLOT(execStimGLIntegrationDialog()) );
 }
 
 void MainApp::newAcq() 
@@ -461,6 +461,12 @@ void MainApp::newAcq()
     int ret = configCtl->exec();
     Debug() << "New Acq dialog exec code: " << ret;
     if (ret == QDialog::Accepted) {
+        scan0Fudge = 0;
+        scanCt = 0;
+        tNow = getTime();
+        taskShouldStop = false;
+        last5PDSamples.reserve(5);
+        last5PDSamples.clear();
         DAQ::Params & params (configCtl->acceptedParams);
         if (!dataFile.openForWrite(params)) {
             QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(params.outputFile));
@@ -472,10 +478,31 @@ void MainApp::newAcq()
         graphsWindow->setWindowIcon(appIcon);
         hideUnhideGraphsAct->setEnabled(true);
         graphsWindow->installEventFilter(this);
+
         if (!params.suppressGraphs) {
             graphsWindow->show();
         } else {
             graphsWindow->hide();
+        }
+        taskWaitingForStop = false;
+        
+        switch (params.acqStartEndMode) {
+        case DAQ::Immediate: taskWaitingForTrigger = false; break;
+        case DAQ::PDStartEnd: 
+        case DAQ::PDStart:
+        case DAQ::Timed:
+            if (params.isImmediate) {
+                taskWaitingForTrigger = false;
+                startScanCt = 0;
+                break;
+            } else {
+                startScanCt = i64(params.startIn * params.srate);
+            }
+            stopScanCt = params.isIndefinite ? 0x7fffffffffffffffLL : i64(startScanCt + params.duration*params.srate);
+            
+        case DAQ::StimGLStartEnd:
+        case DAQ::StimGLStart:
+            taskWaitingForTrigger = true; break;
         }
         task = new DAQ::Task(params, this);
         taskReadTimer = new QTimer(this);
@@ -487,8 +514,13 @@ void MainApp::newAcq()
         stopAcq->setEnabled(true);
         task->start();
         updateWindowTitles();
-        Systray() << "Acquisition started";
-        Status() << "Task started";
+        if (taskWaitingForTrigger) {
+            Systray() << "Acquisition waiting ...";
+            Status() << "Task initiated, waiting for trigger event";
+        } else {
+            Systray() << "Acquisition started";
+            Status() << "Task started";
+        }
     }
 }
 
@@ -513,6 +545,8 @@ void MainApp::stopTask()
     Status() << "Task stopped.";
     dataFile.closeAndFinalize();
     stopAcq->setEnabled(false);
+    taskWaitingForTrigger = false;
+    scan0Fudge = 0;
     updateWindowTitles();
     Systray() << "Acquisition stopped";
 
@@ -548,30 +582,167 @@ void MainApp::taskReadFunc()
     int ct = 0;
     const int ctMax = 10;
     double qFillPct;
-    while (ct++ < ctMax && task->dequeueBuffer(scans, firstSamp)) {
-        if (firstSamp != dataFile.sampleCount()) {
-            QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree!\nAieeeee!!  Aborting acquisition!").arg(dataFile.sampleCount()).arg(firstSamp);
-            Error() << e;
-            stopTask();
-            QMessageBox::critical(0, "DAQ Error", e);
-            return;
+    bool needToStop = false;
+    static double lastSBUpd = 0;
+    const DAQ::Params & p (configCtl->acceptedParams);
+    while ((ct++ < ctMax || taskShouldStop) ///< on taskShouldStop, keep trying to empty queue!
+           && !needToStop
+           && task->dequeueBuffer(scans, firstSamp)) {
+        tNow = getTime();
+        scanCt = firstSamp/p.nVAIChans;
+        if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
+            detectTriggerEvent(scans, firstSamp);
+            if (tNow-lastSBUpd > 0.25) { // every 1/4th of a second
+                if (p.acqStartEndMode == DAQ::Timed) {
+                    Status() << "Acquisition will auto-start in " << (startScanCt-scanCt)/p.srate << " seconds.";
+                    lastSBUpd = tNow;
+                } else if (p.acqStartEndMode == DAQ::StimGLStart
+                          || p.acqStartEndMode == DAQ::StimGLStartEnd) {
+                    Status() << "Acquisition waiting for start trigger from StimGL program";
+                } else if (p.acqStartEndMode == DAQ::StimGLStart
+                           || p.acqStartEndMode == DAQ::StimGLStartEnd) {
+                    Status() << "Acquisition waiting for start trigger from photo-diode";
+                }
+            }
+        } else { // task not waiting from trigger, normal acq.
+            firstSamp -= scan0Fudge;
+
+            if (!needToStop && !taskShouldStop && taskWaitingForStop) {
+                needToStop = detectStopTask(scans);
+            }
+
+            if (firstSamp != dataFile.sampleCount()) {
+                QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree!\nAieeeee!!  Aborting acquisition!").arg(dataFile.sampleCount()).arg(firstSamp);
+                Error() << e;
+                stopTask();
+                QMessageBox::critical(0, "DAQ Error", e);
+                return;
+            }
+            dataFile.writeScans(scans);
+            qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
+            if (graphsWindow && !graphsWindow->isHidden()) {            
+                if (qFillPct > 70.0) {
+                    Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
+                } else { 
+                    graphsWindow->putScans(scans, firstSamp);
+                }
+            }
+            
+            if (tNow-lastSBUpd > 0.25) { // every 1/4th of a second
+                QString taskEndStr = "";
+                if (taskWaitingForStop && p.acqStartEndMode == DAQ::Timed) {
+                    taskEndStr = QString(" - task will auto-stop in ") + QString::number((stopScanCt-scanCt)/p.srate) + " secs";
+                }
+                Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz - " << dataFile.sampleCount() << " samples read - " << qFillPct << "% buffer fill - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
+                lastSBUpd = tNow;
+            }
+        } 
+    }
+    if (taskShouldStop || needToStop)
+        stopTask();
+}
+
+void MainApp::detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp)
+{
+    bool triggered = false;
+    DAQ::Params & p (configCtl->acceptedParams);
+    switch (p.acqStartEndMode) {
+    case DAQ::Timed:  
+        if (p.isImmediate || scanCt >= startScanCt) {
+            triggered = true;
         }
-        dataFile.writeScans(scans);
-        qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
-        if (graphsWindow && !graphsWindow->isHidden()) {            
-            if (qFillPct > 70.0) {
-                Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
-            } else { 
-                graphsWindow->putScans(scans, firstSamp);
+        break;
+    case DAQ::PDStartEnd:
+    case DAQ::PDStart:
+        // NB: photodiode channel is always the last channel
+        if (scans.back() > p.pdThresh) {
+            if (last5PDSamples.size() >= 5) 
+                triggered = true, lastSeenPD = tNow;
+            else 
+                last5PDSamples.push_back(scans.back());
+        } else
+            last5PDSamples.clear();
+        break;
+    case DAQ::StimGLStart:
+    case DAQ::StimGLStartEnd:
+        // do nothing.. this gets set from stimGL_PluginStarted() slot outside this function..
+        break;
+    default: {        
+        QString err =  "Unanticipated/illegal p.acqStartEndMode in detectTriggerEvent: " + QString::number((int)p.acqStartEndMode);
+        Error() << err;
+        int but = QMessageBox::critical(0, "Trigger Event Error", err, QMessageBox::Abort, QMessageBox::Ignore);
+        if (but == QMessageBox::Abort) quit();
+    }
+    }
+    if (triggered) {
+        triggerTask();
+    }
+
+    scan0Fudge = firstSamp + scans.size();
+}
+
+bool MainApp::detectStopTask(const std::vector<int16> & scans)
+{
+    bool stopped = false;
+    DAQ::Params & p (configCtl->acceptedParams);
+    switch (p.acqStartEndMode) {
+    case DAQ::Timed:  
+        if (!p.isIndefinite && scanCt >= stopScanCt) {
+            stopped = true;
+            Log() << "Triggered stop because acquisition duration has fully elapsed.";
+        }
+        break;
+    case DAQ::PDStartEnd:
+        // NB: photodiode channel is always the last channel
+        if (scans.back() > p.pdThresh) {
+            if (last5PDSamples.size() >= 5) 
+                lastSeenPD = tNow;
+            else 
+                last5PDSamples.push_back(scans.back());
+        } else {
+            last5PDSamples.clear();
+            if (tNow-lastSeenPD > 1.0) { // timeout PD after 1.0 seconds..
+                stopped = true;
+                Log() << "Triggered stop due to photodiode being off for >1 seconds.";
             }
         }
-        static double lastSBUpd = 0;
-        double tNow = getTime();
+        break;
+    case DAQ::StimGLStartEnd:
+        // do nothing.. this gets set from stimGL_PluginStarted() slot outside this function..
+        break;
+    default: {        
+        QString err =  "Unanticipated/illegal p.acqStartEndMode in detectStopTask: " + QString::number((int)p.acqStartEndMode);
+        Error() << err;
+        int but = QMessageBox::critical(0, "Trigger Event Error", err, QMessageBox::Abort, QMessageBox::Ignore);
+        if (but == QMessageBox::Abort) quit();
+    }
+    }
+    return stopped;
+}
 
-        if (tNow-lastSBUpd > 0.25) { // every 1/4th of a second
-            Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz - " << dataFile.sampleCount() << " samples read - " << qFillPct << "% buffer fill - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)";
-            lastSBUpd = tNow;
-        }
+void MainApp::triggerTask()
+{
+    if (task && taskWaitingForTrigger) {
+        taskWaitingForTrigger = false;
+        updateWindowTitles();
+        Systray() << "Acquisition triggered ON";
+        Status() << "Task triggered";
+        DAQ::Params & p(configCtl->acceptedParams);
+        switch (p.acqStartEndMode) {
+        case DAQ::PDStartEnd: 
+        case DAQ::StimGLStartEnd:
+            taskWaitingForStop = true; 
+            Log() << "Acquisition triggered";
+            break;
+        case DAQ::Timed:
+            if (!p.isIndefinite) 
+                taskWaitingForStop = true;
+            Log() << "Acquisition started due to auto-timed trigger";
+            break;
+        default: 
+            taskWaitingForStop = false;
+            break; 
+        }        
     }
 }
 
@@ -579,7 +750,10 @@ void MainApp::updateWindowTitles()
 {
     QString stat = "";
     if (task) {
-        stat = "RUNNING - " + dataFile.fileName();
+        if (taskWaitingForTrigger)
+            stat = "WAITING - " + dataFile.fileName();
+        else
+            stat = "RUNNING - " + dataFile.fileName();
     } else {
         stat = "No Acquisition Running";
     }
@@ -671,7 +845,7 @@ void MainApp::showPar2Win()
     par2Win->show();
 }
 
-void MainApp::stimGLIntegrationDialog()
+void MainApp::execStimGLIntegrationDialog()
 {
     bool again = false;
     QDialog dlg(0);
@@ -727,14 +901,37 @@ bool MainApp::setupStimGLIntegration(bool doQuitOnFail)
 }
 
 
-void MainApp::stimGL_PluginStarted(const QString &p, const QMap<QString, QVariant>  &pm)
+void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QVariant>  &pm)
 {
     (void)pm;
-    Log() << "Stim GL plugin `" << p << "' started.\n";
+    bool ignored = true;
+    DAQ::Params & p (configCtl->acceptedParams);
+    if (task 
+        && taskWaitingForTrigger 
+        && (p.acqStartEndMode == DAQ::StimGLStart || p.acqStartEndMode == DAQ::StimGLStartEnd)) {
+        Log() << "Triggered start by Stim GL plugin `" << plugin << "'";
+        triggerTask();
+        ignored = false;
+    }
+
+    Debug() << "Received notification that Stim GL plugin `" << plugin << "' started." << (ignored ? " Ignored!" : "");
+
 }
 
-void MainApp::stimGL_PluginEnded(const QString &p, const QMap<QString, QVariant>  &pm)
+void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVariant>  &pm)
 {
     (void)pm;
-    Log() << "Stim GL plugin `" << p << "' ended.\n";
+    bool ignored = true;
+    DAQ::Params & p (configCtl->acceptedParams);
+    if (task && taskWaitingForStop && p.acqStartEndMode == DAQ::StimGLStartEnd) {
+        Log() << "Triggered stop by Stim GL plugin `" << plugin << "'";
+        taskShouldStop = true;
+        task->stop(); ///< stop the daq task now.. we will empty the queue later..
+        Log() << "DAQ task no longer acquiring, emptying queue and saving to disk.";
+        ignored = false;
+    }
+    Debug() << "Received notification that Stim GL plugin `" << plugin << "' ended." << (ignored ? " Ignored!" : "");
+
 }
+
+
