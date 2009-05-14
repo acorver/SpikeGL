@@ -810,7 +810,7 @@ void MainApp::sha1VerifySuccess()
     if (task) fn = task->dataFileNameShort;    
     QString str = fn + " SHA1 sum verified ok!";
     Log() << str;
-    QMessageBox::information(consoleWindow, fn + " verified", str);
+    QMessageBox::information(consoleWindow, fn + " SHA1 Verify", str);
     if (task) delete task;
     else Error() << "sha1VerifySuccess error, no task!";
 }
@@ -824,7 +824,7 @@ void MainApp::sha1VerifyFailure()
     if (task) fn = task->dataFileNameShort;    
     QString str = fn + " verify error:\n" + err;
     Warning() << str;
-    QMessageBox::warning(consoleWindow, fn + " verify error", str);
+    QMessageBox::warning(consoleWindow, fn + " SHA1 Verify", str);
     if (task) delete task;
     else Error() << "sha1VerifyFailure error, no task!";
 }

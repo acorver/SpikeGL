@@ -70,7 +70,7 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     graphCtls->addWidget(lbl);
     graphYScale = new QLineEdit(graphCtls);
     dv = new QDoubleValidator(graphCtls);
-    dv->setRange(.1, 10.0, 2);
+    dv->setRange(.01, 100.0, 2);
     graphYScale->setValidator(dv);
     graphCtls->addWidget(graphYScale);
 

@@ -435,25 +435,57 @@ namespace DAQ
             u64 sampCount = totalRead;
             int32 nRead = pointsRead * nChans + oldS;                  
             const int nCH = nChans*nscans_per_mux_scan;
-            if ( nRead % nCH ) { // not on 60channel boundary, so save extra channels and enqueue them next time around..
+            if ( nRead % nCH ) { // not on 60 (or 75 if have interwoven PD and in PD mode) channel boundary, so save extra channels and enqueue them next time around..
                 nRead = (nRead / nCH) *  nCH;
                 leftOver.insert(leftOver.begin(), data.begin()+nRead, data.end());
                 data.erase(data.begin()+nRead, data.end());
             }
+            // at this point we have scans of size 60 (or 75) channels
+            // in the 75-channel case we need to throw away 14 of those channels since they are interwoven PD-channels!
             data.resize(nRead);
+            if (!nRead) {
+                Warning() << "Read less than a full scan from DAQ hardware!  FIXME on line:" << __LINE__ << " in " << __FILE__ << "!";
+                continue; 
+            }
+
             //Debug() << "Acquired " << nRead << " samples. Total " << totalRead;
             if (p.usePD && muxMode) {
-                // we need to remove every Nth scan because the Photodiode should appear once per VIRTUAL scan, not per real scan
+            /*
+              NB: at this point data contains scans of the form:
+
+              | 0 | 1 | 2 | 3 | PD | 4 | 5 | 6 | 7 | PD |... | 58 | 59 | PD |
+              ---------------------------------------------------------------
+
+              Notice how the PD channel is interwoven into the
+              0:3 (or 0:7 if in 120 channel mode) AI channels.
+
+              We need to remove it!
+
+              We want to turn that into 1 (or more) demuxed VIRTUAL scans
+              of the form:
+
+              | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |... | 58 | 59 | PD |
+              -----------------------------------------------------
+
+              Where we remove every `nChans' PD except for when we have 
+              NCHANS-1 samples, then we add the PD channel.
+
+              Capisce?
+
+              NB: nChans = Number of physical channels per physical scan
+                  NCHANS = Number of virtual channels per virtual scan
+
+            */
                 std::vector<int16> tmp;
                 const int datasz = data.size();
                 tmp.reserve(datasz);
                
-                for (int i = nChans; i < datasz; i += nChans) {
-                    tmp.insert(tmp.end(), &data[i-nChans], &data[i]);
-                    if (!(tmp.size() % (NCHANS-1))) // if we are on a scan-boundary
-                        tmp.push_back(data[i]); // so keep the PD channel
+                for (int i = nChans-1; i < datasz; i += nChans) {
+                    tmp.insert(tmp.end(), &data[(i-nChans)+1], &data[i]); // copy non-PD channels for this MUXed sub-scan
+                    if (!(tmp.size() % (NCHANS-1))) // if we are on a virtual scan-boundary, then ...
+                        tmp.push_back(data[i]); // .. we keep the PD channel
                     else
-                        --sampCount, --nRead;                    
+                        --sampCount, --nRead;  // otherwise we discarded it, so tally its disappearance
                 }
                 data.swap(tmp);
             }

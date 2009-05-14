@@ -276,6 +276,11 @@ int ConfigureDialogController::exec()
                 again = true;
                 continue;                
             }
+            if (!chanVect.size()) {
+                QMessageBox::critical(dialogW, "AI Chan List Error", "Need at least 1 channel in the AI channel list!");
+                again = true;
+                continue;
+            }
             
             QMap<unsigned, unsigned> aopass;
             if (dialog->aoPassthruGB->isChecked()) {

@@ -21,10 +21,10 @@
      <x>10</x>
      <y>11</y>
      <width>411</width>
-     <height>23</height>
+     <height>25</height>
     </rect>
    </property>
-   <layout class="QHBoxLayout" >
+   <layout class="QHBoxLayout" name="hbox1" >
     <item>
      <widget class="QLabel" name="startLbl" >
       <property name="text" >
@@ -37,7 +37,7 @@
       <property name="orientation" >
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" >
+      <property name="sizeHint" stdset="0" >
        <size>
         <width>40</width>
         <height>20</height>
@@ -64,7 +64,7 @@
       <property name="orientation" >
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" >
+      <property name="sizeHint" stdset="0" >
        <size>
         <width>40</width>
         <height>20</height>
@@ -91,7 +91,7 @@
       <property name="orientation" >
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" >
+      <property name="sizeHint" stdset="0" >
        <size>
         <width>40</width>
         <height>20</height>
@@ -121,7 +121,7 @@
       <property name="orientation" >
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" >
+      <property name="sizeHint" stdset="0" >
        <size>
         <width>40</width>
         <height>20</height>
@@ -163,10 +163,10 @@
      <x>10</x>
      <y>42</y>
      <width>411</width>
-     <height>23</height>
+     <height>25</height>
     </rect>
    </property>
-   <layout class="QHBoxLayout" >
+   <layout class="QHBoxLayout" name="hbox2" >
     <item>
      <widget class="QLabel" name="durLbl" >
       <property name="text" >
@@ -179,7 +179,7 @@
       <property name="orientation" >
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" >
+      <property name="sizeHint" stdset="0" >
        <size>
         <width>40</width>
         <height>20</height>
@@ -206,7 +206,7 @@
       <property name="orientation" >
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" >
+      <property name="sizeHint" stdset="0" >
        <size>
         <width>40</width>
         <height>20</height>
@@ -236,7 +236,7 @@
       <property name="orientation" >
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" >
+      <property name="sizeHint" stdset="0" >
        <size>
         <width>40</width>
         <height>20</height>
@@ -263,7 +263,7 @@
       <property name="orientation" >
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" >
+      <property name="sizeHint" stdset="0" >
        <size>
         <width>40</width>
         <height>20</height>

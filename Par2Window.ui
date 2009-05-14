@@ -162,16 +162,16 @@
      <number>5</number>
     </property>
    </widget>
-   <widget class="QWidget" name="" >
+   <widget class="QWidget" name="layoutWidget" >
     <property name="geometry" >
      <rect>
       <x>10</x>
       <y>55</y>
       <width>261</width>
-      <height>24</height>
+      <height>25</height>
      </rect>
     </property>
-    <layout class="QHBoxLayout" >
+    <layout class="QHBoxLayout" name="loWidget111" >
      <item>
       <widget class="QRadioButton" name="createRB" >
        <property name="text" >
