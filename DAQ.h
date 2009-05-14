@@ -66,8 +66,8 @@ namespace DAQ
 
         // for threshold crossing of PD chan
         int16 pdThresh;
+        bool usePD;
         int pdChan;
-        bool alsoSaveGraphPD;
         int pdPassThruToAO; ///< if negative, don't
 
         bool suppressGraphs;

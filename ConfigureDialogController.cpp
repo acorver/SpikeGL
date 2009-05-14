@@ -67,6 +67,11 @@ void ConfigureDialogController::resetFromParams()
     dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
     dialog->channelListLE->setText(p.aiString);
     dialog->acqStartEndCB->setCurrentIndex((int)p.acqStartEndMode);
+    acqPdParams->pdAIThreshSB->setValue(static_cast<int>(p.pdThresh) + 32768);
+    acqPdParams->pdAISB->setValue(p.pdChan);
+    acqPdParams->pdPassthruAOChk->setChecked(p.pdPassThruToAO > -1);
+    acqPdParams->pdPassthruAOSB->setValue(p.pdPassThruToAO > -1 ? p.pdPassThruToAO : 0);   
+
     QList<QString> devs = aiChanLists.uniqueKeys();
     devNames.clear();
     int sel = 0, i = 0;
@@ -222,13 +227,15 @@ void ConfigureDialogController::aoPassthruChkd()
 {
     bool chk = dialog->aoPassthruGB->isChecked();
     acqPdParams->pdPassthruAOChk->setEnabled(chk);
+    if (!chk && acqPdParams->pdPassthruAOChk->isChecked()) 
+        acqPdParams->pdPassthruAOChk->setChecked(false);    
     acqPdParams->pdPassthruAOSB->setEnabled(chk && acqPdParams->pdPassthruAOChk->isChecked());
 }
 
 void ConfigureDialogController::aoPDChanChkd()
 {
     bool chk = acqPdParams->pdPassthruAOChk->isChecked();
-    acqPdParams->pdPassthruAOSB->setEnabled(chk);
+    acqPdParams->pdPassthruAOSB->setEnabled(chk && dialog->aoPassthruGB->isChecked() );
 }
 
 int ConfigureDialogController::exec()
@@ -330,6 +337,12 @@ int ConfigureDialogController::exec()
             p.nVAIChans = chanVect.size();
             bool isMux = p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux;
             if (isMux) p.nVAIChans *= MUX_CHANS_PER_PHYS_CHAN;
+            if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd) {
+                p.aiChannels.push_back(pdChan);
+                ++p.nVAIChans;
+                p.usePD = true;
+            } else
+                p.usePD = false;
             p.aiString = chans;
             p.doCtlChan = dialog->doCtlCB->currentIndex();
             p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());
@@ -360,7 +373,6 @@ int ConfigureDialogController::exec()
                         +acqTimedParams->durSecsSB->value();
             
             p.pdChan = pdChan;
-            p.alsoSaveGraphPD = acqPdParams->pdAcqChk->isChecked();
             p.pdThresh = static_cast<signed short>(acqPdParams->pdAIThreshSB->value() - 32768);
             p.pdPassThruToAO = pdAOChan;
             
@@ -490,6 +502,10 @@ void ConfigureDialogController::loadSettings()
     p.isIndefinite = settings.value("acqStartTimedIndef", false).toBool();
     p.startIn = settings.value("acqStartTimedTime", 0.0).toDouble();
     p.duration = settings.value("acqStartTimedDuration", 60.0).toDouble();
+
+    p.pdThresh = settings.value("acqPDThresh", 48000-32768).toInt();
+    p.pdChan = settings.value("acqPDChan", 4).toInt();
+    p.pdPassThruToAO = settings.value("acqPDPassthruChanAO", 2).toInt();
 }
 
 void ConfigureDialogController::saveSettings()
@@ -522,4 +538,7 @@ void ConfigureDialogController::saveSettings()
     settings.setValue("acqStartTimedTime", p.startIn);
     settings.setValue("acqStartTimedDuration", p.duration);
 
+    settings.setValue("acqPDThresh", p.pdThresh);
+    settings.setValue("acqPDChan", p.pdChan);
+    settings.setValue("acqPDPassthruChanAO", p.pdPassThruToAO);
 }

@@ -82,8 +82,13 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     dsc->setChecked(true);
     downsampleChk(true);
     Connect(dsc, SIGNAL(clicked(bool)), this, SLOT(downsampleChk(bool)));
-
-    graphs.resize(p.nVAIChans);
+    
+    pdChan = -1;
+    if (p.usePD) {
+        pdChan = p.nVAIChans-1;
+        graphs.resize(p.nVAIChans);
+    } else
+        graphs.resize(p.nVAIChans-1);
     graphFrames.resize(graphs.size());
     pausedGraphs.resize(graphs.size());
     graphTimesSecs.resize(graphs.size());
@@ -98,7 +103,7 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     QGridLayout *l = new QGridLayout(graphsWidget);
     l->setHorizontalSpacing(1);
     l->setVerticalSpacing(1);
-    int nrows = int(sqrtf(p.nVAIChans)), ncols = nrows;
+    int nrows = int(sqrtf(graphs.size())), ncols = nrows;
     while (nrows*ncols < (int)graphs.size()) {
         if (nrows > ncols) ++ncols;
         else ++nrows;
@@ -126,6 +131,10 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
             graphs[num]->setMouseTracking(true);
             l->addWidget(f, r, c);
             setGraphTimeSecs(num, DEFAULT_GRAPH_TIME_SECS);
+            if (num == pdChan) {
+                // this is the photodiode channel
+                graphs[num]->bgColor() = QColor(0xa6, 0x69,0x3c, 0xff);
+            }
         }
     }
     update_nPtsAllGs();
@@ -296,7 +305,7 @@ void GraphsWindow::mouseClickGraph(double x, double y)
     y = y*(params.range.max-params.range.min) + params.range.min;
 
     QString msg;
-    msg.sprintf("Mouse press graph %d @ pos (%f, %f)",num,x,y);
+    msg.sprintf("Mouse press %s %d @ pos (%f, %f)",(num == pdChan ? "photodiode graph" : "graph"),num,x,y);
     statusBar()->showMessage(msg);
 }
 
@@ -309,7 +318,7 @@ void GraphsWindow::mouseOverGraph(double x, double y)
     y = y*(params.range.max-params.range.min) + params.range.min;
 
     QString msg;
-    msg.sprintf("Mouse over graph %d @ pos (%f, %f)",num,x,y);
+    msg.sprintf("Mouse over %s %d @ pos (%f, %f)",(num == pdChan ? "photodiode graph" : "graph"),num,x,y);
     statusBar()->showMessage(msg);
 }
 

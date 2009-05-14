@@ -369,10 +369,13 @@ namespace DAQ
         Params & p (params);
         // Channel parameters
         QString chan = "";
-        QStringList aiStringSplit = p.aiString.split(QRegExp("\\s*,\\s*"), QString::SkipEmptyParts);
-        for (QStringList::const_iterator it = aiStringSplit.begin(); it != aiStringSplit.end(); ++it) {
-            chan.append(QString("%1 %2/ai%3").arg(chan.length()?",":"").arg(p.dev).arg(*it).trimmed());
+        const QVector<QString> aiChanStrings ((ProbeAllAIChannels()[p.dev]).toVector());
+        //build chanspec string for aiChanStrings..
+        for (QVector<unsigned>::const_iterator it = p.aiChannels.begin();
+             it != p.aiChannels.end(); ++it) {
+            chan.append(QString("%1%2").arg(chan.length() ? ", " : "").arg(aiChanStrings[*it]));
         }
+       
         const int nChans = p.aiChannels.size();
         float64     min = p.range.min;
         float64     max = p.range.max;
@@ -383,9 +386,10 @@ namespace DAQ
         const float64     timeout = DAQ_TIMEOUT;
         int NCHANS = p.nVAIChans;
         const bool muxMode =  p.mode == AI60Demux || p.mode == AI120Demux;
-
+        int nscans_per_mux_scan = 1;
         if (muxMode) {
             sampleRate *= double(MUX_CHANS_PER_PHYS_CHAN);
+            nscans_per_mux_scan = MUX_CHANS_PER_PHYS_CHAN;
             if (!p.extClock) {
                 /// Aieeeee!  Need ext clock for demux mode!
                 QString e("Aieeeee!  Need to use an EXTERNAL clock for DEMUX mode!");
@@ -429,19 +433,32 @@ namespace DAQ
         
             DAQmxErrChk (DAQmxReadBinaryI16(taskHandle,pointsToRead/nChans,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL));
             u64 sampCount = totalRead;
-            int32 nRead = pointsRead * nChans + oldS;
-        
-            if ( nRead % NCHANS ) { // not on 60channel boundary, so save extra channels and enqueue them next time around..
-                nRead = (nRead / NCHANS) * NCHANS;
+            int32 nRead = pointsRead * nChans + oldS;                  
+            const int nCH = nChans*nscans_per_mux_scan;
+            if ( nRead % nCH ) { // not on 60channel boundary, so save extra channels and enqueue them next time around..
+                nRead = (nRead / nCH) *  nCH;
                 leftOver.insert(leftOver.begin(), data.begin()+nRead, data.end());
                 data.erase(data.begin()+nRead, data.end());
-            } 
+            }
             data.resize(nRead);
             //Debug() << "Acquired " << nRead << " samples. Total " << totalRead;
+            if (p.usePD && muxMode) {
+                // we need to remove every Nth scan because the Photodiode should appear once per VIRTUAL scan, not per real scan
+                std::vector<int16> tmp;
+                const int datasz = data.size();
+                tmp.reserve(datasz);
+               
+                for (int i = nChans; i < datasz; i += nChans) {
+                    tmp.insert(tmp.end(), &data[i-nChans], &data[i]);
+                    if (!(tmp.size() % (NCHANS-1))) // if we are on a scan-boundary
+                        tmp.push_back(data[i]); // so keep the PD channel
+                    else
+                        --sampCount, --nRead;                    
+                }
+                data.swap(tmp);
+            }
             totalRead += nRead;
-            
             enqueueBuffer(data, sampCount);
-            //emit(gotSampleBuffer());
         
         }
         Debug() << "Acquired " << totalRead << " total samples.";
