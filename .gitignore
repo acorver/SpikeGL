@@ -2,6 +2,7 @@
 *.bin
 moc_*.cpp
 ui_*.h
+qrc_*.cpp
 *.o
 LeoDAQGL
 Makefile

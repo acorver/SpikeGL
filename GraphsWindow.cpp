@@ -86,9 +86,8 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     pdChan = -1;
     if (p.usePD) {
         pdChan = p.nVAIChans-1;
-        graphs.resize(p.nVAIChans);
-    } else
-        graphs.resize(p.nVAIChans-1);
+    }
+    graphs.resize(p.nVAIChans);
     graphFrames.resize(graphs.size());
     pausedGraphs.resize(graphs.size());
     graphTimesSecs.resize(graphs.size());

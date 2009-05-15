@@ -61,6 +61,7 @@ void ConfigureDialogController::resetFromParams()
     dialog->acqModeCB->setCurrentIndex((int)p.mode);
     dialog->aoPassthruLE->setText(p.aoPassthruString);
     dialog->deviceCB->clear();
+    dialog->aoDeviceCB->clear();
     dialog->clockCB->setCurrentIndex(p.extClock ? 0 : 1);
     dialog->srateSB->setValue(p.srate);
     dialog->aoPassthruGB->setChecked(p.aoPassthru);
@@ -252,7 +253,9 @@ int ConfigureDialogController::exec()
         // TODO process/validate form here... reject on invalid params!
     
         if (ret == QDialog::Accepted) {
-            const QString dev = devNames[dialog->deviceCB->currentIndex()];
+            const QString & dev = devNames[dialog->deviceCB->currentIndex()];
+            const QString & aoDev = aoDevNames[dialog->aoDeviceCB->currentIndex()];
+
             bool err;
             QVector<unsigned> chanVect;
             QString chans = parseAIChanString(dialog->channelListLE->text(), chanVect, &err);
@@ -282,14 +285,14 @@ int ConfigureDialogController::exec()
                 continue;
             }
             
-            QMap<unsigned, unsigned> aopass;
+            QMap<unsigned, unsigned> aopass;            
             if (dialog->aoPassthruGB->isChecked()) {
                 aopass = parseAOPassthruString(dialog->aoPassthruLE->text(), &err);
                 if (err) {
-                    QMessageBox::critical(dialogW, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=DEMUXED_AICHAN!");
+                    QMessageBox::critical(dialogW, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=CHANNEL_INDEX_POS!");
                     again = true;
                     continue;
-                }                
+                }
             }
             QVector<unsigned> aoChanVect = aopass.uniqueKeys().toVector();
 
@@ -302,7 +305,6 @@ int ConfigureDialogController::exec()
 
             const DAQ::AcqStartEndMode acqStartEndMode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
 
-            const QString & aoDev = aoDevNames[dialog->aoDeviceCB->currentIndex()];
             int pdChan = acqPdParams->pdAISB->value();
             if ((acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart)
                 && (chanVect.contains(pdChan) || pdChan < 0 || pdChan >= aiChanLists[dev].count())
@@ -319,10 +321,47 @@ int ConfigureDialogController::exec()
                 again = true;
                 continue;
             } 
+            unsigned nVAI = chanVect.size();
+            bool isMux = acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux;
+            if (isMux) nVAI *= MUX_CHANS_PER_PHYS_CHAN;
+
+            bool usePD = false;
+            if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd) {
+                chanVect.push_back(pdChan);
+                ++nVAI;
+                usePD = true;
+            }
+
             if (!acqPdParams->pdPassthruAOChk->isChecked()) {
                 pdAOChan = -1;
             } else {
                 aoChanVect.push_back(pdAOChan);
+                aopass[pdAOChan]=chanVect.indexOf(pdChan);
+            }
+
+            // validate AO channels in AO passthru map
+            if (aoChanVect.size()) {
+                QStringList aol = aoChanLists[aoDev];
+                for (int i = 0; i < (int)aoChanVect.size(); ++i) {
+                    if ((int)aoChanVect[i] >= (int)aol.size()) {
+                        QMessageBox::critical(dialogW, "AO Passthru Error", QString().sprintf("The AO channel specified in the passthru string (%d) is illegal/invalid!", (int)(aoChanVect[i])));
+                        again = true;
+                        break;
+                    }
+                }
+                if (again) continue;
+            }
+
+            {
+                // validate AI channels in AO passthru map
+                QList<unsigned> vl = aopass.values();
+                for (QList<unsigned>::const_iterator it = vl.begin(); it != vl.end(); ++it)
+                    if (*it >= nVAI) {
+                        QMessageBox::critical(dialogW, "AO Passthru Invalid", QString().sprintf("Chan index %d specified as an AO passthru source but it is > the number of virtual AI channels (%d)!", (int)*it, (int)nVAI));
+                        again = true;
+                        break;
+                    }
+                if (again) continue;
             }
 
             DAQ::Params & p (acceptedParams);
@@ -339,19 +378,11 @@ int ConfigureDialogController::exec()
             p.srate = srate;
             p.extClock = dialog->clockCB->currentIndex() == 0;
             p.aiChannels = chanVect;
-            p.nVAIChans = chanVect.size();
-            bool isMux = p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux;
-            if (isMux) p.nVAIChans *= MUX_CHANS_PER_PHYS_CHAN;
-            if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd) {
-                p.aiChannels.push_back(pdChan);
-                ++p.nVAIChans;
-                p.usePD = true;
-            } else
-                p.usePD = false;
+            p.nVAIChans = nVAI;
             p.aiString = chans;
             p.doCtlChan = dialog->doCtlCB->currentIndex();
             p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());
-
+            p.usePD = usePD;
             p.aoPassthru = dialog->aoPassthruGB->isChecked();
             p.aoDev = aoDev;
             p.aoSrate = p.srate;
@@ -534,7 +565,7 @@ void ConfigureDialogController::saveSettings()
     settings.setValue("aiString", p.aiString);
     settings.setValue("aoDev", p.aoDev);
     settings.setValue("aoPassthru", p.aoPassthru);
-    settings.value("aoPassthruString", p.aoPassthruString);
+    settings.setValue("aoPassthruString", p.aoPassthruString);
     settings.setValue("suppressGraphs", p.suppressGraphs);    
     
     settings.setValue("acqStartEndMode", (int)p.acqStartEndMode);

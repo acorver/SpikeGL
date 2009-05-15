@@ -459,7 +459,6 @@ void MainApp::newAcq()
 {
     if ( !maybeCloseCurrentIfRunning() ) return;
     int ret = configCtl->exec();
-    Debug() << "New Acq dialog exec code: " << ret;
     if (ret == QDialog::Accepted) {
         scan0Fudge = 0;
         scanCt = 0;

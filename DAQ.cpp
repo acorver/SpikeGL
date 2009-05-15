@@ -15,6 +15,7 @@
 #include <QMessageBox>
 #include <QApplication>
 #include <QRegExp>
+#include <QVarLengthArray>
 
 #define DAQmxErrChk(functionCall) do { if( DAQmxFailed(error=(functionCall)) ) { callStr = STR(functionCall); goto Error_Out; } } while (0)
 
@@ -97,6 +98,8 @@ namespace DAQ
     }
 
     DeviceChanMap ProbeAllAOChannels() {
+        bool savedPrt = noDaqErrPrint;
+        noDaqErrPrint = true;
         DeviceChanMap ret;
         for (int devnum = 1; devnum <= 16; ++devnum) {
             QString dev( QString("Dev%1").arg(devnum) );
@@ -105,6 +108,7 @@ namespace DAQ
                 ret[dev] = l;
             }
         }
+        noDaqErrPrint = savedPrt;
         return ret;
     }
     
@@ -362,31 +366,53 @@ namespace DAQ
     {
         // Task parameters
         int32       error = 0;
-        TaskHandle  taskHandle = 0;
+        TaskHandle  taskHandle = 0, aoTaskHandle = 0;
         char        errBuff[2048]={'\0'};
         const char *callStr = "";
         double      startTime;
-        Params & p (params);
+        const Params & p (params);
         // Channel parameters
-        QString chan = "";
-        const QVector<QString> aiChanStrings ((ProbeAllAIChannels()[p.dev]).toVector());
-        //build chanspec string for aiChanStrings..
-        for (QVector<unsigned>::const_iterator it = p.aiChannels.begin();
-             it != p.aiChannels.end(); ++it) {
-            chan.append(QString("%1%2").arg(chan.length() ? ", " : "").arg(aiChanStrings[*it]));
+        QString chan = "", aoChan = "";
+      
+
+        {
+            const QVector<QString> aiChanStrings ((ProbeAllAIChannels()[p.dev]).toVector());
+            //build chanspec string for aiChanStrings..
+            for (QVector<unsigned>::const_iterator it = p.aiChannels.begin();
+                 it != p.aiChannels.end(); ++it) {
+                chan.append(QString("%1%2").arg(chan.length() ? ", " : "").arg(aiChanStrings[*it]));
+            }
+            
+            if (p.aoPassthru) {
+                const QVector<QString> aoChanStrings ((ProbeAllAOChannels()[p.aoDev]).toVector());
+                for (QVector<unsigned>::const_iterator it = p.aoChannels.begin();
+                     it != p.aoChannels.end(); 
+                     ++it) {
+                    aoChan.append(QString("%1%2").arg(aoChan.length() ? ", " : "").arg(aoChanStrings[*it]));
+                }
+            }
         }
-       
+        
         const int nChans = p.aiChannels.size();
-        float64     min = p.range.min;
-        float64     max = p.range.max;
+        const float64     min = p.range.min;
+        const float64     max = p.range.max;
+        const int aoNChans = p.aoChannels.size();
+        const float64     aoMin = p.aoRange.min;
+        const float64     aoMax = p.aoRange.max;
+        
 
         // Params dependent on mode and DAQ::Params, etc
         const char *clockSource = p.extClock ? "PFI2" : "OnboardClock"; ///< TODO: make extClock possibly be something other than PFI2
+        const char *aoClockSource = "OnboardClock";
         float64 sampleRate = p.srate;
+        const float64 aoSampleRate = p.aoSrate;
         const float64     timeout = DAQ_TIMEOUT;
-        int NCHANS = p.nVAIChans;
+        const float64     aoTimeout = DAQ_TIMEOUT*2.;
+        const int NCHANS = p.nVAIChans;
         const bool muxMode =  p.mode == AI60Demux || p.mode == AI120Demux;
         int nscans_per_mux_scan = 1;
+        unsigned aoWriteCt = 0;
+
         if (muxMode) {
             sampleRate *= double(MUX_CHANS_PER_PHYS_CHAN);
             nscans_per_mux_scan = MUX_CHANS_PER_PHYS_CHAN;
@@ -399,21 +425,36 @@ namespace DAQ
             }
         }
 
+        QVarLengthArray<int> 
+            aoAITab(aoNChans ? aoNChans : 1); ///< map of AO chan id to virtual AI chan id
+        for (int i = 0; i < aoNChans; ++i) {
+            aoAITab[i] = p.aoPassthruMap[i];
+        }
+
         u64 bufferSize = u64(sampleRate*nChans)/TASK_READ_FREQ_HZ; ///< 1/10th sec per read
         if (bufferSize < NCHANS) bufferSize = NCHANS;
         const u64 dmaBufSize = u64(1000000); /// 1000000 sample DMA buffer per chan?
-        const u64 samplesPerChan = bufferSize;
-        
+        const u64 samplesPerChan = bufferSize/nChans;
+        const int32 aoSamplesPerChan = samplesPerChan*2;
+        const u64 aoBufferSize = u64(aoSamplesPerChan) * aoNChans;
+
         // Timing parameters
         int32       pointsRead;
         const int32 pointsToRead = bufferSize;
-        std::vector<int16> data, leftOver;
+        std::vector<int16> data, leftOver, aoData;
 
         DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
         DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",DAQmx_Val_Cfg_Default,min,max,DAQmx_Val_Volts,NULL));
-        DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,samplesPerChan));
+        DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize));
         DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize)); //use a 1,000,000 sample DMA buffer per channel
         //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this));
+
+        if (p.aoPassthru && p.aoChannels.size()) {
+            DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
+            DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
+            DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,aoBufferSize));
+        }
+
 
         if (muxMode)
             setDO(false); // set DO line low to reset external MUX
@@ -431,7 +472,7 @@ namespace DAQ
             data.reserve(pointsToRead+oldS);
             data.resize(pointsToRead+oldS);
         
-            DAQmxErrChk (DAQmxReadBinaryI16(taskHandle,pointsToRead/nChans,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL));
+            DAQmxErrChk (DAQmxReadBinaryI16(taskHandle,samplesPerChan,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL));
             u64 sampCount = totalRead;
             int32 nRead = pointsRead * nChans + oldS;                  
             const int nCH = nChans*nscans_per_mux_scan;
@@ -490,17 +531,47 @@ namespace DAQ
                 data.swap(tmp);
             }
             totalRead += nRead;
+            
+            // now, do optional AO output TODO: see about doing this in another thread to save on latency here?
+            if (aoTaskHandle) {               
+                double t0 = getTime(); // XXX HACK FIXME DEBUG TODO
+                const int dsize = data.size();
+                aoData.reserve(MAX(aoBufferSize*2,dsize));
+                for (int i = 0; i < dsize; i += NCHANS) {
+                    for (int aoch = 0; aoch < aoNChans; ++aoch) {
+                        aoData.push_back(data[i+aoAITab[aoch]]);
+                    }
+                }
+                if (aoData.size() >= aoBufferSize) { 
+                    const int32 nScansToWrite = aoSamplesPerChan;
+                    int32 nScansWritten = 0;
+                    DAQmxErrChk(DAQmxWriteBinaryI16(aoTaskHandle, nScansToWrite, 1, aoTimeout, DAQmx_Val_GroupByScanNumber, &aoData[0], &nScansWritten, NULL));
+                    if (nScansWritten != nScansToWrite) {
+                        Error() << "nScansWritten (" << nScansWritten << ") != nScansToWrite (" << nScansToWrite << ")";
+                    }                    
+                    ++aoWriteCt;
+                    aoData.erase(aoData.begin(), aoData.begin()+nScansWritten);
+                    Debug() << "AOWrite " << aoWriteCt << " of " << nScansWritten << " (bufsize=" << aoBufferSize << ") took: " << (getTime()-t0) << " secs";
+                }
+
+            }
+            
             enqueueBuffer(data, sampCount);
+
         
         }
         Debug() << "Acquired " << totalRead << " total samples.";
 
     Error_Out:
-        if( DAQmxFailed(error) )
+        if ( DAQmxFailed(error) )
             DAQmxGetExtendedErrorInfo(errBuff,2048);
-        if(taskHandle != 0) {
+        if ( taskHandle != 0) {
             DAQmxStopTask (taskHandle);
             DAQmxClearTask (taskHandle);
+        }
+        if ( aoTaskHandle != 0) {
+            DAQmxStopTask (aoTaskHandle);
+            DAQmxClearTask (aoTaskHandle);
         }
         if( DAQmxFailed(error) ) {
             QString e;

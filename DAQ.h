@@ -68,7 +68,7 @@ namespace DAQ
         int16 pdThresh;
         bool usePD;
         int pdChan;
-        int pdPassThruToAO; ///< if negative, don't
+        int pdPassThruToAO; ///< if negative, don't, else the channel id
 
         bool suppressGraphs;
     };

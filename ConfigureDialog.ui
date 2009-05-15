@@ -187,7 +187,7 @@
      </rect>
     </property>
     <property name="toolTip" >
-     <string>Enter list of AO channels to passthru from AI.  List is of the form AOCHAN=AICHAN,...</string>
+     <string>Enter list of AO channels to passthru from AI.  List is of the form AOCHAN=CHAN_INDEX,...</string>
     </property>
     <property name="text" >
      <string>0=4,1=2</string>
@@ -203,10 +203,10 @@
      </rect>
     </property>
     <property name="toolTip" >
-     <string>Enter list of AO channels to passthru from AI.  List is of the form AOCHAN=AICHAN,...</string>
+     <string>Enter list of AO channels to passthru from AI.  List is of the form AOCHAN=CHAN_INDEX,...</string>
     </property>
     <property name="text" >
-     <string>Enter list of AO chans to echo from AI of the form AOCHAN=AICHAN,...</string>
+     <string>Enter list of AO chans to echo from AI of the form AOCHAN=CHAN_INDEX,...</string>
     </property>
    </widget>
    <widget class="QComboBox" name="aoDeviceCB" >
