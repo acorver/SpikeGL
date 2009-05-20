@@ -71,7 +71,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0)
+    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -936,6 +936,21 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
     }
     Debug() << "Received notification that Stim GL plugin `" << plugin << "' ended." << (ignored ? " Ignored!" : "");
 
+}
+
+void MainApp::doFastSettle()
+{
+    if (fastSettleRunning || !task) return;    
+    fastSettleRunning = true;
+    task->setDO(false);
+    QTimer::singleShot(2000, this, SLOT(fastSettleCompletion()));    
+}
+
+void MainApp::fastSettleCompletion()
+{
+    if (!fastSettleRunning) return;
+    if (task) task->setDO(true);
+    fastSettleRunning = false;
 }
 
 

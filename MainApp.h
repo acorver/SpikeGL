@@ -115,6 +115,10 @@ public slots:
     void updateWindowTitles();
 
     void verifySha1();
+
+    /// called by a button in the graphs window
+    void doFastSettle();
+
    
 protected slots:
     /// Called from a timer every ~250 ms to update the status bar at the bottom of the console window
@@ -135,6 +139,7 @@ protected slots:
     void stimGL_PluginStarted(const QString &, const QMap<QString, QVariant>  &);
     void stimGL_PluginEnded(const QString &, const QMap<QString, QVariant>  &);
 
+    void fastSettleCompletion();
 
 private:
     /// Display a message to the status bar
@@ -183,6 +188,7 @@ private:
     GraphsWindow *graphsWindow;
     Par2Window *par2Win;
     StimGL_LeoDAQGL_Integration::NotifyServer *notifyServer;
+    bool fastSettleRunning;
 
 public:
 

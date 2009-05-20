@@ -16,12 +16,16 @@
 #include <QVBoxLayout>
 #include <QLineEdit>
 #include <QDoubleValidator>
+#include <QPushButton>
 #include <math.h>
+#include "MainApp.h"
 #include "play.xpm"
 #include "pause.xpm"
 #include "window_fullscreen.xpm"
 #include "window_nofullscreen.xpm"
 #include "apply_all.xpm"
+#include "fastsettle.xpm"
+
 static const QIcon *playIcon(0), *pauseIcon(0), *windowFullScreenIcon(0), *windowNoFullScreenIcon(0), *applyAllIcon(0);
 
 static void initIcons()
@@ -82,6 +86,17 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     dsc->setChecked(true);
     downsampleChk(true);
     Connect(dsc, SIGNAL(clicked(bool)), this, SLOT(downsampleChk(bool)));
+
+    graphCtls->addSeparator();
+    QPushButton *fset = new QPushButton(QIcon(QPixmap(fastsettle_xpm)), "Fast Settle", graphCtls);
+    if (p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux) {
+        fset->setToolTip("Toggle the DIO control line low/high for 2 seconds to 'fast settle' the input channels.");        
+    } else {
+        fset->setDisabled(true);
+        fset->setToolTip("'Fast settle' is only available for DEMUX (INTAN) mode.");                
+    }
+    graphCtls->addWidget(fset);
+    Connect(fset, SIGNAL(clicked(bool)), mainApp(), SLOT(doFastSettle()));
     
     pdChan = -1;
     if (p.usePD) {
