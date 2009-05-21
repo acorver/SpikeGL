@@ -58,14 +58,16 @@ void ConfigureDialogController::resetFromParams()
 
     // initialize the dialogs with some values from settings
     dialog->outputFileLE->setText(p.outputFile);
-    dialog->acqModeCB->setCurrentIndex((int)p.mode);
+    if (int(p.mode) < dialog->acqModeCB->count())
+        dialog->acqModeCB->setCurrentIndex((int)p.mode);
     dialog->aoPassthruLE->setText(p.aoPassthruString);
     dialog->deviceCB->clear();
     dialog->aoDeviceCB->clear();
     dialog->clockCB->setCurrentIndex(p.extClock ? 0 : 1);
     dialog->srateSB->setValue(p.srate);
     dialog->aoPassthruGB->setChecked(p.aoPassthru);
-    dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
+    if (int(p.doCtlChan) < dialog->doCtlCB->count())
+        dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
     dialog->channelListLE->setText(p.aiString);
     dialog->acqStartEndCB->setCurrentIndex((int)p.acqStartEndMode);
     acqPdParams->pdAIThreshSB->setValue(static_cast<int>(p.pdThresh) + 32768);
@@ -81,7 +83,8 @@ void ConfigureDialogController::resetFromParams()
         dialog->deviceCB->addItem(QString("%1 (%2)").arg(*it).arg(DAQ::GetProductName(*it)));
         devNames.push_back(*it);
     }    
-    dialog->deviceCB->setCurrentIndex(sel);
+    if ( dialog->deviceCB->count() ) // empty CB sometimes on missing AI??
+        dialog->deviceCB->setCurrentIndex(sel);
 
     aoDevNames.clear();
     devs = aoChanLists.uniqueKeys();
@@ -91,7 +94,8 @@ void ConfigureDialogController::resetFromParams()
         dialog->aoDeviceCB->addItem(QString("%1 (%2)").arg(*it).arg(DAQ::GetProductName(*it)));
         aoDevNames.push_back(*it);
     }
-    dialog->aoDeviceCB->setCurrentIndex(sel);
+    if ( dialog->aoDeviceCB->count() ) // empty CB sometimes on missing AO??
+        dialog->aoDeviceCB->setCurrentIndex(sel);
     
     dialog->disableGraphsChk->setChecked(p.suppressGraphs);
     
@@ -166,6 +170,7 @@ void ConfigureDialogController::acqModeCBChanged()
 
 void ConfigureDialogController::deviceCBChanged()
 {
+    if (!dialog->deviceCB->count()) return;
     QString devStr = devNames[dialog->deviceCB->currentIndex()];
     QList<DAQ::Range> ranges = aiDevRanges.values(devStr);
     QString curr = dialog->aiRangeCB->currentText();
@@ -179,7 +184,8 @@ void ConfigureDialogController::deviceCBChanged()
     for (int i = 0; i < DOS.count(); ++i) {
         dialog->doCtlCB->addItem(DOS.at(i).section('/',1,-1));
     }
-    dialog->doCtlCB->setCurrentIndex(doCtl);
+    if (doCtl < dialog->doCtlCB->count())
+        dialog->doCtlCB->setCurrentIndex(doCtl);
 
     if (!curr.length()) {
         curr = QString("%1 - %2").arg(acceptedParams.range.min).arg(acceptedParams.range.max);
@@ -192,7 +198,8 @@ void ConfigureDialogController::deviceCBChanged()
         if (txt == curr) sel = i;
         dialog->aiRangeCB->insertItem(i, txt);
     }
-    dialog->aiRangeCB->setCurrentIndex(sel);
+    if (dialog->aiRangeCB->count())
+        dialog->aiRangeCB->setCurrentIndex(sel);
 
     dialog->srateSB->setMinimum((unsigned)DAQ::MinimumSampleRate(devStr));
     dialog->srateSB->setMaximum((unsigned)DAQ::MaximumSampleRate(devStr));
@@ -200,6 +207,7 @@ void ConfigureDialogController::deviceCBChanged()
 
 void ConfigureDialogController::aoDeviceCBChanged()
 {
+    if (!dialog->aoDeviceCB->count()) return;
     QString devStr = aoDevNames[dialog->aoDeviceCB->currentIndex()];
     QList<DAQ::Range> ranges = aoDevRanges.values(devStr);
     QString curr = dialog->aoRangeCB->currentText();
@@ -215,7 +223,8 @@ void ConfigureDialogController::aoDeviceCBChanged()
         if (txt == curr) sel = i;
         dialog->aoRangeCB->insertItem(i, txt);
     }
-    dialog->aoRangeCB->setCurrentIndex(sel);
+    if (dialog->aoRangeCB->count())
+        dialog->aoRangeCB->setCurrentIndex(sel);
 }
 
 void ConfigureDialogController::browseButClicked()
@@ -226,6 +235,19 @@ void ConfigureDialogController::browseButClicked()
 
 void ConfigureDialogController::aoPassthruChkd()
 {
+    if (!dialog->aoDeviceCB->count()) {
+        // if no AO subdevice present on the current machine, just disable all GUI related to AO and return
+        acqPdParams->pdPassthruAOChk->setEnabled(false);
+        acqPdParams->pdPassthruAOChk->setChecked(false); 
+        acqPdParams->pdPassthruAOSB->setEnabled(false);
+        dialog->aoPassthruGB->setChecked(false);
+        dialog->aoPassthruGB->setEnabled(false);
+        QString theTip = "AO missing on installed hardware, AO passthru unavailable.";
+        dialog->aoPassthruGB->setToolTip(theTip);
+        acqPdParams->pdPassthruAOChk->setToolTip(theTip); 
+        acqPdParams->pdPassthruAOSB->setToolTip(theTip);
+        return;
+    }
     bool chk = dialog->aoPassthruGB->isChecked();
     acqPdParams->pdPassthruAOChk->setEnabled(chk);
     if (!chk && acqPdParams->pdPassthruAOChk->isChecked()) 
@@ -253,8 +275,8 @@ int ConfigureDialogController::exec()
         // TODO process/validate form here... reject on invalid params!
     
         if (ret == QDialog::Accepted) {
-            const QString & dev = devNames[dialog->deviceCB->currentIndex()];
-            const QString & aoDev = aoDevNames[dialog->aoDeviceCB->currentIndex()];
+            const QString dev = dialog->deviceCB->count() ? devNames[dialog->deviceCB->currentIndex()] : "";
+            const QString aoDev = dialog->aoDeviceCB->count() ? aoDevNames[dialog->aoDeviceCB->currentIndex()] : "";
 
             bool err;
             QVector<unsigned> chanVect;
@@ -286,7 +308,7 @@ int ConfigureDialogController::exec()
             }
             
             QMap<unsigned, unsigned> aopass;            
-            if (dialog->aoPassthruGB->isChecked()) {
+            if (dialog->aoPassthruGB->isChecked() && aoDevNames.count()) {
                 aopass = parseAOPassthruString(dialog->aoPassthruLE->text(), &err);
                 if (err) {
                     QMessageBox::critical(dialogW, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=CHANNEL_INDEX_POS!");
@@ -383,19 +405,27 @@ int ConfigureDialogController::exec()
             p.doCtlChan = dialog->doCtlCB->currentIndex();
             p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());
             p.usePD = usePD;
-            p.aoPassthru = dialog->aoPassthruGB->isChecked();
-            p.aoDev = aoDev;
-            p.aoSrate = p.srate;
-            rngs = dialog->aoRangeCB->currentText().split(" - ");
-            if (rngs.count() != 2) {
-                Error() << "INTERNAL ERROR: AO Range ComboBox needs numbers of the form REAL - REAL!";
-                return QDialog::Rejected;
-            }            
-            p.aoRange.min = rngs.first().toDouble();
-            p.aoRange.max = rngs.last().toDouble();
-            p.aoPassthruMap = aopass;
-            p.aoChannels = aoChanVect;
-            p.aoPassthruString = dialog->aoPassthruLE->text();
+            if (!aoDevNames.empty()) {                
+                p.aoPassthru = dialog->aoPassthruGB->isChecked();
+                p.aoDev = aoDev;
+                p.aoSrate = p.srate;
+                rngs = dialog->aoRangeCB->currentText().split(" - ");
+                if (rngs.count() != 2) {
+                    Error() << "INTERNAL ERROR: AO Range ComboBox needs numbers of the form REAL - REAL!";
+                    return QDialog::Rejected;
+                }            
+                p.aoRange.min = rngs.first().toDouble();
+                p.aoRange.max = rngs.last().toDouble();
+                p.aoPassthruMap = aopass;
+                p.aoChannels = aoChanVect;
+                p.aoPassthruString = dialog->aoPassthruLE->text();
+            } else {
+                p.aoPassthruMap.clear();
+                p.aoChannels.clear();
+                p.aoPassthruString = "";
+                p.aoDev = "";
+                p.aoPassthru = false;
+            }
             p.suppressGraphs = dialog->disableGraphsChk->isChecked();
 
             p.acqStartEndMode = acqStartEndMode;

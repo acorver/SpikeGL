@@ -458,6 +458,10 @@ void MainApp::initActions()
 void MainApp::newAcq() 
 {
     if ( !maybeCloseCurrentIfRunning() ) return;
+    if (DAQ::ProbeAllAIChannels().empty()) {
+            QMessageBox::critical(0, "Analog Input Missing!", "Could not find any analog input channels on this system!  Therefore, data acquisition is unavailable!");
+            return;
+    }
     int ret = configCtl->exec();
     if (ret == QDialog::Accepted) {
         scan0Fudge = 0;
@@ -943,7 +947,7 @@ void MainApp::doFastSettle()
     if (fastSettleRunning || !task) return;    
     fastSettleRunning = true;
     task->setDO(false);
-    QTimer::singleShot(2000, this, SLOT(fastSettleCompletion()));    
+    QTimer::singleShot(FAST_SETTLE_TIME_MS, this, SLOT(fastSettleCompletion()));    
 }
 
 void MainApp::fastSettleCompletion()

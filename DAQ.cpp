@@ -160,8 +160,10 @@ namespace DAQ
         return GetPhysChans(devname, DAQmxGetDevAIPhysicalChans, "DAQmxGetDevAIPhysicalChans");
 #else // !HAVE_NIDAQmx, emulated, 60 chans
         QStringList ret;
-        for (int i = 0; i < 60; ++i) {
-            ret.push_back(QString("%1/ai%2").arg(devname).arg(i));
+        if (devname == "Dev1") {
+            for (int i = 0; i < 60; ++i) {
+                ret.push_back(QString("%1/ai%2").arg(devname).arg(i));
+            }
         }
         return ret;
 #endif
@@ -173,8 +175,10 @@ namespace DAQ
         return GetPhysChans(devname, DAQmxGetDevAOPhysicalChans, "DAQmxGetDevAOPhysicalChans");
 #else // !HAVE_NIDAQmx, emulated, 2 chans
         QStringList ret;
-        for (int i = 0; i < 2; ++i) {
-            ret.push_back(QString("%1/ao%2").arg(devname).arg(i));
+        if (devname == "Dev1") {
+            for (int i = 0; i < 2; ++i) {
+                ret.push_back(QString("%1/ao%2").arg(devname).arg(i));
+            }
         }
         return ret;
 #endif
