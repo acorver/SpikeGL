@@ -266,6 +266,34 @@ namespace DAQ
 #endif
     }
 
+    TermConfig toTermConfig(const QString & txt) 
+    {
+        if (!txt.compare("RSE", Qt::CaseInsensitive))
+            return RSE;
+        else if (!txt.compare("NRSE", Qt::CaseInsensitive))
+            return NRSE;
+        else if (!txt.compare("Differential", Qt::CaseInsensitive) 
+                 || !txt.compare("Diff", Qt::CaseInsensitive) )
+            return Diff;
+        else if (!txt.compare("PseudoDifferential", Qt::CaseInsensitive) 
+                 || !txt.compare("PseudoDiff", Qt::CaseInsensitive) )
+            return PseudoDiff;
+        return Default;       
+    }
+
+    QString termConfigToString(TermConfig t)
+    {
+        switch(t) {
+        case RSE: return "RSE";
+        case NRSE: return "NRSE";
+        case Diff: return "Differential";
+        case PseudoDiff: return "PseudoDifferential";
+        default: break;
+        }
+        return "Default";
+    }
+
+
 
 #define DEFAULT_DEV "Dev1"
 #define DEFAULT_DO 0
@@ -448,7 +476,7 @@ namespace DAQ
         std::vector<int16> data, leftOver, aoData;
 
         DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
-        DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",DAQmx_Val_Cfg_Default,min,max,DAQmx_Val_Volts,NULL));
+        DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL));
         DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize));
         DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize)); //use a 1,000,000 sample DMA buffer per channel
         //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this));

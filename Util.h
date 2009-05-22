@@ -78,6 +78,9 @@ extern void setVSyncMode(bool onoff, bool printToLog = false);
 /// Returns true if the implementation has the named extension.
 extern bool hasExt(const char *ext_name);
 
+/// Same as libc ffs, except we implement it ourselves because of Wind0ze
+extern int ffs(int x);
+
 /// Super class of Debug, Warning, Error classes.  
 class Log 
 {

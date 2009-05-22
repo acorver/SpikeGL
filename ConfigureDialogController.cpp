@@ -66,6 +66,8 @@ void ConfigureDialogController::resetFromParams()
     dialog->clockCB->setCurrentIndex(p.extClock ? 0 : 1);
     dialog->srateSB->setValue(p.srate);
     dialog->aoPassthruGB->setChecked(p.aoPassthru);
+    int ci = dialog->aiTerminationCB->findText(DAQ::termConfigToString(p.aiTerm), Qt::MatchExactly|Qt::CaseInsensitive);
+    dialog->aiTerminationCB->setCurrentIndex(ci > -1 ? ci : 0);
     if (int(p.doCtlChan) < dialog->doCtlCB->count())
         dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
     dialog->channelListLE->setText(p.aiString);
@@ -441,6 +443,8 @@ int ConfigureDialogController::exec()
             p.pdChan = pdChan;
             p.pdThresh = static_cast<signed short>(acqPdParams->pdAIThreshSB->value() - 32768);
             p.pdPassThruToAO = pdAOChan;
+
+            p.aiTerm = DAQ::toTermConfig(dialog->aiTerminationCB->currentText());
             
             saveSettings();
         }
@@ -572,6 +576,8 @@ void ConfigureDialogController::loadSettings()
     p.pdThresh = settings.value("acqPDThresh", 48000-32768).toInt();
     p.pdChan = settings.value("acqPDChan", 4).toInt();
     p.pdPassThruToAO = settings.value("acqPDPassthruChanAO", 2).toInt();
+
+    p.aiTerm = (DAQ::TermConfig)settings.value("aiTermConfig", (int)DAQ::Default).toInt();
 }
 
 void ConfigureDialogController::saveSettings()
@@ -607,4 +613,5 @@ void ConfigureDialogController::saveSettings()
     settings.setValue("acqPDThresh", p.pdThresh);
     settings.setValue("acqPDChan", p.pdChan);
     settings.setValue("acqPDPassthruChanAO", p.pdPassThruToAO);
+    settings.setValue("aiTermConfig", (int)p.aiTerm);
 }

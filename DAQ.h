@@ -34,6 +34,17 @@ namespace DAQ
         Immediate, PDStartEnd, PDStart, Timed, StimGLStartEnd, StimGLStart
     };
 
+    enum TermConfig {
+        Default = -1,
+        RSE = 10083,
+        NRSE = 10078,
+        Diff = 10106,
+        PseudoDiff = 12529
+    };
+
+    TermConfig toTermConfig(const QString & txt);
+    QString termConfigToString(TermConfig t);
+
     const QString & ModeToString(Mode m);
     Mode StringToMode(const QString &);
 
@@ -71,6 +82,8 @@ namespace DAQ
         int pdPassThruToAO; ///< if negative, don't, else the channel id
 
         bool suppressGraphs;
+
+        TermConfig aiTerm;
     };
 
     //-------- NI DAQmx helper methods -------------
