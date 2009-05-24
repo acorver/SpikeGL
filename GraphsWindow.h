@@ -14,7 +14,7 @@ class QLCDNumber;
 class PointProcThread;
 class QAction;
 class QFrame;
-class QLineEdit;
+class QDoubleSpinBox;
 
 class GraphsWindow : public QMainWindow
 {
@@ -28,14 +28,17 @@ public:
     // clear a specific graph's points, or all if negative
     void clearGraph(int which = -1);
 
+    // overrides parent -- applies event filtering to the doublespinboxes as well!
+    void installEventFilter(QObject * filterObj);
+
 private slots:
     void updateGraphs();
     void downsampleChk(bool checked);
     void pauseGraph();
     void toggleMaximize();
     void selectGraph(int num);
-    void graphSecsEdited(const QString &);
-    void graphYScaleEdited(const QString &);
+    void graphSecsChanged(double d);
+    void graphYScaleChanged(double d);
     void applyAll();
 
     void mouseOverGraph(double x, double y);
@@ -47,12 +50,13 @@ private:
     void update_nPtsAllGs();
     
     void updateGraphCtls();
+    void doPauseUnpause(int num, bool updateCtls = true);
     
     DAQ::Params params;
     QWidget *graphsWidget;
     QToolBar *graphCtls;
     QLCDNumber *chanLCD;
-    QLineEdit *graphYScale, *graphSecs;
+    QDoubleSpinBox *graphYScale, *graphSecs;
     QVector<Vec2WrapBuffer> points;
     QVector<GLGraph *> graphs;
     QVector<QFrame *> graphFrames;

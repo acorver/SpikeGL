@@ -81,6 +81,9 @@ extern bool hasExt(const char *ext_name);
 /// Same as libc ffs, except we implement it ourselves because of Wind0ze
 extern int ffs(int x);
 
+/// Returns true if object has parent or grandparent, etc equal to ancestor.  This is a way to test if an object is contained (in a nested fashion) in another object.
+extern bool objectHasAncestor(QObject *object, QObject *ancestor);
+
 /// Super class of Debug, Warning, Error classes.  
 class Log 
 {

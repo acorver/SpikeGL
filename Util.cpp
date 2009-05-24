@@ -99,6 +99,16 @@ int ffs(int x)
         return r;
 }
 
+bool objectHasAncestor(QObject *o, QObject *a)
+{
+    while (o) {
+        o = o->parent();
+        if (o == a) return true;        
+    }
+    return false;
+}
+
+
 Log::Log()
     : doprt(true), str(""), s(&str, QIODevice::WriteOnly)
 {

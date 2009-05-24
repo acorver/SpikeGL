@@ -165,25 +165,28 @@ void MainApp::toggleDebugMode()
     saveSettings();    
 }
 
-void MainApp::processKey(QKeyEvent *event) 
+bool MainApp::isShiftPressed()
+{
+    return (keyboardModifiers() & Qt::ShiftModifier);
+}
+
+bool MainApp::processKey(QKeyEvent *event) 
 {
     switch (event->key()) {
     case 'd':
     case 'D':
         toggleDebugAct->trigger();
-        event->accept();
-        break;
+        return true;
     case 'c':
     case 'C':
         hideUnhideConsoleAct->trigger();
-        event->accept();
-        break;
+        return true;
     case 'g':
     case 'G':
         hideUnhideGraphsAct->trigger();
-        event->accept();
-        break;
+        return true;
     }
+    return false;
 }
 
 bool MainApp::eventFilter(QObject *watched, QEvent *event)
@@ -193,15 +196,15 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
         // globally forward all keypresses
         // if they aren't handled, then return false for normal event prop.
         QKeyEvent *k = dynamic_cast<QKeyEvent *>(event);
-        if (k && (watched == graphsWindow || watched == consoleWindow || watched == consoleWindow->textEdit())) {
-            processKey(k);
-            if (k->isAccepted()) {
+        if (k && (watched == graphsWindow || watched == consoleWindow || watched == consoleWindow->textEdit() || Util::objectHasAncestor(watched, graphsWindow))) {
+            if (processKey(k)) {
+                event->accept();
                 return true;
-            }
+            } 
         }
     } 
-    ConsoleWindow *cw = dynamic_cast<ConsoleWindow *>(watched);
-    if (cw) {
+    if (watched == consoleWindow) {
+        ConsoleWindow *cw = dynamic_cast<ConsoleWindow *>(watched);
         if (type == LogLineEventType) {
             LogLineEvent *evt = dynamic_cast<LogLineEvent *>(event);
             if (evt && cw->textEdit()) {
@@ -251,7 +254,7 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
     }
     // otherwise do default action for event which probably means
     // propagate it down
-    return QApplication::eventFilter(watched, event);
+    return  QApplication::eventFilter(watched, event);
 }
 
 void MainApp::logLine(const QString & line, const QColor & c)

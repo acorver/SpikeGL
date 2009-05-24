@@ -89,6 +89,8 @@ public:
     
     void sysTrayMsg(const QString & msg, int timeout_msecs = 0, bool iserror = false);
 
+    bool isShiftPressed();
+
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
     void toggleDebugMode(); 
@@ -145,10 +147,11 @@ private:
     /// Display a message to the status bar
     void statusMsg(const QString & message, int timeout_msecs = 0);
     void initActions(); 
+    void initShortcuts(); 
     void loadSettings();
     void saveSettings();
     void createAppIcon();
-    void processKey(QKeyEvent *);
+    bool processKey(QKeyEvent *);
     void stopTask();
     bool setupStimGLIntegration(bool doQuitOnFail=true);
     void detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp);

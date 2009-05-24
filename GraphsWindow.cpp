@@ -14,8 +14,7 @@
 #include <QStatusBar>
 #include <QFrame>
 #include <QVBoxLayout>
-#include <QLineEdit>
-#include <QDoubleValidator>
+#include <QDoubleSpinBox>
 #include <QPushButton>
 #include <math.h>
 #include "MainApp.h"
@@ -58,24 +57,24 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     graphCtls->addWidget(new QLabel("Channel:", graphCtls));
     graphCtls->addWidget(chanLCD = new QLCDNumber(2, graphCtls));
     graphCtls->addSeparator();
-    pauseAct = graphCtls->addAction(*pauseIcon, "Pause/Unpause graph", this, SLOT(pauseGraph()));
+    pauseAct = graphCtls->addAction(*pauseIcon, "Pause/Unpause ALL graphs -- hold down shift for just this graph", this, SLOT(pauseGraph()));
     maxAct = graphCtls->addAction(*windowFullScreenIcon, "Maximize/Restore graph", this, SLOT(toggleMaximize()));
     pauseAct->setCheckable(true);
     maxAct->setCheckable(true);
     graphCtls->addSeparator();
+
     QLabel *lbl = new QLabel("Graph Seconds:", graphCtls);
     graphCtls->addWidget(lbl);
-    graphSecs = new QLineEdit(graphCtls);
-    QDoubleValidator *dv = new QDoubleValidator(graphCtls);
-    dv->setRange(.01, 10.0, 2);
-    graphSecs->setValidator(dv);
+    graphSecs = new QDoubleSpinBox(graphCtls);
+    graphSecs->setRange(.01, 10.0);
+    graphSecs->setSingleStep(.25);    
     graphCtls->addWidget(graphSecs);
+
     lbl = new QLabel("Graph YScale:", graphCtls);
     graphCtls->addWidget(lbl);
-    graphYScale = new QLineEdit(graphCtls);
-    dv = new QDoubleValidator(graphCtls);
-    dv->setRange(.01, 100.0, 2);
-    graphYScale->setValidator(dv);
+    graphYScale = new QDoubleSpinBox(graphCtls);
+    graphYScale->setRange(.01, 100.0);
+    graphYScale->setSingleStep(0.25);
     graphCtls->addWidget(graphYScale);
 
     applyAllAct = graphCtls->addAction(*applyAllIcon, "Apply scale/secs to all graphs", this, SLOT(applyAll()));
@@ -111,8 +110,8 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
 
     maximized = 0;
 
-    Connect(graphSecs, SIGNAL(textEdited(const QString &)), this, SLOT(graphSecsEdited(const QString &)));
-    Connect(graphYScale, SIGNAL(textEdited(const QString &)), this, SLOT(graphYScaleEdited(const QString &)));
+    Connect(graphSecs, SIGNAL(valueChanged(double)), this, SLOT(graphSecsChanged(double)));
+    Connect(graphYScale, SIGNAL(valueChanged(double)), this, SLOT(graphYScaleChanged(double)));
 
     QGridLayout *l = new QGridLayout(graphsWidget);
     l->setHorizontalSpacing(1);
@@ -164,6 +163,13 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
 
 GraphsWindow::~GraphsWindow()
 {
+}
+
+void GraphsWindow::installEventFilter(QObject *obj)
+{
+    QObject::installEventFilter(obj);
+    graphYScale->installEventFilter(obj);
+    graphSecs->installEventFilter(obj);
 }
 
 void GraphsWindow::setGraphTimeSecs(int num, double t)
@@ -272,15 +278,28 @@ void GraphsWindow::downsampleChk(bool checked)
 }
 
 
-void GraphsWindow::pauseGraph()
+void GraphsWindow::doPauseUnpause(int num, bool updateCtls)
 {
-    int num = chanLCD->intValue();
     if (num < pausedGraphs.size()) {
         bool p = pausedGraphs[num] = !pausedGraphs[num];
         if (!p) // unpaused. clear the graph now..
             clearGraph(num);
-        updateGraphCtls();
     }
+    if (updateCtls) 
+        updateGraphCtls();
+}
+
+void GraphsWindow::pauseGraph()
+{
+    if (mainApp()->isShiftPressed()) { // shift pressed, do 1 graph
+        int num = chanLCD->intValue();
+        doPauseUnpause(num, false);
+    } else { // no shift pressed -- do all graphs
+        const int sz = pausedGraphs.size();
+        for (int i = 0; i < sz; ++i) 
+            doPauseUnpause(i, false);
+    }
+    updateGraphCtls();
 }
 
 void GraphsWindow::selectGraph(int num)
@@ -305,8 +324,8 @@ void GraphsWindow::updateGraphCtls()
         maxAct->setChecked(false);
         maxAct->setIcon(*windowFullScreenIcon);
     }
-    graphYScale->setText(QString::number(graphs[num]->yScale()));
-    graphSecs->setText(QString::number(graphTimesSecs[num]));
+    graphYScale->setValue(graphs[num]->yScale());
+    graphSecs->setValue(graphTimesSecs[num]);
 }
 
 void GraphsWindow::mouseClickGraph(double x, double y)
@@ -385,28 +404,16 @@ void GraphsWindow::clearGraph(int which)
         points[which].clear(), graphs[which]->setPoints(&points[which]);
 }
 
-void GraphsWindow::graphSecsEdited(const QString &txt)
+void GraphsWindow::graphSecsChanged(double secs)
 {
     int num = chanLCD->intValue();
-    bool ok;
-    double secs = txt.toDouble(&ok);
-    if (!ok || !graphSecs->hasAcceptableInput()) {
-        //graphSecs->setText(QString::number(graphTimesSecs[num]));
-        return; // reject..
-    }
     setGraphTimeSecs(num, secs);
     update_nPtsAllGs();    
 }
 
-void GraphsWindow::graphYScaleEdited(const QString &txt)
+void GraphsWindow::graphYScaleChanged(double scale)
 {
     int num = chanLCD->intValue();
-    bool ok;
-    double scale = txt.toDouble(&ok);
-    if (!ok || !graphYScale->hasAcceptableInput()) {
-        //graphYScale->setText(QString::number(graphs[num]->yScale()));
-        return; // rejected..
-    }
     graphs[num]->setYScale(scale);
 }
 
