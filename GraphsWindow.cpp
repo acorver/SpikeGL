@@ -101,6 +101,7 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     if (p.usePD) {
         pdChan = p.nVAIChans-1;
     }
+    firstExtraChan = p.nVAIChans - p.nExtraChans;
     graphs.resize(p.nVAIChans);
     graphFrames.resize(graphs.size());
     pausedGraphs.resize(graphs.size());
@@ -144,7 +145,7 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
             graphs[num]->setMouseTracking(true);
             l->addWidget(f, r, c);
             setGraphTimeSecs(num, DEFAULT_GRAPH_TIME_SECS);
-            if (num == pdChan) {
+            if (num >= firstExtraChan) {
                 // this is the photodiode channel
                 graphs[num]->bgColor() = QColor(0xa6, 0x69,0x3c, 0xff);
             }
@@ -338,7 +339,7 @@ void GraphsWindow::mouseClickGraph(double x, double y)
     y = y*(params.range.max-params.range.min) + params.range.min;
 
     QString msg;
-    msg.sprintf("Mouse press %s %d @ pos (%f, %f)",(num == pdChan ? "photodiode graph" : "graph"),num,x,y);
+    msg.sprintf("Mouse press %s %d @ pos (%f, %f)",(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),num,x,y);
     statusBar()->showMessage(msg);
 }
 
@@ -351,7 +352,7 @@ void GraphsWindow::mouseOverGraph(double x, double y)
     y = y*(params.range.max-params.range.min) + params.range.min;
 
     QString msg;
-    msg.sprintf("Mouse over %s %d @ pos (%f, %f)",(num == pdChan ? "photodiode graph" : "graph"),num,x,y);
+    msg.sprintf("Mouse over %s %d @ pos (%f, %f)",(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),num,x,y);
     statusBar()->showMessage(msg);
 }
 

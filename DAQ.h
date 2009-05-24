@@ -59,6 +59,7 @@ namespace DAQ
         QString aiString;
         QVector<unsigned> aiChannels;
         unsigned nVAIChans; ///< number of virtual (demuxed) AI chans
+        unsigned nExtraChans; ///< the number of extra channels (PD, etc) that aren't part of the demux.. if not in MUX mode, this is always 0
         bool aoPassthru;
         QString aoDev;
         Range aoRange;

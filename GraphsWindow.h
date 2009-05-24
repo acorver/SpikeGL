@@ -65,7 +65,7 @@ private:
     QVector<i64> nptsAll;
     i64 nPtsAllGs; ///< sum of each element of nptsAll array above..
     double downsampleRatio, tNow, tLast, tAvg, tNum;
-    int pdChan;
+    int pdChan, firstExtraChan;
     QAction *pauseAct, *maxAct, *applyAllAct;
     GLGraph *maximized; ///< if not null, a graph is maximized 
 };

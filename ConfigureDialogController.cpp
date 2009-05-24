@@ -289,20 +289,24 @@ int ConfigureDialogController::exec()
                 continue;
             }
             const DAQ::Mode acqMode = (DAQ::Mode)dialog->acqModeCB->currentIndex();
+            
+            int nExtraChans = 0;
 
-            if ( (acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux)
-                 && !DAQ::SupportsAISimultaneousSampling(dev) ) {
-                QMessageBox::critical(dialogW, "INTAN Requires Simultaneous Sampling", QString("INTAN (60/120 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev));
-                again = true;
-                continue;
+            if ( acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux ) {
+                if (!DAQ::SupportsAISimultaneousSampling(dev)) {
+                    QMessageBox::critical(dialogW, "INTAN Requires Simultaneous Sampling", QString("INTAN (60/120 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev));
+                    again = true;
+                    continue;
+                }
+                const int minChanSize = acqMode == DAQ::AI120Demux ? 8 : 4;
+                if ( int(chanVect.size()) < minChanSize ) {
+                    QMessageBox::critical(dialogW, "AI Chan List Error", "INTAN (60/120 demux) mode requires precisely 4 or 8 channels!");
+                    again = true;
+                    continue;                
+                }
+                nExtraChans = chanVect.size() - minChanSize;
             }
 
-            if ( (acqMode == DAQ::AI60Demux && chanVect.size() != 4)
-                 || (acqMode == DAQ::AI120Demux && chanVect.size() != 8) ) {
-                QMessageBox::critical(dialogW, "AI Chan List Error", "INTAN (60/120 demux) mode requires precisely 4 or 8 channels!");
-                again = true;
-                continue;                
-            }
             if (!chanVect.size()) {
                 QMessageBox::critical(dialogW, "AI Chan List Error", "Need at least 1 channel in the AI channel list!");
                 again = true;
@@ -347,12 +351,13 @@ int ConfigureDialogController::exec()
             } 
             unsigned nVAI = chanVect.size();
             bool isMux = acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux;
-            if (isMux) nVAI *= MUX_CHANS_PER_PHYS_CHAN;
+            if (isMux) nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN + nExtraChans;
 
             bool usePD = false;
             if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd) {
                 chanVect.push_back(pdChan);
                 ++nVAI;
+                ++nExtraChans;
                 usePD = true;
             }
 
@@ -403,6 +408,7 @@ int ConfigureDialogController::exec()
             p.extClock = dialog->clockCB->currentIndex() == 0;
             p.aiChannels = chanVect;
             p.nVAIChans = nVAI;
+            p.nExtraChans = nExtraChans;
             p.aiString = chans;
             p.doCtlChan = dialog->doCtlCB->currentIndex();
             p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());

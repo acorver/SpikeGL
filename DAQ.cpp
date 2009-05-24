@@ -431,6 +431,7 @@ namespace DAQ
         const int aoNChans = p.aoChannels.size();
         const float64     aoMin = p.aoRange.min;
         const float64     aoMax = p.aoRange.max;
+        const int nExtraChans = p.nExtraChans;
         
 
         // Params dependent on mode and DAQ::Params, etc
@@ -522,26 +523,30 @@ namespace DAQ
             }
 
             //Debug() << "Acquired " << nRead << " samples. Total " << totalRead;
-            if (p.usePD && muxMode) {
+            if (muxMode && p.nExtraChans) {
             /*
               NB: at this point data contains scans of the form:
 
-              | 0 | 1 | 2 | 3 | PD | 4 | 5 | 6 | 7 | PD |... | 58 | 59 | PD |
+              | 0 | 1 | 2 | 3 | Extra 1 | Extra 2 | PD | ...
+              | 4 | 5 | 6 | 7 | Extra 1 | Extra 2 | PD | ... 
+              | 56| 57| 58| 59| Extra 1 | Extra 2 | PD |
               ---------------------------------------------------------------
 
-              Notice how the PD channel is interwoven into the
+              Notice how the Extra channels are interwoven into the
               0:3 (or 0:7 if in 120 channel mode) AI channels.
 
-              We need to remove it!
+              We need to remove them!
 
               We want to turn that into 1 (or more) demuxed VIRTUAL scans
               of the form:
 
-              | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |... | 58 | 59 | PD |
+              | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | ... | 58 | 59 | Extra 1 | Extra 2| PD |
               -----------------------------------------------------
 
-              Where we remove every `nChans' PD except for when we have 
-              NCHANS-1 samples, then we add the PD channel.
+              Where we remove every `nChans' extraChans except for when 
+              we have (NCHANS-extraChans) samples, then we add the extraChans, 
+              effectively downsampling the extra channels from 444kHz to 
+              29.630 kHz.
 
               Capisce?
 
@@ -555,10 +560,12 @@ namespace DAQ
                
                 for (int i = nChans-1; i < datasz; i += nChans) {
                     tmp.insert(tmp.end(), &data[(i-nChans)+1], &data[i]); // copy non-PD channels for this MUXed sub-scan
-                    if (!(tmp.size() % (NCHANS-1))) // if we are on a virtual scan-boundary, then ...
-                        tmp.push_back(data[i]); // .. we keep the PD channel
-                    else
-                        --sampCount, --nRead;  // otherwise we discarded it, so tally its disappearance
+                    if (!(tmp.size() % (NCHANS-nExtaChans))) {// if we are on a virtual scan-boundary, then ...
+                        std::vector<int16>::const_iterator endi = data.end();
+                        if (i+nExtraChans < datasz) endi = &data[i+nExtraChans]; 
+                        tmp.insert(tmp.end(), &data[i], endi); // .. we keep the PD channel
+                    } else
+                        sampCount -= nExtraChans, nRead -= nExtraChans;  // otherwise we discarded it, so tally its disappearance
                 }
                 data.swap(tmp);
             }
