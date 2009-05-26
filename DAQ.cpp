@@ -560,10 +560,10 @@ namespace DAQ
                
                 for (int i = nChans-1; i < datasz; i += nChans) {
                     tmp.insert(tmp.end(), &data[(i-nChans)+1], &data[i]); // copy non-PD channels for this MUXed sub-scan
-                    if (!(tmp.size() % (NCHANS-nExtaChans))) {// if we are on a virtual scan-boundary, then ...
-                        std::vector<int16>::const_iterator endi = data.end();
-                        if (i+nExtraChans < datasz) endi = &data[i+nExtraChans]; 
-                        tmp.insert(tmp.end(), &data[i], endi); // .. we keep the PD channel
+                    if (!(tmp.size() % (NCHANS-nExtraChans))) {// if we are on a virtual scan-boundary, then ...
+						std::vector<int16>::const_iterator begi = data.begin()+i, endi = data.end();
+                        if (i+nExtraChans < datasz) endi = data.begin()+(i+nExtraChans); 
+                        tmp.insert(tmp.end(), begi, endi); // .. we keep the PD channel
                     } else
                         sampCount -= nExtraChans, nRead -= nExtraChans;  // otherwise we discarded it, so tally its disappearance
                 }
