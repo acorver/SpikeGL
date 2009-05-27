@@ -448,6 +448,6 @@ void GraphsWindow::hpfChk(bool b)
 {
     if (filter) delete filter, filter = 0;
     if (b) {
-        filter = new HPFilter(graphs.size(), 300.0, 60.);
+        filter = new HPFilter(graphs.size(), 300.0);
     }
 }
