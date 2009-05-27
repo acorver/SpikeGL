@@ -18,6 +18,7 @@
 #include <QPushButton>
 #include <math.h>
 #include "MainApp.h"
+#include "HPFilter.h"
 #include "play.xpm"
 #include "pause.xpm"
 #include "window_fullscreen.xpm"
@@ -85,6 +86,13 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     dsc->setChecked(true);
     downsampleChk(true);
     Connect(dsc, SIGNAL(clicked(bool)), this, SLOT(downsampleChk(bool)));
+
+    highPassChk = new QCheckBox("Filter < 300Hz", graphCtls);
+    graphCtls->addWidget(highPassChk);
+    highPassChk->setChecked(false);
+    Connect(highPassChk, SIGNAL(clicked(bool)), this, SLOT(hpfChk(bool)));
+    filter = 0;
+
 
     graphCtls->addSeparator();
     QPushButton *fset = new QPushButton(QIcon(QPixmap(fastsettle_xpm)), "Fast Settle", graphCtls);
@@ -164,6 +172,7 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
 
 GraphsWindow::~GraphsWindow()
 {
+    if (filter) delete filter, filter = 0;
 }
 
 void GraphsWindow::installEventFilter(QObject *obj)
@@ -219,7 +228,12 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
         int idx = 0;
         const int maximizedIdx = (maximized ? maximized->objectName().mid(8).toInt() : -1);
 
+        bool needFilter = filter;
         for (int i = startpt; i < DSIZE; ++i) {
+            if (needFilter) {
+                filter->apply(&data[i], deltaT);
+                needFilter = false;
+            }
             v.x = t;
             v.y = DPTR[i] / 32768.0; // hardcoded range of data
             if (!pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx))
@@ -229,6 +243,7 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
                 t += deltaT;
                 i = int((i-NGRAPHS) + DOWNSAMPLE_RATIO*NGRAPHS);
                 if ((i+1)%NGRAPHS) i -= (i+1)%NGRAPHS;
+                needFilter = filter;
             }
         }
         for (int i = 0; i < NGRAPHS; ++i) {
@@ -427,4 +442,12 @@ void GraphsWindow::applyAll()
         graphs[i]->setYScale(scale);
     }
     update_nPtsAllGs();    
+}
+
+void GraphsWindow::hpfChk(bool b)
+{
+    if (filter) delete filter, filter = 0;
+    if (b) {
+        filter = new HPFilter(graphs.size(), 300.0, 60.);
+    }
 }

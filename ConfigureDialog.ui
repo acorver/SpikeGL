@@ -602,6 +602,47 @@ p, li { white-space: pre-wrap; }
     <string>Termination:</string>
    </property>
   </widget>
+  <widget class="QSpinBox" name="fastSettleSB" >
+   <property name="geometry" >
+    <rect>
+     <x>370</x>
+     <y>121</y>
+     <width>91</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>The amount of time in milliseconds to toggle the DO line off/on when performing a "fast settle" of the INTAN MUX.  Ignored in non-INTAN mode.</string>
+   </property>
+   <property name="minimum" >
+    <number>1</number>
+   </property>
+   <property name="maximum" >
+    <number>2000</number>
+   </property>
+   <property name="value" >
+    <number>15</number>
+   </property>
+  </widget>
+  <widget class="QLabel" name="fastSettleLbl" >
+   <property name="geometry" >
+    <rect>
+     <x>270</x>
+     <y>123</y>
+     <width>91</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="toolTip" >
+    <string>The amount of time in milliseconds to toggle the DO line off/on when performing a "fast settle" of the INTAN MUX.  Ignored in non-INTAN mode.</string>
+   </property>
+   <property name="text" >
+    <string>Fast Settle MS:</string>
+   </property>
+   <property name="alignment" >
+    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections>

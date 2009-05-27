@@ -203,6 +203,12 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
             } 
         }
     } 
+    if (watched == graphsWindow && type == QEvent::Close) {
+        // request to close the graphsWindow.. this stops the acq -- ask the user to confirm.. do this after this event handler runs, so enqueue it with a timer
+        QTimer::singleShot(1, this, SLOT(maybeCloseCurrentIfRunning()));
+        event->ignore();
+        return true;
+    }
     if (watched == consoleWindow) {
         ConsoleWindow *cw = dynamic_cast<ConsoleWindow *>(watched);
         if (type == LogLineEventType) {
@@ -593,6 +599,7 @@ void MainApp::taskReadFunc()
     const DAQ::Params & p (configCtl->acceptedParams);
     while ((ct++ < ctMax || taskShouldStop) ///< on taskShouldStop, keep trying to empty queue!
            && !needToStop
+           && task
            && task->dequeueBuffer(scans, firstSamp)) {
         tNow = getTime();
         scanCt = firstSamp/p.nVAIChans;
@@ -950,7 +957,7 @@ void MainApp::doFastSettle()
     if (fastSettleRunning || !task) return;    
     fastSettleRunning = true;
     task->setDO(false);
-    QTimer::singleShot(FAST_SETTLE_TIME_MS, this, SLOT(fastSettleCompletion()));    
+    QTimer::singleShot(task->fastSettleTimeMS(), this, SLOT(fastSettleCompletion()));    
 }
 
 void MainApp::fastSettleCompletion()

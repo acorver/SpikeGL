@@ -15,6 +15,8 @@ class PointProcThread;
 class QAction;
 class QFrame;
 class QDoubleSpinBox;
+class QCheckBox;
+class HPFilter;
 
 class GraphsWindow : public QMainWindow
 {
@@ -34,6 +36,7 @@ public:
 private slots:
     void updateGraphs();
     void downsampleChk(bool checked);
+    void hpfChk(bool checked);
     void pauseGraph();
     void toggleMaximize();
     void selectGraph(int num);
@@ -44,7 +47,7 @@ private slots:
     void mouseOverGraph(double x, double y);
     void mouseClickGraph(double x, double y);
     void mouseDoubleClickGraph(double x, double y);
-
+    
 private:
     void setGraphTimeSecs(int graphnum, double t); // note you should call update_nPtsAllGs after this!  (Not auto-called in this function just in case of batch setGraphTimeSecs() in which case 1 call at end to update_nPtsAllGs() suffices.)
     void update_nPtsAllGs();
@@ -57,6 +60,7 @@ private:
     QToolBar *graphCtls;
     QLCDNumber *chanLCD;
     QDoubleSpinBox *graphYScale, *graphSecs;
+    QCheckBox *highPassChk;
     QVector<Vec2WrapBuffer> points;
     QVector<GLGraph *> graphs;
     QVector<QFrame *> graphFrames;
@@ -68,6 +72,7 @@ private:
     int pdChan, firstExtraChan;
     QAction *pauseAct, *maxAct, *applyAllAct;
     GLGraph *maximized; ///< if not null, a graph is maximized 
+    HPFilter *filter;
 };
 
 

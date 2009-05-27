@@ -85,6 +85,8 @@ namespace DAQ
         bool suppressGraphs;
 
         TermConfig aiTerm;
+
+        unsigned fastSettleTimeMS; ///< defaults to 15ms
     };
 
     //-------- NI DAQmx helper methods -------------
@@ -145,6 +147,8 @@ namespace DAQ
         unsigned samplingRate() const { return params.srate; }
 
         void setDO(bool onoff);
+
+        unsigned fastSettleTimeMS() const { return params.fastSettleTimeMS; }
 
     signals:
         void bufferOverrun();

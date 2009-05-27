@@ -65,6 +65,7 @@ void ConfigureDialogController::resetFromParams()
     dialog->aoDeviceCB->clear();
     dialog->clockCB->setCurrentIndex(p.extClock ? 0 : 1);
     dialog->srateSB->setValue(p.srate);
+    dialog->fastSettleSB->setValue(p.fastSettleTimeMS);
     dialog->aoPassthruGB->setChecked(p.aoPassthru);
     int ci = dialog->aiTerminationCB->findText(DAQ::termConfigToString(p.aiTerm), Qt::MatchExactly|Qt::CaseInsensitive);
     dialog->aiTerminationCB->setCurrentIndex(ci > -1 ? ci : 0);
@@ -168,6 +169,8 @@ void ConfigureDialogController::acqModeCBChanged()
     }
     dialog->doCtlLabel->setEnabled(intan);
     dialog->doCtlCB->setEnabled(intan);
+    dialog->fastSettleSB->setEnabled(intan);
+    dialog->fastSettleLbl->setEnabled(intan);
 }
 
 void ConfigureDialogController::deviceCBChanged()
@@ -175,8 +178,10 @@ void ConfigureDialogController::deviceCBChanged()
     if (!dialog->deviceCB->count()) return;
     QString devStr = devNames[dialog->deviceCB->currentIndex()];
     QList<DAQ::Range> ranges = aiDevRanges.values(devStr);
-    QString curr = dialog->aiRangeCB->currentText();
-
+    QString curr = dialog->aiRangeCB->count() ? dialog->aiRangeCB->currentText() : QString::null;
+    if (curr.isEmpty()) 
+        // make the current selected gain be the saved params
+        curr = QString("%1 - %2").arg(acceptedParams.range.min).arg(acceptedParams.range.max);
     // do control combo box setup..
     int doCtl = dialog->doCtlCB->currentIndex();
     QStringList DOS = DAQ::GetDOChans(devStr);
@@ -189,9 +194,6 @@ void ConfigureDialogController::deviceCBChanged()
     if (doCtl < dialog->doCtlCB->count())
         dialog->doCtlCB->setCurrentIndex(doCtl);
 
-    if (!curr.length()) {
-        curr = QString("%1 - %2").arg(acceptedParams.range.min).arg(acceptedParams.range.max);
-    }
     int sel = 0, i = 0;
     dialog->aiRangeCB->clear();
     for (QList<DAQ::Range>::const_iterator it = ranges.begin(); it != ranges.end(); ++it, ++i) {
@@ -451,7 +453,7 @@ int ConfigureDialogController::exec()
             p.pdPassThruToAO = pdAOChan;
 
             p.aiTerm = DAQ::toTermConfig(dialog->aiTerminationCB->currentText());
-            
+            p.fastSettleTimeMS = dialog->fastSettleSB->value();
             saveSettings();
         }
     } while (again);
@@ -584,6 +586,7 @@ void ConfigureDialogController::loadSettings()
     p.pdPassThruToAO = settings.value("acqPDPassthruChanAO", 2).toInt();
 
     p.aiTerm = (DAQ::TermConfig)settings.value("aiTermConfig", (int)DAQ::Default).toInt();
+    p.fastSettleTimeMS = settings.value("fastSettleTimeMS", DEFAULT_FAST_SETTLE_TIME_MS).toUInt();
 }
 
 void ConfigureDialogController::saveSettings()
@@ -620,4 +623,5 @@ void ConfigureDialogController::saveSettings()
     settings.setValue("acqPDChan", p.pdChan);
     settings.setValue("acqPDPassthruChanAO", p.pdPassThruToAO);
     settings.setValue("aiTermConfig", (int)p.aiTerm);
+    settings.setValue("fastSettleTimeMS", p.fastSettleTimeMS);
 }
