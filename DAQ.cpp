@@ -758,7 +758,8 @@ namespace DAQ
     const QString & AcqStartEndModeToString(AcqStartEndMode m) {
         if (m >= 0 && m < N_AcqStartEndModes) 
             return acqStartEndModes[(int)m];
-        return "Unknown";
+        static QString unk ("Unknown");
+        return unk;
     }
 
 } // end namespace DAQ
