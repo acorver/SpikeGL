@@ -515,6 +515,9 @@ void MainApp::newAcq()
         case DAQ::StimGLStartEnd:
         case DAQ::StimGLStart:
             taskWaitingForTrigger = true; break;
+        default:
+            Error() << "Internal error params.acqStartEndMode is an illegal value!  FIXME!";
+            break;
         }
         task = new DAQ::Task(params, this);
         taskReadTimer = new QTimer(this);
@@ -550,6 +553,7 @@ void MainApp::stopTask()
 {
     if (!task) return;
     delete task, task = 0;  
+    fastSettleRunning = false;
     if (taskReadTimer) delete taskReadTimer, taskReadTimer = 0;
     if (graphsWindow) delete graphsWindow, graphsWindow = 0;
     hideUnhideGraphsAct->setEnabled(false);
@@ -954,17 +958,17 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
 
 void MainApp::doFastSettle()
 {
-    if (fastSettleRunning || !task) return;    
+    if (fastSettleRunning || !task) return;
     fastSettleRunning = true;
-    task->setDO(false);
-    QTimer::singleShot(task->fastSettleTimeMS(), this, SLOT(fastSettleCompletion()));    
+    Connect(task, SIGNAL(fastSettleCompleted()), this, SLOT(fastSettleCompletion()));
+    task->requestFastSettle();
 }
 
 void MainApp::fastSettleCompletion()
 {
     if (!fastSettleRunning) return;
-    if (task) task->setDO(true);
     fastSettleRunning = false;
+    disconnect(task, SIGNAL(fastSettleCompleted()), this, SLOT(fastSettleCompletion()));
 }
 
 

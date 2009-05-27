@@ -107,6 +107,7 @@ bool DataFile::openForWrite(const DAQ::Params & dp)
     if (!nWritesAvgMax) nWritesAvgMax = 1;
     params["outputFile"] = dp.outputFile;
     params["dev"] = dp.dev;
+    params["devProductName"] = DAQ::GetProductName(dp.dev);
     params["nChans"] = nChans;
     params["sRateHz"] = sRate;
     params["rangeMin"] = dp.range.min;
@@ -114,6 +115,14 @@ bool DataFile::openForWrite(const DAQ::Params & dp)
     params["acqMode"] = DAQ::ModeToString(dp.mode);
     params["extClock"] = dp.extClock;
     params["aiString"] = dp.aiString;
+    params["fastSettleTimeMS"] = dp.fastSettleTimeMS;
+    params["auxGain"] = dp.auxGain;
+    params["termination"] = DAQ::TermConfigToString(dp.aiTerm);
+    if (dp.usePD) {
+        params["pdChan"] = dp.pdChan;
+        params["pdThresh"] = dp.pdThresh;
+    }
+    params["acqStartEndMode"] = DAQ::AcqStartEndModeToString(dp.acqStartEndMode);
     
     return true;
 }

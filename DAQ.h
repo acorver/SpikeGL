@@ -31,7 +31,8 @@ namespace DAQ
     enum AcqStartEndMode { 
         /* these correspond to items in 'acqStartEndCB' combobox in 
            the Ui::ConfigureDialog form */
-        Immediate, PDStartEnd, PDStart, Timed, StimGLStartEnd, StimGLStart
+        Immediate=0, PDStartEnd, PDStart, Timed, StimGLStartEnd, StimGLStart, 
+        N_AcqStartEndModes
     };
 
     enum TermConfig {
@@ -42,11 +43,13 @@ namespace DAQ
         PseudoDiff = 12529
     };
 
-    TermConfig toTermConfig(const QString & txt);
-    QString termConfigToString(TermConfig t);
+    TermConfig StringToTermConfig(const QString & txt);
+    QString TermConfigToString(TermConfig t);
 
     const QString & ModeToString(Mode m);
     Mode StringToMode(const QString &);
+
+    const QString & AcqStartEndModeToString(AcqStartEndMode m);
 
     struct Params {
         QString outputFile, dev;
@@ -87,6 +90,8 @@ namespace DAQ
         TermConfig aiTerm;
 
         unsigned fastSettleTimeMS; ///< defaults to 15ms
+
+        double auxGain;
     };
 
     //-------- NI DAQmx helper methods -------------
@@ -148,12 +153,15 @@ namespace DAQ
 
         void setDO(bool onoff);
 
-        unsigned fastSettleTimeMS() const { return params.fastSettleTimeMS; }
+    public slots:
+        void requestFastSettle(); ///< task needs to be running and it will then be done synchronously with the task
 
     signals:
         void bufferOverrun();
 
         void daqError(const QString &);
+
+        void fastSettleCompleted();
 
     protected: 
         void run();  ///< reimplemented from QThread
@@ -163,6 +171,8 @@ namespace DAQ
 
         volatile bool pleaseStop;
         Params params;
+        volatile unsigned fast_settle; ///< if >0, do fast settle
+        bool muxMode;
 
         void daqThr();
 

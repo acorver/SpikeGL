@@ -73,6 +73,7 @@ private:
     QAction *pauseAct, *maxAct, *applyAllAct;
     GLGraph *maximized; ///< if not null, a graph is maximized 
     HPFilter *filter;
+    bool isMVScale;
 };
 
 

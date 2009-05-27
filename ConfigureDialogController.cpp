@@ -67,7 +67,8 @@ void ConfigureDialogController::resetFromParams()
     dialog->srateSB->setValue(p.srate);
     dialog->fastSettleSB->setValue(p.fastSettleTimeMS);
     dialog->aoPassthruGB->setChecked(p.aoPassthru);
-    int ci = dialog->aiTerminationCB->findText(DAQ::termConfigToString(p.aiTerm), Qt::MatchExactly|Qt::CaseInsensitive);
+    dialog->auxGainSB->setValue(p.auxGain);
+    int ci = dialog->aiTerminationCB->findText(DAQ::TermConfigToString(p.aiTerm), Qt::MatchExactly|Qt::CaseInsensitive);
     dialog->aiTerminationCB->setCurrentIndex(ci > -1 ? ci : 0);
     if (int(p.doCtlChan) < dialog->doCtlCB->count())
         dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
@@ -150,6 +151,9 @@ void ConfigureDialogController::acqStartEndCBChanged()
         dialog->acqStartEndDescrLbl->setText("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\"><html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">p, li { white-space: pre-wrap; }</style></head><body style=\" font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;\"><p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:10pt; font-style:italic; color:#294928;\">The acquisition will be triggered to start by the external StimGL II program.</span></p></body></html>");
         dialog->acqStartEndDescrLbl->show();
         break;
+    default:
+        Error() << "INTERNAL ERROR: INVALID ACQSTARTENDMODE!  FIXME!";
+        break;
     }
 }
 
@@ -161,11 +165,13 @@ void ConfigureDialogController::acqModeCBChanged()
 
     dialog->srateLabel->setEnabled(enabled);
     dialog->srateSB->setEnabled(enabled);
-    dialog->clockCB->setEnabled(enabled);
+    dialog->clockCB->setEnabled(false); // NB: for now, the clockCB is always disabled!
 
     if (intan) {
         dialog->srateSB->setValue(INTAN_SRATE);    
-        dialog->clockCB->setCurrentIndex(0);
+        dialog->clockCB->setCurrentIndex(0); // intan always uses external clock
+    } else {
+        dialog->clockCB->setCurrentIndex(1); // force INTERNAL clock on !intan
     }
     dialog->doCtlLabel->setEnabled(intan);
     dialog->doCtlCB->setEnabled(intan);
@@ -452,8 +458,9 @@ int ConfigureDialogController::exec()
             p.pdThresh = static_cast<signed short>(acqPdParams->pdAIThreshSB->value() - 32768);
             p.pdPassThruToAO = pdAOChan;
 
-            p.aiTerm = DAQ::toTermConfig(dialog->aiTerminationCB->currentText());
+            p.aiTerm = DAQ::StringToTermConfig(dialog->aiTerminationCB->currentText());
             p.fastSettleTimeMS = dialog->fastSettleSB->value();
+            p.auxGain = dialog->auxGainSB->value();
             saveSettings();
         }
     } while (again);
@@ -491,7 +498,7 @@ ConfigureDialogController::parseAIChanString(const QString & str,
                 aiChans.push_back(i);
                 aiSet.insert(i);
             }
-
+            
             ret.append(QString().sprintf("%s%d:%d", (ret.length()?",":""), f, l));
         } else if (ranges.count() == 1) {
             bool ok;
@@ -587,6 +594,7 @@ void ConfigureDialogController::loadSettings()
 
     p.aiTerm = (DAQ::TermConfig)settings.value("aiTermConfig", (int)DAQ::Default).toInt();
     p.fastSettleTimeMS = settings.value("fastSettleTimeMS", DEFAULT_FAST_SETTLE_TIME_MS).toUInt();
+    p.auxGain = settings.value("auxGain", 200.0).toDouble();
 }
 
 void ConfigureDialogController::saveSettings()
@@ -624,4 +632,5 @@ void ConfigureDialogController::saveSettings()
     settings.setValue("acqPDPassthruChanAO", p.pdPassThruToAO);
     settings.setValue("aiTermConfig", (int)p.aiTerm);
     settings.setValue("fastSettleTimeMS", p.fastSettleTimeMS);
+    settings.setValue("auxGain", p.auxGain);
 }

@@ -266,34 +266,6 @@ namespace DAQ
 #endif
     }
 
-    TermConfig toTermConfig(const QString & txt) 
-    {
-        if (!txt.compare("RSE", Qt::CaseInsensitive))
-            return RSE;
-        else if (!txt.compare("NRSE", Qt::CaseInsensitive))
-            return NRSE;
-        else if (!txt.compare("Differential", Qt::CaseInsensitive) 
-                 || !txt.compare("Diff", Qt::CaseInsensitive) )
-            return Diff;
-        else if (!txt.compare("PseudoDifferential", Qt::CaseInsensitive) 
-                 || !txt.compare("PseudoDiff", Qt::CaseInsensitive) )
-            return PseudoDiff;
-        return Default;       
-    }
-
-    QString termConfigToString(TermConfig t)
-    {
-        switch(t) {
-        case RSE: return "RSE";
-        case NRSE: return "NRSE";
-        case Diff: return "Differential";
-        case PseudoDiff: return "PseudoDifferential";
-        default: break;
-        }
-        return "Default";
-    }
-
-
 
 #define DEFAULT_DEV "Dev1"
 #define DEFAULT_DO 0
@@ -307,9 +279,9 @@ namespace DAQ
 #endif
 
     Task::Task(const Params & acqParams, QObject *p) 
-        : QThread(p), pleaseStop(false), params(acqParams)
+        : QThread(p), pleaseStop(false), params(acqParams), 
+          fast_settle(0), muxMode(false), totalRead(0LL)
     {
-        totalRead = 0;
     }
 
     Task::~Task()
@@ -392,6 +364,12 @@ namespace DAQ
     }
 
 
+    void Task::requestFastSettle() 
+    {
+        Warning() << "requestFastSettle() unimplemented for FAKEDAQ mode!";
+        emit(fastSettleCompleted());
+    }
+
 #else // !FAKEDAQ
 
     void Task::daqThr()
@@ -442,7 +420,7 @@ namespace DAQ
         const float64     timeout = DAQ_TIMEOUT;
         const float64     aoTimeout = DAQ_TIMEOUT*2.;
         const int NCHANS = p.nVAIChans;
-        const bool muxMode =  p.mode == AI60Demux || p.mode == AI120Demux;
+        muxMode =  p.mode == AI60Demux || p.mode == AI120Demux;
         int nscans_per_mux_scan = 1;
         unsigned aoWriteCt = 0;
 
@@ -476,11 +454,12 @@ namespace DAQ
         const int32 pointsToRead = bufferSize;
         std::vector<int16> data, leftOver, aoData;
 
-        DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
-        DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL));
-        DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize));
-        DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize)); //use a 1,000,000 sample DMA buffer per channel
-        //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this));
+        DAQmxErrChk (DAQmxCreateTask("",&taskHandle)); 
+        DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
+        DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)); 
+        DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize));  //use a 1,000,000 sample DMA buffer per channel
+        //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this)); 
+        
 
         if (p.aoPassthru && p.aoChannels.size()) {
             DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
@@ -492,7 +471,7 @@ namespace DAQ
         if (muxMode)
             setDO(false); // set DO line low to reset external MUX
 
-        DAQmxErrChk (DAQmxStartTask(taskHandle));
+        DAQmxErrChk (DAQmxStartTask(taskHandle)); 
 
         if (muxMode)
             setDO(true); // now set DO line high to start external MUX and clock on PFI2
@@ -597,8 +576,24 @@ namespace DAQ
             
             enqueueBuffer(data, sampCount);
 
-        
+            // fast settle...
+            if (muxMode && fast_settle && !leftOver.size()) {
+                double t0 = getTime();
+                /// now possibly do a 'fast settle' request by stopping the task, setting the DO line low, then restarting the task after fast_settle ms have elapsed, and setting the line high
+                Debug() << "Fast settle of " << fast_settle << " ms begin";
+                DAQmxErrChk(DAQmxStopTask(taskHandle));
+                if (aoTaskHandle) DAQmxErrChk(DAQmxStopTask(aoTaskHandle));
+                setDO(false);
+                msleep(fast_settle);
+                fast_settle = 0;
+                DAQmxErrChk(DAQmxStartTask(taskHandle));                
+                // no need to restart AO as it is autostart..
+                setDO(true);
+                Debug() << "Fast settle completed in " << (getTime()-t0) << " secs";
+                emit(fastSettleCompleted());
+            }
         }
+
         Debug() << "Acquired " << totalRead << " total samples.";
 
     Error_Out:
@@ -681,6 +676,24 @@ namespace DAQ
         }
     }
 
+    void Task::requestFastSettle() 
+    {
+        if (!muxMode) {
+            Warning() << "Fast settle requested -- but not running in MUX mode!  FIXME!";
+            return;
+        }
+        unsigned ms = params.fastSettleTimeMS;
+        if (!fast_settle) {
+            if (ms > 10000) { ///< hard limit on ms
+                Warning() << "Requested fast settled of " << ms << " ms, limiting to 10000 ms";
+                ms = 10000;
+            }
+            fast_settle = ms;
+        } else {
+            Warning() << "Dupe fast settle requested -- fast settle already running!";
+        }
+    }
+
     int32 DAQPvt::everyNSamples_func (TaskHandle taskHandle, int32 everyNsamplesEventType, uint32 nSamples, void *callbackData)
     {
         Task *daq = (Task *)callbackData;
@@ -690,7 +703,7 @@ namespace DAQ
         return 0;
     }
 
-#endif
+#endif // ! FAKEDAQ
 
 
     /// some helper funcs from LeoDAQGL.h
@@ -712,5 +725,42 @@ namespace DAQ
         return (Mode)i;
     }
 
+    TermConfig StringToTermConfig(const QString & txt) 
+    {
+        if (!txt.compare("RSE", Qt::CaseInsensitive))
+            return RSE;
+        else if (!txt.compare("NRSE", Qt::CaseInsensitive))
+            return NRSE;
+        else if (!txt.compare("Differential", Qt::CaseInsensitive) 
+                 || !txt.compare("Diff", Qt::CaseInsensitive) )
+            return Diff;
+        else if (!txt.compare("PseudoDifferential", Qt::CaseInsensitive) 
+                 || !txt.compare("PseudoDiff", Qt::CaseInsensitive) )
+            return PseudoDiff;
+        return Default;       
+    }
+
+    QString TermConfigToString(TermConfig t)
+    {
+        switch(t) {
+        case RSE: return "RSE";
+        case NRSE: return "NRSE";
+        case Diff: return "Differential";
+        case PseudoDiff: return "PseudoDifferential";
+        default: break;
+        }
+        return "Default";
+    }
+
+
+    static const QString acqStartEndModes[] = { "Immediate", "PDStartEnd", "PDStart", "Timed", "StimGLStartEnd", "StimGLStart", QString::null };
+    
+    const QString & AcqStartEndModeToString(AcqStartEndMode m) {
+        if (m >= 0 && m < N_AcqStartEndModes) 
+            return acqStartEndModes[(int)m];
+        return "Unknown";
+    }
 
 } // end namespace DAQ
+
+

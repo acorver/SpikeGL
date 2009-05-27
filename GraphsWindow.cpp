@@ -67,7 +67,8 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     QLabel *lbl = new QLabel("Graph Seconds:", graphCtls);
     graphCtls->addWidget(lbl);
     graphSecs = new QDoubleSpinBox(graphCtls);
-    graphSecs->setRange(.01, 10.0);
+    graphSecs->setDecimals(3);
+    graphSecs->setRange(.001, 10.0);
     graphSecs->setSingleStep(.25);    
     graphCtls->addWidget(graphSecs);
 
@@ -159,6 +160,8 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
             }
         }
     }
+    isMVScale = fabs(((params.range.max-params.range.min) + params.range.min) / params.auxGain) < 1.0;
+
     update_nPtsAllGs();
 
     QTimer *t = new QTimer(this);
@@ -351,7 +354,9 @@ void GraphsWindow::mouseClickGraph(double x, double y)
     y += 1.;
     y /= 2.;
     // scale it to range..
-    y = y*(params.range.max-params.range.min) + params.range.min;
+    y = (y*(params.range.max-params.range.min) + params.range.min) / params.auxGain;
+    const char *unit = "V";
+    if (isMVScale) unit = "mV",y *= 1000.;    
 
     QString msg;
     msg.sprintf("Mouse press %s %d @ pos (%f, %f)",(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),num,x,y);
@@ -364,10 +369,12 @@ void GraphsWindow::mouseOverGraph(double x, double y)
     y += 1.;
     y /= 2.;
     // scale it to range..
-    y = y*(params.range.max-params.range.min) + params.range.min;
-
+    y = (y*(params.range.max-params.range.min) + params.range.min) / params.auxGain;
+    const char *unit = "V";
+    if (isMVScale) unit = "mV",y *= 1000.;    
+    
     QString msg;
-    msg.sprintf("Mouse over %s %d @ pos (%f, %f)",(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),num,x,y);
+    msg.sprintf("Mouse over %s %d @ pos (%f, %f %s)",(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),num,x,y,unit);
     statusBar()->showMessage(msg);
 }
 
@@ -380,9 +387,11 @@ void GraphsWindow::mouseDoubleClickGraph(double x, double y)
     toggleMaximize();
     updateGraphCtls();
     // scale it to range..
-    y = y*(params.range.max-params.range.min) + params.range.min;
+    y = (y*(params.range.max-params.range.min) + params.range.min)/params.auxGain;
+    const char *unit = "V";
+    if (isMVScale) unit = "mV",y *= 1000.;    
     QString msg;
-    msg.sprintf("Mouse dbl-click graph %d @ pos (%f, %f)",num,x,y);
+    msg.sprintf("Mouse dbl-click graph %d @ pos (%f, %f %s)",num,x,y,unit);
     statusBar()->showMessage(msg);
 }
 
