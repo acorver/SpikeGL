@@ -16,6 +16,7 @@
 #include <QVBoxLayout>
 #include <QDoubleSpinBox>
 #include <QPushButton>
+#include <QCursor>
 #include <math.h>
 #include "MainApp.h"
 #include "HPFilter.h"
@@ -117,7 +118,8 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     graphTimesSecs.resize(graphs.size());
     nptsAll.resize(graphs.size());
     points.resize(graphs.size());
-
+    graphStats.resize(graphs.size());
+    
     maximized = 0;
 
     Connect(graphSecs, SIGNAL(valueChanged(double)), this, SLOT(graphSecsChanged(double)));
@@ -160,7 +162,9 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
             }
         }
     }
+
     isMVScale = fabs(((params.range.max-params.range.min) + params.range.min) / params.auxGain) < 1.0;
+    lastMouseOverGraph = -1;;
 
     update_nPtsAllGs();
 
@@ -168,6 +172,11 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     Connect(t, SIGNAL(timeout()), this, SLOT(updateGraphs()));
     t->setSingleShot(false);
     t->start(1000/TASK_READ_FREQ_HZ);        
+
+    t = new QTimer(this);
+    Connect(t, SIGNAL(timeout()), this, SLOT(updateMouseOver()));
+    t->setSingleShot(false);
+    t->start(MOUSE_OVER_UPDATE_INTERVAL_MS);
 
     selectGraph(0);
     updateGraphCtls();
@@ -229,7 +238,7 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
         // now, push new points to back of each graph, downsampling if need be
         Vec2 v;
         int idx = 0;
-        const int maximizedIdx = (maximized ? maximized->objectName().mid(8).toInt() : -1);
+        const int maximizedIdx = (maximized ? parseGraphNum(maximized) : -1);
 
         bool needFilter = filter;
         for (int i = startpt; i < DSIZE; ++i) {
@@ -239,8 +248,20 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
             }
             v.x = t;
             v.y = DPTR[i] / 32768.0; // hardcoded range of data
-            if (!pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx))
-                pts[idx].putData(&v, 1);
+            if (!pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx)) {
+                Vec2WrapBuffer & pbuf = pts[idx];
+                GraphStats & gs = graphStats[idx];
+                if (!pbuf.unusedCapacity()) {
+                    const double val = pbuf.first().y;
+                    gs.s1 -= val; // un-tally sum of values
+                    gs.s2 -= val*val; // un-tally sum of squares of values
+                    --gs.num;
+                }
+                pbuf.putData(&v, 1);
+                gs.s1 += v.y; // tally sum of values
+                gs.s2 += v.y*v.y; // tally sum of squares of values
+                ++gs.num;
+            }
             if (!(++idx%NGRAPHS)) {                
                 idx = 0;
                 t += deltaT;
@@ -347,51 +368,67 @@ void GraphsWindow::updateGraphCtls()
     graphSecs->setValue(graphTimesSecs[num]);
 }
 
-void GraphsWindow::mouseClickGraph(double x, double y)
+void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
+                                             double & mean, double & stdev,
+                                             const char * & unit)
 {
-    int num = sender()->objectName().mid(8).toUInt();
-    selectGraph(num);
     y += 1.;
     y /= 2.;
     // scale it to range..
     y = (y*(params.range.max-params.range.min) + params.range.min) / params.auxGain;
-    const char *unit = "V";
-    if (isMVScale) unit = "mV",y *= 1000.;    
+    mean = graphStats[num].mean();
+    stdev = graphStats[num].stdDev();
+    mean = (((mean+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / params.auxGain;
+    stdev = (((stdev+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / params.auxGain;
+    unit = "V";
+    if (isMVScale) unit = "mV",y *= 1000., mean *= 1000., stdev *= 1000.;  
+}
 
-    QString msg;
-    msg.sprintf("Mouse press %s %d @ pos (%f, %f)",(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),num,x,y);
-    statusBar()->showMessage(msg);
+
+void GraphsWindow::mouseClickGraph(double x, double y)
+{
+    int num = parseGraphNum(sender());
+    selectGraph(num);
+    lastMouseOverGraph = num;
+    lastMousePos = Vec2(x,y);
+    updateMouseOver();
 }
 
 void GraphsWindow::mouseOverGraph(double x, double y)
 {
-    int num = sender()->objectName().mid(8).toUInt();
-    y += 1.;
-    y /= 2.;
-    // scale it to range..
-    y = (y*(params.range.max-params.range.min) + params.range.min) / params.auxGain;
-    const char *unit = "V";
-    if (isMVScale) unit = "mV",y *= 1000.;    
-    
-    QString msg;
-    msg.sprintf("Mouse over %s %d @ pos (%f, %f %s)",(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),num,x,y,unit);
-    statusBar()->showMessage(msg);
+    int num = parseGraphNum(sender());
+    lastMouseOverGraph = num;
+    lastMousePos = Vec2(x,y);
+    updateMouseOver();
 }
 
 void GraphsWindow::mouseDoubleClickGraph(double x, double y)
 {
-    int num = sender()->objectName().mid(8).toUInt();
+    int num = parseGraphNum(sender());
     selectGraph(num);
-    y += 1.;
-    y /= 2.;
     toggleMaximize();
     updateGraphCtls();
-    // scale it to range..
-    y = (y*(params.range.max-params.range.min) + params.range.min)/params.auxGain;
-    const char *unit = "V";
-    if (isMVScale) unit = "mV",y *= 1000.;    
+    lastMouseOverGraph = num;
+    lastMousePos = Vec2(x,y);   
+    updateMouseOver();
+}
+
+void GraphsWindow::updateMouseOver()
+{
+    QWidget *w = QApplication::widgetAt(QCursor::pos());
+    bool isNowOver = true;
+    if (!w || !dynamic_cast<GLGraph *>(w)) isNowOver = false;
+    const int & num = lastMouseOverGraph;
+    if (num < 0 || num >= (int)graphs.size()) {
+        statusBar()->clearMessage();
+        return;
+    }
+    double y = lastMousePos.y, x = lastMousePos.x;
+    double mean, stdev;
+    const char *unit;
+    computeGraphMouseOverVars(num, y, mean, stdev, unit);
     QString msg;
-    msg.sprintf("Mouse dbl-click graph %d @ pos (%f, %f %s)",num,x,y,unit);
+    msg.sprintf("%s %s %d @ pos (%.3f s, %.3f %s) -- mean: %.3f %s stdDev: %.3f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),num,x,y,unit,mean,unit,stdev,unit);
     statusBar()->showMessage(msg);
 }
 
@@ -401,21 +438,27 @@ void GraphsWindow::toggleMaximize()
     if (maximized && graphs[num] != maximized) {
         Warning() << "Maximize/unmaximize on a graph that isn't maximized when e have 1 graph maximized.. how is that possible?";
     } else if (maximized) { 
+        graphsWidget->setHidden(true); // if we don't hide the parent, the below operation is slow and jerky
         // un-maximize
         for (int i = 0; i < (int)graphs.size(); ++i) {
             if (graphs[i] == maximized) continue;
             graphFrames[i]->setHidden(false);
-            graphFrames[i]->show();
             clearGraph(i); // clear previously-paused graph            
         }
+        graphsWidget->setHidden(false);
+        graphsWidget->show(); // now show parent
         maximized = 0;
     } else if (!maximized) {
+        graphsWidget->setHidden(true); // if we don't hide the parent, the below operation is slow and jerky
         for (int i = 0; i < (int)graphs.size(); ++i) {
             if (num == i) continue;
             graphFrames[i]->setHidden(true);
         }
-        maximized = static_cast<GLGraph *>(sender());
+        maximized = graphs[num];
+        graphsWidget->setHidden(false);
+        graphsWidget->show(); // now show parent
     }
+    updateGraphCtls();
 }
 
     // clear a specific graph's points, or all if negative
@@ -423,10 +466,16 @@ void GraphsWindow::clearGraph(int which)
 {
     if (which < 0 || which > graphs.size()) {
         // clear all..
-        for (int i = 0; i < (int)points.size(); ++i)
-            points[i].clear(), graphs[i]->setPoints(&points[i]);
-    } else
-        points[which].clear(), graphs[which]->setPoints(&points[which]);
+        for (int i = 0; i < (int)points.size(); ++i) {
+            points[i].clear();
+            graphs[i]->setPoints(&points[i]);
+            graphStats[i].clear();
+        }
+    } else {
+        points[which].clear();
+        graphs[which]->setPoints(&points[which]);
+        graphStats[which].clear();
+    }
 }
 
 void GraphsWindow::graphSecsChanged(double secs)
@@ -459,4 +508,18 @@ void GraphsWindow::hpfChk(bool b)
     if (b) {
         filter = new HPFilter(graphs.size(), 300.0);
     }
+}
+
+double GraphsWindow::GraphStats::stdDev() const
+{
+    return sqrt((s2 - ((s1*s1) / num)) / (num - 1));
+}
+
+int GraphsWindow::parseGraphNum(QObject *graph)
+{
+    int ret;
+    bool ok;
+    ret = graph->objectName().mid(8).toInt(&ok);
+    if (!ok) ret = -1;
+    return ret;
 }
