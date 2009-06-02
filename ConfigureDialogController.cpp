@@ -12,7 +12,7 @@
 #include "Icon-Config.xpm"
 
 ConfigureDialogController::ConfigureDialogController(QObject *parent)
-    : QObject(parent)    
+    : QObject(parent), chanMapCtl(this)
 {
     dialogW = new QDialog(0);
     dialog = new Ui::ConfigureDialog;
@@ -39,6 +39,7 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     Connect(dialog->browseBut, SIGNAL(clicked()), this, SLOT(browseButClicked()));
     Connect(dialog->aoPassthruGB, SIGNAL(toggled(bool)), this, SLOT(aoPassthruChkd()));
     Connect(acqPdParams->pdPassthruAOChk, SIGNAL(toggled(bool)), this, SLOT(aoPDChanChkd()));
+    Connect(dialog->muxMapBut, SIGNAL(clicked()), &chanMapCtl, SLOT(exec()));
 }
 
 ConfigureDialogController::~ConfigureDialogController()
@@ -68,7 +69,7 @@ void ConfigureDialogController::resetFromParams()
     dialog->fastSettleSB->setValue(p.fastSettleTimeMS);
     dialog->aoPassthruGB->setChecked(p.aoPassthru);
     dialog->auxGainSB->setValue(p.auxGain);
-    int ci = dialog->aiTerminationCB->findText(DAQ::TermConfigToString(p.aiTerm), Qt::MatchExactly|Qt::CaseInsensitive);
+    int ci = dialog->aiTerminationCB->findText(DAQ::TermConfigToString(p.aiTerm), Qt::MatchExactly);
     dialog->aiTerminationCB->setCurrentIndex(ci > -1 ? ci : 0);
     if (int(p.doCtlChan) < dialog->doCtlCB->count())
         dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
@@ -166,6 +167,7 @@ void ConfigureDialogController::acqModeCBChanged()
     dialog->srateLabel->setEnabled(enabled);
     dialog->srateSB->setEnabled(enabled);
     dialog->clockCB->setEnabled(false); // NB: for now, the clockCB is always disabled!
+    dialog->muxMapBut->setEnabled(intan);
 
     if (intan) {
         dialog->srateSB->setValue(INTAN_SRATE);    

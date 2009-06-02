@@ -4,6 +4,7 @@
 #include <QGLWidget>
 #include <QColor>
 #include <vector>
+#include <QVariant>
 class QMutex;
 
 #include "Vec2WrapBuffer.h"
@@ -14,6 +15,10 @@ class GLGraph : public QGLWidget
 public:
     GLGraph(QWidget *parent=0, QMutex *ptsMutex=0);
     virtual ~GLGraph();
+
+    // associate whatever to this graph
+    QVariant tag() const { return tagData; }
+    void setTag(const QVariant & v) { tagData = v; }
 
     void setPoints(const Vec2WrapBuffer *pointsBuf);
 
@@ -68,6 +73,7 @@ private:
     const Vec2WrapBuffer *pointsWB;
     std::vector<Vec2> gridVs, gridHs;
     bool auto_update, need_update;
+    QVariant tagData;
 };
 
 #endif

@@ -1,5 +1,10 @@
 #include "GLGraph.h"
+#ifdef Q_WS_MACX
+#include <gl.h>
+#include <agl.h>
+#else
 #include <GL/gl.h>
+#endif
 #include <QPainter>
 #include <math.h>
 #include <QMutex>

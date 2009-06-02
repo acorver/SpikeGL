@@ -8,9 +8,10 @@
 #include "Vec2WrapBuffer.h"
 #include <QVector>
 #include <vector>
+#include "ChanMappingController.h"
 
 class QToolBar;
-class QLCDNumber;
+class QLineEdit;
 class PointProcThread;
 class QAction;
 class QFrame;
@@ -22,7 +23,7 @@ class GraphsWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    GraphsWindow(const DAQ::Params & params, QWidget *parent = 0);
+    GraphsWindow(const DAQ::Params & params, const QVector<ChanMapDesc> &, QWidget *parent = 0);
     ~GraphsWindow();
 
     void putScans(std::vector<int16> & scans, u64 firstSamp);
@@ -65,7 +66,7 @@ private:
     DAQ::Params params;
     QWidget *graphsWidget;
     QToolBar *graphCtls;
-    QLCDNumber *chanLCD;
+    QLineEdit *chanLE;
     QDoubleSpinBox *graphYScale, *graphSecs;
     QCheckBox *highPassChk;
     QVector<Vec2WrapBuffer> points;
@@ -93,6 +94,8 @@ private:
     bool isMVScale;
     Vec2 lastMousePos;
     int lastMouseOverGraph;
+    QVector<ChanMapDesc> chanMap;
+    int selectedGraph;
 };
 
 

@@ -1,7 +1,7 @@
 #include "GraphsWindow.h"
 #include "Util.h"
 #include <QToolBar>
-#include <QLCDNumber>
+#include <QLineEdit>
 #include <QLabel>
 #include <QGridLayout>
 #include <math.h>
@@ -48,8 +48,8 @@ static void initIcons()
     }
 }
 
-GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.)
+GraphsWindow::GraphsWindow(const DAQ::Params & p, const QVector<ChanMapDesc> & chMap, QWidget *parent)
+    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), chanMap(chMap)
 {    
     initIcons();
     setCentralWidget(graphsWidget = new QWidget(this));
@@ -57,7 +57,7 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     resize(1024,768);
     graphCtls = addToolBar("Graph Controls");
     graphCtls->addWidget(new QLabel("Channel:", graphCtls));
-    graphCtls->addWidget(chanLCD = new QLCDNumber(2, graphCtls));
+    graphCtls->addWidget(chanLE = new QLineEdit("", graphCtls));
     graphCtls->addSeparator();
     pauseAct = graphCtls->addAction(*pauseIcon, "Pause/Unpause ALL graphs -- hold down shift for just this graph", this, SLOT(pauseGraph()));
     maxAct = graphCtls->addAction(*windowFullScreenIcon, "Maximize/Restore graph", this, SLOT(toggleMaximize()));
@@ -156,13 +156,14 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
             graphs[num]->setMouseTracking(true);
             l->addWidget(f, r, c);
             setGraphTimeSecs(num, DEFAULT_GRAPH_TIME_SECS);
+            graphs[num]->setTag(QVariant(num));
             if (num >= firstExtraChan) {
                 // this is the photodiode channel
                 graphs[num]->bgColor() = QColor(0xa6, 0x69,0x3c, 0xff);
             }
         }
     }
-
+    selectedGraph = 0;
     isMVScale = fabs(((params.range.max-params.range.min) + params.range.min) / params.auxGain) < 1.0;
     lastMouseOverGraph = -1;;
 
@@ -332,7 +333,7 @@ void GraphsWindow::doPauseUnpause(int num, bool updateCtls)
 void GraphsWindow::pauseGraph()
 {
     if (mainApp()->isShiftPressed()) { // shift pressed, do 1 graph
-        int num = chanLCD->intValue();
+        int num = selectedGraph;
         doPauseUnpause(num, false);
     } else { // no shift pressed -- do all graphs
         const int sz = pausedGraphs.size();
@@ -344,16 +345,17 @@ void GraphsWindow::pauseGraph()
 
 void GraphsWindow::selectGraph(int num)
 {
-    int old = chanLCD->intValue();
+    int old = selectedGraph;
     graphFrames[old]->setFrameStyle(QFrame::StyledPanel|QFrame::Plain);
-    chanLCD->display(num);
+    selectedGraph = num;
+    chanLE->setText(QString("I%1_C%2").arg(chanMap[num].intan).arg(chanMap[num].intanCh));
     graphFrames[num]->setFrameStyle(QFrame::Box|QFrame::Plain);
     updateGraphCtls();
 }
 
 void GraphsWindow::updateGraphCtls()
 {
-    int num = chanLCD->intValue();
+    int num = selectedGraph;
     bool p = pausedGraphs[num];
     pauseAct->setChecked(p);
     pauseAct->setIcon(p ? *playIcon : *pauseIcon);
@@ -428,13 +430,14 @@ void GraphsWindow::updateMouseOver()
     const char *unit;
     computeGraphMouseOverVars(num, y, mean, stdev, unit);
     QString msg;
-    msg.sprintf("%s %s %d @ pos (%.3f s, %.3f %s) -- mean: %.3f %s stdDev: %.3f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),num,x,y,unit,mean,unit,stdev,unit);
+    ChanMapDesc & desc = chanMap[num];
+    msg.sprintf("%s %s %d [I%u_C%u pch: %u ech:%u] @ pos (%.3f s, %.3f %s) -- mean: %.3f %s stdDev: %.3f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),num,desc.intan,desc.intanCh,desc.pch,desc.ech,x,y,unit,mean,unit,stdev,unit);
     statusBar()->showMessage(msg);
 }
 
 void GraphsWindow::toggleMaximize()
 {
-    int num = chanLCD->intValue();
+    int num = selectedGraph;
     if (maximized && graphs[num] != maximized) {
         Warning() << "Maximize/unmaximize on a graph that isn't maximized when e have 1 graph maximized.. how is that possible?";
     } else if (maximized) { 
@@ -480,14 +483,14 @@ void GraphsWindow::clearGraph(int which)
 
 void GraphsWindow::graphSecsChanged(double secs)
 {
-    int num = chanLCD->intValue();
+    int num = selectedGraph;
     setGraphTimeSecs(num, secs);
     update_nPtsAllGs();    
 }
 
 void GraphsWindow::graphYScaleChanged(double scale)
 {
-    int num = chanLCD->intValue();
+    int num = selectedGraph;
     graphs[num]->setYScale(scale);
 }
 
