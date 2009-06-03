@@ -113,8 +113,8 @@ ChanMapDesc ChanMappingController::mappingForGraph(unsigned graphNum) const
     ChanMapDesc ret;
     ret.graphNum = graphNum;
     if (graphNum < NUM_MUX_CHANS_MAX) {
-        ret.intan = graphNum / NUM_MUX_CHANS_MAX + 1;
-        ret.intanCh = graphNum % NUM_MUX_CHANS_MAX + 1;
+        ret.intan = graphNum / NUM_CHANS_PER_INTAN + 1;
+        ret.intanCh = graphNum % NUM_CHANS_PER_INTAN + 1;
         ret.pch = pinMapping[graphNum];
         ret.ech = eMapping[graphNum];
     }
@@ -127,9 +127,9 @@ ChanMapDesc ChanMappingController::mappingForIntan(unsigned intan, unsigned inta
     return mappingForGraph(graphNum);
 }
 
-QVector<ChanMapDesc> ChanMappingController::mappingForAll() const
+ChanMap ChanMappingController::mappingForAll() const
 {
-    QVector<ChanMapDesc> ret;
+    ChanMap ret;
     ret.reserve(NUM_MUX_CHANS_MAX);
     for (int i = 0; i < NUM_MUX_CHANS_MAX; ++i)
         ret.push_back(mappingForGraph(i));

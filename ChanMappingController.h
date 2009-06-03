@@ -4,13 +4,8 @@
 #include <QVector>
 #include "ui_ChanMapping.h"
 #include "LeoDAQGL.h"
+#include "ChanMap.h"
 class QDialog;
-
-struct ChanMapDesc 
-{
-    unsigned graphNum, intan, intanCh, pch, ech;
-    ChanMapDesc() : graphNum(0), intan(0), intanCh(0), pch(0), ech(0) {}
-};
 
 class ChanMappingController : public QObject
 {
@@ -26,7 +21,7 @@ public:
     ChanMapDesc mappingForGraph(unsigned graphNum) const;
     ChanMapDesc mappingForIntan(unsigned intan, unsigned intan_chan) const;
 
-    QVector<ChanMapDesc> mappingForAll() const;
+    ChanMap mappingForAll() const;
 
 public slots:
     bool exec();

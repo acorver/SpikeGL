@@ -2,6 +2,7 @@
 #define DAQ_H
 #include "LeoDAQGL.h"
 #include "SampleBufQ.h"
+#include "ChanMap.h"
 #include <QMultiMap>
 #include <QString>
 #include <QThread>
@@ -92,6 +93,8 @@ namespace DAQ
         unsigned fastSettleTimeMS; ///< defaults to 15ms
 
         double auxGain;
+
+        ChanMap chanMap;
     };
 
     //-------- NI DAQmx helper methods -------------

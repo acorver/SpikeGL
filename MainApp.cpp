@@ -485,7 +485,7 @@ void MainApp::newAcq()
             QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(params.outputFile));
             return;
         }
-        graphsWindow = new GraphsWindow(params, configCtl->chanMappingController().mappingForAll(), 0);
+        graphsWindow = new GraphsWindow(params, 0);
         graphsWindow->setAttribute(Qt::WA_DeleteOnClose, false);
 
         graphsWindow->setWindowIcon(appIcon);

@@ -463,6 +463,7 @@ int ConfigureDialogController::exec()
             p.aiTerm = DAQ::StringToTermConfig(dialog->aiTerminationCB->currentText());
             p.fastSettleTimeMS = dialog->fastSettleSB->value();
             p.auxGain = dialog->auxGainSB->value();
+            p.chanMap = chanMapCtl.mappingForAll();
             saveSettings();
         }
     } while (again);

@@ -1,7 +1,6 @@
 #include "GraphsWindow.h"
 #include "Util.h"
 #include <QToolBar>
-#include <QLineEdit>
 #include <QLabel>
 #include <QGridLayout>
 #include <math.h>
@@ -17,6 +16,7 @@
 #include <QDoubleSpinBox>
 #include <QPushButton>
 #include <QCursor>
+#include <QFont>
 #include <math.h>
 #include "MainApp.h"
 #include "HPFilter.h"
@@ -48,8 +48,8 @@ static void initIcons()
     }
 }
 
-GraphsWindow::GraphsWindow(const DAQ::Params & p, const QVector<ChanMapDesc> & chMap, QWidget *parent)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), chanMap(chMap)
+GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
+    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.)
 {    
     initIcons();
     setCentralWidget(graphsWidget = new QWidget(this));
@@ -57,7 +57,9 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, const QVector<ChanMapDesc> & c
     resize(1024,768);
     graphCtls = addToolBar("Graph Controls");
     graphCtls->addWidget(new QLabel("Channel:", graphCtls));
-    graphCtls->addWidget(chanLE = new QLineEdit("", graphCtls));
+    graphCtls->addWidget(chanLbl = new QLabel("", graphCtls));
+    chanLbl->setMargin(5);
+    chanLbl->setFont(QFont("Courier", 10, QFont::Bold));
     graphCtls->addSeparator();
     pauseAct = graphCtls->addAction(*pauseIcon, "Pause/Unpause ALL graphs -- hold down shift for just this graph", this, SLOT(pauseGraph()));
     maxAct = graphCtls->addAction(*windowFullScreenIcon, "Maximize/Restore graph", this, SLOT(toggleMaximize()));
@@ -348,7 +350,11 @@ void GraphsWindow::selectGraph(int num)
     int old = selectedGraph;
     graphFrames[old]->setFrameStyle(QFrame::StyledPanel|QFrame::Plain);
     selectedGraph = num;
-    chanLE->setText(QString("I%1_C%2").arg(chanMap[num].intan).arg(chanMap[num].intanCh));
+    if (params.mode == DAQ::AIRegular) { // straight AI (no MUX)
+        chanLbl->setText(QString("AI%1").arg(num));
+    } else { // MUX mode
+        chanLbl->setText(QString("I%1_C%2").arg(params.chanMap[num].intan).arg(params.chanMap[num].intanCh));
+    }
     graphFrames[num]->setFrameStyle(QFrame::Box|QFrame::Plain);
     updateGraphCtls();
 }
@@ -430,8 +436,14 @@ void GraphsWindow::updateMouseOver()
     const char *unit;
     computeGraphMouseOverVars(num, y, mean, stdev, unit);
     QString msg;
-    ChanMapDesc & desc = chanMap[num];
-    msg.sprintf("%s %s %d [I%u_C%u pch: %u ech:%u] @ pos (%.3f s, %.3f %s) -- mean: %.3f %s stdDev: %.3f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),num,desc.intan,desc.intanCh,desc.pch,desc.ech,x,y,unit,mean,unit,stdev,unit);
+    ChanMapDesc & desc = params.chanMap[num];
+    QString chStr;
+    if (params.mode == DAQ::AIRegular) {
+        chStr.sprintf("AI%d", num);
+    } else { // MUX mode
+        chStr.sprintf("%d [I%u_C%u pch: %u ech:%u]",num,desc.intan,desc.intanCh,desc.pch,desc.ech);        
+    }
+    msg.sprintf("%s %s %s @ pos (%.3f s, %.3f %s) -- mean: %.3f %s stdDev: %.3f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,stdev,unit);
     statusBar()->showMessage(msg);
 }
 
