@@ -443,7 +443,7 @@ void GraphsWindow::updateMouseOver()
     } else { // MUX mode
         chStr.sprintf("%d [I%u_C%u pch: %u ech:%u]",num,desc.intan,desc.intanCh,desc.pch,desc.ech);        
     }
-    msg.sprintf("%s %s %s @ pos (%.3f s, %.3f %s) -- mean: %.3f %s stdDev: %.3f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,stdev,unit);
+    msg.sprintf("%s %s %s @ pos (%.3f s, %.4f %s) -- mean: %.3f %s stdDev: %.3f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,stdev,unit);
     statusBar()->showMessage(msg);
 }
 
