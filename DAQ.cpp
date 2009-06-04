@@ -487,9 +487,9 @@ namespace DAQ
             DAQmxErrChk (DAQmxReadBinaryI16(taskHandle,samplesPerChan,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL));
             u64 sampCount = totalRead;
             int32 nRead = pointsRead * nChans + oldS;                  
-            const int nCH = nChans*nscans_per_mux_scan;
-            if ( nRead % nCH ) { // not on 60 (or 75 if have interwoven PD and in PD mode) channel boundary, so save extra channels and enqueue them next time around..
-                nRead = (nRead / nCH) *  nCH;
+            int nDemuxScans = nRead/nChans/nscans_per_mux_scan;
+            if ( nDemuxScans*nscans_per_mux_scan*nChans != nRead ) {// not on 60 (or 75 if have interwoven PD and in PD mode) channel boundary, so save extra channels and enqueue them next time around..
+                nRead = nDemuxScans*nscans_per_mux_scan*nChans;
                 leftOver.insert(leftOver.begin(), data.begin()+nRead, data.end());
                 data.erase(data.begin()+nRead, data.end());
             }
@@ -503,50 +503,55 @@ namespace DAQ
 
             //Debug() << "Acquired " << nRead << " samples. Total " << totalRead;
             if (muxMode && p.nExtraChans) {
-            /*
-              NB: at this point data contains scans of the form:
+                /*
+                  NB: at this point data contains scans of the form:
 
-              | 0 | 1 | 2 | 3 | Extra 1 | Extra 2 | PD | ...
-              | 4 | 5 | 6 | 7 | Extra 1 | Extra 2 | PD | ... 
-              | 56| 57| 58| 59| Extra 1 | Extra 2 | PD |
-              ---------------------------------------------------------------
+                  | 0 | 1 | 2 | 3 | Extra 1 | Extra 2 | PD | ...
+                  | 4 | 5 | 6 | 7 | Extra 1 | Extra 2 | PD | ... 
+                  | 56| 57| 58| 59| Extra 1 | Extra 2 | PD |
+                  ---------------------------------------------------------------
 
-              Notice how the Extra channels are interwoven into the
-              0:3 (or 0:7 if in 120 channel mode) AI channels.
+                  Notice how the Extra channels are interwoven into the
+                  0:3 (or 0:7 if in 120 channel mode) AI channels.
 
-              We need to remove them!
+                  We need to remove them!
 
-              We want to turn that into 1 (or more) demuxed VIRTUAL scans
-              of the form:
+                  We want to turn that into 1 (or more) demuxed VIRTUAL scans
+                  of the form:
 
-              | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | ... | 58 | 59 | Extra 1 | Extra 2| PD |
-              -----------------------------------------------------
+                  | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | ... | 58 | 59 | Extra 1 | Extra 2| PD |
+                  -----------------------------------------------------
 
-              Where we remove every `nChans' extraChans except for when 
-              we have (NCHANS-extraChans) samples, then we add the extraChans, 
-              effectively downsampling the extra channels from 444kHz to 
-              29.630 kHz.
+                  Where we remove every `nChans' extraChans except for when 
+                  we have (NCHANS-extraChans) samples, then we add the extraChans, 
+                  effectively downsampling the extra channels from 444kHz to 
+                  29.630 kHz.
 
-              Capisce?
+                  Capisce?
 
-              NB: nChans = Number of physical channels per physical scan
+                  NB: nChans = Number of physical channels per physical scan
                   NCHANS = Number of virtual channels per virtual scan
 
-            */
+                */
                 std::vector<int16> tmp;
                 const int datasz = data.size();
                 tmp.reserve(datasz);
-               
-                for (int i = nChans-1; i < datasz; i += nChans) {
-                    tmp.insert(tmp.end(), &data[(i-nChans)+1], &data[i]); // copy non-PD channels for this MUXed sub-scan
-                    if (!(tmp.size() % (NCHANS-nExtraChans))) {// if we are on a virtual scan-boundary, then ...
-						std::vector<int16>::const_iterator begi = data.begin()+i, endi = data.end();
-                        if (i+nExtraChans < datasz) endi = data.begin()+(i+nExtraChans); 
+                const int nMx = nChans-nExtraChans;
+                for (int i = nMx-1; i < datasz; i += nChans) {
+                    std::vector<int16>::const_iterator begi = data.begin()+((i-nMx)+1), endi = data.begin()+i;
+                    ++endi; // increment iterator to point past current sample since it's non-inclusive
+                    tmp.insert(tmp.end(), begi, endi); // copy non-PD channels for this MUXed sub-scan
+                    if (!((tmp.size()+nExtraChans) % NCHANS) && i+nExtraChans < datasz) {// if we are on a virtual scan-boundary, then ...
+                        begi = data.begin()+i, endi = begi+nExtraChans;
                         tmp.insert(tmp.end(), begi, endi); // .. we keep the PD channel
-                    } else
-                        sampCount -= nExtraChans, nRead -= nExtraChans;  // otherwise we discarded it, so tally its disappearance
+                    } 
                 }
                 data.swap(tmp);
+                nRead = data.size();
+                if (data.size() % NCHANS) {
+                    // data didn't end on scan-boundary -- we have leftover scans!
+                    Error() << "INTERNAL ERROR SCAN DIDN'T END ON A SCAN BOUNDARY FIXME!!! in " << __FILE__ << ":" << __LINE__;                 
+                }
             }
             totalRead += nRead;
             
@@ -617,7 +622,6 @@ namespace DAQ
         }
         
     }
-
 
     void Task::setDO(bool onoff)
     {

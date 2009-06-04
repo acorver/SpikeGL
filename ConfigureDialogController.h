@@ -36,6 +36,7 @@ protected slots:
     void browseButClicked();
     void aoPassthruChkd();
     void aoPDChanChkd();
+    void aiRangeChanged();
 
 private:
     void loadSettings();

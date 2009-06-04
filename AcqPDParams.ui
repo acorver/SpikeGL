@@ -12,7 +12,7 @@
   <property name="windowTitle" >
    <string>Form</string>
   </property>
-  <widget class="QWidget" name="" >
+  <widget class="QWidget" name="layoutWidget" >
    <property name="geometry" >
     <rect>
      <x>10</x>
@@ -48,7 +48,7 @@
        <string>The threshold to use for crossings.  Note this is a 16-bit value in the range 0-65535</string>
       </property>
       <property name="text" >
-       <string>Threshold (uint16)</string>
+       <string>Threshold (volts)</string>
       </property>
       <property name="alignment" >
        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -56,21 +56,21 @@
      </widget>
     </item>
     <item>
-     <widget class="QSpinBox" name="pdAIThreshSB" >
-      <property name="toolTip" >
-       <string>The threshold to use for crossings.  Note this is a 16-bit value in the range 0-65535</string>
+     <widget class="QDoubleSpinBox" name="pdAIThreshSB" >
+      <property name="decimals" >
+       <number>4</number>
+      </property>
+      <property name="minimum" >
+       <double>-10.000000000000000</double>
       </property>
       <property name="maximum" >
-       <number>65535</number>
-      </property>
-      <property name="value" >
-       <number>48000</number>
+       <double>10.000000000000000</double>
       </property>
      </widget>
     </item>
    </layout>
   </widget>
-  <widget class="QWidget" name="" >
+  <widget class="QWidget" name="layoutWidget" >
    <property name="geometry" >
     <rect>
      <x>10</x>

@@ -40,6 +40,7 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     Connect(dialog->aoPassthruGB, SIGNAL(toggled(bool)), this, SLOT(aoPassthruChkd()));
     Connect(acqPdParams->pdPassthruAOChk, SIGNAL(toggled(bool)), this, SLOT(aoPDChanChkd()));
     Connect(dialog->muxMapBut, SIGNAL(clicked()), &chanMapCtl, SLOT(exec()));
+    Connect(dialog->aiRangeCB, SIGNAL(currentIndexChanged(int)), this, SLOT(aiRangeChanged()));
 }
 
 ConfigureDialogController::~ConfigureDialogController()
@@ -75,7 +76,7 @@ void ConfigureDialogController::resetFromParams()
         dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
     dialog->channelListLE->setText(p.aiString);
     dialog->acqStartEndCB->setCurrentIndex((int)p.acqStartEndMode);
-    acqPdParams->pdAIThreshSB->setValue(static_cast<int>(p.pdThresh) + 32768);
+    acqPdParams->pdAIThreshSB->setValue((p.pdThresh/32768.+1.)/2. * (p.range.max-p.range.min) + p.range.min);
     acqPdParams->pdAISB->setValue(p.pdChan);
     acqPdParams->pdPassthruAOChk->setChecked(p.pdPassThruToAO > -1);
     acqPdParams->pdPassthruAOSB->setValue(p.pdPassThruToAO > -1 ? p.pdPassThruToAO : 0);   
@@ -121,6 +122,16 @@ void ConfigureDialogController::resetFromParams()
     aoDeviceCBChanged();
     aoPassthruChkd();
     aoPDChanChkd();
+    aiRangeChanged();
+}
+
+void ConfigureDialogController::aiRangeChanged()
+{
+    QString devStr = devNames[dialog->deviceCB->currentIndex()];
+    const QList<DAQ::Range> ranges = aiDevRanges.values(devStr);
+    const DAQ::Range r = ranges[dialog->aiRangeCB->currentIndex()];
+    acqPdParams->pdAIThreshSB->setMinimum(r.min);
+    acqPdParams->pdAIThreshSB->setMaximum(r.max);
 }
 
 void ConfigureDialogController::acqStartEndCBChanged()
@@ -457,7 +468,7 @@ int ConfigureDialogController::exec()
                         +acqTimedParams->durSecsSB->value();
             
             p.pdChan = pdChan;
-            p.pdThresh = static_cast<signed short>(acqPdParams->pdAIThreshSB->value() - 32768);
+            p.pdThresh = static_cast<signed short>((acqPdParams->pdAIThreshSB->value()-p.range.min)/(p.range.max-p.range.min) * 65535. - 32768.);
             p.pdPassThruToAO = pdAOChan;
 
             p.aiTerm = DAQ::StringToTermConfig(dialog->aiTerminationCB->currentText());
