@@ -121,6 +121,8 @@ public slots:
     /// called by a button in the graphs window
     void doFastSettle();
 
+    /// called by control in graphs window -- toggles datafile save on/off
+    void toggleSave(bool);
    
 protected slots:
     /// Called from a timer every ~250 ms to update the status bar at the bottom of the console window
@@ -156,7 +158,7 @@ private:
     bool setupStimGLIntegration(bool doQuitOnFail=true);
     void detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp);
     void triggerTask();
-    bool detectStopTask(const std::vector<int16> & scans);
+    bool detectStopTask(const std::vector<int16> & scans, u64 firstSamp);
 
     mutable QMutex mut; ///< used to lock outDir param for now
     ConfigureDialogController *configCtl;
@@ -180,11 +182,12 @@ private:
     static MainApp *singleton;
     unsigned nLinesInLog, nLinesInLogMax;
 
-    double tNow, lastSeenPD;
+    double tNow;
+    u64 lastSeenPD, pdOffTimeSamps;
     DAQ::Task *task;
     bool taskWaitingForTrigger, taskWaitingForStop, 
         taskShouldStop; ///< used for StimGL trigger to stop the task when the queue empties
-    i64 scan0Fudge, scanCt, startScanCt, stopScanCt;
+    i64 scan0Fudge, scanCt, startScanCt, stopScanCt, lastScanSz;
     DataFile dataFile;
     std::vector<int16> last5PDSamples;
     QTimer *taskReadTimer;

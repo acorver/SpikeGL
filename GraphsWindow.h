@@ -23,7 +23,7 @@ class GraphsWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    GraphsWindow(const DAQ::Params & params, QWidget *parent = 0);
+    GraphsWindow(DAQ::Params & params, QWidget *parent = 0);
     ~GraphsWindow();
 
     void putScans(std::vector<int16> & scans, u64 firstSamp);
@@ -33,7 +33,7 @@ public:
 
     // overrides parent -- applies event filtering to the doublespinboxes as well!
     void installEventFilter(QObject * filterObj);
-
+    
 private slots:
     void updateGraphs();
     void downsampleChk(bool checked);
@@ -49,8 +49,9 @@ private slots:
     void mouseClickGraph(double x, double y);
     void mouseDoubleClickGraph(double x, double y);
     void updateMouseOver(); // called periodically every 1s
+    void doGraphColorDialog();
+    void toggleSaveChecked(bool b);
 
-    
 private:
     void setGraphTimeSecs(int graphnum, double t); // note you should call update_nPtsAllGs after this!  (Not auto-called in this function just in case of batch setGraphTimeSecs() in which case 1 call at end to update_nPtsAllGs() suffices.)
     void update_nPtsAllGs();
@@ -61,14 +62,16 @@ private:
                                    double & mean, double & stdev,
                                    const char * & unit);
     static int parseGraphNum(QObject *gl_graph_instance);
-
+    bool isAuxChan(unsigned num) const;
     
-    DAQ::Params params;
+    DAQ::Params & params;
     QWidget *graphsWidget;
     QToolBar *graphCtls;
     QLabel *chanLbl;
     QDoubleSpinBox *graphYScale, *graphSecs;
-    QCheckBox *highPassChk;
+    QCheckBox *highPassChk, *toggleSaveChk;
+    QLineEdit *saveFileLE;
+    QPushButton *graphColorBut;
     QVector<Vec2WrapBuffer> points;
     QVector<GLGraph *> graphs;
     QVector<QFrame *> graphFrames;
@@ -91,7 +94,6 @@ private:
     QAction *pauseAct, *maxAct, *applyAllAct;
     GLGraph *maximized; ///< if not null, a graph is maximized 
     HPFilter *filter;
-    bool isMVScale;
     Vec2 lastMousePos;
     int lastMouseOverGraph;
     int selectedGraph;

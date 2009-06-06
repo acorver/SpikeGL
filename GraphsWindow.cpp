@@ -17,6 +17,10 @@
 #include <QPushButton>
 #include <QCursor>
 #include <QFont>
+#include <QPainter>
+#include <QBrush>
+#include <QColorDialog>
+#include <QLineEdit>
 #include <math.h>
 #include "MainApp.h"
 #include "HPFilter.h"
@@ -28,6 +32,9 @@
 #include "fastsettle.xpm"
 
 static const QIcon *playIcon(0), *pauseIcon(0), *windowFullScreenIcon(0), *windowNoFullScreenIcon(0), *applyAllIcon(0);
+
+static const QColor AuxGraphBGColor(0xa6, 0x69,0x3c, 0xff),
+                    NormalGraphBGColor(0x2f, 0x4f, 0x4f, 0xff);
 
 static void initIcons()
 {
@@ -48,7 +55,7 @@ static void initIcons()
     }
 }
 
-GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
+GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent)
     : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.)
 {    
     initIcons();
@@ -67,7 +74,7 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     maxAct->setCheckable(true);
     graphCtls->addSeparator();
 
-    QLabel *lbl = new QLabel("Graph Seconds:", graphCtls);
+    QLabel *lbl = new QLabel("Seconds:", graphCtls);
     graphCtls->addWidget(lbl);
     graphSecs = new QDoubleSpinBox(graphCtls);
     graphSecs->setDecimals(3);
@@ -75,17 +82,23 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     graphSecs->setSingleStep(.25);    
     graphCtls->addWidget(graphSecs);
 
-    lbl = new QLabel("Graph YScale:", graphCtls);
+    lbl = new QLabel("YScale:", graphCtls);
     graphCtls->addWidget(lbl);
     graphYScale = new QDoubleSpinBox(graphCtls);
     graphYScale->setRange(.01, 100.0);
     graphYScale->setSingleStep(0.25);
     graphCtls->addWidget(graphYScale);
 
-    applyAllAct = graphCtls->addAction(*applyAllIcon, "Apply scale/secs to all graphs", this, SLOT(applyAll()));
+    lbl = new QLabel("Color:", graphCtls);
+    graphCtls->addWidget(lbl);
+    graphColorBut = new QPushButton(graphCtls);
+    graphCtls->addWidget(graphColorBut);
+    Connect(graphColorBut, SIGNAL(clicked(bool)), this, SLOT(doGraphColorDialog()));
+    
+    applyAllAct = graphCtls->addAction(*applyAllIcon, "Apply scale, secs & color to all graphs", this, SLOT(applyAll()));
 
     graphCtls->addSeparator();
-    QCheckBox *dsc = new QCheckBox(QString("Downsample graphs to %1 Hz").arg(DOWNSAMPLE_TARGET_HZ), graphCtls);
+    QCheckBox *dsc = new QCheckBox(QString("Downsample (%1 KHz)").arg(DOWNSAMPLE_TARGET_HZ/1000.), graphCtls);
     graphCtls->addWidget(dsc);
     dsc->setChecked(true);
     downsampleChk(true);
@@ -108,6 +121,15 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
     }
     graphCtls->addWidget(fset);
     Connect(fset, SIGNAL(clicked(bool)), mainApp(), SLOT(doFastSettle()));
+
+    graphCtls->addSeparator();
+    toggleSaveChk = new QCheckBox("Toggle save", graphCtls);
+    graphCtls->addWidget(toggleSaveChk);
+    toggleSaveChk->setChecked(true);
+    Connect(toggleSaveChk, SIGNAL(clicked(bool)), this, SLOT(toggleSaveChecked(bool)));
+    graphCtls->addWidget(saveFileLE = new QLineEdit(p.outputFile,graphCtls));
+    saveFileLE->setEnabled(false);
+    saveFileLE->setMinimumWidth(100);
     
     pdChan = -1;
     if (p.usePD) {
@@ -161,12 +183,13 @@ GraphsWindow::GraphsWindow(const DAQ::Params & p, QWidget *parent)
             graphs[num]->setTag(QVariant(num));
             if (num >= firstExtraChan) {
                 // this is the photodiode channel
-                graphs[num]->bgColor() = QColor(0xa6, 0x69,0x3c, 0xff);
+                graphs[num]->bgColor() = AuxGraphBGColor;
+            } else {
+                graphs[num]->bgColor() = NormalGraphBGColor;
             }
         }
     }
     selectedGraph = 0;
-    isMVScale = fabs(((params.range.max-params.range.min) + params.range.min) / params.auxGain) < 1.0;
     lastMouseOverGraph = -1;;
 
     update_nPtsAllGs();
@@ -353,10 +376,26 @@ void GraphsWindow::selectGraph(int num)
     if (params.mode == DAQ::AIRegular) { // straight AI (no MUX)
         chanLbl->setText(QString("AI%1").arg(num));
     } else { // MUX mode
-        chanLbl->setText(QString("I%1_C%2").arg(params.chanMap[num].intan).arg(params.chanMap[num].intanCh));
+        if (isAuxChan(num)) {
+            chanLbl->setText(QString("AUX%1").arg(int(num-(params.nVAIChans-params.nExtraChans)+1)));
+        } else {
+            chanLbl->setText(QString("I%1_C%2").arg(params.chanMap[num].intan).arg(params.chanMap[num].intanCh));
+        }
     }
     graphFrames[num]->setFrameStyle(QFrame::Box|QFrame::Plain);
     updateGraphCtls();
+}
+
+void GraphsWindow::doGraphColorDialog()
+{
+    int num = selectedGraph;
+    QColorDialog::setCustomColor(0,NormalGraphBGColor.rgb());
+    QColorDialog::setCustomColor(1,AuxGraphBGColor.rgb());
+    QColor c = QColorDialog::getColor(graphs[num]->bgColor(), this);
+    if (c.isValid()) {
+        graphs[num]->bgColor() = c;
+        updateGraphCtls();
+    }
 }
 
 void GraphsWindow::updateGraphCtls()
@@ -374,6 +413,19 @@ void GraphsWindow::updateGraphCtls()
     }
     graphYScale->setValue(graphs[num]->yScale());
     graphSecs->setValue(graphTimesSecs[num]);
+    { // update color button
+        QPixmap pm(22,22);
+        QPainter p;
+        p.begin(&pm);
+        p.fillRect(0,0,22,22,QBrush(graphs[num]->bgColor()));
+        p.end();
+        graphColorBut->setIcon(QIcon(pm));
+    }
+}
+
+bool GraphsWindow::isAuxChan(unsigned num) const
+{
+    return num >= (params.nVAIChans-params.nExtraChans);
 }
 
 void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
@@ -386,10 +438,13 @@ void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
     y = (y*(params.range.max-params.range.min) + params.range.min) / params.auxGain;
     mean = graphStats[num].mean();
     stdev = graphStats[num].stdDev();
-    mean = (((mean+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / params.auxGain;
-    stdev = (((stdev+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / params.auxGain;
+    const double gain = isAuxChan(num) ? 1. : params.auxGain;
+    mean = (((mean+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / gain;
+    stdev = (((stdev+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / gain;
     unit = "V";
-    if (isMVScale) unit = "mV",y *= 1000., mean *= 1000., stdev *= 1000.;  
+    // check for millivolt..
+    if ((((params.range.max-params.range.min) + params.range.min) / gain) < 1.0)
+        unit = "mV",y *= 1000., mean *= 1000., stdev *= 1000.;  
 }
 
 
@@ -441,9 +496,13 @@ void GraphsWindow::updateMouseOver()
     if (params.mode == DAQ::AIRegular) {
         chStr.sprintf("AI%d", num);
     } else { // MUX mode
-        chStr.sprintf("%d [I%u_C%u pch: %u ech:%u]",num,desc.intan,desc.intanCh,desc.pch,desc.ech);        
+        if (isAuxChan(num)) {
+            chStr.sprintf("AUX%d",int(num-(params.nVAIChans-params.nExtraChans)+1));
+        } else {
+            chStr.sprintf("%d [I%u_C%u pch: %u ech:%u]",num,desc.intan,desc.intanCh,desc.pch,desc.ech);        
+        }
     }
-    msg.sprintf("%s %s %s @ pos (%.3f s, %.4f %s) -- mean: %.3f %s stdDev: %.3f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,stdev,unit);
+    msg.sprintf("%s %s %s @ pos (%.4f s, %.4f %s) -- mean: %.4f %s stdDev: %.4f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,stdev,unit);
     statusBar()->showMessage(msg);
 }
 
@@ -510,9 +569,11 @@ void GraphsWindow::applyAll()
 {
     if (!graphSecs->hasAcceptableInput() || !graphYScale->hasAcceptableInput()) return;
     double secs = graphSecs->text().toDouble(), scale = graphYScale->text().toDouble();
+    QColor c = graphs[selectedGraph]->bgColor();
     for (int i = 0; i < graphs.size(); ++i) {
         setGraphTimeSecs(i, secs);
         graphs[i]->setYScale(scale);
+        graphs[i]->bgColor() = c;
     }
     update_nPtsAllGs();    
 }
@@ -537,4 +598,16 @@ int GraphsWindow::parseGraphNum(QObject *graph)
     ret = graph->objectName().mid(8).toInt(&ok);
     if (!ok) ret = -1;
     return ret;
+}
+
+void GraphsWindow::toggleSaveChecked(bool b)
+{
+    if (b) {
+        saveFileLE->setEnabled(false);
+        params.outputFile = saveFileLE->text();
+        mainApp()->toggleSave(b);
+    } else {
+        saveFileLE->setEnabled(true);
+        mainApp()->toggleSave(b);
+    }
 }

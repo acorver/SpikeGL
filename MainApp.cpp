@@ -476,6 +476,7 @@ void MainApp::newAcq()
     if (ret == QDialog::Accepted) {
         scan0Fudge = 0;
         scanCt = 0;
+        lastScanSz = 0;
         tNow = getTime();
         taskShouldStop = false;
         last5PDSamples.reserve(5);
@@ -607,6 +608,7 @@ void MainApp::taskReadFunc()
            && task
            && task->dequeueBuffer(scans, firstSamp)) {
         tNow = getTime();
+        lastScanSz = scans.size();
         scanCt = firstSamp/p.nVAIChans;
         if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
             detectTriggerEvent(scans, firstSamp);
@@ -623,20 +625,22 @@ void MainApp::taskReadFunc()
                 }
             }
         } else { // task not waiting from trigger, normal acq.
-            firstSamp -= scan0Fudge;
+            firstSamp -= scan0Fudge;            
 
             if (!needToStop && !taskShouldStop && taskWaitingForStop) {
-                needToStop = detectStopTask(scans);
+                needToStop = detectStopTask(scans, firstSamp);
             }
 
-            if (firstSamp != dataFile.sampleCount()) {
-                QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree!\nAieeeee!!  Aborting acquisition!").arg(dataFile.sampleCount()).arg(firstSamp);
-                Error() << e;
-                stopTask();
-                QMessageBox::critical(0, "DAQ Error", e);
-                return;
+            if (dataFile.isOpen()) {
+                if (firstSamp != dataFile.sampleCount()) {
+                    QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree!\nAieeeee!!  Aborting acquisition!").arg(dataFile.sampleCount()).arg(firstSamp);
+                    Error() << e;
+                    stopTask();
+                    QMessageBox::critical(0, "DAQ Error", e);
+                    return;
+                }
+                dataFile.writeScans(scans);
             }
-            dataFile.writeScans(scans);
             qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
             if (graphsWindow && !graphsWindow->isHidden()) {            
                 if (qFillPct > 70.0) {
@@ -674,12 +678,19 @@ void MainApp::detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp
     case DAQ::PDStart: {
         // NB: photodiode channel is always the last channel
         const int sz = scans.size();
-        for (int i = p.nVAIChans-1; i < sz; i += p.nVAIChans) {
-            int16 samp = scans[i];
+        if (p.idxOfPdChan < 0) {
+            Error() << "INTERNAL ERROR, acqStartMode is PD based but no PD channel specified in DAQ params!";
+            stopTask();
+            return;
+        }
+        for (int i = p.idxOfPdChan; i < sz; i += p.nVAIChans) {
+            const int16 samp = scans[i];
             if (samp > p.pdThresh) {
-                if (last5PDSamples.size() >= 5) 
-                    triggered = true, lastSeenPD = tNow, i = sz;                
-                else 
+                if (last5PDSamples.size() >= 5) {
+                    triggered = true, i = sz, last5PDSamples.clear();
+                    pdOffTimeSamps = p.srate * p.pdStopTime * p.nVAIChans;
+                    lastSeenPD = firstSamp + u64(i);
+                } else 
                     last5PDSamples.push_back(samp);
             } else
                 last5PDSamples.clear();
@@ -704,7 +715,7 @@ void MainApp::detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp
     scan0Fudge = firstSamp + scans.size();
 }
 
-bool MainApp::detectStopTask(const std::vector<int16> & scans)
+bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
 {
     bool stopped = false;
     DAQ::Params & p (configCtl->acceptedParams);
@@ -715,20 +726,27 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans)
             Log() << "Triggered stop because acquisition duration has fully elapsed.";
         }
         break;
-    case DAQ::PDStartEnd:
-        // NB: photodiode channel is always the last channel
-        if (scans.back() > p.pdThresh) {
-            if (last5PDSamples.size() >= 5) 
-                lastSeenPD = tNow;
-            else 
-                last5PDSamples.push_back(scans.back());
-        } else {
-            last5PDSamples.clear();
-            if (tNow-lastSeenPD > 1.0) { // timeout PD after 1.0 seconds..
-                stopped = true;
-                Log() << "Triggered stop due to photodiode being off for >1 seconds.";
-            }
+    case DAQ::PDStartEnd: {
+        if (p.idxOfPdChan < 0) {
+            Error() << "INTERNAL ERROR, acqEndMode is PD based but no PD channel specified in DAQ params!";
+            return true;
         }
+        const int sz = scans.size();
+        for (int i = p.idxOfPdChan; i < sz; i += p.nVAIChans) {
+            const int16 samp = scans[i];
+            if (samp > p.pdThresh) {
+                if (last5PDSamples.size() >= 3) 
+                    lastSeenPD = firstSamp+u64(i), last5PDSamples.clear();
+                else 
+                    last5PDSamples.push_back(samp);
+            } else
+                last5PDSamples.clear();
+        }
+        if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps) { // timeout PD after X scans..
+            stopped = true;
+            Log() << "Triggered stop due to photodiode being off for >" << p.pdStopTime << " seconds.";
+        }
+    }
         break;
     case DAQ::StimGLStartEnd:
         // do nothing.. this gets set from stimGL_PluginStarted() slot outside this function..
@@ -772,11 +790,12 @@ void MainApp::triggerTask()
 void MainApp::updateWindowTitles()
 {
     QString stat = "";
+    QString fname = dataFile.isOpen() ? dataFile.fileName() : "(no outfile)";
     if (task) {
         if (taskWaitingForTrigger)
-            stat = "WAITING - " + dataFile.fileName();
+            stat = "WAITING - " + fname;
         else
-            stat = "RUNNING - " + dataFile.fileName();
+            stat = "RUNNING - " + fname;
     } else {
         stat = "No Acquisition Running";
     }
@@ -973,3 +992,21 @@ void MainApp::fastSettleCompletion()
 }
 
 
+void MainApp::toggleSave(bool s)
+{
+    const DAQ::Params & p (configCtl->acceptedParams);
+    if (s && !dataFile.isOpen()) {
+        if (!dataFile.openForWrite(p)) {
+            QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(p.outputFile));
+            return;
+        }
+        Log() << "Save file: " << dataFile.fileName() << " opened from GUI.";
+        scan0Fudge = scanCt*p.nVAIChans + lastScanSz;
+        graphsWindow->clearGraph(-1);
+        updateWindowTitles();
+    } else if (!s && dataFile.isOpen()) {
+        dataFile.closeAndFinalize();
+        Log() << "Save file: " << dataFile.fileName() << " closed from GUI.";
+        updateWindowTitles();
+    }
+}

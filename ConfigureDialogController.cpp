@@ -80,6 +80,7 @@ void ConfigureDialogController::resetFromParams()
     acqPdParams->pdAISB->setValue(p.pdChan);
     acqPdParams->pdPassthruAOChk->setChecked(p.pdPassThruToAO > -1);
     acqPdParams->pdPassthruAOSB->setValue(p.pdPassThruToAO > -1 ? p.pdPassThruToAO : 0);   
+    acqPdParams->pdStopTimeSB->setValue(p.pdStopTime);
 
     QList<QString> devs = aiChanLists.uniqueKeys();
     devNames.clear();
@@ -136,6 +137,7 @@ void ConfigureDialogController::aiRangeChanged()
 
 void ConfigureDialogController::acqStartEndCBChanged()
 {
+    bool entmp = false;
     acqPdParamsW->hide();
     acqTimedParamsW->hide();
     DAQ::AcqStartEndMode mode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
@@ -147,7 +149,10 @@ void ConfigureDialogController::acqStartEndCBChanged()
         dialog->acqStartEndDescrLbl->show();
         break;
     case DAQ::PDStartEnd:
+        entmp = true;
     case DAQ::PDStart:
+        acqPdParams->pdStopTimeLbl->setEnabled(entmp);
+        acqPdParams->pdStopTimeSB->setEnabled(entmp);
         acqPdParamsW->setParent(dialog->acqFrame);
         acqPdParamsW->show();
         break;
@@ -468,8 +473,10 @@ int ConfigureDialogController::exec()
                         +acqTimedParams->durSecsSB->value();
             
             p.pdChan = pdChan;
+            p.idxOfPdChan = p.nVAIChans-(p.aiChannels.size() - p.aiChannels.indexOf(pdChan));
             p.pdThresh = static_cast<signed short>((acqPdParams->pdAIThreshSB->value()-p.range.min)/(p.range.max-p.range.min) * 65535. - 32768.);
             p.pdPassThruToAO = pdAOChan;
+            p.pdStopTime = acqPdParams->pdStopTimeSB->value();
 
             p.aiTerm = DAQ::StringToTermConfig(dialog->aiTerminationCB->currentText());
             p.fastSettleTimeMS = dialog->fastSettleSB->value();
@@ -604,11 +611,12 @@ void ConfigureDialogController::loadSettings()
 
     p.pdThresh = settings.value("acqPDThresh", 48000-32768).toInt();
     p.pdChan = settings.value("acqPDChan", 4).toInt();
+    p.pdStopTime = settings.value("acqPDOffStopTime", .5).toDouble();
     p.pdPassThruToAO = settings.value("acqPDPassthruChanAO", 2).toInt();
 
     p.aiTerm = (DAQ::TermConfig)settings.value("aiTermConfig", (int)DAQ::Default).toInt();
     p.fastSettleTimeMS = settings.value("fastSettleTimeMS", DEFAULT_FAST_SETTLE_TIME_MS).toUInt();
-    p.auxGain = settings.value("auxGain", 200.0).toDouble();
+    p.auxGain = settings.value("auxGain", 200.0).toDouble();    
 }
 
 void ConfigureDialogController::saveSettings()
@@ -644,6 +652,7 @@ void ConfigureDialogController::saveSettings()
     settings.setValue("acqPDThresh", p.pdThresh);
     settings.setValue("acqPDChan", p.pdChan);
     settings.setValue("acqPDPassthruChanAO", p.pdPassThruToAO);
+    settings.setValue("acqPDOffStopTime", p.pdStopTime);
     settings.setValue("aiTermConfig", (int)p.aiTerm);
     settings.setValue("fastSettleTimeMS", p.fastSettleTimeMS);
     settings.setValue("auxGain", p.auxGain);

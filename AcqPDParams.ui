@@ -17,7 +17,7 @@
     <rect>
      <x>10</x>
      <y>12</y>
-     <width>391</width>
+     <width>395</width>
      <height>25</height>
     </rect>
    </property>
@@ -73,9 +73,9 @@
   <widget class="QWidget" name="layoutWidget" >
    <property name="geometry" >
     <rect>
-     <x>10</x>
-     <y>45</y>
-     <width>291</width>
+     <x>11</x>
+     <y>44</y>
+     <width>360</width>
      <height>25</height>
     </rect>
    </property>
@@ -86,7 +86,7 @@
        <string>Optionally, you may pass thru the photodiode electrode channel back to AO. </string>
       </property>
       <property name="text" >
-       <string>Also passthru this channel to AO:</string>
+       <string>AO passthru:</string>
       </property>
      </widget>
     </item>
@@ -97,6 +97,26 @@
       </property>
       <property name="toolTip" >
        <string>The AO channel to pass PD input back out to.  Node this is on the AO device selected above</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="pdStopTimeLbl" >
+      <property name="toolTip" >
+       <string>The time in seconds that the PD signal needs to be off before the 'PD stop' event is triggered (and the acquisition is stopped).</string>
+      </property>
+      <property name="text" >
+       <string>PD stop time (secs):</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QDoubleSpinBox" name="pdStopTimeSB" >
+      <property name="toolTip" >
+       <string>The time in seconds that the PD signal needs to be off before the 'PD stop' event is triggered (and the acquisition is stopped).</string>
+      </property>
+      <property name="value" >
+       <double>0.500000000000000</double>
       </property>
      </widget>
     </item>

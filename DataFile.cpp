@@ -48,6 +48,8 @@ bool DataFile::closeAndFinalize()
     outFile.close();
     QString mf = metaFile.fileName();
     metaFile.close(); // close it.. we never really wrote to it.. we just reserved it on the FS    
+    writeRateAvg = 0.;
+    nWritesAvg = nWritesAvgMax = 0;
     return params.toFile(mf);
 }
 
