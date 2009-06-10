@@ -12,6 +12,9 @@
 #include <deque>
 #include <QMap>
 #include <QStringList>
+#ifdef HAVE_NIDAQmx
+#include "NI/NIDAQmx.h"
+#endif
 #ifdef Q_OS_WIN
 // Argh!  Windows for some reason has this macro defined..
 #undef min
@@ -185,7 +188,27 @@ namespace DAQ
         friend struct DAQPvt;
 
     };
-
+#ifdef HAVE_NIDAQmx
+    class AOWriteThread : public QThread, public SampleBufQ {
+        Q_OBJECT
+    public:
+        AOWriteThread(QObject * parent, 
+                      TaskHandle & taskHandle,
+                      int32 aoBufferSize,
+                      const Params & params);
+        ~AOWriteThread();
+        void stop();
+    signals:
+        void daqError(const QString &);
+    protected:
+        void run();
+    private:
+        volatile bool pleaseStop;
+        TaskHandle & taskHandle;
+        int32 aoBufferSize;
+        const Params & params;
+    };
+#endif
 
 }
 #endif

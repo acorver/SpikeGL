@@ -15,6 +15,8 @@
 #include <QMessageBox>
 #include <QApplication>
 #include <QRegExp>
+#include <QThread>
+#include "SampleBufQ.h"
 
 #define DAQmxErrChk(functionCall) do { if( DAQmxFailed(error=(functionCall)) ) { callStr = STR(functionCall); goto Error_Out; } } while (0)
 
@@ -275,6 +277,30 @@ namespace DAQ
         static int32 everyNSamples_func (TaskHandle taskHandle, int32 everyNsamplesEventType, uint32 nSamples, void *callbackData); 
     };
 
+    AOWriteThread::AOWriteThread(QObject *parent, 
+                                 TaskHandle & taskHandle,
+                                 int32 aoBufferSize,
+                                 const Params & params)
+        : QThread(parent), taskHandle(taskHandle), aoBufferSize(aoBufferSize), params(params)
+    {
+        pleaseStop = false;
+    }
+
+    AOWriteThread::~AOWriteThread()
+    {
+        stop();
+    }
+
+    void AOWriteThread::stop() 
+    {
+        if (isRunning()) {
+            pleaseStop = true;
+            std::vector<int16> empty;
+            enqueueBuffer(empty, 0); // forces a wake-up
+            wait(); // wait for thread to join
+        }
+    }
+
 #endif
 
     Task::Task(const Params & acqParams, QObject *p) 
@@ -371,6 +397,50 @@ namespace DAQ
 
 #else // !FAKEDAQ
 
+    void AOWriteThread::run()
+    {
+        const float64     aoTimeout = DAQ_TIMEOUT*2.;
+        unsigned aoWriteCt = 0;
+        pleaseStop = false;
+        int32       error = 0;
+        char        errBuff[2048]={'\0'};
+        const char *callStr = "";
+        const Params & p(params);
+
+        while (!pleaseStop) {
+            double t0 = getTime();
+            std::vector<int16> samps;
+            u64 sampCount;
+            dequeueBuffer(samps, sampCount);
+            if (samps.size()) {
+                const int32 nScansToWrite = samps.size()/p.aoChannels.size();
+                int32 nScansWritten = 0;
+                DAQmxErrChk(DAQmxWriteBinaryI16(taskHandle, nScansToWrite, 1, aoTimeout, DAQmx_Val_GroupByScanNumber, &samps[0], &nScansWritten, NULL));
+                if (nScansWritten != nScansToWrite) {
+                    Error() << "nScansWritten (" << nScansWritten << ") != nScansToWrite (" << nScansToWrite << ")";
+                }                    
+                ++aoWriteCt;
+                samps.clear();
+                Debug() << "AOWrite " << aoWriteCt << " of " << nScansWritten << " (bufsize=" << aoBufferSize << ") took: " << (getTime()-t0) << " secs";
+            }
+        }
+
+    Error_Out:
+        if ( DAQmxFailed(error) )
+            DAQmxGetExtendedErrorInfo(errBuff,2048);
+        if ( taskHandle != 0) {
+            DAQmxStopTask (taskHandle);
+        }
+        if( DAQmxFailed(error) ) {
+            QString e;
+            e.sprintf("DAQmx Error: %s\nDAQMxBase Call: %s",errBuff, callStr);
+            if (!noDaqErrPrint) {
+                Error() << e;
+            }
+            emit daqError(e);
+        }        
+    }
+
     void Task::daqThr()
     {
         // Task parameters
@@ -417,11 +487,10 @@ namespace DAQ
         float64 sampleRate = p.srate;
         const float64 aoSampleRate = p.aoSrate;
         const float64     timeout = DAQ_TIMEOUT;
-        const float64     aoTimeout = DAQ_TIMEOUT*2.;
         const int NCHANS = p.nVAIChans;
         muxMode =  p.mode == AI60Demux || p.mode == AI120Demux;
         int nscans_per_mux_scan = 1;
-        unsigned aoWriteCt = 0;
+        AOWriteThread * aoWriteThr = 0;
 
         if (muxMode) {
             sampleRate *= double(MUX_CHANS_PER_PHYS_CHAN);
@@ -446,7 +515,7 @@ namespace DAQ
         const u64 dmaBufSize = u64(1000000); /// 1000000 sample DMA buffer per chan?
         const u64 samplesPerChan = bufferSize/nChans;
         const int32 aoSamplesPerChan = samplesPerChan*2;
-        const u64 aoBufferSize = u64(aoSamplesPerChan) * aoNChans * 4;
+        const u64 aoBufferSize = u64(aoSamplesPerChan) * aoNChans;
 
         // Timing parameters
         int32       pointsRead;
@@ -465,6 +534,9 @@ namespace DAQ
             DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
             DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,aoBufferSize));
             DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,dmaBufSize));
+            aoWriteThr = new AOWriteThread(0, aoTaskHandle, aoBufferSize, p);
+            Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
+            aoWriteThr->start();                
         }
 
 
@@ -472,11 +544,11 @@ namespace DAQ
             setDO(false); // set DO line low to reset external MUX
 
         DAQmxErrChk (DAQmxStartTask(taskHandle)); 
-
         if (muxMode)
             setDO(true); // now set DO line high to start external MUX and clock on PFI2
 
         startTime = getTime();
+        u64 aoSampCount = 0;
         while( !pleaseStop ) {
             data.clear(); // should already be cleared, but enforce...
             if (leftOver.size()) data.swap(leftOver);            
@@ -555,8 +627,7 @@ namespace DAQ
             totalRead += nRead;
             
             // now, do optional AO output TODO: see about doing this in another thread to save on latency here?
-            if (aoTaskHandle) {               
-                double t0 = getTime(); // XXX HACK FIXME DEBUG TODO
+            if (aoWriteThr) {                               
                 const int dsize = data.size();
                 aoData.reserve(MAX(aoBufferSize*2,dsize));
                 for (int i = 0; i < dsize; i += NCHANS) { // for each scan..
@@ -565,17 +636,10 @@ namespace DAQ
                     }
                 }
                 if (aoData.size() >= aoBufferSize) { 
-                    const int32 nScansToWrite = aoSamplesPerChan;
-                    int32 nScansWritten = 0;
-                    DAQmxErrChk(DAQmxWriteBinaryI16(aoTaskHandle, nScansToWrite, 1, aoTimeout, DAQmx_Val_GroupByScanNumber, &aoData[0], &nScansWritten, NULL));
-                    if (nScansWritten != nScansToWrite) {
-                        Error() << "nScansWritten (" << nScansWritten << ") != nScansToWrite (" << nScansToWrite << ")";
-                    }                    
-                    ++aoWriteCt;
-                    aoData.erase(aoData.begin(), aoData.begin()+nScansWritten);
-                    Debug() << "AOWrite " << aoWriteCt << " of " << nScansWritten << " (bufsize=" << aoBufferSize << ") took: " << (getTime()-t0) << " secs";
+                    u64 sz = aoData.size();
+                    aoWriteThr->enqueueBuffer(aoData, aoSampCount);
+                    aoSampCount += sz;
                 }
-
             }
             
             enqueueBuffer(data, sampCount);
@@ -586,11 +650,17 @@ namespace DAQ
                 /// now possibly do a 'fast settle' request by stopping the task, setting the DO line low, then restarting the task after fast_settle ms have elapsed, and setting the line high
                 Debug() << "Fast settle of " << fast_settle << " ms begin";
                 DAQmxErrChk(DAQmxStopTask(taskHandle));
-                if (aoTaskHandle) DAQmxErrChk(DAQmxStopTask(aoTaskHandle));
+                if (aoTaskHandle) {
+                    delete aoWriteThr, aoWriteThr = 0; 
+                    DAQmxErrChk(DAQmxStopTask(aoTaskHandle));
+                }
                 setDO(false);
                 msleep(fast_settle);
                 fast_settle = 0;
                 DAQmxErrChk(DAQmxStartTask(taskHandle));                
+                aoWriteThr = new AOWriteThread(0, aoTaskHandle, aoBufferSize, p);
+                Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
+                aoWriteThr->start();
                 // no need to restart AO as it is autostart..
                 setDO(true);
                 Debug() << "Fast settle completed in " << (getTime()-t0) << " secs";
@@ -606,6 +676,9 @@ namespace DAQ
         if ( taskHandle != 0) {
             DAQmxStopTask (taskHandle);
             DAQmxClearTask (taskHandle);
+        }
+        if (aoWriteThr != 0) {
+            delete aoWriteThr, aoWriteThr = 0;
         }
         if ( aoTaskHandle != 0) {
             DAQmxStopTask (aoTaskHandle);
