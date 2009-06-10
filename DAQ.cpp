@@ -464,6 +464,7 @@ namespace DAQ
             DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
             DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
             DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,aoBufferSize));
+            DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,dmaBufSize));
         }
 
 
