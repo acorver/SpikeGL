@@ -15,7 +15,6 @@
 #include <QMessageBox>
 #include <QApplication>
 #include <QRegExp>
-#include <QVarLengthArray>
 
 #define DAQmxErrChk(functionCall) do { if( DAQmxFailed(error=(functionCall)) ) { callStr = STR(functionCall); goto Error_Out; } } while (0)
 
@@ -414,7 +413,7 @@ namespace DAQ
 
         // Params dependent on mode and DAQ::Params, etc
         const char *clockSource = p.extClock ? "PFI2" : "OnboardClock"; ///< TODO: make extClock possibly be something other than PFI2
-        const char *aoClockSource = "OnboardClock";
+        const char * const aoClockSource = "OnboardClock";
         float64 sampleRate = p.srate;
         const float64 aoSampleRate = p.aoSrate;
         const float64     timeout = DAQ_TIMEOUT;
@@ -436,8 +435,8 @@ namespace DAQ
             }
         }
 
-        QVarLengthArray<int> 
-            aoAITab(aoNChans ? aoNChans : 1); ///< map of AO chan id to virtual AI chan id
+        QVector<int> aoAITab;
+        aoAITab.resize(aoNChans ? aoNChans : 1); ///< map of AO chan id to virtual AI chan id
         for (int i = 0; i < aoNChans; ++i) {
             aoAITab[i] = p.aoPassthruMap[i];
         }
@@ -447,7 +446,7 @@ namespace DAQ
         const u64 dmaBufSize = u64(1000000); /// 1000000 sample DMA buffer per chan?
         const u64 samplesPerChan = bufferSize/nChans;
         const int32 aoSamplesPerChan = samplesPerChan*2;
-        const u64 aoBufferSize = u64(aoSamplesPerChan) * aoNChans;
+        const u64 aoBufferSize = u64(aoSamplesPerChan) * aoNChans * 4;
 
         // Timing parameters
         int32       pointsRead;
@@ -502,7 +501,7 @@ namespace DAQ
             }
 
             //Debug() << "Acquired " << nRead << " samples. Total " << totalRead;
-            if (muxMode && p.nExtraChans) {
+            if (muxMode && nExtraChans) {
                 /*
                   NB: at this point data contains scans of the form:
 
@@ -537,14 +536,13 @@ namespace DAQ
                 const int datasz = data.size();
                 tmp.reserve(datasz);
                 const int nMx = nChans-nExtraChans;
-                for (int i = nMx-1; i < datasz; i += nChans) {
-                    std::vector<int16>::const_iterator begi = data.begin()+((i-nMx)+1), endi = data.begin()+i;
-                    ++endi; // increment iterator to point past current sample since it's non-inclusive
-                    tmp.insert(tmp.end(), begi, endi); // copy non-PD channels for this MUXed sub-scan
-                    if (!((tmp.size()+nExtraChans) % NCHANS) && i+nExtraChans < datasz) {// if we are on a virtual scan-boundary, then ...
-                        begi = data.begin()+i, endi = begi+nExtraChans;
-                        tmp.insert(tmp.end(), begi, endi); // .. we keep the PD channel
-                    } 
+                for (int i = nMx; i < datasz; i += nChans) {
+                    std::vector<int16>::const_iterator begi = data.begin()+(i-nMx), endi = data.begin()+i;
+                    tmp.insert(tmp.end(), begi, endi); // copy non-aux channels for this MUXed sub-scan
+                    if ((!((tmp.size()+nExtraChans) % NCHANS)) && i+nExtraChans <= datasz) {// if we are on a virtual scan-boundary, then ...
+                        begi = data.begin()+i;  endi = begi+nExtraChans;
+                        tmp.insert(tmp.end(), begi, endi); // .. we keep the extra channels
+                    }
                 }
                 data.swap(tmp);
                 nRead = data.size();
@@ -560,8 +558,8 @@ namespace DAQ
                 double t0 = getTime(); // XXX HACK FIXME DEBUG TODO
                 const int dsize = data.size();
                 aoData.reserve(MAX(aoBufferSize*2,dsize));
-                for (int i = 0; i < dsize; i += NCHANS) {
-                    for (int aoch = 0; aoch < aoNChans; ++aoch) {
+                for (int i = 0; i < dsize; i += NCHANS) { // for each scan..
+                    for (int aoch = 0; aoch < aoNChans; ++aoch) { // take ao channels
                         aoData.push_back(data[i+aoAITab[aoch]]);
                     }
                 }
