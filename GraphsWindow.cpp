@@ -391,9 +391,9 @@ void GraphsWindow::doGraphColorDialog()
     int num = selectedGraph;
     QColorDialog::setCustomColor(0,NormalGraphBGColor.rgb());
     QColorDialog::setCustomColor(1,AuxGraphBGColor.rgb());
-    QColor c = QColorDialog::getColor(graphs[num]->bgColor(), this);
+    QColor c = QColorDialog::getColor(graphs[num]->graphColor(), this);
     if (c.isValid()) {
-        graphs[num]->bgColor() = c;
+        graphs[num]->graphColor() = c;
         updateGraphCtls();
     }
 }
@@ -417,7 +417,7 @@ void GraphsWindow::updateGraphCtls()
         QPixmap pm(22,22);
         QPainter p;
         p.begin(&pm);
-        p.fillRect(0,0,22,22,QBrush(graphs[num]->bgColor()));
+        p.fillRect(0,0,22,22,QBrush(graphs[num]->graphColor()));
         p.end();
         graphColorBut->setIcon(QIcon(pm));
     }
@@ -435,10 +435,10 @@ void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
     y += 1.;
     y /= 2.;
     // scale it to range..
-    y = (y*(params.range.max-params.range.min) + params.range.min) / params.auxGain;
+    const double gain = isAuxChan(num) ? 1. : params.auxGain;
+    y = (y*(params.range.max-params.range.min) + params.range.min) / gain;
     mean = graphStats[num].mean();
     stdev = graphStats[num].stdDev();
-    const double gain = isAuxChan(num) ? 1. : params.auxGain;
     mean = (((mean+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / gain;
     stdev = (((stdev+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / gain;
     unit = "V";
@@ -569,11 +569,11 @@ void GraphsWindow::applyAll()
 {
     if (!graphSecs->hasAcceptableInput() || !graphYScale->hasAcceptableInput()) return;
     double secs = graphSecs->text().toDouble(), scale = graphYScale->text().toDouble();
-    QColor c = graphs[selectedGraph]->bgColor();
+    QColor c = graphs[selectedGraph]->graphColor();
     for (int i = 0; i < graphs.size(); ++i) {
         setGraphTimeSecs(i, secs);
         graphs[i]->setYScale(scale);
-        graphs[i]->bgColor() = c;
+        graphs[i]->graphColor() = c;
     }
     update_nPtsAllGs();    
 }

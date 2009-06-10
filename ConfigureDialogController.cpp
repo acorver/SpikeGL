@@ -473,7 +473,7 @@ int ConfigureDialogController::exec()
                         +acqTimedParams->durSecsSB->value();
             
             p.pdChan = pdChan;
-            p.idxOfPdChan = p.nVAIChans-(p.aiChannels.size() - p.aiChannels.indexOf(pdChan));
+            p.idxOfPdChan = p.nVAIChans-1 /* always the last index */;
             p.pdThresh = static_cast<signed short>((acqPdParams->pdAIThreshSB->value()-p.range.min)/(p.range.max-p.range.min) * 65535. - 32768.);
             p.pdPassThruToAO = pdAOChan;
             p.pdStopTime = acqPdParams->pdStopTimeSB->value();
