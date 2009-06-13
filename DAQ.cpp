@@ -16,6 +16,8 @@
 #include <QApplication>
 #include <QRegExp>
 #include <QThread>
+#include <QPair>
+#include <QSet>
 #include "SampleBufQ.h"
 
 #define DAQmxErrChk(functionCall) do { if( DAQmxFailed(error=(functionCall)) ) { callStr = STR(functionCall); goto Error_Out; } } while (0)
@@ -421,7 +423,7 @@ namespace DAQ
                 }                    
                 ++aoWriteCt;
                 samps.clear();
-                Debug() << "AOWrite " << aoWriteCt << " of " << nScansWritten << " (bufsize=" << aoBufferSize << ") took: " << (getTime()-t0) << " secs";
+                Debug() << "AOWrite " << aoWriteCt << nScansWritten << " scans (bufsize=" << aoBufferSize << ") took: " << (getTime()-t0) << " secs";
             }
         }
 
@@ -450,7 +452,7 @@ namespace DAQ
         const char *callStr = "";
         double      startTime;
         const Params & p (params);
-        // Channel parameters
+        // Channel spec string for NI driver
         QString chan = "", aoChan = "";
       
 
@@ -462,20 +464,11 @@ namespace DAQ
                 chan.append(QString("%1%2").arg(chan.length() ? ", " : "").arg(aiChanStrings[*it]));
             }
             
-            if (p.aoPassthru) {
-                const QVector<QString> aoChanStrings ((ProbeAllAOChannels()[p.aoDev]).toVector());
-                for (QVector<unsigned>::const_iterator it = p.aoChannels.begin();
-                     it != p.aoChannels.end(); 
-                     ++it) {
-                    aoChan.append(QString("%1%2").arg(aoChan.length() ? ", " : "").arg(aoChanStrings[*it]));
-                }
-            }
         }
         
         const int nChans = p.aiChannels.size();
         const float64     min = p.range.min;
         const float64     max = p.range.max;
-        const int aoNChans = p.aoChannels.size();
         const float64     aoMin = p.aoRange.min;
         const float64     aoMax = p.aoRange.max;
         const int nExtraChans = p.nExtraChans;
@@ -485,7 +478,7 @@ namespace DAQ
         const char *clockSource = p.extClock ? "PFI2" : "OnboardClock"; ///< TODO: make extClock possibly be something other than PFI2
         const char * const aoClockSource = "OnboardClock";
         float64 sampleRate = p.srate;
-        const float64 aoSampleRate = p.aoSrate;
+        const float64 aoSampleRate = sampleRate;
         const float64     timeout = DAQ_TIMEOUT;
         const int NCHANS = p.nVAIChans;
         muxMode =  p.mode == AI60Demux || p.mode == AI120Demux;
@@ -503,19 +496,29 @@ namespace DAQ
                 return;
             }
         }
-
-        QVector<int> aoAITab;
-        aoAITab.resize(aoNChans ? aoNChans : 1); ///< map of AO chan id to virtual AI chan id
-        for (int i = 0; i < aoNChans; ++i) {
-            aoAITab[i] = p.aoPassthruMap[i];
+        
+        QVector<QPair<int,int> > aoAITab;
+        if (p.aoPassthru) {
+            const QVector<QString> aoChanStrings ((ProbeAllAOChannels()[p.aoDev]).toVector());
+            const int aoNChans = aoChanStrings.size();
+            QSet<int> seenAO;
+            aoAITab.reserve(aoNChans > 0 ? aoNChans : 0); ///< map of AO chan id to virtual AI chan id
+            for (int i = 0; i < aoNChans; ++i) {
+                if (p.aoPassthruMap.contains(i) && !seenAO.contains(i)) { 
+                    aoAITab.push_back(QPair<int, int>(i,p.aoPassthruMap[i]));
+                    seenAO.insert(i);
+                    //build chanspec string for AI
+                    aoChan.append(QString("%1%2").arg(aoChan.length() ? ", " : "").arg(aoChanStrings[i]));
+                }
+            }
         }
 
         u64 bufferSize = u64(sampleRate*nChans)/TASK_READ_FREQ_HZ; ///< 1/10th sec per read
         if (bufferSize < NCHANS) bufferSize = NCHANS;
         const u64 dmaBufSize = u64(1000000); /// 1000000 sample DMA buffer per chan?
         const u64 samplesPerChan = bufferSize/nChans;
-        const int32 aoSamplesPerChan = samplesPerChan*2;
-        const u64 aoBufferSize = u64(aoSamplesPerChan) * aoNChans;
+        const int32 aoSamplesPerChan = aoSampleRate/TASK_WRITE_FREQ_HZ > 0 ? int(aoSampleRate/TASK_WRITE_FREQ_HZ) : 1;
+        const u64 aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size();
 
         // Timing parameters
         int32       pointsRead;
@@ -529,11 +532,11 @@ namespace DAQ
         //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this)); 
         
 
-        if (p.aoPassthru && p.aoChannels.size()) {
+        if (p.aoPassthru && aoAITab.size()) {
             DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
             DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
             DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,aoBufferSize));
-            DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,dmaBufSize));
+            //DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,dmaBufSize));
             aoWriteThr = new AOWriteThread(0, aoTaskHandle, aoBufferSize, p);
             Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
             aoWriteThr->start();                
@@ -626,13 +629,14 @@ namespace DAQ
             }
             totalRead += nRead;
             
-            // now, do optional AO output TODO: see about doing this in another thread to save on latency here?
+            // now, do optional AO output .. done in another thread to save on latency...
             if (aoWriteThr) {                               
                 const int dsize = data.size();
-                aoData.reserve(MAX(aoBufferSize*2,dsize));
+                aoData.reserve(aoData.size()+dsize);
                 for (int i = 0; i < dsize; i += NCHANS) { // for each scan..
-                    for (int aoch = 0; aoch < aoNChans; ++aoch) { // take ao channels
-                        aoData.push_back(data[i+aoAITab[aoch]]);
+                    for (QVector<QPair<int,int> >::const_iterator it = aoAITab.begin(); it != aoAITab.end(); ++it) { // take ao channels
+                        const int aiChIdx = (*it).second;
+                        aoData.push_back(data[i+aiChIdx]);
                     }
                 }
                 if (aoData.size() >= aoBufferSize) { 

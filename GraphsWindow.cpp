@@ -55,7 +55,7 @@ static void initIcons()
     }
 }
 
-GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent)
+GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
     : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.)
 {    
     initIcons();
@@ -125,7 +125,7 @@ GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent)
     graphCtls->addSeparator();
     toggleSaveChk = new QCheckBox("Toggle save", graphCtls);
     graphCtls->addWidget(toggleSaveChk);
-    toggleSaveChk->setChecked(true);
+    toggleSaveChk->setChecked(isSaving);
     Connect(toggleSaveChk, SIGNAL(clicked(bool)), this, SLOT(toggleSaveChecked(bool)));
     graphCtls->addWidget(saveFileLE = new QLineEdit(p.outputFile,graphCtls));
     saveFileLE->setEnabled(false);

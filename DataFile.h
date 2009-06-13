@@ -14,7 +14,7 @@ public:
     DataFile();
     ~DataFile();
 
-    bool openForWrite(const DAQ::Params & params);
+    bool openForWrite(const DAQ::Params & params, const QString & filename_override = "");
 
     bool isOpen() const { return outFile.isOpen() && metaFile.isOpen(); }
     QString fileName() const { return outFile.fileName(); }

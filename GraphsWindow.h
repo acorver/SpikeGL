@@ -23,7 +23,7 @@ class GraphsWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    GraphsWindow(DAQ::Params & params, QWidget *parent = 0);
+    GraphsWindow(DAQ::Params & params, QWidget *parent = 0, bool isSaving = true);
     ~GraphsWindow();
 
     void putScans(std::vector<int16> & scans, u64 firstSamp);

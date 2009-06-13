@@ -37,6 +37,7 @@ protected slots:
     void aoPassthruChkd();
     void aoPDChanChkd();
     void aiRangeChanged();
+    void aoPDPassthruUpdateLE();
 
 private:
     void loadSettings();

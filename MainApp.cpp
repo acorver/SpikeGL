@@ -482,11 +482,13 @@ void MainApp::newAcq()
         last5PDSamples.reserve(5);
         last5PDSamples.clear();
         DAQ::Params & params (configCtl->acceptedParams);
-        if (!dataFile.openForWrite(params)) {
-            QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(params.outputFile));
-            return;
+        if (!params.stimGlTrigResave) {
+            if (!dataFile.openForWrite(params)) {
+                QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(params.outputFile));
+                return;
+            }
         }
-        graphsWindow = new GraphsWindow(params, 0);
+        graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen());
         graphsWindow->setAttribute(Qt::WA_DeleteOnClose, false);
 
         graphsWindow->setWindowIcon(appIcon);
@@ -943,11 +945,43 @@ bool MainApp::setupStimGLIntegration(bool doQuitOnFail)
 }
 
 
+QString MainApp::getNewDataFileName(const QString & suffix) const
+{
+    const DAQ::Params & p (configCtl->acceptedParams);
+    if (p.stimGlTrigResave) {
+        QFileInfo fi(p.outputFile);
+
+        QString prefix = fi.filePath();
+        QString ext = fi.completeSuffix();
+        prefix.chop(ext.length()+1);
+        
+        for (int i = 1; i > 0; ++i) {
+            QString fn = prefix + "_" + suffix + "_" + QString::number(i) + "." + ext;
+            if (!QFile::exists(fn)) return fn;
+        }
+    }
+    return p.outputFile;
+}
+
 void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QVariant>  &pm)
 {
     (void)pm;
     bool ignored = true;
     DAQ::Params & p (configCtl->acceptedParams);
+    if (p.stimGlTrigResave) {
+        if (dataFile.isOpen()) {
+            scan0Fudge += dataFile.sampleCount();
+            Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
+            dataFile.closeAndFinalize();
+        }
+        QString fn = getNewDataFileName(plugin);
+        if (!dataFile.openForWrite(p, fn)) {
+            QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(fn));
+        } else {
+            Log() << "Data file: " << dataFile.fileName() << " opened by StimulateOpenGL.";
+        }
+        updateWindowTitles();        
+    }
     if (task 
         && taskWaitingForTrigger 
         && (p.acqStartEndMode == DAQ::StimGLStart || p.acqStartEndMode == DAQ::StimGLStartEnd)) {
@@ -970,7 +1004,7 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
         taskShouldStop = true;
         task->stop(); ///< stop the daq task now.. we will empty the queue later..
         Log() << "DAQ task no longer acquiring, emptying queue and saving to disk.";
-        ignored = false;
+        ignored = false;        
     }
     Debug() << "Received notification that Stim GL plugin `" << plugin << "' ended." << (ignored ? " Ignored!" : "");
 

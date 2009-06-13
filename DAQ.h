@@ -57,6 +57,7 @@ namespace DAQ
 
     struct Params {
         QString outputFile, dev;
+        bool stimGlTrigResave;
         Range range;
         unsigned doCtlChan;
         QString doCtlChanString;
@@ -70,7 +71,6 @@ namespace DAQ
         bool aoPassthru;
         QString aoDev;
         Range aoRange;
-        unsigned aoSrate; ///< for now, always the same as srate
         QMap<unsigned, unsigned> aoPassthruMap;
         QVector<unsigned> aoChannels; ///< the AO channels from the above map, plus possibly the photodiode-passthru channel
         QString aoPassthruString;

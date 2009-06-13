@@ -9,6 +9,7 @@
 #include <QSettings>
 #include <QFileInfo>
 #include <QFileDialog>
+#include <QRegExp>
 #include "Icon-Config.xpm"
 
 ConfigureDialogController::ConfigureDialogController(QObject *parent)
@@ -41,6 +42,7 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     Connect(acqPdParams->pdPassthruAOChk, SIGNAL(toggled(bool)), this, SLOT(aoPDChanChkd()));
     Connect(dialog->muxMapBut, SIGNAL(clicked()), &chanMapCtl, SLOT(exec()));
     Connect(dialog->aiRangeCB, SIGNAL(currentIndexChanged(int)), this, SLOT(aiRangeChanged()));
+    Connect(acqPdParams->pdPassthruAOSB, SIGNAL(valueChanged(int)), this, SLOT(aoPDPassthruUpdateLE()));
 }
 
 ConfigureDialogController::~ConfigureDialogController()
@@ -70,6 +72,7 @@ void ConfigureDialogController::resetFromParams()
     dialog->fastSettleSB->setValue(p.fastSettleTimeMS);
     dialog->aoPassthruGB->setChecked(p.aoPassthru);
     dialog->auxGainSB->setValue(p.auxGain);
+    dialog->stimGLReopenCB->setChecked(p.stimGlTrigResave);
     int ci = dialog->aiTerminationCB->findText(DAQ::TermConfigToString(p.aiTerm), Qt::MatchExactly);
     dialog->aiTerminationCB->setCurrentIndex(ci > -1 ? ci : 0);
     if (int(p.doCtlChan) < dialog->doCtlCB->count())
@@ -281,12 +284,30 @@ void ConfigureDialogController::aoPassthruChkd()
     if (!chk && acqPdParams->pdPassthruAOChk->isChecked()) 
         acqPdParams->pdPassthruAOChk->setChecked(false);    
     acqPdParams->pdPassthruAOSB->setEnabled(chk && acqPdParams->pdPassthruAOChk->isChecked());
+    aoPDPassthruUpdateLE();
 }
 
 void ConfigureDialogController::aoPDChanChkd()
 {
     bool chk = acqPdParams->pdPassthruAOChk->isChecked();
     acqPdParams->pdPassthruAOSB->setEnabled(chk && dialog->aoPassthruGB->isChecked() );
+    aoPDPassthruUpdateLE();
+}
+
+
+void ConfigureDialogController::aoPDPassthruUpdateLE()
+{
+    bool aochk = dialog->aoPassthruGB->isChecked(),
+         pdaochk = acqPdParams->pdPassthruAOChk->isChecked();
+    int aopd = pdaochk && aochk ? acqPdParams->pdPassthruAOSB->value() : -1;
+    QString le = dialog->aoPassthruLE->text();
+    le = le.remove(QRegExp(",?\\s*\\d+\\s*=\\s*PDCHAN"));
+    if (le.startsWith(",")) le = le.mid(1);
+    if (aopd > -1) {
+        QString s = QString().sprintf("%d=PDCHAN",aopd);
+        le = le + QString(le.length() ? ", " : "") + s;
+    }
+    dialog->aoPassthruLE->setText(le);
 }
 
 int ConfigureDialogController::exec()
@@ -339,17 +360,6 @@ int ConfigureDialogController::exec()
                 continue;
             }
             
-            QMap<unsigned, unsigned> aopass;            
-            if (dialog->aoPassthruGB->isChecked() && aoDevNames.count()) {
-                aopass = parseAOPassthruString(dialog->aoPassthruLE->text(), &err);
-                if (err) {
-                    QMessageBox::critical(dialogW, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=CHANNEL_INDEX_POS!");
-                    again = true;
-                    continue;
-                }
-            }
-            QVector<unsigned> aoChanVect = aopass.uniqueKeys().toVector();
-
             const unsigned srate = dialog->srateSB->value();
             if (srate > DAQ::MaximumSampleRate(dev, chanVect.size())) {
                 QMessageBox::critical(dialogW, "Sampling Rate Invalid", QString().sprintf("The sample rate specified (%d) is too high for the number of channels (%d)!", (int)srate, (int)chanVect.size()));
@@ -360,21 +370,36 @@ int ConfigureDialogController::exec()
             const DAQ::AcqStartEndMode acqStartEndMode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
 
             int pdChan = acqPdParams->pdAISB->value();
-            if ((acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart)
+            bool havePD = false;
+            if ( (havePD=(acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart))
                 && (chanVect.contains(pdChan) || pdChan < 0 || pdChan >= aiChanLists[dev].count())
                 ) {
                 QMessageBox::critical(dialogW, "PDChannel Invalid", QString().sprintf("Specified photodiode channel (%d) is invalid or clashes with another AI channel!", pdChan));
                 again = true;
                 continue;
             }
+            QMap<unsigned, unsigned> aopass;            
+            if (dialog->aoPassthruGB->isChecked() && aoDevNames.count()) {
+                QString le = dialog->aoPassthruLE->text();
+                if (havePD) le=le.replace("PDCHAN", /*QString::number(pdChan)*/QString::number(chanVect.size())); // PD channel index is always the last index
+                aopass = parseAOPassthruString(le, &err);
+                if (err) {
+                    QMessageBox::critical(dialogW, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=CHANNEL_INDEX_POS!");
+                    again = true;
+                    continue;
+                }
+            }
+            QVector<unsigned> aoChanVect = aopass.uniqueKeys().toVector();
+
             int pdAOChan = acqPdParams->pdPassthruAOSB->value();
-            if ((acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart)
+            /*if ((acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart)
                 && acqPdParams->pdPassthruAOChk->isChecked() 
                 && (aoChanVect.contains(pdAOChan) || pdAOChan < 0 || pdAOChan >= aoChanLists[aoDev].count())) {
                 QMessageBox::critical(dialogW, "PDChannel AO Invalid", QString().sprintf("Specified photodiode AO passthru channel (%d) is invalid or clashes with another AO passthru channel!", pdAOChan));
                 again = true;
                 continue;
-            } 
+                } */
+
             unsigned nVAI = chanVect.size();
             bool isMux = acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux;
             if (isMux) nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN + nExtraChans;
@@ -390,8 +415,11 @@ int ConfigureDialogController::exec()
             if (!acqPdParams->pdPassthruAOChk->isChecked()) {
                 pdAOChan = -1;
             } else {
-                aoChanVect.push_back(pdAOChan);
-                aopass[pdAOChan]=chanVect.indexOf(pdChan);
+                if (!aoChanVect.contains(pdAOChan)) {
+                    QMessageBox::critical(dialogW, "AO Passthru Error", QString().sprintf("INTERNAL ERROR: The AO channel specified for the PD (%d) does not exist in the passthru string!", (int)(pdAOChan)));
+                        again = true;
+                        continue;
+                }
             }
 
             // validate AO channels in AO passthru map
@@ -419,9 +447,18 @@ int ConfigureDialogController::exec()
                 if (again) continue;
             }
 
+            
+            if (dialog->stimGLReopenCB->isChecked() &&
+                acqStartEndMode == DAQ::StimGLStartEnd) {
+                QMessageBox::critical(dialogW, "Incompatible Configuration", QString().sprintf("'Re-Open New Save File on StimGL Experiment' not compatible with 'StimGL Plugin Start & End' acquisition trigger mode!"), QMessageBox::Retry);
+                again = true;
+                continue;
+            }
+
             DAQ::Params & p (acceptedParams);
             p.outputFile = dialog->outputFileLE->text();
             p.dev = dev;
+            p.stimGlTrigResave = dialog->stimGLReopenCB->isChecked();
             QStringList rngs = dialog->aiRangeCB->currentText().split(" - ");
             if (rngs.count() != 2) {
                 Error() << "INTERNAL ERROR: AI Range ComboBox needs numbers of the form REAL - REAL!";
@@ -442,7 +479,6 @@ int ConfigureDialogController::exec()
             if (!aoDevNames.empty()) {                
                 p.aoPassthru = dialog->aoPassthruGB->isChecked();
                 p.aoDev = aoDev;
-                p.aoSrate = p.srate;
                 rngs = dialog->aoRangeCB->currentText().split(" - ");
                 if (rngs.count() != 2) {
                     Error() << "INTERNAL ERROR: AO Range ComboBox needs numbers of the form REAL - REAL!";
@@ -591,6 +627,7 @@ void ConfigureDialogController::loadSettings()
 
     p.outputFile = mainApp()->outputDirectory() + PATH_SEPARATOR + settings.value("lastOutFile", "data.bin").toString();
     p.dev = settings.value("dev", "").toString();
+    p.stimGlTrigResave = settings.value("stimGlTrigResave", false).toBool();
     p.doCtlChan = settings.value("doCtlChan", "0").toUInt();
     p.range.min = settings.value("rangeMin", "-2.5").toDouble();
     p.range.max = settings.value("rangeMax", "2.5").toDouble();
@@ -631,6 +668,8 @@ void ConfigureDialogController::saveSettings()
     QString path = QFileInfo(p.outputFile).path();
     mainApp()->setOutputDirectory(path.length() ? path : QString(PATH_SEPARATOR));
     settings.setValue("dev", p.dev);
+    settings.setValue("stimGlTrigResave", p.stimGlTrigResave);
+
     settings.setValue("rangeMin", p.range.min);
     settings.setValue("rangeMax", p.range.max);
     settings.setValue("acqMode", (int)p.mode);

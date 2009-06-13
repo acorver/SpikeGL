@@ -82,7 +82,7 @@ bool DataFile::writeScans(const std::vector<int16> & scans)
     return true;
 }
 
-bool DataFile::openForWrite(const DAQ::Params & dp) 
+bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_override) 
 {
     if (!dp.aiChannels.size()) {
         Error() << "DataFile::openForWrite Error cannot open a datafile with scansize of 0!";
@@ -90,12 +90,14 @@ bool DataFile::openForWrite(const DAQ::Params & dp)
     }
     if (isOpen()) closeAndFinalize();
 
-    outFile.setFileName(dp.outputFile);
-    metaFile.setFileName(metaFileForFileName(dp.outputFile));
+    const QString outputFile = filename_override.length() ? filename_override : dp.outputFile;
+
+    outFile.setFileName(outputFile);
+    metaFile.setFileName(metaFileForFileName(outputFile));
 
     if (!outFile.open(QIODevice::WriteOnly|QIODevice::Truncate) ||
         !metaFile.open(QIODevice::WriteOnly|QIODevice::Truncate)) {
-        Error() << "Failed to open either one or both of the data and meta files for " << dp.outputFile;
+        Error() << "Failed to open either one or both of the data and meta files for " << outputFile;
         return false;
     }
     sha.Reset();
@@ -107,7 +109,7 @@ bool DataFile::openForWrite(const DAQ::Params & dp)
     nWritesAvg = 0;
     nWritesAvgMax = /*unsigned(sRate/10.)*/10;
     if (!nWritesAvgMax) nWritesAvgMax = 1;
-    params["outputFile"] = dp.outputFile;
+    params["outputFile"] = outputFile;
     params["dev"] = dp.dev;
     params["devProductName"] = DAQ::GetProductName(dp.dev);
     params["nChans"] = nChans;
