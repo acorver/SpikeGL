@@ -2,6 +2,7 @@
 #include "LeoDAQGL.h"
 #include "Util.h"
 #include "MainApp.h"
+#include "ui_Dialog.h"
 #include <QTimeEdit>
 #include <QTime>
 #include <QMessageBox>
@@ -17,6 +18,7 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
 {
     dialogW = new QDialog(0);
     dialog = new Ui::ConfigureDialog;
+    aoPassthru = new Ui::AoPassThru;
     acqPdParams = new Ui::AcqPDParams;
     acqTimedParams = new Ui::AcqTimedParams;
     aiDevRanges = DAQ::ProbeAllAIRanges();
@@ -31,14 +33,15 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     dialogW->setWindowIcon(QIcon(QPixmap(Icon_Config_xpm)));
     acqPdParams->setupUi(acqPdParamsW);
     acqTimedParams->setupUi(acqTimedParamsW);
-    
+    aoPassthru->setupUi(dialog->aoPassthruWidget);
+
     // connect signal slots
     Connect(dialog->acqStartEndCB, SIGNAL(activated(int)), this, SLOT(acqStartEndCBChanged()));
     Connect(dialog->acqModeCB, SIGNAL(activated(int)), this, SLOT(acqModeCBChanged()));
     Connect(dialog->deviceCB, SIGNAL(activated(const QString &)), this, SLOT(deviceCBChanged()));
-    Connect(dialog->aoDeviceCB, SIGNAL(activated(const QString &)), this, SLOT(aoDeviceCBChanged()));
+    Connect(aoPassthru->aoDeviceCB, SIGNAL(activated(const QString &)), this, SLOT(aoDeviceCBChanged()));
     Connect(dialog->browseBut, SIGNAL(clicked()), this, SLOT(browseButClicked()));
-    Connect(dialog->aoPassthruGB, SIGNAL(toggled(bool)), this, SLOT(aoPassthruChkd()));
+    Connect(aoPassthru->aoPassthruGB, SIGNAL(toggled(bool)), this, SLOT(aoPassthruChkd()));
     Connect(acqPdParams->pdPassthruAOChk, SIGNAL(toggled(bool)), this, SLOT(aoPDChanChkd()));
     Connect(dialog->muxMapBut, SIGNAL(clicked()), &chanMapCtl, SLOT(exec()));
     Connect(dialog->aiRangeCB, SIGNAL(currentIndexChanged(int)), this, SLOT(aiRangeChanged()));
@@ -55,6 +58,25 @@ ConfigureDialogController::~ConfigureDialogController()
     delete dialogW;
 }
 
+void ConfigureDialogController::resetAOPassFromParams(Ui::AoPassThru *aoPassthru)
+{
+    DAQ::Params & p (acceptedParams); // this just got populated from settings
+    aoPassthru->aoPassthruLE->setText(p.aoPassthruString);
+    aoPassthru->aoDeviceCB->clear();
+    aoPassthru->aoPassthruGB->setChecked(p.aoPassthru);
+    aoDevNames.clear();
+    QList<QString> devs = aoChanLists.uniqueKeys();
+    int sel = 0, i = 0;
+    for (QList<QString>::const_iterator it = devs.begin(); it != devs.end(); ++it, ++i) {
+        if (p.aoDev == *it) sel = i;
+        aoPassthru->aoDeviceCB->addItem(QString("%1 (%2)").arg(*it).arg(DAQ::GetProductName(*it)));
+        aoDevNames.push_back(*it);
+    }
+    if ( aoPassthru->aoDeviceCB->count() ) // empty CB sometimes on missing AO??
+        aoPassthru->aoDeviceCB->setCurrentIndex(sel);
+    
+}
+
 void ConfigureDialogController::resetFromParams()
 {
     loadSettings();
@@ -64,13 +86,10 @@ void ConfigureDialogController::resetFromParams()
     dialog->outputFileLE->setText(p.outputFile);
     if (int(p.mode) < dialog->acqModeCB->count())
         dialog->acqModeCB->setCurrentIndex((int)p.mode);
-    dialog->aoPassthruLE->setText(p.aoPassthruString);
     dialog->deviceCB->clear();
-    dialog->aoDeviceCB->clear();
     dialog->clockCB->setCurrentIndex(p.extClock ? 0 : 1);
     dialog->srateSB->setValue(p.srate);
     dialog->fastSettleSB->setValue(p.fastSettleTimeMS);
-    dialog->aoPassthruGB->setChecked(p.aoPassthru);
     dialog->auxGainSB->setValue(p.auxGain);
     dialog->stimGLReopenCB->setChecked(p.stimGlTrigResave);
     int ci = dialog->aiTerminationCB->findText(DAQ::TermConfigToString(p.aiTerm), Qt::MatchExactly);
@@ -96,16 +115,8 @@ void ConfigureDialogController::resetFromParams()
     if ( dialog->deviceCB->count() ) // empty CB sometimes on missing AI??
         dialog->deviceCB->setCurrentIndex(sel);
 
-    aoDevNames.clear();
-    devs = aoChanLists.uniqueKeys();
-    sel = 0, i = 0;
-    for (QList<QString>::const_iterator it = devs.begin(); it != devs.end(); ++it, ++i) {
-        if (p.aoDev == *it) sel = i;
-        dialog->aoDeviceCB->addItem(QString("%1 (%2)").arg(*it).arg(DAQ::GetProductName(*it)));
-        aoDevNames.push_back(*it);
-    }
-    if ( dialog->aoDeviceCB->count() ) // empty CB sometimes on missing AO??
-        dialog->aoDeviceCB->setCurrentIndex(sel);
+
+    resetAOPassFromParams(aoPassthru);
     
     dialog->disableGraphsChk->setChecked(p.suppressGraphs);
     
@@ -238,24 +249,24 @@ void ConfigureDialogController::deviceCBChanged()
 
 void ConfigureDialogController::aoDeviceCBChanged()
 {
-    if (!dialog->aoDeviceCB->count()) return;
-    QString devStr = aoDevNames[dialog->aoDeviceCB->currentIndex()];
+    if (!aoPassthru->aoDeviceCB->count()) return;
+    QString devStr = aoDevNames[aoPassthru->aoDeviceCB->currentIndex()];
     QList<DAQ::Range> ranges = aoDevRanges.values(devStr);
-    QString curr = dialog->aoRangeCB->currentText();
+    QString curr = aoPassthru->aoRangeCB->currentText();
 
     if (!curr.length()) {
         curr = QString("%1 - %2").arg(acceptedParams.aoRange.min).arg(acceptedParams.aoRange.max);
     }
     int sel = 0, i = 0;
-    dialog->aoRangeCB->clear();
+    aoPassthru->aoRangeCB->clear();
     for (QList<DAQ::Range>::const_iterator it = ranges.begin(); it != ranges.end(); ++it, ++i) {
         const DAQ::Range & r (*it);
         QString txt = QString("%1 - %2").arg(r.min).arg(r.max);
         if (txt == curr) sel = i;
-        dialog->aoRangeCB->insertItem(i, txt);
+        aoPassthru->aoRangeCB->insertItem(i, txt);
     }
-    if (dialog->aoRangeCB->count())
-        dialog->aoRangeCB->setCurrentIndex(sel);
+    if (aoPassthru->aoRangeCB->count())
+        aoPassthru->aoRangeCB->setCurrentIndex(sel);
 }
 
 void ConfigureDialogController::browseButClicked()
@@ -266,20 +277,20 @@ void ConfigureDialogController::browseButClicked()
 
 void ConfigureDialogController::aoPassthruChkd()
 {
-    if (!dialog->aoDeviceCB->count()) {
+    if (!aoPassthru->aoDeviceCB->count()) {
         // if no AO subdevice present on the current machine, just disable all GUI related to AO and return
         acqPdParams->pdPassthruAOChk->setEnabled(false);
         acqPdParams->pdPassthruAOChk->setChecked(false); 
         acqPdParams->pdPassthruAOSB->setEnabled(false);
-        dialog->aoPassthruGB->setChecked(false);
-        dialog->aoPassthruGB->setEnabled(false);
+        aoPassthru->aoPassthruGB->setChecked(false);
+        aoPassthru->aoPassthruGB->setEnabled(false);
         QString theTip = "AO missing on installed hardware, AO passthru unavailable.";
-        dialog->aoPassthruGB->setToolTip(theTip);
+        aoPassthru->aoPassthruGB->setToolTip(theTip);
         acqPdParams->pdPassthruAOChk->setToolTip(theTip); 
         acqPdParams->pdPassthruAOSB->setToolTip(theTip);
         return;
     }
-    bool chk = dialog->aoPassthruGB->isChecked();
+    bool chk = aoPassthru->aoPassthruGB->isChecked();
     acqPdParams->pdPassthruAOChk->setEnabled(chk);
     if (!chk && acqPdParams->pdPassthruAOChk->isChecked()) 
         acqPdParams->pdPassthruAOChk->setChecked(false);    
@@ -290,24 +301,24 @@ void ConfigureDialogController::aoPassthruChkd()
 void ConfigureDialogController::aoPDChanChkd()
 {
     bool chk = acqPdParams->pdPassthruAOChk->isChecked();
-    acqPdParams->pdPassthruAOSB->setEnabled(chk && dialog->aoPassthruGB->isChecked() );
+    acqPdParams->pdPassthruAOSB->setEnabled(chk && aoPassthru->aoPassthruGB->isChecked() );
     aoPDPassthruUpdateLE();
 }
 
 
 void ConfigureDialogController::aoPDPassthruUpdateLE()
 {
-    bool aochk = dialog->aoPassthruGB->isChecked(),
+    bool aochk = aoPassthru->aoPassthruGB->isChecked(),
          pdaochk = acqPdParams->pdPassthruAOChk->isChecked();
     int aopd = pdaochk && aochk ? acqPdParams->pdPassthruAOSB->value() : -1;
-    QString le = dialog->aoPassthruLE->text();
+    QString le = aoPassthru->aoPassthruLE->text();
     le = le.remove(QRegExp(",?\\s*\\d+\\s*=\\s*PDCHAN"));
     if (le.startsWith(",")) le = le.mid(1);
     if (aopd > -1) {
         QString s = QString().sprintf("%d=PDCHAN",aopd);
         le = le + QString(le.length() ? ", " : "") + s;
     }
-    dialog->aoPassthruLE->setText(le);
+    aoPassthru->aoPassthruLE->setText(le);
 }
 
 int ConfigureDialogController::exec()
@@ -325,7 +336,7 @@ int ConfigureDialogController::exec()
     
         if (ret == QDialog::Accepted) {
             const QString dev = dialog->deviceCB->count() ? devNames[dialog->deviceCB->currentIndex()] : "";
-            const QString aoDev = dialog->aoDeviceCB->count() ? aoDevNames[dialog->aoDeviceCB->currentIndex()] : "";
+            const QString aoDev = aoPassthru->aoDeviceCB->count() ? aoDevNames[aoPassthru->aoDeviceCB->currentIndex()] : "";
 
             bool err;
             QVector<unsigned> chanVect;
@@ -378,27 +389,6 @@ int ConfigureDialogController::exec()
                 again = true;
                 continue;
             }
-            QMap<unsigned, unsigned> aopass;            
-            if (dialog->aoPassthruGB->isChecked() && aoDevNames.count()) {
-                QString le = dialog->aoPassthruLE->text();
-                if (havePD) le=le.replace("PDCHAN", /*QString::number(pdChan)*/QString::number(chanVect.size())); // PD channel index is always the last index
-                aopass = parseAOPassthruString(le, &err);
-                if (err) {
-                    QMessageBox::critical(dialogW, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=CHANNEL_INDEX_POS!");
-                    again = true;
-                    continue;
-                }
-            }
-            QVector<unsigned> aoChanVect = aopass.uniqueKeys().toVector();
-
-            int pdAOChan = acqPdParams->pdPassthruAOSB->value();
-            /*if ((acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart)
-                && acqPdParams->pdPassthruAOChk->isChecked() 
-                && (aoChanVect.contains(pdAOChan) || pdAOChan < 0 || pdAOChan >= aoChanLists[aoDev].count())) {
-                QMessageBox::critical(dialogW, "PDChannel AO Invalid", QString().sprintf("Specified photodiode AO passthru channel (%d) is invalid or clashes with another AO passthru channel!", pdAOChan));
-                again = true;
-                continue;
-                } */
 
             unsigned nVAI = chanVect.size();
             bool isMux = acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux;
@@ -412,7 +402,23 @@ int ConfigureDialogController::exec()
                 usePD = true;
             }
 
-            if (!acqPdParams->pdPassthruAOChk->isChecked()) {
+            QMap<unsigned, unsigned> aopass;            
+            if (aoPassthru->aoPassthruGB->isChecked() && aoDevNames.count()) {
+                QString le = aoPassthru->aoPassthruLE->text();
+                if (havePD) le=le.replace("PDCHAN", QString::number(nVAI-1)); // PD channel index is always the last index
+                aopass = parseAOPassthruString(le, &err);
+                if (err) {
+                    QMessageBox::critical(dialogW, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=CHANNEL_INDEX_POS!");
+                    again = true;
+                    continue;
+                }
+            }
+
+            QVector<unsigned> aoChanVect = aopass.uniqueKeys().toVector();
+
+            int pdAOChan = acqPdParams->pdPassthruAOSB->value();
+
+            if (!usePD || !acqPdParams->pdPassthruAOChk->isChecked()) {
                 pdAOChan = -1;
             } else {
                 if (!aoChanVect.contains(pdAOChan)) {
@@ -477,9 +483,9 @@ int ConfigureDialogController::exec()
             p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());
             p.usePD = usePD;
             if (!aoDevNames.empty()) {                
-                p.aoPassthru = dialog->aoPassthruGB->isChecked();
+                p.aoPassthru = aoPassthru->aoPassthruGB->isChecked();
                 p.aoDev = aoDev;
-                rngs = dialog->aoRangeCB->currentText().split(" - ");
+                rngs = aoPassthru->aoRangeCB->currentText().split(" - ");
                 if (rngs.count() != 2) {
                     Error() << "INTERNAL ERROR: AO Range ComboBox needs numbers of the form REAL - REAL!";
                     return QDialog::Rejected;
@@ -488,7 +494,7 @@ int ConfigureDialogController::exec()
                 p.aoRange.max = rngs.last().toDouble();
                 p.aoPassthruMap = aopass;
                 p.aoChannels = aoChanVect;
-                p.aoPassthruString = dialog->aoPassthruLE->text();
+                p.aoPassthruString = aoPassthru->aoPassthruLE->text();
             } else {
                 p.aoPassthruMap.clear();
                 p.aoChannels.clear();
@@ -695,4 +701,111 @@ void ConfigureDialogController::saveSettings()
     settings.setValue("aiTermConfig", (int)p.aiTerm);
     settings.setValue("fastSettleTimeMS", p.fastSettleTimeMS);
     settings.setValue("auxGain", p.auxGain);
+}
+
+int ConfigureDialogController::execAOPassThruDlg()
+{
+    Ui::AoPassThru aop, *saved_aoPassthru = aoPassthru;
+    aoPassthru = &aop;
+    Ui::Dialog dlg;
+    QDialog w;
+    DAQ::Params & p (acceptedParams);
+    dlg.setupUi(&w);
+    aop.setupUi(dlg.widget);
+    Connect(aoPassthru->aoDeviceCB, SIGNAL(activated(const QString &)), this, SLOT(aoDeviceCBChanged()));
+    resetAOPassFromParams(&aop);
+    if (!aoPassthru->aoPassthruGB->isChecked()) {
+        QMessageBox::information(0, "AO Passthru Disabled", "AO Passthru spec cannot be modified as it was disabled at acquisition start.");
+        aoPassthru = saved_aoPassthru;
+        return QDialog::Rejected;
+    }
+    aoPassthru->aoPassthruGB->setCheckable(false);
+    bool hadPdChan = aop.aoPassthruLE->text().contains("PDCHAN");
+    int ret = QDialog::Rejected;
+    bool err;
+
+    aoDeviceCBChanged();
+
+    do {
+        ret = w.exec();
+        if (ret == QDialog::Rejected) break;
+
+        if ((!aop.aoPassthruLE->text().contains("PDCHAN") && hadPdChan)) {
+            QMessageBox::critical(0, "PDCHAN missing", "PD Passthru was enabled at startup, but the PDCHAN is missing from the chan list!");
+            continue;                
+        }
+        if ((aop.aoPassthruLE->text().contains("PDCHAN") && !hadPdChan) ) {
+            QMessageBox::critical(0, "PD not enabled", "PDCHAN is in the chanlist, but PD was not enabled at ACQ startup!");
+            continue;
+        }
+        const QString aoDev = aoPassthru->aoDeviceCB->count() ? aoDevNames[aoPassthru->aoDeviceCB->currentIndex()] : "";
+        QMap<unsigned, unsigned> aopass;            
+        const QVector<unsigned> & chanVect = p.aiChannels;            
+        int nExtraChans = 0;
+        bool mux = false;
+        if ( (mux = (p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux )) ) {
+            const int minChanSize = p.mode == DAQ::AI120Demux ? 8 : 4;
+            nExtraChans = chanVect.size() - minChanSize;
+        }
+        
+        const unsigned nVAI = (chanVect.size()-nExtraChans) * (mux ? NUM_CHANS_PER_INTAN : 1) + nExtraChans;
+
+        if (aoDevNames.count()) {
+            QString le = aoPassthru->aoPassthruLE->text();
+            if (p.usePD) le=le.replace("PDCHAN", /*QString::number(pdChan)*/QString::number(nVAI-1)); // PD channel index is always the last index
+            aopass = parseAOPassthruString(le, &err);
+            if (err) {
+                QMessageBox::critical(0, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=CHANNEL_INDEX_POS!");
+                continue;
+            }
+        } 
+        QVector<unsigned> aoChanVect = aopass.uniqueKeys().toVector();
+        if (aoChanVect.size()) {
+                QStringList aol = aoChanLists[aoDev];
+                bool again = false;
+                for (int i = 0; i < (int)aoChanVect.size(); ++i) {
+                    if ((int)aoChanVect[i] >= (int)aol.size()) {
+                        QMessageBox::critical(0, "AO Passthru Error", QString().sprintf("The AO channel specified in the passthru string (%d) is illegal/invalid!", (int)(aoChanVect[i])));
+                        again = true;
+                        break;
+                    }
+                }
+                if (again) continue;
+        } else {
+            QMessageBox::critical(0, "AO Passthru Error", QString().sprintf("Need at least 1 AO=CHAN_INDEX spec in passthru string since passthru was enabled at startup!"));
+            continue;
+        }
+        {
+            // validate AI channels in AO passthru map
+            QList<unsigned> vl = aopass.values();
+            bool again = false;
+            for (QList<unsigned>::const_iterator it = vl.begin(); it != vl.end(); ++it)
+                if (*it >= nVAI) {
+                    QMessageBox::critical(dialogW, "AO Passthru Invalid", QString().sprintf("Chan index %d specified as an AO passthru source but it is > the number of virtual AI channels (%d)!", (int)*it, (int)nVAI));
+                    again = true;
+                    break;
+                }
+            if (again) continue;
+        }
+        
+        QStringList rngs = aoPassthru->aoRangeCB->currentText().split(" - ");
+        if (rngs.count() != 2) {
+            Error() << "INTERNAL ERROR: AO Range ComboBox needs numbers of the form REAL - REAL!";
+            ret = QDialog::Rejected;
+            break;
+        }            
+        p.lock();
+        p.aoDev = aoDev;
+        p.aoRange.min = rngs.first().toDouble();
+        p.aoRange.max = rngs.last().toDouble();
+        p.aoPassthruMap = aopass;
+        p.aoChannels = aoChanVect;
+        p.aoPassthruString = aoPassthru->aoPassthruLE->text();
+        p.unlock();
+        saveSettings();
+        Log() << "Applied new AO Passthru settings";
+        break;
+    } while (true);
+    aoPassthru = saved_aoPassthru;
+    return ret;
 }

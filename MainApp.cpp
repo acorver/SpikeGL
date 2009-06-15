@@ -443,6 +443,10 @@ void MainApp::initActions()
     Connect( hideUnhideGraphsAct = new QAction("Hide/Unhide &Graphs G", this),
              SIGNAL(triggered()), this, SLOT(hideUnhideGraphs()));
     hideUnhideGraphsAct->setEnabled(false);
+
+    Connect( aoPassthruAct = new QAction("AO Passthru...", this),
+             SIGNAL(triggered()), this, SLOT(respecAOPassthru()));
+    aoPassthruAct->setEnabled(false);
     
     Connect( aboutAct = new QAction("&About", this), 
              SIGNAL(triggered()), this, SLOT(about()));
@@ -531,6 +535,7 @@ void MainApp::newAcq()
         taskReadTimer->setSingleShot(false);
         taskReadTimer->start(1000/TASK_READ_FREQ_HZ);
         stopAcq->setEnabled(true);
+        aoPassthruAct->setEnabled(params.aoPassthru);
         task->start();
         updateWindowTitles();
         if (taskWaitingForTrigger) {
@@ -565,11 +570,11 @@ void MainApp::stopTask()
     Status() << "Task stopped.";
     dataFile.closeAndFinalize();
     stopAcq->setEnabled(false);
+    aoPassthruAct->setEnabled(false);
     taskWaitingForTrigger = false;
     scan0Fudge = 0;
     updateWindowTitles();
     Systray() << "Acquisition stopped";
-
 }
 
 bool MainApp::maybeCloseCurrentIfRunning() 
@@ -1042,5 +1047,12 @@ void MainApp::toggleSave(bool s)
         dataFile.closeAndFinalize();
         Log() << "Save file: " << dataFile.fileName() << " closed from GUI.";
         updateWindowTitles();
+    }
+}
+
+void MainApp::respecAOPassthru()
+{
+    if (task) {
+        configCtl->execAOPassThruDlg();
     }
 }

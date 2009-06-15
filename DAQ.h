@@ -12,6 +12,8 @@
 #include <deque>
 #include <QMap>
 #include <QStringList>
+#include <QVector>
+#include <QPair>
 #ifdef HAVE_NIDAQmx
 #include "NI/NIDAQmx.h"
 #endif
@@ -99,6 +101,10 @@ namespace DAQ
         double auxGain;
 
         ChanMap chanMap;
+
+        mutable QMutex mutex;
+        void lock() const { mutex.lock(); }
+        void unlock() const { mutex.unlock(); }
     };
 
     //-------- NI DAQmx helper methods -------------
@@ -177,7 +183,7 @@ namespace DAQ
     private:
 
         volatile bool pleaseStop;
-        Params params;
+        const Params & params;
         volatile unsigned fast_settle; ///< if >0, do fast settle
         bool muxMode;
 
@@ -186,6 +192,10 @@ namespace DAQ
         long long totalRead;
 
         friend struct DAQPvt;
+
+        static void recomputeAOAITab(QVector<QPair<int,int> > & aoAITab,
+                                     QString & aoChan,
+                                     const Params & p);
 
     };
 #ifdef HAVE_NIDAQmx

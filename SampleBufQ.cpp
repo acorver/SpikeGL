@@ -7,6 +7,12 @@ SampleBufQ::SampleBufQ(unsigned dataQueueMaxSizeInBufs)
 
 SampleBufQ::~SampleBufQ() {}
 
+void SampleBufQ::clear()
+{
+    QMutexLocker l(&dataQMut);
+    dataQ.clear();
+    //dataQCond.wakeAll();
+}
 
 /// put data in buffer.  calls overflowWarning() if buffer overflows
 void SampleBufQ::enqueueBuffer(std::vector<int16> &src, u64 sampCount)

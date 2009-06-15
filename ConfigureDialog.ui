@@ -156,121 +156,6 @@
     <string>AI Channel List: (ranges/lists of the form: 0:3, 5, 7, 9:10, etc)</string>
    </property>
   </widget>
-  <widget class="QGroupBox" name="aoPassthruGB" >
-   <property name="geometry" >
-    <rect>
-     <x>22</x>
-     <y>298</y>
-     <width>431</width>
-     <height>121</height>
-    </rect>
-   </property>
-   <property name="toolTip" >
-    <string>If enabled, specify a list of AO=AI chans to pass thru from AI to AO</string>
-   </property>
-   <property name="title" >
-    <string>AO Passthru</string>
-   </property>
-   <property name="checkable" >
-    <bool>true</bool>
-   </property>
-   <property name="checked" >
-    <bool>true</bool>
-   </property>
-   <widget class="QLineEdit" name="aoPassthruLE" >
-    <property name="geometry" >
-     <rect>
-      <x>10</x>
-      <y>78</y>
-      <width>401</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="toolTip" >
-     <string>Enter list of AO channels to passthru from AI.  List is of the form AOCHAN=CHAN_INDEX,...</string>
-    </property>
-    <property name="text" >
-     <string>0=4,1=2</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="aoPassthruLabel" >
-    <property name="geometry" >
-     <rect>
-      <x>10</x>
-      <y>54</y>
-      <width>411</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="toolTip" >
-     <string>Enter list of AO channels to passthru from AI.  List is of the form AOCHAN=CHAN_INDEX,...</string>
-    </property>
-    <property name="text" >
-     <string>Enter list of AO chans to echo from AI of the form AOCHAN=CHAN_INDEX,...</string>
-    </property>
-   </widget>
-   <widget class="QComboBox" name="aoDeviceCB" >
-    <property name="geometry" >
-     <rect>
-      <x>70</x>
-      <y>21</y>
-      <width>118</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="toolTip" >
-     <string>The NI Device to use for analog output</string>
-    </property>
-   </widget>
-   <widget class="QComboBox" name="aoRangeCB" >
-    <property name="geometry" >
-     <rect>
-      <x>313</x>
-      <y>21</y>
-      <width>99</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="toolTip" >
-     <string>The AO range to use for analog output</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="aoDeviceLabel" >
-    <property name="geometry" >
-     <rect>
-      <x>11</x>
-      <y>21</y>
-      <width>58</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="toolTip" >
-     <string>The NI Device to use for analog output</string>
-    </property>
-    <property name="text" >
-     <string>Device:</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="aoRangeLbl" >
-    <property name="geometry" >
-     <rect>
-      <x>199</x>
-      <y>21</y>
-      <width>108</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="toolTip" >
-     <string>The AO range to use for analog output</string>
-    </property>
-    <property name="text" >
-     <string>Range Min-Max:</string>
-    </property>
-    <property name="alignment" >
-     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-    </property>
-   </widget>
-  </widget>
   <widget class="QLabel" name="srateLabel" >
    <property name="enabled" >
     <bool>false</bool>
@@ -725,6 +610,16 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="text" >
     <string>Re-Open New Save File on StimGL Experiment (Re)Start</string>
+   </property>
+  </widget>
+  <widget class="QWidget" native="1" name="aoPassthruWidget" >
+   <property name="geometry" >
+    <rect>
+     <x>22</x>
+     <y>298</y>
+     <width>431</width>
+     <height>121</height>
+    </rect>
    </property>
   </widget>
  </widget>

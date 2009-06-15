@@ -491,7 +491,7 @@ void GraphsWindow::updateMouseOver()
     const char *unit;
     computeGraphMouseOverVars(num, y, mean, stdev, unit);
     QString msg;
-    ChanMapDesc & desc = params.chanMap[num];
+    const ChanMapDesc & desc = params.chanMap[num];
     QString chStr;
     if (params.mode == DAQ::AIRegular) {
         chStr.sprintf("AI%d", num);

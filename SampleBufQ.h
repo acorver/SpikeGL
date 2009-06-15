@@ -14,6 +14,8 @@ public:
     SampleBufQ(unsigned dataQueueMaxSizeInBufs = 64);
     virtual ~SampleBufQ();
 
+    void clear();
+
     const unsigned dataQueueMaxSize; 
 
     unsigned dataQueueSize() const { QMutexLocker l(&dataQMut); return dataQ.size(); }

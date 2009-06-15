@@ -125,6 +125,9 @@ public slots:
 
     /// called by control in graphs window -- toggles datafile save on/off
     void toggleSave(bool);
+
+    /// called by menu option
+    void respecAOPassthru();
    
 protected slots:
     /// Called from a timer every ~250 ms to update the status bar at the bottom of the console window
@@ -203,7 +206,7 @@ public:
 /// Main application actions!
     QAction 
         *quitAct, *toggleDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
-        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct;
+        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon;
