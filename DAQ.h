@@ -58,7 +58,7 @@ namespace DAQ
     const QString & AcqStartEndModeToString(AcqStartEndMode m);
 
     struct Params {
-        QString outputFile, dev;
+        QString outputFile, outputFileOrig, dev;
         bool stimGlTrigResave;
         Range range;
         unsigned doCtlChan;

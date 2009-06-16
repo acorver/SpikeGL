@@ -611,3 +611,14 @@ void GraphsWindow::toggleSaveChecked(bool b)
         mainApp()->toggleSave(b);
     }
 }
+
+void GraphsWindow::setToggleSaveChkBox(bool b)
+{
+    toggleSaveChk->setChecked(b);
+    toggleSaveChecked(b);
+}
+
+void GraphsWindow::setToggleSaveLE(const QString & fname)
+{
+    saveFileLE->setText(fname);
+}

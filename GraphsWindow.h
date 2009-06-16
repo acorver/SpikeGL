@@ -34,6 +34,9 @@ public:
     // overrides parent -- applies event filtering to the doublespinboxes as well!
     void installEventFilter(QObject * filterObj);
     
+    void setToggleSaveChkBox(bool b);
+    void setToggleSaveLE(const QString & fname);
+
 private slots:
     void updateGraphs();
     void downsampleChk(bool checked);

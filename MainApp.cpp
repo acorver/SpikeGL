@@ -580,7 +580,11 @@ void MainApp::stopTask()
 bool MainApp::maybeCloseCurrentIfRunning() 
 {
     if (!task) return true;
-    int but = QMessageBox::question(0, "Stop Current Acquisition", QString("An acquisition is currently running and saving to %1.\nStop it before proceeding?").arg(dataFile.fileName()), QMessageBox::Yes, QMessageBox::No);
+    int but;
+    if (dataFile.isOpen()) 
+        but = QMessageBox::question(0, "Stop Current Acquisition", QString("An acquisition is currently running and saving to %1.\nStop it before proceeding?").arg(dataFile.fileName()), QMessageBox::Yes, QMessageBox::No);
+    else
+        but = QMessageBox::question(0, "Stop Current Acquisition", QString("An acquisition is currently running.\nStop it before proceeding?"), QMessageBox::Yes, QMessageBox::No);        
     if (but == QMessageBox::Yes) {
         stopTask();
         return true;
@@ -632,6 +636,7 @@ void MainApp::taskReadFunc()
                 }
             }
         } else { // task not waiting from trigger, normal acq.
+            if (!dataFile.isOpen()) scan0Fudge = firstSamp + scans.size();
             firstSamp -= scan0Fudge;            
 
             if (!needToStop && !taskShouldStop && taskWaitingForStop) {
@@ -796,8 +801,9 @@ void MainApp::triggerTask()
 
 void MainApp::updateWindowTitles()
 {
+    const bool isOpen = dataFile.isOpen();
     QString stat = "";
-    QString fname = dataFile.isOpen() ? dataFile.fileName() : "(no outfile)";
+    QString fname = isOpen ? dataFile.fileName() : "(no outfile)";
     if (task) {
         if (taskWaitingForTrigger)
             stat = "WAITING - " + fname;
@@ -812,6 +818,8 @@ void MainApp::updateWindowTitles()
     if (graphsWindow) {
         tit = QString(APPNAME) + " Graphs - " + stat;
         graphsWindow->setWindowTitle(tit);
+        graphsWindow->setToggleSaveChkBox(isOpen);
+        if (isOpen) graphsWindow->setToggleSaveLE(fname);
     }
 }
 
@@ -954,7 +962,7 @@ QString MainApp::getNewDataFileName(const QString & suffix) const
 {
     const DAQ::Params & p (configCtl->acceptedParams);
     if (p.stimGlTrigResave) {
-        QFileInfo fi(p.outputFile);
+        QFileInfo fi(p.outputFileOrig);
 
         QString prefix = fi.filePath();
         QString ext = fi.completeSuffix();
@@ -973,7 +981,7 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
     (void)pm;
     bool ignored = true;
     DAQ::Params & p (configCtl->acceptedParams);
-    if (p.stimGlTrigResave) {
+    if (task && p.stimGlTrigResave) {
         if (dataFile.isOpen()) {
             scan0Fudge += dataFile.sampleCount();
             Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
@@ -986,6 +994,7 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
             Log() << "Data file: " << dataFile.fileName() << " opened by StimulateOpenGL.";
         }
         updateWindowTitles();        
+        ignored = false;
     }
     if (task 
         && taskWaitingForTrigger 
