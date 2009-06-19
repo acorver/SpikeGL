@@ -636,15 +636,16 @@ void MainApp::taskReadFunc()
                 }
             }
         } else { // task not waiting from trigger, normal acq.
-            if (!dataFile.isOpen()) scan0Fudge = firstSamp + scans.size();
-            firstSamp -= scan0Fudge;            
+            const u64 fudgedFirstSamp = firstSamp - scan0Fudge;            
+            const u64 scanSz = scans.size();
+            if (!dataFile.isOpen()) scan0Fudge = firstSamp + scanSz;
 
             if (!needToStop && !taskShouldStop && taskWaitingForStop) {
                 needToStop = detectStopTask(scans, firstSamp);
             }
 
             if (dataFile.isOpen()) {
-                if (firstSamp != dataFile.sampleCount()) {
+                if (fudgedFirstSamp != dataFile.sampleCount()) {
                     QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree!\nAieeeee!!  Aborting acquisition!").arg(dataFile.sampleCount()).arg(firstSamp);
                     Error() << e;
                     stopTask();
@@ -1019,6 +1020,11 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
         task->stop(); ///< stop the daq task now.. we will empty the queue later..
         Log() << "DAQ task no longer acquiring, emptying queue and saving to disk.";
         ignored = false;        
+    } else if (task && p.stimGlTrigResave && dataFile.isOpen()) {
+        Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
+        dataFile.closeAndFinalize();
+        updateWindowTitles();        
+        ignored = false;
     }
     Debug() << "Received notification that Stim GL plugin `" << plugin << "' ended." << (ignored ? " Ignored!" : "");
 
@@ -1050,7 +1056,7 @@ void MainApp::toggleSave(bool s)
         }
         Log() << "Save file: " << dataFile.fileName() << " opened from GUI.";
         scan0Fudge = scanCt*p.nVAIChans + lastScanSz;
-        graphsWindow->clearGraph(-1);
+        //graphsWindow->clearGraph(-1);
         updateWindowTitles();
     } else if (!s && dataFile.isOpen()) {
         dataFile.closeAndFinalize();
