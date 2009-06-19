@@ -28,6 +28,8 @@ namespace DAQ
     struct Range {
         double min, max;
         Range() : min(0.), max(0.) {}
+		bool operator==(const Range &rhs) const { return min == rhs.min && max == rhs.max; }
+		bool operator!=(const Range &rhs) const { return !((*this) == rhs); }
     };
 
     enum Mode {

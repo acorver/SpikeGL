@@ -409,24 +409,25 @@ namespace DAQ
         char        errBuff[2048]={'\0'};
         const char *callStr = "";
         const Params & p(params);
-        bool needToCallStartTask = true;
         const int32 aoChansSize = p.aoChannels.size();
         const int32 aoSamplesPerChan = aoBufferSize/aoChansSize;
+        std::vector<int16> leftOver;
         while (!pleaseStop) {
             double t0 = getTime();
             std::vector<int16> samps;
             u64 sampCount;
             dequeueBuffer(samps, sampCount);
+            samps.insert(samps.begin(), leftOver.begin(), leftOver.end());
+            leftOver.clear();
             unsigned sampIdx = 0;
             while (sampIdx < samps.size()) {
                 int32 nScansToWrite = (samps.size()-sampIdx)/aoChansSize;
                 int32 nScansWritten = 0;
                 if (nScansToWrite > aoSamplesPerChan)
                     nScansToWrite = aoSamplesPerChan;
-
-                if (needToCallStartTask) {
-                    DAQmxErrChk(DAQmxStartTask(taskHandle));
-                    needToCallStartTask = false;
+                else if (nScansToWrite < aoSamplesPerChan) {
+                    leftOver.insert(leftOver.end(), samps.begin()+sampIdx, samps.end());
+                    break;
                 }
 
                 DAQmxErrChk(DAQmxWriteBinaryI16(taskHandle, nScansToWrite, 1, aoTimeout, DAQmx_Val_GroupByScanNumber, &samps[sampIdx], &nScansWritten, NULL));
@@ -546,6 +547,8 @@ namespace DAQ
         const int32 pointsToRead = bufferSize;
         std::vector<int16> data, leftOver, aoData;
         QMap<unsigned, unsigned> saved_aoPassthruMap = p.aoPassthruMap;
+		QString saved_aoDev = p.aoDev;
+		Range saved_aoRange = p.aoRange;
 
         DAQmxErrChk (DAQmxCreateTask("",&taskHandle)); 
         DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
@@ -561,8 +564,8 @@ namespace DAQ
             aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size();
             DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
             DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
-            DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan));
-            DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,aoSamplesPerChan));
+            DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan/*0*/));
+            //DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,aoSamplesPerChan));
             aoWriteThr = new AOWriteThread(0, aoTaskHandle, aoBufferSize, p);
             Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
             aoWriteThr->start();                
@@ -590,7 +593,7 @@ namespace DAQ
             int nDemuxScans = nRead/nChans/nscans_per_mux_scan;
             if ( nDemuxScans*nscans_per_mux_scan*nChans != nRead ) {// not on 60 (or 75 if have interwoven PD and in PD mode) channel boundary, so save extra channels and enqueue them next time around..
                 nRead = nDemuxScans*nscans_per_mux_scan*nChans;
-                leftOver.insert(leftOver.begin(), data.begin()+nRead, data.end());
+                leftOver.insert(leftOver.end(), data.begin()+nRead, data.end());
                 data.erase(data.begin()+nRead, data.end());
             }
             // at this point we have scans of size 60 (or 75) channels
@@ -658,7 +661,9 @@ namespace DAQ
             if (aoWriteThr) {  
                 {   // detect AO passthru changes and re-setup the AO task if ao passthru spec changed
                     QMutexLocker l(&p.mutex);
-                    if (saved_aoPassthruMap != p.aoPassthruMap) {
+                    if (saved_aoPassthruMap != p.aoPassthruMap
+						|| saved_aoRange != p.aoRange
+						|| saved_aoDev != p.aoDev) {
                         aoData.clear();
                         delete aoWriteThr, aoWriteThr = 0;
                         recomputeAOAITab(aoAITab, aoChan, p);
@@ -670,9 +675,11 @@ namespace DAQ
                         const int32 aoSamplesPerChan = aoSampleRate/TASK_WRITE_FREQ_HZ > 0 ? int(aoSampleRate/TASK_WRITE_FREQ_HZ) : 1;
                         aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size();
                         DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
-                        DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan));
-                        DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,aoSamplesPerChan));     
+                        DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan/*0*/));
+                        //DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,aoSamplesPerChan));     
                         saved_aoPassthruMap = p.aoPassthruMap;
+						saved_aoRange = p.aoRange;
+						saved_aoDev = p.aoDev;
                         aoWriteThr = new AOWriteThread(0, aoTaskHandle, aoBufferSize, p);
                         Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
                         aoWriteThr->start();

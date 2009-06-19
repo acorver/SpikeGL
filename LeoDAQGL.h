@@ -17,6 +17,9 @@
 #define LOCK_TIMEOUT_MS 2000
 #define TASK_READ_FREQ_HZ 10
 #define TASK_WRITE_FREQ_HZ 10
+#if (INTAN_SRATE/TASK_READ_FREQ_HZ)*TASK_READ_FREQ_HZ != INTAN_SRATE
+#  error Please set TASK_READ_FREQ_HZ to a value that is a factor of the INTAN sampling rate
+#endif
 #define APPNAME "LeoDAQGL"
 #define DOWNSAMPLE_TARGET_HZ 1000
 #define DEFAULT_GRAPH_TIME_SECS 3.0
