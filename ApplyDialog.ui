@@ -1,0 +1,44 @@
+<ui version="4.0" >
+ <class>ApplyDialog</class>
+ <widget class="QWidget" name="ApplyDialog" >
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>431</width>
+    <height>180</height>
+   </rect>
+  </property>
+  <property name="windowTitle" >
+   <string>ApplyDialog</string>
+  </property>
+  <widget class="QWidget" native="1" name="widget" >
+   <property name="geometry" >
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>431</width>
+     <height>121</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="applyButton" >
+   <property name="geometry" >
+    <rect>
+     <x>330</x>
+     <y>140</y>
+     <width>80</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>Apply</string>
+   </property>
+   <property name="flat" >
+    <bool>false</bool>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
