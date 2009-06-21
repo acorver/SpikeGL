@@ -662,8 +662,8 @@ namespace DAQ
                 {   // detect AO passthru changes and re-setup the AO task if ao passthru spec changed
                     QMutexLocker l(&p.mutex);
                     if (saved_aoPassthruMap != p.aoPassthruMap
-						|| saved_aoRange != p.aoRange
-						|| saved_aoDev != p.aoDev) {
+                        || saved_aoRange != p.aoRange
+                        || saved_aoDev != p.aoDev) {
                         aoData.clear();
                         delete aoWriteThr, aoWriteThr = 0;
                         recomputeAOAITab(aoAITab, aoChan, p);
@@ -678,8 +678,8 @@ namespace DAQ
                         DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan/*0*/));
                         //DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,aoSamplesPerChan));     
                         saved_aoPassthruMap = p.aoPassthruMap;
-						saved_aoRange = p.aoRange;
-						saved_aoDev = p.aoDev;
+                        saved_aoRange = p.aoRange;
+                        saved_aoDev = p.aoDev;
                         aoWriteThr = new AOWriteThread(0, aoTaskHandle, aoBufferSize, p);
                         Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
                         aoWriteThr->start();

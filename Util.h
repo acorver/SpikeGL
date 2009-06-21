@@ -43,6 +43,9 @@ extern double getTime();
 /// returns the number of real CPUs (cores) on the system
 extern unsigned getNProcessors(); 
 
+/// sets the process affinity mask -- a bitset of which processors to run on
+extern void setProcessAffinityMask(unsigned mask);
+
 /// returns the current host name
 extern QString getHostName();
 
@@ -82,7 +85,7 @@ extern bool hasExt(const char *ext_name);
 extern int ffs(int x);
 
 /// Returns true if object has parent or grandparent, etc equal to ancestor.  This is a way to test if an object is contained (in a nested fashion) in another object.
-extern bool objectHasAncestor(QObject *object, QObject *ancestor);
+extern bool objectHasAncestor(QObject *object, const QObject *ancestor);
 
 /// Super class of Debug, Warning, Error classes.  
 class Log 

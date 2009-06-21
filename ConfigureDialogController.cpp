@@ -103,6 +103,7 @@ void ConfigureDialogController::resetFromParams()
     acqPdParams->pdPassthruAOChk->setChecked(p.pdPassThruToAO > -1);
     acqPdParams->pdPassthruAOSB->setValue(p.pdPassThruToAO > -1 ? p.pdPassThruToAO : 0);   
     acqPdParams->pdStopTimeSB->setValue(p.pdStopTime);
+    acqPdParams->pdPre->setValue(p.silenceBeforePD*1000.);
 
     QList<QString> devs = aiChanLists.uniqueKeys();
     devNames.clear();
@@ -524,6 +525,9 @@ int ConfigureDialogController::exec()
             p.fastSettleTimeMS = dialog->fastSettleSB->value();
             p.auxGain = dialog->auxGainSB->value();
             p.chanMap = chanMapCtl.mappingForAll();
+
+            p.silenceBeforePD = acqPdParams->pdPre->value()/1000.;
+
             saveSettings();
         }
     } while (again);
@@ -660,6 +664,9 @@ void ConfigureDialogController::loadSettings()
     p.aiTerm = (DAQ::TermConfig)settings.value("aiTermConfig", (int)DAQ::Default).toInt();
     p.fastSettleTimeMS = settings.value("fastSettleTimeMS", DEFAULT_FAST_SETTLE_TIME_MS).toUInt();
     p.auxGain = settings.value("auxGain", 200.0).toDouble();    
+
+    p.silenceBeforePD = settings.value("silenceBeforePD", DEFAULT_PD_SILENCE).toDouble();
+
 }
 
 void ConfigureDialogController::saveSettings()
@@ -701,6 +708,8 @@ void ConfigureDialogController::saveSettings()
     settings.setValue("aiTermConfig", (int)p.aiTerm);
     settings.setValue("fastSettleTimeMS", p.fastSettleTimeMS);
     settings.setValue("auxGain", p.auxGain);
+
+    settings.setValue("silenceBeforePD", p.silenceBeforePD);
 }
 
 int ConfigureDialogController::execAOPassThruDlg()

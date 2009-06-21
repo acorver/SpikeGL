@@ -114,6 +114,9 @@ MainApp::MainApp(int & argc, char ** argv)
 
     Log() << "Application started";
 
+    if (getNProcessors() > 1)
+        setProcessAffinityMask(0x1); // set it to core 1
+
     consoleWindow->installEventFilter(this);
     consoleWindow->textEdit()->installEventFilter(this);
 
@@ -197,7 +200,7 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
         // globally forward all keypresses
         // if they aren't handled, then return false for normal event prop.
         QKeyEvent *k = dynamic_cast<QKeyEvent *>(event);
-        if (k && (watched == graphsWindow || watched == consoleWindow || watched == consoleWindow->textEdit() || Util::objectHasAncestor(watched, graphsWindow))) {
+        if (k && (watched == graphsWindow || watched == consoleWindow || watched == consoleWindow->textEdit() || ((!graphsWindow || watched != graphsWindow->saveFileLineEdit()) && Util::objectHasAncestor(watched, graphsWindow)))) {
             if (processKey(k)) {
                 event->accept();
                 return true;
@@ -492,6 +495,16 @@ void MainApp::newAcq()
                 return;
             }
         }
+
+        preBuf.clear();
+        preBuf.reserve(0);
+        if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd)) {
+            int szSamps = params.nVAIChans*params.srate*DEFAULT_PD_SILENCE;
+            if (szSamps % params.nVAIChans) 
+                szSamps += params.nVAIChans - szSamps%params.nVAIChans;
+            preBuf.reserve(szSamps*sizeof(int16));
+        }
+
         graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen());
         graphsWindow->setAttribute(Qt::WA_DeleteOnClose, false);
 
@@ -622,7 +635,8 @@ void MainApp::taskReadFunc()
         lastScanSz = scans.size();
         scanCt = firstSamp/p.nVAIChans;
         if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
-            detectTriggerEvent(scans, firstSamp);
+            if (!detectTriggerEvent(scans, firstSamp))
+                preBuf.putData(&scans[0], scans.size()*sizeof(scans[0])); // save data to pre-buffer ringbuffer if not triggered yet
             if (tNow-lastSBUpd > 0.25) { // every 1/4th of a second
                 if (p.acqStartEndMode == DAQ::Timed) {
                     Status() << "Acquisition will auto-start in " << (startScanCt-scanCt)/p.srate << " seconds.";
@@ -635,7 +649,28 @@ void MainApp::taskReadFunc()
                     Status() << "Acquisition waiting for start trigger from photo-diode";
                 }
             }
-        } else { // task not waiting from trigger, normal acq.
+        } 
+        // not an else because both if clauses are true on first trigger
+        
+        if (!taskWaitingForTrigger) { // task not waiting from trigger, normal acq..
+            if (preBuf.size()) {
+                void *ptr=0;
+                unsigned lenBytes=0;
+                preBuf.dataPtr2(ptr, lenBytes);
+                int added = 0,num;
+                if (ptr) {
+                    scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr), reinterpret_cast<int16 *>(ptr)+(num=lenBytes/sizeof(int16)));
+                    added += num;
+                }
+                preBuf.dataPtr1(ptr, lenBytes);
+                if (ptr) {
+                    scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr), reinterpret_cast<int16 *>(ptr)+(num=lenBytes/sizeof(int16)));
+                    added += num;
+                }
+                firstSamp -= u64(added);
+                scan0Fudge -= added;
+                preBuf.clear();
+            }
             const u64 fudgedFirstSamp = firstSamp - scan0Fudge;            
             const u64 scanSz = scans.size();
             if (!dataFile.isOpen()) scan0Fudge = firstSamp + scanSz;
@@ -677,7 +712,7 @@ void MainApp::taskReadFunc()
         stopTask();
 }
 
-void MainApp::detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp)
+bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp)
 {
     bool triggered = false;
     DAQ::Params & p (configCtl->acceptedParams);
@@ -694,15 +729,23 @@ void MainApp::detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp
         if (p.idxOfPdChan < 0) {
             Error() << "INTERNAL ERROR, acqStartMode is PD based but no PD channel specified in DAQ params!";
             stopTask();
-            return;
+            return false;
         }
         for (int i = p.idxOfPdChan; i < sz; i += p.nVAIChans) {
             const int16 samp = scans[i];
             if (samp > p.pdThresh) {
                 if (last5PDSamples.size() >= 5) {
-                    triggered = true, i = sz, last5PDSamples.clear();
+                    triggered = true, last5PDSamples.clear();
                     pdOffTimeSamps = p.srate * p.pdStopTime * p.nVAIChans;
                     lastSeenPD = firstSamp + u64(i);
+                    // we triggered, so save samples up to this one
+                    int len = i-int(p.idxOfPdChan);
+                    if (len > 0) {
+                        preBuf.putData(&scans[0], len*sizeof(scans[0]));
+                        scans.erase(scans.begin(), scans.begin()+len);
+                        firstSamp += len;
+                    }
+                    i = sz; // break out of loop
                 } else 
                     last5PDSamples.push_back(samp);
             } else
@@ -724,8 +767,11 @@ void MainApp::detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp
     if (triggered) {
         triggerTask();
     }
+    
+    //scan0Fudge = firstSamp + scans.size();
+    scan0Fudge = firstSamp;
 
-    scan0Fudge = firstSamp + scans.size();
+    return triggered;
 }
 
 bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
@@ -847,7 +893,7 @@ void MainApp::verifySha1()
     }
     if (!dataFile.length()) dataFile = p["outputFile"].toString();
     
-    if (this->task && QFileInfo(dataFile) == QFileInfo(this->dataFile.fileName())) {
+    if (this->task && this->dataFile.isOpen() && QFileInfo(dataFile) == QFileInfo(this->dataFile.fileName())) {
         QMessageBox::critical(consoleWindow, "Acquisition is running on file", "Cannot verify SHA1 hash on this file as it is currently open and being used as the datafile for the currently-running acquisition!");
         return;
     }
@@ -994,6 +1040,10 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
         } else {
             Log() << "Data file: " << dataFile.fileName() << " opened by StimulateOpenGL.";
         }
+
+       if (p.acqStartEndMode == DAQ::PDStart || p.acqStartEndMode == DAQ::PDStartEnd) {
+           taskWaitingForTrigger = true; // turns on the detect trigger code again, so we can get a constant-offset PD signal
+       }           
         updateWindowTitles();        
         ignored = false;
     }
@@ -1007,9 +1057,18 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
 
     Debug() << "Received notification that Stim GL plugin `" << plugin << "' started." << (ignored ? " Ignored!" : "");
 
+    if (!ignored) stimGL_SaveParams(pm);
 }
 
-void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVariant>  &pm)
+void MainApp::stimGL_SaveParams(const QMap<QString, QVariant> & pm) 
+{
+    if (dataFile.isOpen()) {
+        for (QMap<QString, QVariant>::const_iterator it = pm.begin(); it != pm.end(); ++it) 
+            dataFile.setParam(QString("StimGL_") + it.key(), it.value());   
+    }
+}
+
+void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVariant> & pm)
 {
     (void)pm;
     bool ignored = true;
@@ -1017,10 +1076,12 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
     if (task && taskWaitingForStop && p.acqStartEndMode == DAQ::StimGLStartEnd) {
         Log() << "Triggered stop by Stim GL plugin `" << plugin << "'";
         taskShouldStop = true;
+        stimGL_SaveParams(pm);
         task->stop(); ///< stop the daq task now.. we will empty the queue later..
         Log() << "DAQ task no longer acquiring, emptying queue and saving to disk.";
         ignored = false;        
     } else if (task && p.stimGlTrigResave && dataFile.isOpen()) {
+        stimGL_SaveParams(pm);
         Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
         dataFile.closeAndFinalize();
         updateWindowTitles();        

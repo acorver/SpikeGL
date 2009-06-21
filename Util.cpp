@@ -99,7 +99,7 @@ int ffs(int x)
         return r;
 }
 
-bool objectHasAncestor(QObject *o, QObject *a)
+bool objectHasAncestor(QObject *o, const QObject *a)
 {
     while (o) {
         o = o->parent();

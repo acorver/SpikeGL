@@ -130,3 +130,18 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     
     return true;
 }
+
+/// param management
+void DataFile::setParam(const QString & name, const QVariant & value)
+{
+    params[name] = value;
+}
+/// param management
+const QVariant & DataFile::getParam(const QString & name) const
+{
+    Params::const_iterator it = params.find(name);
+    if (it != params.end()) return it.value();
+    static QVariant invalid;
+    return invalid;
+}
+

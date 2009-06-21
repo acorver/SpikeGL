@@ -93,6 +93,7 @@ namespace DAQ
         int pdChan, idxOfPdChan;
         int pdPassThruToAO; ///< if negative, don't, else the channel id
         double pdStopTime; ///< iff PDEnd mode, the amount of time in seconds that need to be elapsed before we pronounce the PD signal as gone and we stop the task
+        double silenceBeforePD; ///< Time, in seconds, of silence before the photodiode signal in PD trigger mode only!
 
         bool suppressGraphs;
 

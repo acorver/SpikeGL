@@ -27,6 +27,11 @@ public:
     /// returns a pointer to the second piece of the data or NULL pointer if buffer is not wrapped (1 piece)
     void dataPtr2(void * & ptr, unsigned & lenBytes) const;
 
+    /// copy construct0r, performs a deep copy of rhs
+    WrapBuffer(const WrapBuffer & rhs);
+    /// operator= deallocs current buffer and performs a deep copy of rhs
+    WrapBuffer & operator=(const WrapBuffer & rhs);
+
 private:
     char *buf;  
     unsigned bufsz;

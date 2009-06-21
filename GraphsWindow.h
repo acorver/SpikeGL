@@ -37,6 +37,8 @@ public:
     void setToggleSaveChkBox(bool b);
     void setToggleSaveLE(const QString & fname);
 
+    const QLineEdit *saveFileLineEdit() const  { return saveFileLE; }
+
 private slots:
     void updateGraphs();
     void downsampleChk(bool checked);

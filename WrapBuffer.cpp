@@ -13,9 +13,26 @@ WrapBuffer::~WrapBuffer()
     buf = 0;
 }
 
+WrapBuffer::WrapBuffer(const WrapBuffer & rhs)
+    : buf(0)
+{
+    (*this) = rhs;
+}
+
+WrapBuffer & WrapBuffer::operator=(const WrapBuffer & rhs)
+{
+    if (buf) delete [] buf;
+    bufsz = rhs.bufsz;
+    buf = new char[bufsz];
+    len = rhs.len;
+    head = rhs.head;
+    memcpy(buf, rhs.buf, bufsz);
+    return *this;
+}
+
 void WrapBuffer::reserve(unsigned newSize)
 {
-    delete[] buf; buf = 0;
+    delete [] buf; buf = 0;
     if (newSize) buf = new char[newSize];
     bufsz = newSize;
     len = head = 0;

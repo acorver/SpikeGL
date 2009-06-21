@@ -20,6 +20,11 @@ public:
     QString fileName() const { return outFile.fileName(); }
     QString metaFileName() const { return metaFile.fileName(); }
 
+    /// param management
+    void setParam(const QString & name, const QVariant & value);
+    /// param management
+    const QVariant & getParam(const QString & name) const;
+
     /// closes the file, and saves the SHA1 hash to the metafile
     bool closeAndFinalize();
 

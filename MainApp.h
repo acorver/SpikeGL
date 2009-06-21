@@ -18,6 +18,7 @@
 #include "Util.h"
 #include "DAQ.h"
 #include "DataFile.h"
+#include "WrapBuffer.h"
 class QTextEdit;
 class ConsoleWindow;
 class GLWindow;
@@ -161,9 +162,11 @@ private:
     bool processKey(QKeyEvent *);
     void stopTask();
     bool setupStimGLIntegration(bool doQuitOnFail=true);
-    void detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp);
+    bool detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp);
     void triggerTask();
     bool detectStopTask(const std::vector<int16> & scans, u64 firstSamp);
+    void stimGL_SaveParams(const QMap<QString, QVariant> & pm);
+
 
     mutable QMutex mut; ///< used to lock outDir param for now
     ConfigureDialogController *configCtl;
@@ -200,6 +203,8 @@ private:
     Par2Window *par2Win;
     StimGL_LeoDAQGL_Integration::NotifyServer *notifyServer;
     bool fastSettleRunning;
+
+    WrapBuffer preBuf;
 
 public:
 
