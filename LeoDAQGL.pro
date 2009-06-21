@@ -12,7 +12,7 @@ HEADERS += LeoDAQGL.h DataFile.h Params.h sha1.h Util.h TypeDefs.h ConsoleWindow
 
 SOURCES += DataFile.cpp osdep.cpp Params.cpp sha1.cpp Util.cpp MainApp.cpp ConsoleWindow.cpp main.cpp ConfigureDialogController.cpp DAQ.cpp GraphsWindow.cpp GLGraph.cpp SampleBufQ.cpp WrapBuffer.cpp Sha1VerifyTask.cpp Par2Window.cpp StimGL_LeoDAQGL_Integration.cpp HPFilter.cpp ChanMappingController.cpp
 
-FORMS += ConfigureDialog.ui AcqPDParams.ui AcqTimedParams.ui Par2Window.ui StimGLIntegration.ui ChanMapping.ui AOPassthru.ui Dialog.ui
+FORMS += ConfigureDialog.ui AcqPDParams.ui AcqTimedParams.ui Par2Window.ui StimGLIntegration.ui ChanMapping.ui AOPassthru.ui Dialog.ui ApplyDialog.ui
 
 QT += opengl network
 

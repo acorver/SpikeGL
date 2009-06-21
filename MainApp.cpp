@@ -1131,6 +1131,6 @@ void MainApp::toggleSave(bool s)
 void MainApp::respecAOPassthru()
 {
     if (task) {
-        configCtl->execAOPassThruDlg();
+        configCtl->showAOPassThruDlg();
     }
 }

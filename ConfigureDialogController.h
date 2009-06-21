@@ -5,6 +5,7 @@
 #include "ui_AcqPDParams.h"
 #include "ui_AcqTimedParams.h"
 #include "ui_AOPassthru.h"
+#include "ui_ApplyDialog.h"
 #include <QObject>
 #include "LeoDAQGL.h"
 #include <QVector>
@@ -25,12 +26,13 @@ public:
     Ui::AcqPDParams *acqPdParams;
     Ui::AcqTimedParams *acqTimedParams;
     Ui::AoPassThru *aoPassthru;
+    Ui::ApplyDialog *applyDlg;
 
     DAQ::Params acceptedParams;
     
     const ChanMappingController & chanMappingController() const { return chanMapCtl; }
 
-    int execAOPassThruDlg();
+    void showAOPassThruDlg();
 
 protected slots:    
     void acqStartEndCBChanged();
@@ -42,7 +44,7 @@ protected slots:
     void aoPDChanChkd();
     void aiRangeChanged();
     void aoPDPassthruUpdateLE();
-
+    void applyAOPass();
 
 private:
     void loadSettings();
@@ -50,7 +52,7 @@ private:
     void resetFromParams();
     void resetAOPassFromParams(Ui::AoPassThru *);
 
-    QWidget *dialogW, *acqPdParamsW, *acqTimedParamsW;
+    QWidget *dialogW, *acqPdParamsW, *acqTimedParamsW, *aoPassW;
     ChanMappingController chanMapCtl;
     DAQ::DeviceRangeMap aiDevRanges, aoDevRanges;
     QVector<QString> devNames, aoDevNames;
