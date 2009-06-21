@@ -456,8 +456,9 @@ int ConfigureDialogController::exec()
 
             
             if (dialog->stimGLReopenCB->isChecked() &&
-                acqStartEndMode == DAQ::StimGLStartEnd) {
-                QMessageBox::critical(dialogW, "Incompatible Configuration", QString().sprintf("'Re-Open New Save File on StimGL Experiment' not compatible with 'StimGL Plugin Start & End' acquisition trigger mode!"), QMessageBox::Retry);
+                (acqStartEndMode == DAQ::StimGLStartEnd
+                 || acqStartEndMode == DAQ::PDStartEnd) ) {
+                QMessageBox::critical(dialogW, "Incompatible Configuration", QString().sprintf("'Re-Open New Save File on StimGL Experiment' not compatible with 'StimGL Plugin Start & End' or 'PD Start & End' acquisition trigger modes!"), QMessageBox::Retry);
                 again = true;
                 continue;
             }

@@ -744,6 +744,7 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp)
                         preBuf.putData(&scans[0], len*sizeof(scans[0]));
                         scans.erase(scans.begin(), scans.begin()+len);
                         firstSamp += len;
+                        scanCt = firstSamp/p.nVAIChans;
                     }
                     i = sz; // break out of loop
                 } else 
@@ -1051,6 +1052,7 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
         && taskWaitingForTrigger 
         && (p.acqStartEndMode == DAQ::StimGLStart || p.acqStartEndMode == DAQ::StimGLStartEnd)) {
         Log() << "Triggered start by Stim GL plugin `" << plugin << "'";
+        scan0Fudge = scanCt*p.nVAIChans + lastScanSz;
         triggerTask();
         ignored = false;
     }
