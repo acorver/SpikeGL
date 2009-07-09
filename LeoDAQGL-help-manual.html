@@ -6,7 +6,7 @@
 <style type="text/css">
 <!--
 .style2 {
-	font-size: 24px
+	font-size: 28px
 }
 -->
 </style>
@@ -80,51 +80,75 @@
       <p align="center"><img src="LeoDAQGL-help-ConfigWindow.png" alt="ConfigDialog" width="484" height="684" longdesc="The configuration dialog box" /></p>
       <p align="left"><br />
       </p>
-      <p align="left"><U><strong>Output 	filename –</strong></U> The name of the output data file for the acquisition.  By default 	the file extension assigned is a '.bin'.  The output data format is 	as follows: samples are grouped by scan, with each sample saved as a 	16-bit signed integer in little endian byte order.  In addition to 	the .bin file created, a '.meta' file is also saved alongside in the 	same directory.  The .meta file is a Windows .INI-style file which 	contains various parameters and other information associated with 	the acquisition.  Open this file in any text editor to view it.  By 	default the output data file is automatically opened, overwriting 	any existing files.  An exception to this is that if the <strong><em>'Re-Open 	New Save File on StimGL Experiment (Re)Start'</em></strong> checkbox is checked, then the data file is not opened until StimGL 	signals an experiment plugin start.</p>
-      <p align="left">&nbsp;</p>
-      <p align="left"><U><strong>Re-Open 	New Save File on StimGL Experiment (Re)Start</strong></U> – This 	feature allows for a unique save file to be created and associated 	with each run of Stimulate OpenGL II plugins.</p>
-      <p align="left">Essentially, 	if this checkbox is checked, then the behavior of the save file 	functionality is modified such that new (unique) save files are 	created for each Stimulate OpenGL II plugin that is executed.  (This 	requires that a copy of Stimulate OpenGL II be running on the 	current machine, of course.)</p>
-      <p align="left">The 	behavior of this feature is as follows:  Whenever the program 	receives a notification from Stimulate OpenGL II that an experiment 	plugin is about to start, then the current date file (if any) is 	closed and a new one is opened.  A new save filename is picked using 	the following template:</p>
-      <p align="left">PREFIX_STIMGLPLUGINNAME_N</p>
-      <p align="justify">Where:</p>
+      <p align="left"><U><strong>Output 	filename</strong></U> </p>
+      <blockquote>
+        <p align="left">The name of the output data file for the acquisition.  By default 	the file extension assigned is a '.bin'.  The output data format is 	as follows: samples are grouped by scan, with each sample saved as a 	16-bit signed integer in little endian byte order.  In addition to 	the .bin file created, a '.meta' file is also saved alongside in the 	same directory.  The .meta file is a Windows .INI-style file which 	contains various parameters and other information associated with 	the acquisition.  Open this file in any text editor to view it.  By 	default the output data file is automatically opened, overwriting 	any existing files.  An exception to this is that if the <strong><em>'Re-Open 	New Save File on StimGL Experiment (Re)Start'</em></strong> checkbox is checked, then the data file is not opened until StimGL 	signals an experiment plugin start.</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>Re-Open 	New Save File on StimGL Experiment (Re)Start</strong></U> </p>
+      <blockquote>
+        <p align="left">This 	feature allows for a unique save file to be created and associated 	with each run of Stimulate OpenGL II plugins.</p>
+        <p align="left">Essentially, 	if this checkbox is checked, then the behavior of the save file 	functionality is modified such that new (unique) save files are 	created for each Stimulate OpenGL II plugin that is executed.  (This 	requires that a copy of Stimulate OpenGL II be running on the 	current machine, of course.)</p>
+        <p align="left">The 	behavior of this feature is as follows:  Whenever the program 	receives a notification from Stimulate OpenGL II that an experiment 	plugin is about to start, then the current date file (if any) is 	closed and a new one is opened.  A new save filename is picked using 	the following template:</p>
+        <p align="left">PREFIX_STIMGLPLUGINNAME_N</p>
+        <p align="justify">Where:</p>
+      </blockquote>
   </blockquote>
   <ul>
       <ul>
         <ul>
-          <li>PREFIX 			is the filename specified in the <em><strong>Output filename </strong></em>line-edit 			above,</li>
-          <li>STIMPLUGINNAME 			is the name of the StimGL II plugin, and </li>
-          <li>N 			is an integer number to make the filename unique.</li>
+          <ul>
+            <li>PREFIX 			is the filename specified in the <em><strong>Output filename </strong></em>line-edit 			above,</li>
+            <li>STIMPLUGINNAME 			is the name of the StimGL II plugin, and </li>
+            <li>N 			is an integer number to make the filename unique.</li>
+          </ul>
         </ul>
       </ul>
+      <blockquote>
+        <p align="justify"><em>Note: 	Enabling this option requires a copy of StimGL II to be running 	otherwise data will not be saved.</em></p>
+        <p align="justify">&nbsp;</p>
+      </blockquote>
   </ul>
     <blockquote>
-      <p align="justify"><em>Note: 	Enabling this option requires a copy of StimGL II to be running 	otherwise data will not be saved.</em></p>
-      <p align="left">&nbsp;</p>
-      <p align="left"><U><strong>Acquisition 	Mode -</strong></U> Option specifying whether or not the acquisition uses the external 	Intan demuxer hardware.  This option affects how sample data is 	interpreted as it comes in from hardware (whether or not it is to be 	de-multiplexed, essentially).</p>
+      <p align="left"><U><strong>Acquisition 	Mode</strong></U> </p>
       <blockquote>
-        <p align="left"> <strong><em>AI 60 Demux</em></strong> – The acquisition will be a 60-channel Intan/MUX acquisition.  It 	will use 4 AI channels on the DAQ board,  each of which is sampled 	simultaneously at 444 kHz.  Each channel multiplexes 15 electrode 	channels in time, thus the electrodes are sampled at 29.63 kHz per 	channel.  See the file  '<em>Leonardo-RetinaMux-Manial.pdf</em>' 	for more information.</p>
-        <p align="left"> <strong><em>AI 120 Demux</em></strong> – Identical to the AI 60 Demux scheme above, but this mechanism 	uses more Intan chips to yield 120 multiplexed channels coming in on 	8 simultaneous AI channels on the DAQ board.<br />
-        </p>
-        <p align="left"> <strong><em>Straight AI</em></strong> – No external MUX hardware is used.  Channels are graphed and 	saved verbatim without any de-multiplexing being applied.</p>
+        <p align="left">Option specifying whether or not the acquisition uses the external 	Intan demuxer hardware.  This option affects how sample data is 	interpreted as it comes in from hardware (whether or not it is to be 	de-multiplexed, essentially).</p>
+        <blockquote>
+          <p align="left"> <strong><em>AI 60 Demux</em></strong> – The acquisition will be a 60-channel Intan/MUX acquisition.  It 	will use 4 AI channels on the DAQ board,  each of which is sampled 	simultaneously at 444 kHz.  Each channel multiplexes 15 electrode 	channels in time, thus the electrodes are sampled at 29.63 kHz per 	channel.  See the file  '<em>Leonardo-RetinaMux-Manial.pdf</em>' 	for more information.</p>
+          <p align="left"> <strong><em>AI 120 Demux</em></strong> – Identical to the AI 60 Demux scheme above, but this mechanism 	uses more Intan chips to yield 120 multiplexed channels coming in on 	8 simultaneous AI channels on the DAQ board.<br />
+          </p>
+          <p align="left"> <strong><em>Straight AI</em></strong> – No external MUX hardware is used.  Channels are graphed and 	saved verbatim without any de-multiplexing being applied.</p>
+          <p align="left">&nbsp;</p>
+        </blockquote>
       </blockquote>
-      <p align="left"> <br />
-          </p>
-      <p align="left"><U><strong>DO 	Ctl –</strong></U> (Only applies to Intan/MUX modes above.) The digital output (DO) 	line number used for controlling the Intan RHA chip.  This is line 	is used to control the stop and start of the multiplexer – it is 	set low to reset or shut off the chip and asserted high to start the 	multiplexer at the first channel.  The 'fast settle' button in the 	GUI uses this line as well, cycling it low to high in order to 	restart and re-settle the multiplexer.</p>
-      <p align="left"><br />
-          </p>
-      <p align="left"><U><strong>Device 	–</strong></U> Specifies which of the installed National Instruments data 	acquisition boards is to be used for the acquisition's input (this 	device must support analog input otherwise the acquisition will fail 	to start).</p>
-      <p align="left"><br />
-          </p>
-      <p align="left"><U><strong>AI 	Range Min-Max –</strong></U> The gain setting on the board to use when configuring the AI 	channels for the acquisition.  In order to best utilize the dynamic 	range of the analog input channels, it is best to specify a range 	setting that is as close as possible to the anticipated minimum and 	maximum input voltages.  Specifying a range that is too small will 	result in clipping artifacts, so the range should at least be big 	enough to encompass the anticipated input voltage range.</p>
-      <p align="left"><br />
-          </p>
-      <p align="left"><U><strong>Sampling 	Rate Hz (per channel)</strong> –</U> The sampling rate to use for the acquisition (per channel).  This 	option can only be specified in the <em>Straight 	AI </em>acquisition 	mode.  60/120 Intan modes use a hard-coded sample rate of 29630 Hz.</p>
-      <p align="left"><br />
-          </p>
-      <p align="left"><U><strong>Internal/External 	Clock –</strong></U> Read-only option indicating which clock is used for acquiring 	samples; the internal on-board clock or an external clock connected 	to PFI2.  This option cannot be modified, instead it  just updates 	itself depending whenever the selected acquisition mode is changed.  	The <em>Straight 	AI</em> acquisition mode uses the internal clock, whereas the  60/120 Intan 	modes use the external clock connected to PFI2.</p>
-      <p align="left">&nbsp;</p>
-      <p align="left"><U><strong>Termination 	–</strong></U> Specifies how to the AI channels are physically terminated.  This 	affects how the acquisition is started on the driver level.  Specify 	the termination setting that matches how you wired the electrodes to 	the breakout box, etc. Possible options are:</p>
+      <p align="left"><U><strong>DO 	Ctl </strong></U></p>
       <blockquote>
+        <p align="left">(Only applies to Intan/MUX modes above.) The digital output (DO) 	line number used for controlling the Intan RHA chip.  This is line 	is used to control the stop and start of the multiplexer – it is 	set low to reset or shut off the chip and asserted high to start the 	multiplexer at the first channel.  The 'fast settle' button in the 	GUI uses this line as well, cycling it low to high in order to 	restart and re-settle the multiplexer.</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>Device</strong></U> </p>
+      <blockquote>
+        <p align="left">Specifies which of the installed National Instruments data 	acquisition boards is to be used for the acquisition's input (this 	device must support analog input otherwise the acquisition will fail 	to start).</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>AI 	Range Min-Max</strong></U> </p>
+      <blockquote>
+        <p align="left">The gain setting on the board to use when configuring the AI 	channels for the acquisition.  In order to best utilize the dynamic 	range of the analog input channels, it is best to specify a range 	setting that is as close as possible to the anticipated minimum and 	maximum input voltages.  Specifying a range that is too small will 	result in clipping artifacts, so the range should at least be big 	enough to encompass the anticipated input voltage range.</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>Sampling 	Rate Hz (per channel)</strong></U></p>
+      <blockquote>
+        <p align="left"> The sampling rate to use for the acquisition (per channel).  This 	option can only be specified in the <em>Straight 	AI </em>acquisition 	mode.  60/120 Intan modes use a hard-coded sample rate of 29630 Hz.</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>Internal/External 	Clock </strong></U></p>
+      <blockquote>
+        <p align="left"> Read-only option indicating which clock is used for acquiring 	samples; the internal on-board clock or an external clock connected 	to PFI2.  This option cannot be modified, instead it  just updates 	itself depending whenever the selected acquisition mode is changed.  	The <em>Straight 	AI</em> acquisition mode uses the internal clock, whereas the  60/120 Intan 	modes use the external clock connected to PFI2.</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>Termination 	</strong></U></p>
+      <blockquote>
+        <p align="left">Specifies how to the AI channels are physically terminated.  This 	affects how the acquisition is started on the driver level.  Specify 	the termination setting that matches how you wired the electrodes to 	the breakout box, etc. Possible options are:</p>
         <p align="left"><em><strong>Default 	– </strong></em>Use 	the default termination setting of the board.  Consult your board 	documentation to find out whether this is actually NRSE, RSE, 	differential, or another mode.<br />
         </p>
         <p align="left"> <em><strong>RSE –</strong></em> Referenced single ended mode.  Consult NI data acquisition 	documentation for an explanation of this termination mode.<br />
@@ -137,86 +161,131 @@
         <p align="left"><br />
         </p>
       </blockquote>
-      <p align="left"><U><strong>Fast 	Settle MS –</strong></U> Specifies the amount of time (in ms) to leave the Intan chip in the 	'off' setting (via the DO control line) when performing a 'fast 	settle'.  15 milliseconds is good enough for most situations, but 	experiment with a higher or lower value if your Intan doesn't appear 	to settle properly after clicking the 'fast settle' button in the 	GUI.</p>
-      <p align="left"><br />
-          </p>
-      <p align="left"><U><strong>AUX 	Gain –</strong></U> The gain setting that was used on the external amplifier.  This 	option only affects the display.  Incoming voltage values are 	divided by this value before being graphed to the screen to 	hopefully arrive at the pre-amp input voltage value for display 	purposes.</p>
-      <p align="left"><br />
-          </p>
-      <p align="left"><U><strong>Intan 	MUX Mapping... -</strong></U> Clicking this button pops up a GUI dialog where you may specify the 	mapping from
-        </p>
+      <p align="left"><U><strong>Fast 	Settle MS</strong></U> </p>
       <blockquote>
-        <p align="left"><em>Intan 	Chip/Channel → Pin channel → Electrode channel</em><br />
-        </p>
+        <p align="left">Specifies the amount of time (in ms) to leave the Intan chip in the 	'off' setting (via the DO control line) when performing a 'fast 	settle'.  15 milliseconds is good enough for most situations, but 	experiment with a higher or lower value if your Intan doesn't appear 	to settle properly after clicking the 'fast settle' button in the 	GUI.</p>
+        <p align="left">&nbsp;</p>
       </blockquote>
-      <p align="left">The 	purpose of this mapping is for GUI display purposes only and affects 	how graphs are labeled in the GUI in Intan/MUX mode only.</p>
-      <p align="left"><br />
-          </p>
-      <p align="left"><U><strong>AI 	Channel List -</strong></U> The list of analog input channels to use for the acquisition.  The 	syntax for this list is a comma-separated list of integer values 	from 0-NUM_AI_CHANS.  Ranges may be specified with ':' notation e.g. <em>0:4. </em>An 	example channel list would be: <em>0:4,5,7</em>. </p>
-      <p align="left">Note 	that in Intan/MUX mode, the first 4 (or 8 if using Intan 120 mode) 	AI channels specified are assumed to be connected to the INTAN in 	increasing chip/channel order, and thus are subject to 	de-multiplexing. </p>
-      <p align="left">In 	Intan/MUX mode, any channels not connected to the Intan are 	considered auxiliary (AUX) channels and are not de-multiplexed – 	they are graphed verbatim as they come in off the board. </p>
-      <p align="left"><br />
-          </p>
-      <p align="left"><U><strong>AO 	Passthru –</strong></U> If enabled, then pass-thru (echo) AI channels back out to AO 	(post-demux).  This requires that a board with an analog output 	subdevice be present on the system.  This option contains the 	following sub-options:</p>
-      <p align="left"><br />
-          </p>
-      <p align="left"> <U><strong>Device –</strong></U> Specifies which NI board installed on the system to use for AO 	passthru.  The board in question must have analog output capability.</p>
-      <p align="left"> <br />
-          </p>
-      <p align="left"> <U><strong>Range –</strong></U> The range (gain) setting to use when writing samples to the AO 	channel(s).  Note that samples are written as raw 16-bit integers to 	the board, as they came in from AI.  Thus scaling up/down may occur 	if the gain setting on the AI channels differs from the AO gain 	setting.</p>
-      <p align="left"> <br />
-          </p>
-      <p align="left"> <U><strong>AO Channel List –</strong></U> A list of the form AOCHAN=CHANINDEX, ….</p>
+      <p align="left"><U><strong>AUX 	Gain</strong></U></p>
       <blockquote>
-        <p align="left">For 	example, if we want AO channel 0 to be a passthru for AI graph 	number 23, we would say: <br />
-        </p>
-        <p align="left"> 0=23<br />
-                  </p>
-        <p align="left"> If 	we also want AO channel 1 to be a passthru for AI graph number 4, we 	would do: <br />
-        </p>
-        <p align="left"> 0=23, 	1=4<br />
-                  </p>
-        <p align="left"><em>Nota 	bene: The reason the AI channel is specified as a channel index 	rather than an AI channel id number is that the pass-thru is done 	post-multiplexing, thus only virtual channel index numbers (graph 	numbers in the GUI display) make sense here.</em><br />
-        </p>
-        <p align="left"><em>Nota 	bene #2: While passing data coming in from AI back out to AO may be 	useful in some situations, it should be bourn in mind that AO output 	signals will be delayed in time with respect to their corresponding 	AI inputs.  This is because DAQ AI and AO are buffered on the board 	and in software. This manifests itself as a time delay when writing 	samples that arrive from AI back out to AO.  In short, there is a 	delay between when a data sample physically arrives to an AI 	channel, is buffered to memory on the DAQ board, is read by the 	software, and is eventually written back out to the AO hardware 	again. </em> </p>
-        <p align="left"><br />
-        </p>
+        <p align="left"> The gain setting that was used on the external amplifier.  This 	option only affects the display.  Incoming voltage values are 	divided by this value before being graphed to the screen to 	hopefully arrive at the pre-amp input voltage value for display 	purposes.</p>
+        <p align="left">&nbsp;</p>
       </blockquote>
-      <p align="left"><U><strong>Acquisition 	Start/End –</strong></U> Specify the triggering configuration for the acquisition.  The 	acquisition can be triggered to start via a software trigger 	(Stimulate OpenGL II announcing a plugin start), a hardware trigger 	(the photodiode), or a software timer. </p>
-      <p align="left"> <br />
+      <p align="left"><U><strong>Intan 	MUX Mapping...</strong></U></p>
+      <blockquote>
+        <p align="left"> Clicking this button pops up a GUI dialog where you may specify the 	mapping from      </p>
+        <blockquote>
+          <p align="left"><em>Intan 	Chip/Channel → Pin channel → Electrode channel</em><br />
           </p>
-      <p align="left"> <U><strong>Photodiode Controlled Start &amp; End –</strong></U> The acquisition is triggered to start and end by the photodiode 	input channel.  It starts when the photodiode AI channel crosses a 	threshold, and is stopped when the photodiode electrode is below 	threshold for a certain amount of time (defaults to 500 ms).</p>
-      <p align="left"> <br />
+        </blockquote>
+        <p align="left">The 	purpose of this mapping is for GUI display purposes only and affects 	how graphs are labeled in the GUI in Intan/MUX mode only.</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>AI 	Channel List</strong></U> </p>
+      <blockquote>
+        <p align="left">The list of analog input channels to use for the acquisition.  The 	syntax for this list is a comma-separated list of integer values 	from 0-NUM_AI_CHANS.  Ranges may be specified with ':' notation e.g. <em>0:4. </em>An 	example channel list would be: <em>0:4,5,7</em>. </p>
+        <p align="left">Note 	that in Intan/MUX mode, the first 4 (or 8 if using Intan 120 mode) 	AI channels specified are assumed to be connected to the INTAN in 	increasing chip/channel order, and thus are subject to 	de-multiplexing. </p>
+        <p align="left">In 	Intan/MUX mode, any channels not connected to the Intan are 	considered auxiliary (AUX) channels and are not de-multiplexed – 	they are graphed verbatim as they come in off the board. </p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>AO 	Passthru</strong></U> </p>
+      <blockquote>
+        <p align="left">If enabled, then pass-thru (echo) AI channels back out to AO 	(post-demux).  This requires that a board with an analog output 	subdevice be present on the system.  This option contains the 	following sub-options:</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>Device </strong></U></p>
+      <blockquote>
+        <p align="left"> Specifies which NI board installed on the system to use for AO 	passthru.  The board in question must have analog output capability.</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>Range</strong></U> </p>
+      <blockquote>
+        <p align="left">The range (gain) setting to use when writing samples to the AO 	channel(s).  Note that samples are written as raw 16-bit integers to 	the board, as they came in from AI.  Thus scaling up/down may occur 	if the gain setting on the AI channels differs from the AO gain 	setting.</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>AO Channel List </strong></U></p>
+      <blockquote>
+        <p align="left">A list of the form AOCHAN=CHANINDEX, ….</p>
+        <blockquote>
+          <p align="left">For 	example, if we want AO channel 0 to be a passthru for AI graph 	number 23, we would say: <br />
           </p>
-      <p align="left"> <U><strong>Photodiode AI channel –</strong></U> Specify which AI channel on the DAQ card is connected to the 	photodiode.</p>
-      <p align="left"> <br />
+          <p align="left"> 0=23<br />
           </p>
-      <p align="left"> <U><strong>Threshold (volts) –</strong></U> Specify the threshold for the photodiode in volts.  If the 	photodiode signal crosses the threshold, then it is considered 	'high' or asserted.  The acquisition initially triggers on the first 	threshold crossing.</p>
-      <p align="left"> <br />
+          <p align="left"> If 	we also want AO channel 1 to be a passthru for AI graph number 4, we 	would do: <br />
           </p>
-      <p align="left"> <U><strong>AO Passthru –</strong></U> Optionally pass-thru the photodiode input channel back out to analog 	output.  This option is disabled if AO pass-thru is disabled above. </p>
-      <p align="left"> <br />
+          <p align="left"> 0=23, 	1=4<br />
           </p>
-      <p align="left"> <U><strong>PD Stop time (secs) –</strong></U> The acquisition is stopped when the photodiode channel is below 	threshold for this period of time in seconds.</p>
-      <p align="left"> <br />
+          <p align="left"><em>Nota 	bene: The reason the AI channel is specified as a channel index 	rather than an AI channel id number is that the pass-thru is done 	post-multiplexing, thus only virtual channel index numbers (graph 	numbers in the GUI display) make sense here.</em><br />
+          </p>
+          <p align="left"><em>Nota 	bene #2: While passing data coming in from AI back out to AO may be 	useful in some situations, it should be bourn in mind that AO output 	signals will be delayed in time with respect to their corresponding 	AI inputs.  This is because DAQ AI and AO are buffered on the board 	and in software. This manifests itself as a time delay when writing 	samples that arrive from AI back out to AO.  In short, there is a 	delay between when a data sample physically arrives to an AI 	channel, is buffered to memory on the DAQ board, is read by the 	software, and is eventually written back out to the AO hardware 	again. </em></p>
+          <p align="left">&nbsp;</p>
+        </blockquote>
+      </blockquote>
+      <p align="left"><U><strong>Acquisition 	Start/End</strong></U> </p>
+      <blockquote>
+        <p align="left">Specify the triggering configuration for the acquisition.  The 	acquisition can be triggered to start via a software trigger 	(Stimulate OpenGL II announcing a plugin start), a hardware trigger 	(the photodiode), or a software timer.<br />
       </p>
-      <p align="left"> <U><strong>Photodiode Controlled Start Only –</strong></U> Same as above, except that the acquisition runs indefinitely and 	does not auto-stop if the photodiode electrode is silent.</p>
-      <p align="left"> <br />
+      </blockquote>
+      <blockquote>
+        <p align="left"> <U><strong>Photodiode Controlled Start &amp; End</strong></U> </p>
+        <blockquote>
+          <p align="left">The acquisition is triggered to start and end by the photodiode 	input channel.  It starts when the photodiode AI channel crosses a 	threshold, and is stopped when the photodiode electrode is below 	threshold for a certain amount of time (defaults to 500 ms).<br />
           </p>
-      <p align="left"> <U><strong>Timed –</strong></U> Specifies that acquisition is to be scheduled to start some time in 	the future, and to  run for a specific period of time.</p>
-      <p align="left"> <br />
+        </blockquote>
+        <blockquote>
+          <p align="left"> <U><strong>Photodiode AI channel </strong></U></p>
+          <blockquote>
+            <p align="left"> Specify which AI channel on the DAQ card is connected to the 	photodiode.<br />
+            </p>
+          </blockquote>
+          <p align="left"> <U><strong>Threshold (volts) </strong></U></p>
+          <blockquote>
+            <p align="left"> Specify the threshold for the photodiode in volts.  If the 	photodiode signal crosses the threshold, then it is considered 	'high' or asserted.  The acquisition initially triggers on the first 	threshold crossing.<br />
+            </p>
+          </blockquote>
+          <p align="left"> <U><strong>AO Passthru </strong></U></p>
+          <blockquote>
+            <p align="left"> Optionally pass-thru the photodiode input channel back out to analog 	output.  This option is disabled if AO pass-thru is disabled above.<br />
+            </p>
+          </blockquote>
+          <p align="left"> <U><strong>PD Stop time (secs) </strong></U></p>
+          <blockquote>
+            <p align="left"> The acquisition is stopped when the photodiode channel is below 	threshold for this period of time in seconds.<br />
           </p>
-      <p align="left"> <U><strong>StimulateOpenGLII Plugin Start &amp; End –</strong></U> Specifies that the acquisition is to be triggered to start and end 	by the 'Stimulate OpenGL II' program when it starts and ends a 	plugin.  The 'Stimulate OpenGL II' program may be running on the 	same system or a different system, provided that it can reach this 	system via the network.  NB: To configure how StimulateOpenGL II 	communicates with this program, select the <strong><em>Options 	→ StimGL Integration Options </em></strong>menu 	option (in most cases the defaults are fine, however).</p>
-      <p align="left"> <br />
+          </blockquote>
+        </blockquote>
+        <p align="left"> <U><strong>Photodiode Controlled Start Only </strong></U></p>
+        <blockquote>
+          <p align="left"> Same as above, except that the acquisition runs indefinitely and 	does not auto-stop if the photodiode electrode is silent.<br />
+      </p>
+        </blockquote>
+      </blockquote>
+      <blockquote>
+        <p align="left"> <U><strong>Timed</strong></U> </p>
+        <blockquote>
+          <p align="left">Specifies that acquisition is to be scheduled to start some time in 	the future, and to  run for a specific period of time.<br />
+      </p>
+        </blockquote>
+      
+        <p align="left"> <U><strong>StimulateOpenGLII Plugin Start &amp; End </strong></U></p>
+        <blockquote>
+          <p align="left"> Specifies that the acquisition is to be triggered to start and end 	by the 'Stimulate OpenGL II' program when it starts and ends a 	plugin.  The 'Stimulate OpenGL II' program may be running on the 	same system or a different system, provided that it can reach this 	system via the network.  NB: To configure how StimulateOpenGL II 	communicates with this program, select the <strong><em>Options 	→ StimGL Integration Options </em></strong>menu 	option (in most cases the defaults are fine, however). <br />
           </p>
-      <p align="left"> <U><strong>StimulateOpenGLII Plugin Start Only –</strong></U> Like the above option, except that the acquisition will run 	indefinitely and will not auto-stop upon StimGL plugin end. </p>
-      <p align="left"> <br />
-          </p>
-      <p align="left"><U><strong>Disable 	data graphs –</strong></U><strong> </strong>If 	this option is checked, then the graphs window is not created and 	data is not graphed to the screen (it is only streamed to disk).  	This option is useful in situations where the realtime display is 	not needed or if the realtime display is unable to keep up with the 	incoming data (which can happen on a system that has non-accelerated 	OpenGL drivers). </p>
+        </blockquote>
+        <p align="left"> <U><strong>StimulateOpenGLII Plugin Start Only</strong></U></p>
+        <blockquote>
+          <p align="left"> Like the above option, except that the acquisition will run 	indefinitely and will not auto-stop upon StimGL plugin end. </p>
+          <p align="left">&nbsp;</p>
+        </blockquote>
+      </blockquote>
+      <p align="left"><U><strong>Disable 	data graphs</strong></U></p>
+      <blockquote>
+        <p align="left">If 	this option is checked, then the graphs window is not created and 	data is not graphed to the screen (it is only streamed to disk).  	This option is useful in situations where the realtime display is 	not needed or if the realtime display is unable to keep up with the 	incoming data (which can happen on a system that has non-accelerated 	OpenGL drivers). </p>
+      </blockquote>
       <p align="left"><br />
-          </p>
+      </p>
       <p align="left"><br />
-          </p>
+      </p>
     </blockquote>
 </div>
 <p align="left"> <U><a name="Graphs" class="style2">III. The Graphs Window</a></U></p>
@@ -227,33 +296,63 @@
   <p align="center"> <img src="LeoDAQGL-help-GraphsWindow.png" alt="GraphsWindow" width="488" height="479" longdesc="The graphs window" /><br />
   </p>
   <p align="left">&nbsp;</p>
-  <p align="left"><U><strong>Channel –</strong></U> This is basically the name of the graph.  The naming convention is such that AI or AUX channels indicate real analog input channels, whereas Ixx_Cyy style names indicate a demultiplexed Intan/MUX channel.</p>
+  <p align="left"><U><strong>Channel </strong></U></p>
+  <blockquote>
+    <p align="left"> This is basically the name of the graph.  The naming convention is such that AI or AUX channels indicate real analog input channels, whereas Ixx_Cyy style names indicate a demultiplexed Intan/MUX channel.</p>
+  </blockquote>
   <p align="left">&nbsp;</p>
-  <p align="left"><U><strong>Pause Button –</strong></U> Toggles the graph pause state.  When paused, all the graphs are frozen but data is still streamed to disk.  Pausing the graphs is useful in some situations when closely studying the input signals, etc.</p>
+  <p align="left"><U><strong>Pause Button </strong></U></p>
+  <blockquote>
+    <p align="left"> Toggles the graph pause state.  When paused, all the graphs are frozen but data is still streamed to disk.  Pausing the graphs is useful in some situations when closely studying the input signals, etc.</p>
+  </blockquote>
   <p align="left"><br />
   </p>
-  <p align="left"><U><strong>Maximize/Restore Button –</strong></U> Maximize the currently selected graph so that it is the only one displayed. If it is already maximized, restores it back to unmaximized mode.  This is useful when closely studying a particular graph.</p>
+  <p align="left"><U><strong>Maximize/Restore Button </strong></U></p>
+  <blockquote>
+    <p align="left"> Maximize the currently selected graph so that it is the only one displayed. If it is already maximized, restores it back to unmaximized mode.  This is useful when closely studying a particular graph.</p>
+  </blockquote>
   <p align="left"><br />
   </p>
-  <p align="left"><U><strong>Seconds and Yscale –</strong></U> Specifies the horizontal (time, seconds) and vertical scale of the currently selected graph.  Modifying these values affects the scale of the graph in the X and Y dimensions, respectively.</p>
+  <p align="left"><U><strong>Seconds and Yscale </strong></U></p>
+  <blockquote>
+    <p align="left"> Specifies the horizontal (time, seconds) and vertical scale of the currently selected graph.  Modifying these values affects the scale of the graph in the X and Y dimensions, respectively.</p>
+  </blockquote>
   <p align="left"><br />
   </p>
-  <p align="left"><U><strong>Color –</strong></U> Specify the currently selected graph's foreground color.</p>
+  <p align="left"><U><strong>Color</strong></U> </p>
+  <blockquote>
+    <p align="left">Specify the currently selected graph's foreground color.</p>
+  </blockquote>
   <p align="left"><br />
   </p>
-  <p align="left"><U><strong>Apply-All Button –</strong></U> Applies the currently selected graph's Seconds, YScale and Color setting to all the graphs.</p>
+  <p align="left"><U><strong>Apply-All Button </strong></U></p>
+  <blockquote>
+    <p align="left"> Applies the currently selected graph's Seconds, YScale and Color setting to all the graphs.</p>
+  </blockquote>
   <p align="left"><br />
   </p>
-  <p align="left"><U><strong>Downsample (1 KHz) –</strong></U> Checking this will downsample the graphs display to 1 KHz (if and only if the acquisition is running at &gt; 1 KHz per channel). This option is useful in order to reduce the overhead associated with graphing the AI data, since the graphs themselves are often small and lack the screen resolution to display data finer than 1 KHz anyway. </p>
+  <p align="left"><U><strong>Downsample (1 KHz) </strong></U></p>
+  <blockquote>
+    <p align="left"> Checking this will downsample the graphs display to 1 KHz (if and only if the acquisition is running at &gt; 1 KHz per channel). This option is useful in order to reduce the overhead associated with graphing the AI data, since the graphs themselves are often small and lack the screen resolution to display data finer than 1 KHz anyway. </p>
+  </blockquote>
   <p align="left"><br />
   </p>
-  <p align="left"><U><strong>Filter &lt;300Hz –</strong></U> If checked, apply a high-pass filter to the graphs at 300Hz.  High pass filtering is useful to eliminate DC offsets from the displayed input signal.  Note that the filter is not applied to the data as it is saved to disk, only to the data that appears on-screen.</p>
+  <p align="left"><U><strong>Filter &lt;300Hz </strong></U></p>
+  <blockquote>
+    <p align="left"> If checked, apply a high-pass filter to the graphs at 300Hz.  High pass filtering is useful to eliminate DC offsets from the displayed input signal.  Note that the filter is not applied to the data as it is saved to disk, only to the data that appears on-screen.</p>
+  </blockquote>
   <p align="left"><br />
   </p>
-  <p align="left"><U><strong>Fast Settle –</strong></U> This button is only clickable in Intan/MUX acquisition mode.  Clicking it resets the Intan by setting the DO control line low and then high again.  See the '<a href="#Configuring">Configuring an Acquisition</a>' section for more information on the DO control line or fast settle time parameters.</p>
+  <p align="left"><U><strong>Fast Settle </strong></U></p>
+  <blockquote>
+    <p align="left"> This button is only clickable in Intan/MUX acquisition mode.  Clicking it resets the Intan by setting the DO control line low and then high again.  See the '<a href="#Configuring">Configuring an Acquisition</a>' section for more information on the DO control line or fast settle time parameters.</p>
+  </blockquote>
   <p align="left"><br />
   </p>
-  <p align="left"><U><strong>Toggle save –</strong></U> Manually open/close the data file.  When this box is unchecked, the data file is closed and no data is being saved to disk.  When it is checked, the data file is (re)opened and data is being saved to disk.  Note that re-opening the same data file repeatedly overwrites it each time it is reopened.  You may also type a data file name into the line-edit next to this checkbox to change the save file name.</p>
+  <p align="left"><U><strong>Toggle save </strong></U></p>
+  <blockquote>
+    <p align="left"> Manually open/close the data file.  When this box is unchecked, the data file is closed and no data is being saved to disk.  When it is checked, the data file is (re)opened and data is being saved to disk.  Note that re-opening the same data file repeatedly overwrites it each time it is reopened.  You may also type a data file name into the line-edit next to this checkbox to change the save file name.</p>
+  </blockquote>
   <p align="left">&nbsp;</p>
 </blockquote>
 <p align="left"><U><a name="Datafile" class="style2">IV. Datafile Integrity</a></U></p>
@@ -261,15 +360,19 @@
   <p align="left">What you put into a data file should be what you get back.  Additionally, errors in a data file should be detectible and optionally correctible.  Two mechanisms exist to help ensure that the data you put in is what you get back.  The SHA1 sum detects errors, and the PAR2 redundancy files can help repair errors.</p>
   <blockquote>
     <p align="left"><U><a name="SHA1">SHA1 	Sum</a></U> </p>
-    <p align="left"> Each data file has an 	SHA1 sum that is saved in its .meta file.  This checksum is useful 	for verifying the data file's integrity.  If the SHA1 sum of a data 	file differs from the sum computed at save time, then the file is 	known to be corrupt.  (Conversely, if the sum validates ok, then 	there is nearly certain probability that the file is not corrupt).  	Use the <strong><em>Tools → Verify SHA1... </em></strong>menu 	option to verify a previously-saved data file's SHA1 sum.</p>
+    <blockquote>
+      <p align="left"> Each data file has an 	SHA1 sum that is saved in its .meta file.  This checksum is useful 	for verifying the data file's integrity.  If the SHA1 sum of a data 	file differs from the sum computed at save time, then the file is 	known to be corrupt.  (Conversely, if the sum validates ok, then 	there is nearly certain probability that the file is not corrupt).  	Use the <strong><em>Tools → Verify SHA1... </em></strong>menu 	option to verify a previously-saved data file's SHA1 sum.</p>
+    </blockquote>
   </blockquote>
   <p align="left"> <br />
   </p>
   <blockquote>
     <p align="left"><a name="PAR2"> <U>PAR2 Redundancy Tool</U></a></p>
-    <p align="left">PAR2 stands for Parity ARchive 2.  It is a file format popularized by Usenet binary distributors to help detect and correct errors in data files.  The workflow for using PAR2 is as follows: One creates PAR2 files to go along with one or more data files.  Then, at some point in the future if the data files (and/or the PAR2 files) become corrupt, it is possible to detect and correct errors in the data files (up to the redundancy percentage specified at PAR2 creation time). </p>
-    <p align="left">For example, if you have a file named data.bin, and you wanted to be able to correct for up to 5% loss of data (corruption) in that file, you would use the PAR2 redundancy tool to create a set of PAR2 files to go along with data.bin, specifying 5% redundancy.  The size of the PAR2 files produced will be roughly 5% of the original data.bin.  If one has the PAR2 files on hand in the future, then up to 5% corruption can occur in data.bin, and it can be reconstructed given the corrupt data.bin and the PAR2 redundancy files.  Disk space is essentially traded-off for redundancy and decreased probability of permanent data loss.</p>
-    <p align="left"> To create PAR2 archives and/or verify/repair data using PAR2 files, use the built-in redundancy tool GUI available in the <strong><em>Tools → PAR2 Redundancy Tool </em></strong>menu option.</p>
+    <blockquote>
+      <p align="left">PAR2 stands for Parity ARchive 2.  It is a file format popularized by Usenet binary distributors to help detect and correct errors in data files.  The workflow for using PAR2 is as follows: One creates PAR2 files to go along with one or more data files.  Then, at some point in the future if the data files (and/or the PAR2 files) become corrupt, it is possible to detect and correct errors in the data files (up to the redundancy percentage specified at PAR2 creation time). </p>
+      <p align="left">For example, if you have a file named data.bin, and you wanted to be able to correct for up to 5% loss of data (corruption) in that file, you would use the PAR2 redundancy tool to create a set of PAR2 files to go along with data.bin, specifying 5% redundancy.  The size of the PAR2 files produced will be roughly 5% of the original data.bin.  If one has the PAR2 files on hand in the future, then up to 5% corruption can occur in data.bin, and it can be reconstructed given the corrupt data.bin and the PAR2 redundancy files.  Disk space is essentially traded-off for redundancy and decreased probability of permanent data loss.</p>
+      <p align="left"> To create PAR2 archives and/or verify/repair data using PAR2 files, use the built-in redundancy tool GUI available in the <strong><em>Tools → PAR2 Redundancy Tool </em></strong>menu option.</p>
+    </blockquote>
   </blockquote>
   <p align="left"> <br />
   </p>
