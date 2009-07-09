@@ -25,6 +25,7 @@
 #include <QMenu>
 #include <QAction>
 #include <QProgressDialog>
+#include <QDialog>
 #include "Icon.xpm"
 #include "ParWindowIcon.xpm"
 #include "ConfigureDialogController.h"
@@ -34,6 +35,7 @@
 #include "Par2Window.h"
 #include "ui_StimGLIntegration.h"
 #include "StimGL_LeoDAQGL_Integration.h"
+#include "ui_TextBrowser.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -72,7 +74,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false)
+    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -148,6 +150,7 @@ MainApp::~MainApp()
     delete par2Win, par2Win = 0;
     delete configCtl, configCtl = 0;
     delete sysTray, sysTray = 0;
+    delete helpWindow, helpWindow = 0;
     singleton = 0;
 }
 
@@ -451,6 +454,8 @@ void MainApp::initActions()
              SIGNAL(triggered()), this, SLOT(respecAOPassthru()));
     aoPassthruAct->setEnabled(false);
     
+    Connect( helpAct = new QAction("LeoDAQGL &Help", this), 
+             SIGNAL(triggered()), this, SLOT(help()));
     Connect( aboutAct = new QAction("&About", this), 
              SIGNAL(triggered()), this, SLOT(about()));
     Connect(aboutQtAct = new QAction("About &Qt", this),
@@ -1133,4 +1138,18 @@ void MainApp::respecAOPassthru()
     if (task) {
         configCtl->showAOPassThruDlg();
     }
+}
+
+void MainApp::help()
+{
+    if (!helpWindow) {
+        Ui::TextBrowser tb;
+        helpWindow = new QDialog(0);
+        helpWindow->setWindowTitle("LeoDAQGL Help");
+        tb.setupUi(helpWindow);
+        tb.textBrowser->setSearchPaths(QStringList("qrc:/"));
+        tb.textBrowser->setSource(QUrl("qrc:/LeoDAQGL-help-manual.html"));
+    }
+    helpWindow->show();
+    helpWindow->setMaximumSize(helpWindow->size());
 }

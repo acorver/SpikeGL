@@ -29,6 +29,7 @@ class QAction;
 class ConfigureDialogController;
 class GraphsWindow;
 class Par2Window;
+class QDialog;
 #include "StimGL_LeoDAQGL_Integration.h"
 
 /**
@@ -99,6 +100,10 @@ public slots:
     void toggleDebugMode(); 
     /// Pops up the application "About" dialog box
     void about();
+
+    /// Pops up the help browser featuring the help document
+    void help();
+
     /// \brief Prompts the user to pick a save directory.
     /// @see setOutputDirectory 
     /// @see outputDirectory
@@ -203,6 +208,7 @@ private:
     Par2Window *par2Win;
     StimGL_LeoDAQGL_Integration::NotifyServer *notifyServer;
     bool fastSettleRunning;
+    QDialog *helpWindow;
 
     WrapBuffer preBuf;
 
@@ -211,7 +217,7 @@ public:
 /// Main application actions!
     QAction 
         *quitAct, *toggleDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
-        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct;
+        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon;

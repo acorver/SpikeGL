@@ -36,6 +36,8 @@ ConsoleWindow::ConsoleWindow(QWidget *p, Qt::WindowFlags f)
     m->addAction(app->verifySha1Act);
     m->addAction(app->par2Act);
     m = mb ->addMenu("&Help");
+    m->addAction(app->helpAct);
+    m->addSeparator();
     m->addAction(app->aboutAct);
     m->addAction(app->aboutQtAct);
 

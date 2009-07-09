@@ -138,8 +138,9 @@ void setRTPriority()
 } // end namespace util
 
 /// sets the process affinity mask -- a bitset of which processors to run on
-void setProcessAffinityMask(unsigned mask)
+extern "C" void setProcessAffinityMask(unsigned mask)
 {
+    (void)mask;
     Warning() << "`Set process affinity mask' for this platform unimplemented -- ignoring.";
 }
 

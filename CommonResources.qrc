@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/" >
+        <file>LeoDAQGL-help-manual.html</file>
+        <file>LeoDAQGL-help-ConfigWindow.png</file>
+        <file>LeoDAQGL-help-GraphsWindow.png</file>
+        <file>back.png</file>
+        <file>forward.png</file>
+    </qresource>
+</RCC>
