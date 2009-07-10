@@ -346,7 +346,7 @@ void MainApp::updateStatusBar()
 
 /** \brief A helper class that helps prevent reentrancy into certain functions.
 
-    Mainly MainApp::loadStim(), MainApp::unloadStim(), and MainApp::pickOutputDir() make use of this class to prevent recursive calls into themselves. 
+    Mainly MainApp::pickOutputDir() makes use of this class to prevent recursive calls into itself. 
 
     Functions that want to be mutually exclusive with respect to each other
     and non-reentrant with respect to themselves need merely construct an 
@@ -504,7 +504,8 @@ void MainApp::newAcq()
         preBuf.clear();
         preBuf.reserve(0);
         if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd)) {
-            int szSamps = params.nVAIChans*params.srate*DEFAULT_PD_SILENCE;
+            const double sil = params.silenceBeforePD > 0. ? params.silenceBeforePD : DEFAULT_PD_SILENCE;
+            int szSamps = params.nVAIChans*params.srate*sil;
             if (szSamps % params.nVAIChans) 
                 szSamps += params.nVAIChans - szSamps%params.nVAIChans;
             preBuf.reserve(szSamps*sizeof(int16));

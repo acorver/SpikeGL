@@ -243,6 +243,11 @@
             <p align="left"> Specify the threshold for the photodiode in volts.  If the 	photodiode signal crosses the threshold, then it is considered 	'high' or asserted.  The acquisition initially triggers on the first 	threshold crossing.<br />
             </p>
           </blockquote>
+          <p align="left"> <U><strong>Pre. (ms) </strong></U></p>
+          <blockquote>
+            <p align="left"> The amount of time in milliseconds to preamble the first PD pulse on trigger.  This parameter ensures data files have a regular amount of leading whitespace before the PD trigger, so that the PD trigger pulse appears at a constant-offset (in time) from the beginning of the data file.<br />
+            </p>
+          </blockquote>
           <p align="left"> <U><strong>AO Passthru </strong></U></p>
           <blockquote>
             <p align="left"> Optionally pass-thru the photodiode input channel back out to analog 	output.  This option is disabled if AO pass-thru is disabled above.<br />
