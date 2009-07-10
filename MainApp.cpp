@@ -506,6 +506,7 @@ void MainApp::newAcq()
         if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd)) {
             const double sil = params.silenceBeforePD > 0. ? params.silenceBeforePD : DEFAULT_PD_SILENCE;
             int szSamps = params.nVAIChans*params.srate*sil;
+            if (szSamps <= 0) szSamps = params.nVAIChans;
             if (szSamps % params.nVAIChans) 
                 szSamps += params.nVAIChans - szSamps%params.nVAIChans;
             preBuf.reserve(szSamps*sizeof(int16));
