@@ -11,14 +11,18 @@
 #include <QPoint>
 #include <QMouseEvent>
 
-GLGraph::GLGraph(QWidget *parent, QMutex *mut)
-    : QGLWidget(parent), ptsMut(mut),
-      bg_Color(0x2f, 0x4f, 0x4f), graph_Color(0xee, 0xdd, 0x82), grid_Color(0x87, 0xce, 0xfa, 0x7f),
-      min_x(0.), max_x(1.), 
-      gridLineStipplePattern(0xf0f0), // 4pix on 4 off 4 on 4 off
-      auto_update(true), need_update(false)
-    
+void GLGraph::reset(QWidget *prnt, QMutex *mut)
 {
+    setParent(prnt);
+    ptsMut = mut;
+    bg_Color = QColor(0x2f, 0x4f, 0x4f);
+    graph_Color = QColor(0xee, 0xdd, 0x82);
+    grid_Color = QColor(0x87, 0xce, 0xfa, 0x7f);
+    min_x = 0., max_x = 1.; 
+    gridLineStipplePattern = 0xf0f0; // 4pix on 4 off 4 on 4 off
+    auto_update = true;
+    need_update = false;
+
     yscale = 1.;
     pointsWB = 0;
     auto_update = false;
@@ -27,6 +31,18 @@ GLGraph::GLGraph(QWidget *parent, QMutex *mut)
     auto_update = true;
 
     setAutoBufferSwap(true);
+}
+
+GLGraph::GLGraph(QGLContext *ctx, QWidget *p, QMutex *mut)
+    : QGLWidget(ctx, p), ptsMut(mut)
+{
+    reset(p, mut);
+}
+
+GLGraph::GLGraph(QWidget *parent, QMutex *mut)
+    : QGLWidget(parent), ptsMut(mut)    
+{
+    reset(parent, mut);
 }
 
 GLGraph::~GLGraph() 

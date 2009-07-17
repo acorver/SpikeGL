@@ -24,6 +24,7 @@
 #include <math.h>
 #include "MainApp.h"
 #include "HPFilter.h"
+#include "GLContextPool.h"
 #include "play.xpm"
 #include "pause.xpm"
 #include "window_fullscreen.xpm"
@@ -55,8 +56,8 @@ static void initIcons()
     }
 }
 
-GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.)
+GraphsWindow::GraphsWindow(GLContextPool & gpool, DAQ::Params & p, QWidget *parent, bool isSaving)
+    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), gpool(gpool)
 {    
     initIcons();
     setCentralWidget(graphsWidget = new QWidget(this));
@@ -163,7 +164,7 @@ GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
             if (num >= (int)graphs.size()) { r=nrows,c=ncols; break; } // break out of loop
             QFrame *f = graphFrames[num] = new QFrame(graphsWidget);
             QVBoxLayout *bl = new QVBoxLayout(f);
-            graphs[num] = new GLGraph(f);
+            graphs[num] = new GLGraph(gpool.take(), f);
             // do this for all the graphs.. disable vsync!
             graphs[num]->makeCurrent();
             Util::setVSyncMode(false, num == 0);
@@ -210,6 +211,7 @@ GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
 
 GraphsWindow::~GraphsWindow()
 {
+    mainApp()->resetPrecreateContexts();
     if (filter) delete filter, filter = 0;
 }
 

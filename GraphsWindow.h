@@ -18,12 +18,13 @@ class QFrame;
 class QDoubleSpinBox;
 class QCheckBox;
 class HPFilter;
+class GLContextPool;
 
 class GraphsWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    GraphsWindow(DAQ::Params & params, QWidget *parent = 0, bool isSaving = true);
+    GraphsWindow(GLContextPool & theGraphPool, DAQ::Params & params, QWidget *parent = 0, bool isSaving = true);
     ~GraphsWindow();
 
     void putScans(std::vector<int16> & scans, u64 firstSamp);
@@ -102,6 +103,7 @@ private:
     Vec2 lastMousePos;
     int lastMouseOverGraph;
     int selectedGraph;
+    GLContextPool  & gpool;
 };
 
 

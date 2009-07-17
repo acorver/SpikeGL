@@ -66,7 +66,7 @@ namespace DAQ
         for (int devnum = 1; devnum <= 16; ++devnum) {
             memset(myDoubleArray, 0, sizeof(myDoubleArray));
             QString dev( QString("Dev%1").arg(devnum) );
-            if (!DAQmxFailed(DAQmxGetDevAIVoltageRngs(dev.toUtf8().constData(), myDoubleArray, 512))) {
+            if (!DAQmxFailed(DAQmxGetDevAOVoltageRngs(dev.toUtf8().constData(), myDoubleArray, 512))) {
                 for (int i=0; i<512; i=i+2) {
                     r.min = myDoubleArray[i];
                     r.max = myDoubleArray[i+1];
@@ -434,8 +434,11 @@ namespace DAQ
                 if (nScansWritten != nScansToWrite) {
                     Error() << "nScansWritten (" << nScansWritten << ") != nScansToWrite (" << nScansToWrite << ")";
                     break;
-                }                    
-                Debug() << "AOWrite #" << aoWriteCt << " " << nScansWritten << " scans " << aoChansSize << " chans" << " (bufsize=" << aoBufferSize << ") took: " << (getTime()-t0) << " secs";
+                }    
+                const double tWrite(getTime()-t0);
+                if (tWrite > 0.250) {
+                    Debug() << "AOWrite #" << aoWriteCt << " " << nScansWritten << " scans " << aoChansSize << " chans" << " (bufsize=" << aoBufferSize << ") took: " << tWrite << " secs";
+                }
                 ++aoWriteCt;
                 sampIdx += nScansWritten*aoChansSize;
             }

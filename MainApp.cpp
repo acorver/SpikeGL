@@ -26,6 +26,8 @@
 #include <QAction>
 #include <QProgressDialog>
 #include <QDialog>
+#include <QGLFormat>
+#include <QGLContext>
 #include "Icon.xpm"
 #include "ParWindowIcon.xpm"
 #include "ConfigureDialogController.h"
@@ -36,6 +38,7 @@
 #include "ui_StimGLIntegration.h"
 #include "StimGL_LeoDAQGL_Integration.h"
 #include "ui_TextBrowser.h"
+#include "GLContextPool.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -74,7 +77,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false)
+    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), gpool(0)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -83,6 +86,7 @@ MainApp::MainApp(int & argc, char ** argv)
     }
     singleton = this;
     if (!::init) ::init = new Init;
+    gpool = new GLContextPool(this);
     setQuitOnLastWindowClosed(false);
     loadSettings();
 
@@ -127,6 +131,8 @@ MainApp::MainApp(int & argc, char ** argv)
 
     setupStimGLIntegration();
 
+    resetPrecreateContexts(); // may call itself multiple times from a timer
+
 #ifdef Q_OS_WIN
     initializing = false;
     Log() << "Application initialized";    
@@ -153,6 +159,7 @@ MainApp::~MainApp()
     delete helpWindow, helpWindow = 0;
     singleton = 0;
 }
+
 
 bool MainApp::isDebugMode() const
 {
@@ -498,6 +505,7 @@ void MainApp::newAcq()
         lastScanSz = 0;
         tNow = getTime();
         taskShouldStop = false;
+        pdWaitingForStimGL = false;
         last5PDSamples.reserve(5);
         last5PDSamples.clear();
         DAQ::Params & params (configCtl->acceptedParams);
@@ -510,16 +518,20 @@ void MainApp::newAcq()
 
         preBuf.clear();
         preBuf.reserve(0);
+        preBuf2.clear();
+        preBuf2.reserve(0);
         if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd)) {
             const double sil = params.silenceBeforePD > 0. ? params.silenceBeforePD : DEFAULT_PD_SILENCE;
+            if (params.stimGlTrigResave) pdWaitingForStimGL = true;
             int szSamps = params.nVAIChans*params.srate*sil;
             if (szSamps <= 0) szSamps = params.nVAIChans;
             if (szSamps % params.nVAIChans) 
                 szSamps += params.nVAIChans - szSamps%params.nVAIChans;
             preBuf.reserve(szSamps*sizeof(int16));
+            preBuf2.reserve(szSamps*sizeof(int16));
         }
 
-        graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen());
+        graphsWindow = new GraphsWindow(*gpool, params, 0, dataFile.isOpen());
         graphsWindow->setAttribute(Qt::WA_DeleteOnClose, false);
 
         graphsWindow->setWindowIcon(appIcon);
@@ -630,6 +642,28 @@ void MainApp::gotDaqError(const QString & e)
     stopTask();
 }
 
+/* static */
+void MainApp::xferWBToScans(WrapBuffer & preBuf, std::vector<int16> & scans,
+                            u64 & firstSamp, i64 & scan0Fudge)
+{
+    void *ptr=0;
+    unsigned lenBytes=0;
+    preBuf.dataPtr2(ptr, lenBytes);
+    int added = 0,num;
+    if (ptr) {
+        scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr), reinterpret_cast<int16 *>(ptr)+(num=lenBytes/sizeof(int16)));
+        added += num;
+    }
+    preBuf.dataPtr1(ptr, lenBytes);
+    if (ptr) {
+        scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr), reinterpret_cast<int16 *>(ptr)+(num=lenBytes/sizeof(int16)));
+        added += num;
+    }
+    firstSamp -= u64(added);
+    scan0Fudge -= added;
+    preBuf.clear();    
+}
+
 ///< called from a timer at 30Hz
 void MainApp::taskReadFunc() 
 { 
@@ -664,27 +698,17 @@ void MainApp::taskReadFunc()
                 }
             }
         } 
-        // not an else because both if clauses are true on first trigger
+
+        // normally always pre-buffer the scans in case we get a re-trigger event
+        preBuf2.putData(&scans[0], scans.size()*sizeof(scans[0]));
+
+			// not an else because both if clauses are true on first trigger
         
         if (!taskWaitingForTrigger) { // task not waiting from trigger, normal acq..
             if (preBuf.size()) {
-                void *ptr=0;
-                unsigned lenBytes=0;
-                preBuf.dataPtr2(ptr, lenBytes);
-                int added = 0,num;
-                if (ptr) {
-                    scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr), reinterpret_cast<int16 *>(ptr)+(num=lenBytes/sizeof(int16)));
-                    added += num;
-                }
-                preBuf.dataPtr1(ptr, lenBytes);
-                if (ptr) {
-                    scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr), reinterpret_cast<int16 *>(ptr)+(num=lenBytes/sizeof(int16)));
-                    added += num;
-                }
-                firstSamp -= u64(added);
-                scan0Fudge -= added;
-                preBuf.clear();
-            }
+                xferWBToScans(preBuf, scans, firstSamp, scan0Fudge);
+            } 
+ 
             const u64 fudgedFirstSamp = firstSamp - scan0Fudge;            
             const u64 scanSz = scans.size();
             if (!dataFile.isOpen()) scan0Fudge = firstSamp + scanSz;
@@ -747,7 +771,7 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp)
         }
         for (int i = p.idxOfPdChan; i < sz; i += p.nVAIChans) {
             const int16 samp = scans[i];
-            if (samp > p.pdThresh) {
+            if (!pdWaitingForStimGL && samp > p.pdThresh) {
                 if (last5PDSamples.size() >= 5) {
                     triggered = true, last5PDSamples.clear();
                     pdOffTimeSamps = p.srate * p.pdStopTime * p.nVAIChans;
@@ -1067,6 +1091,7 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
 
        if (p.acqStartEndMode == DAQ::PDStart || p.acqStartEndMode == DAQ::PDStartEnd) {
            taskWaitingForTrigger = true; // turns on the detect trigger code again, so we can get a constant-offset PD signal
+           pdWaitingForStimGL = false;
        }           
         updateWindowTitles();        
         ignored = false;
@@ -1111,6 +1136,13 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
         dataFile.closeAndFinalize();
         updateWindowTitles();        
         ignored = false;
+    }
+    if (task && p.stimGlTrigResave && p.acqStartEndMode == DAQ::PDStart) {
+        taskWaitingForTrigger = true;
+        preBuf = preBuf2; // we will get a re-trigger soon, so preBuffer the scans we had previously..
+        pdWaitingForStimGL = true;
+        updateWindowTitles();        
+        ignored = false;        
     }
     Debug() << "Received notification that Stim GL plugin `" << plugin << "' ended." << (ignored ? " Ignored!" : "");
 
@@ -1170,4 +1202,21 @@ void MainApp::help()
     }
     helpWindow->show();
     helpWindow->setMaximumSize(helpWindow->size());
+}
+
+void MainApp::resetPrecreateContexts()
+{
+    gpool->resetCreationCount();
+    precreateContexts();
+}
+
+void MainApp::precreateContexts()
+{
+    if (gpool->creationCount() < 64) {
+        // keep creating GLContexts until the creation count hits 64
+        gpool->put(gpool->create()); 
+        QTimer::singleShot(1, this, SLOT(precreateContexts()));
+    } else {
+        Debug () << "Pre-created 64 OpenGL contexts for the GLGraphs, done.";
+    }
 }

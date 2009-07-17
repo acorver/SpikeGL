@@ -356,8 +356,14 @@ int ConfigureDialogController::exec()
             bool err;
             QVector<unsigned> chanVect;
             QString chans = parseAIChanString(dialog->channelListLE->text(), chanVect, &err);
+            for (int i = 0; i < (int)chanVect.size(); ++i) {
+                if (chanVect[i] >= static_cast<unsigned>(aiChanLists[dev].size())) {
+                    err = true; 
+                    break;
+                }
+            }
             if (err) {
-                QMessageBox::critical(dialogW, "AI Chan List Error", "Error parsing AI channel list!\nSpecify a string of the form 0,1,2,3 or 0-3,5,6 etc!");
+                QMessageBox::critical(dialogW, "AI Chan List Error", "Error parsing AI channel list!\nSpecify a string of the form 0,1,2,3 or 0-3,5,6 of valid channel id's!");
                 again = true;
                 continue;
             }

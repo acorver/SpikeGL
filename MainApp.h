@@ -30,6 +30,7 @@ class ConfigureDialogController;
 class GraphsWindow;
 class Par2Window;
 class QDialog;
+class GLContextPool;
 #include "StimGL_LeoDAQGL_Integration.h"
 
 /**
@@ -95,6 +96,12 @@ public:
 
     QString getNewDataFileName(const QString & stimglSuffix = "") const;
 
+
+    GLContextPool & glContextPool() const { return *const_cast<GLContextPool *>(gpool); }
+
+
+    void resetPrecreateContexts();
+
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
     void toggleDebugMode(); 
@@ -156,6 +163,8 @@ protected slots:
 
     void fastSettleCompletion();
 
+    void precreateContexts();
+
 private:
     /// Display a message to the status bar
     void statusMsg(const QString & message, int timeout_msecs = 0);
@@ -171,7 +180,8 @@ private:
     void triggerTask();
     bool detectStopTask(const std::vector<int16> & scans, u64 firstSamp);
     void stimGL_SaveParams(const QMap<QString, QVariant> & pm);
-
+    static void xferWBToScans(WrapBuffer & wb, std::vector<int16> & scans,
+                              u64 & firstSamp, i64 & scan0Fudge);
 
     mutable QMutex mut; ///< used to lock outDir param for now
     ConfigureDialogController *configCtl;
@@ -210,8 +220,9 @@ private:
     bool fastSettleRunning;
     QDialog *helpWindow;
 
-    WrapBuffer preBuf;
-    bool noHotKeys;
+    WrapBuffer preBuf, preBuf2;
+    bool noHotKeys, pdWaitingForStimGL;
+    GLContextPool *gpool;
 
 public:
 
