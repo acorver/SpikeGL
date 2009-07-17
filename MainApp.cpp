@@ -74,7 +74,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0)
+    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -203,7 +203,10 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
         // globally forward all keypresses
         // if they aren't handled, then return false for normal event prop.
         QKeyEvent *k = dynamic_cast<QKeyEvent *>(event);
-        if (k && (watched == graphsWindow || watched == consoleWindow || watched == consoleWindow->textEdit() || ((!graphsWindow || watched != graphsWindow->saveFileLineEdit()) && Util::objectHasAncestor(watched, graphsWindow)))) {
+        if (k && !noHotKeys 
+            && watched != helpWindow && (!helpWindow || !Util::objectHasAncestor(watched, helpWindow)) 
+            && watched != par2Win && (!par2Win || !Util::objectHasAncestor(watched, par2Win)) 
+            && (watched == graphsWindow || watched == consoleWindow || watched == consoleWindow->textEdit() || ((!graphsWindow || watched != graphsWindow->saveFileLineEdit()) && Util::objectHasAncestor(watched, graphsWindow)))) {
             if (processKey(k)) {
                 event->accept();
                 return true;
@@ -394,12 +397,14 @@ void MainApp::pickOutputDir()
     mut.lock();
     QString od = outDir;
     mut.unlock();
+    noHotKeys = true;
     if ( !(od = QFileDialog::getExistingDirectory(0, "Choose a directory to which to save output files", od, QFileDialog::DontResolveSymlinks|QFileDialog::ShowDirsOnly)).isNull() ) { 
         mut.lock();
         outDir = od;
         mut.unlock();
         saveSettings(); // just to remember the file *now*
     }
+    noHotKeys = false;
 }
 
 void MainApp::createAppIcon()
@@ -484,7 +489,9 @@ void MainApp::newAcq()
             QMessageBox::critical(0, "Analog Input Missing!", "Could not find any analog input channels on this system!  Therefore, data acquisition is unavailable!");
             return;
     }
+    noHotKeys = true;
     int ret = configCtl->exec();
+    noHotKeys = false;
     if (ret == QDialog::Accepted) {
         scan0Fudge = 0;
         scanCt = 0;
@@ -880,7 +887,9 @@ void MainApp::updateWindowTitles()
 
 void MainApp::verifySha1()
 {
+    noHotKeys = true;
     QString dataFile = QFileDialog::getOpenFileName ( consoleWindow, "Select data file for SHA1 verification", outputDirectory());
+    noHotKeys = false;
     if (dataFile.isNull()) return;
     QFileInfo pickedFI(dataFile);
     Params p;
@@ -922,7 +931,9 @@ void MainApp::sha1VerifySuccess()
     if (task) fn = task->dataFileNameShort;    
     QString str = fn + " SHA1 sum verified ok!";
     Log() << str;
+    noHotKeys = true;
     QMessageBox::information(consoleWindow, fn + " SHA1 Verify", str);
+    noHotKeys = false;
     if (task) delete task;
     else Error() << "sha1VerifySuccess error, no task!";
 }
@@ -936,7 +947,9 @@ void MainApp::sha1VerifyFailure()
     if (task) fn = task->dataFileNameShort;    
     QString str = fn + " verify error:\n" + err;
     Warning() << str;
+    noHotKeys = true;
     QMessageBox::warning(consoleWindow, fn + " SHA1 Verify", str);
+    noHotKeys = false;
     if (task) delete task;
     else Error() << "sha1VerifyFailure error, no task!";
 }
@@ -973,7 +986,10 @@ void MainApp::execStimGLIntegrationDialog()
     controls.timeoutSB->setValue(p.timeout_ms);    
     do {     
         again = false;
-        if ( dlg.exec() == QDialog::Accepted ) {
+        noHotKeys = true;
+        const int ret = dlg.exec();
+        noHotKeys = false;
+        if ( ret == QDialog::Accepted ) {
             p.iface = controls.interfaceLE->text();
             p.port = controls.portSB->value();
             p.timeout_ms = controls.timeoutSB->value();

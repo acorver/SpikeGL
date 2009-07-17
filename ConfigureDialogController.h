@@ -34,6 +34,8 @@ public:
 
     void showAOPassThruDlg();
 
+    bool isDialogVisible() const { return dialogW->isVisible(); }
+
 protected slots:    
     void acqStartEndCBChanged();
     void acqModeCBChanged();

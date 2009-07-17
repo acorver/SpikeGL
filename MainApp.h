@@ -211,6 +211,7 @@ private:
     QDialog *helpWindow;
 
     WrapBuffer preBuf;
+    bool noHotKeys;
 
 public:
 
