@@ -86,7 +86,7 @@ MainApp::MainApp(int & argc, char ** argv)
     }
     singleton = this;
     if (!::init) ::init = new Init;
-    gpool = new GLContextPool(this);
+    //gpool = new GLContextPool(this);
     setQuitOnLastWindowClosed(false);
     loadSettings();
 
@@ -131,7 +131,7 @@ MainApp::MainApp(int & argc, char ** argv)
 
     setupStimGLIntegration();
 
-    resetPrecreateContexts(); // may call itself multiple times from a timer
+    //resetPrecreateContexts(); // may call itself multiple times from a timer
 
 #ifdef Q_OS_WIN
     initializing = false;
@@ -531,7 +531,7 @@ void MainApp::newAcq()
             preBuf2.reserve(szSamps*sizeof(int16));
         }
 
-        graphsWindow = new GraphsWindow(*gpool, params, 0, dataFile.isOpen());
+        graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen());
         graphsWindow->setAttribute(Qt::WA_DeleteOnClose, false);
 
         graphsWindow->setWindowIcon(appIcon);
@@ -1206,12 +1206,14 @@ void MainApp::help()
 
 void MainApp::resetPrecreateContexts()
 {
+    if (!gpool) return;
     gpool->resetCreationCount();
     precreateContexts();
 }
 
 void MainApp::precreateContexts()
 {
+    if (!gpool) return;
     if (gpool->creationCount() < 64) {
         // keep creating GLContexts until the creation count hits 64
         gpool->put(gpool->create()); 

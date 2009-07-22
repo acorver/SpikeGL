@@ -24,6 +24,7 @@ class GraphsWindow : public QMainWindow
 {
     Q_OBJECT
 public:
+    GraphsWindow(DAQ::Params & params, QWidget *parent = 0, bool isSaving = true);
     GraphsWindow(GLContextPool & theGraphPool, DAQ::Params & params, QWidget *parent = 0, bool isSaving = true);
     ~GraphsWindow();
 
@@ -68,8 +69,9 @@ private:
                                    double & mean, double & stdev,
                                    const char * & unit);
     static int parseGraphNum(QObject *gl_graph_instance);
-    bool isAuxChan(unsigned num) const;
-    
+    bool isAuxChan(unsigned num) const;    
+    void sharedCtor(DAQ::Params & p, bool isSaving);
+
     DAQ::Params & params;
     QWidget *graphsWidget;
     QToolBar *graphCtls;
@@ -103,7 +105,7 @@ private:
     Vec2 lastMousePos;
     int lastMouseOverGraph;
     int selectedGraph;
-    GLContextPool  & gpool;
+    GLContextPool  *gpool;
 };
 
 

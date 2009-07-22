@@ -56,8 +56,19 @@ static void initIcons()
     }
 }
 
+GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
+    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), gpool(0)
+{
+    sharedCtor(p, isSaving);
+}
+
 GraphsWindow::GraphsWindow(GLContextPool & gpool, DAQ::Params & p, QWidget *parent, bool isSaving)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), gpool(gpool)
+    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), gpool(&gpool)
+{    
+    sharedCtor(p, isSaving);
+}
+
+void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 {    
     initIcons();
     setCentralWidget(graphsWidget = new QWidget(this));
@@ -164,7 +175,11 @@ GraphsWindow::GraphsWindow(GLContextPool & gpool, DAQ::Params & p, QWidget *pare
             if (num >= (int)graphs.size()) { r=nrows,c=ncols; break; } // break out of loop
             QFrame *f = graphFrames[num] = new QFrame(graphsWidget);
             QVBoxLayout *bl = new QVBoxLayout(f);
-            graphs[num] = new GLGraph(gpool.take(), f);
+            if (gpool) {
+                graphs[num] = new GLGraph(gpool->take(), f);
+            } else {
+                graphs[num] = new GLGraph(f);
+            }
             // do this for all the graphs.. disable vsync!
             graphs[num]->makeCurrent();
             Util::setVSyncMode(false, num == 0);
