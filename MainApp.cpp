@@ -76,7 +76,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), pregraphDummyParent(0), tPerGraph(0.), maxPreGraphs(64)
+    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), pregraphDummyParent(0), maxPreGraphs(64), tPerGraph(0.)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -1215,7 +1215,8 @@ void MainApp::precreateGraphs()
     if (int(pregraphs.count()) < MAX_GRAPHS) {
         const double t0 = getTime();
         // keep creating GLContexts until the creation count hits 64
-        QFrame *f = new QFrame(0);
+        if (!pregraphDummyParent) pregraphDummyParent = new QWidget(0);
+        QFrame *f = new QFrame(pregraphDummyParent);
         new GLGraph(f);
         tPerGraph = tPerGraph * pregraphs.count();
         tPerGraph += (getTime()-t0);
@@ -1232,15 +1233,11 @@ void MainApp::precreateGraphs()
 
 QFrame * MainApp::getGLGraphWithFrame()
 {
-
     QFrame *f = 0;
-    if (!pregraphDummyParent) pregraphDummyParent = new QWidget(0);
-    if (pregraphs.count()) {
-        f = pregraphs.front();
-        pregraphs.pop_front();
-    } else {
-        f = new QFrame(pregraphDummyParent);
-        new GLGraph(f);
-    }
+    if (!pregraphs.count()) 
+        precreateGraphs(); // creates at least one GLGraph before returning
+    f = pregraphs.front();
+    pregraphs.pop_front();
+    if (!f) Error() << "INTERNAL ERROR: Expected a valid QFrame from pregraphs list! Aiiieee...";
     return f;
 }
