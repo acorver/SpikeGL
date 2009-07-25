@@ -15,6 +15,7 @@
 #include <QMutexLocker>
 #include <QByteArray>
 #include <QIcon>
+#include <QList>
 #include "Util.h"
 #include "DAQ.h"
 #include "DataFile.h"
@@ -30,7 +31,8 @@ class ConfigureDialogController;
 class GraphsWindow;
 class Par2Window;
 class QDialog;
-class GLContextPool;
+class QFrame;
+class QTimer;
 #include "StimGL_LeoDAQGL_Integration.h"
 
 /**
@@ -96,11 +98,11 @@ public:
 
     QString getNewDataFileName(const QString & stimglSuffix = "") const;
 
+    /** Attempts to pop a QFrame containing a pre-created GLGraph off the 
+        internal precreate list.  If the internal list is empty, simply
+        creates a new graph with frame and returns it.  */
+    QFrame *getGLGraphWithFrame();
 
-    GLContextPool & glContextPool() const { return *const_cast<GLContextPool *>(gpool); }
-
-
-    void resetPrecreateContexts();
 
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
@@ -163,7 +165,7 @@ protected slots:
 
     void fastSettleCompletion();
 
-    void precreateContexts();
+    void precreateGraphs();
 
 private:
     /// Display a message to the status bar
@@ -222,7 +224,11 @@ private:
 
     WrapBuffer preBuf, preBuf2;
     bool noHotKeys, pdWaitingForStimGL;
-    GLContextPool *gpool;
+
+    QTimer *pregraphTimer;
+    QList<QFrame *> pregraphs;
+    int maxPreGraphs;
+    double tPerGraph;
 
 public:
 

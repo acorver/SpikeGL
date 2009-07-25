@@ -24,7 +24,6 @@
 #include <math.h>
 #include "MainApp.h"
 #include "HPFilter.h"
-#include "GLContextPool.h"
 #include "play.xpm"
 #include "pause.xpm"
 #include "window_fullscreen.xpm"
@@ -57,14 +56,8 @@ static void initIcons()
 }
 
 GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), gpool(0)
+    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.)
 {
-    sharedCtor(p, isSaving);
-}
-
-GraphsWindow::GraphsWindow(GLContextPool & gpool, DAQ::Params & p, QWidget *parent, bool isSaving)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), gpool(&gpool)
-{    
     sharedCtor(p, isSaving);
 }
 
@@ -173,13 +166,15 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
         for (int c = 0; c < ncols; ++c) {
             int num = r*ncols+c;
             if (num >= (int)graphs.size()) { r=nrows,c=ncols; break; } // break out of loop
-            QFrame *f = graphFrames[num] = new QFrame(graphsWidget);
-            QVBoxLayout *bl = new QVBoxLayout(f);
-            if (gpool) {
-                graphs[num] = new GLGraph(gpool->take(), f);
-            } else {
-                graphs[num] = new GLGraph(f);
+            QFrame *f = graphFrames[num] = mainApp()->getGLGraphWithFrame();
+            graphs[num] = dynamic_cast<GLGraph *>(f->children().front());
+            if (!graphs[num]) {
+                Error() << "INTERNAL ERROR: GLGraph " << num << " is invalid!";
+                delete f;
+                continue;
             }
+            f->setParent(graphsWidget);
+            QVBoxLayout *bl = new QVBoxLayout(f);
             // do this for all the graphs.. disable vsync!
             graphs[num]->makeCurrent();
             Util::setVSyncMode(false, num == 0);
@@ -226,7 +221,6 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 
 GraphsWindow::~GraphsWindow()
 {
-    mainApp()->resetPrecreateContexts();
     if (filter) delete filter, filter = 0;
 }
 

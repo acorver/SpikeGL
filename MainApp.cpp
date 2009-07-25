@@ -38,7 +38,6 @@
 #include "ui_StimGLIntegration.h"
 #include "StimGL_LeoDAQGL_Integration.h"
 #include "ui_TextBrowser.h"
-#include "GLContextPool.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -77,7 +76,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), gpool(0)
+    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), tPerGraph(0.), maxPreGraphs(64)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -86,7 +85,6 @@ MainApp::MainApp(int & argc, char ** argv)
     }
     singleton = this;
     if (!::init) ::init = new Init;
-    //gpool = new GLContextPool(this);
     setQuitOnLastWindowClosed(false);
     loadSettings();
 
@@ -131,18 +129,21 @@ MainApp::MainApp(int & argc, char ** argv)
 
     setupStimGLIntegration();
 
-    //resetPrecreateContexts(); // may call itself multiple times from a timer
+    QTimer *timer = new QTimer(this);
+    Connect(timer, SIGNAL(timeout()), this, SLOT(updateStatusBar()));
+    timer->setSingleShot(false);
+    timer->start(247); // update status bar every 247ms.. i like this non-round-numbre.. ;)
+
+    pregraphTimer = new QTimer(this);
+    Connect(pregraphTimer, SIGNAL(timeout()), this, SLOT(precreateGraphs()));
+    pregraphTimer->setSingleShot(false);
+    pregraphTimer->start(30);
 
 #ifdef Q_OS_WIN
     initializing = false;
     Log() << "Application initialized";    
 #endif
     Status() <<  APPNAME << " initialized.";
-
-    QTimer *timer = new QTimer(this);
-    Connect(timer, SIGNAL(timeout()), this, SLOT(updateStatusBar()));
-    timer->setSingleShot(false);
-    timer->start(247); // update status bar every 247ms.. i like this non-round-numbre.. ;)
 
     updateWindowTitles();
 }
@@ -158,6 +159,9 @@ MainApp::~MainApp()
     delete sysTray, sysTray = 0;
     delete helpWindow, helpWindow = 0;
     singleton = 0;
+    for(QList<QFrame *>::iterator it = pregraphs.begin();
+        it != pregraphs.end(); ++it) delete *it; // ensure all pregraphs destroyed
+    pregraphs.clear();
 }
 
 
@@ -509,6 +513,7 @@ void MainApp::newAcq()
         last5PDSamples.reserve(5);
         last5PDSamples.clear();
         DAQ::Params & params (configCtl->acceptedParams);
+        if (params.mode == DAQ::AI120Demux) maxPreGraphs = 120;
         if (!params.stimGlTrigResave) {
             if (!dataFile.openForWrite(params)) {
                 QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(params.outputFile));
@@ -1204,21 +1209,38 @@ void MainApp::help()
     helpWindow->setMaximumSize(helpWindow->size());
 }
 
-void MainApp::resetPrecreateContexts()
+void MainApp::precreateGraphs()
 {
-    if (!gpool) return;
-    gpool->resetCreationCount();
-    precreateContexts();
+    const int MAX_GRAPHS = maxPreGraphs;
+    int timeout = 30; // 30ms timeout by default
+    if (int(pregraphs.count()) < MAX_GRAPHS) {
+        const double t0 = getTime();
+        // keep creating GLContexts until the creation count hits 64
+        QFrame *f = new QFrame(0);
+        new GLGraph(f);
+        tPerGraph = tPerGraph * pregraphs.count();
+        tPerGraph += (getTime()-t0);
+        pregraphs.push_back(f);
+        tPerGraph /= pregraphs.count();
+        if (pregraphs.count() == MAX_GRAPHS) 
+            Debug () << "Pre-created " << pregraphs.count() << " GLGraphs, creation time " << tPerGraph*1e3 << " msec avg per graph, done.";
+        else
+            timeout = 0; // 0ms timeout -- do it faster 
+    }
+    // keep polling..
+    pregraphTimer->setInterval(timeout);
 }
 
-void MainApp::precreateContexts()
+QFrame * MainApp::getGLGraphWithFrame()
 {
-    if (!gpool) return;
-    if (gpool->creationCount() < 64) {
-        // keep creating GLContexts until the creation count hits 64
-        gpool->put(gpool->create()); 
-        QTimer::singleShot(1, this, SLOT(precreateContexts()));
+
+    QFrame *f = 0;
+    if (pregraphs.count()) {
+        f = pregraphs.front();
+        pregraphs.pop_front();
     } else {
-        Debug () << "Pre-created 64 OpenGL contexts for the GLGraphs, done.";
+        f = new QFrame(0);
+        new GLGraph(f);
     }
+    return f;
 }
