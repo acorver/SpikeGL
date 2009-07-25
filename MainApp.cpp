@@ -76,7 +76,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), tPerGraph(0.), maxPreGraphs(64)
+    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), pregraphDummyParent(0), tPerGraph(0.), maxPreGraphs(64)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -158,10 +158,9 @@ MainApp::~MainApp()
     delete configCtl, configCtl = 0;
     delete sysTray, sysTray = 0;
     delete helpWindow, helpWindow = 0;
-    singleton = 0;
-    for(QList<QFrame *>::iterator it = pregraphs.begin();
-        it != pregraphs.end(); ++it) delete *it; // ensure all pregraphs destroyed
+    delete pregraphDummyParent, pregraphDummyParent = 0;
     pregraphs.clear();
+    singleton = 0;
 }
 
 
@@ -1235,11 +1234,12 @@ QFrame * MainApp::getGLGraphWithFrame()
 {
 
     QFrame *f = 0;
+    if (!pregraphDummyParent) pregraphDummyParent = new QWidget(0);
     if (pregraphs.count()) {
         f = pregraphs.front();
         pregraphs.pop_front();
     } else {
-        f = new QFrame(0);
+        f = new QFrame(pregraphDummyParent);
         new GLGraph(f);
     }
     return f;

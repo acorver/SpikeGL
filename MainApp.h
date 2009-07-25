@@ -226,6 +226,7 @@ private:
     bool noHotKeys, pdWaitingForStimGL;
 
     QTimer *pregraphTimer;
+    QWidget *pregraphDummyParent;
     QList<QFrame *> pregraphs;
     int maxPreGraphs;
     double tPerGraph;
