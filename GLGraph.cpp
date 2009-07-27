@@ -13,7 +13,7 @@
 
 void GLGraph::reset(QWidget *prnt, QMutex *mut)
 {
-    setParent(prnt);
+    if (prnt != parent())  setParent(prnt);
     ptsMut = mut;
     bg_Color = QColor(0x2f, 0x4f, 0x4f);
     graph_Color = QColor(0xee, 0xdd, 0x82);

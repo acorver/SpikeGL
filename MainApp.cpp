@@ -76,7 +76,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), pregraphDummyParent(0), maxPreGraphs(64), tPerGraph(0.)
+    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(64), tPerGraph(0.)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -133,17 +133,11 @@ MainApp::MainApp(int & argc, char ** argv)
     Connect(timer, SIGNAL(timeout()), this, SLOT(updateStatusBar()));
     timer->setSingleShot(false);
     timer->start(247); // update status bar every 247ms.. i like this non-round-numbre.. ;)
-
+    
     pregraphTimer = new QTimer(this);
     Connect(pregraphTimer, SIGNAL(timeout()), this, SLOT(precreateGraphs()));
     pregraphTimer->setSingleShot(false);
-    pregraphTimer->start(30);
-
-#ifdef Q_OS_WIN
-    initializing = false;
-    Log() << "Application initialized";    
-#endif
-    Status() <<  APPNAME << " initialized.";
+    pregraphTimer->start(0);
 
     updateWindowTitles();
 }
@@ -512,7 +506,6 @@ void MainApp::newAcq()
         last5PDSamples.reserve(5);
         last5PDSamples.clear();
         DAQ::Params & params (configCtl->acceptedParams);
-        if (params.mode == DAQ::AI120Demux) maxPreGraphs = 120;
         if (!params.stimGlTrigResave) {
             if (!dataFile.openForWrite(params)) {
                 QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(params.outputFile));
@@ -900,7 +893,8 @@ void MainApp::updateWindowTitles()
         else
             stat = "RUNNING - " + fname;
     } else {
-        stat = "No Acquisition Running";
+        if (initializing) stat = "INITIALIZING";
+        else stat = "No Acquisition Running";
     }
     QString tit = QString(APPNAME) + " - " + stat;
     consoleWindow->setWindowTitle(tit);
@@ -1208,36 +1202,78 @@ void MainApp::help()
     helpWindow->setMaximumSize(helpWindow->size());
 }
 
+void MainApp::precreateOneGraph()
+{
+    const double t0 = getTime();
+    // keep creating GLContexts until the creation count hits 64
+    if (!pregraphDummyParent) pregraphDummyParent = new QWidget(0);
+    QFrame *f = new QFrame(pregraphDummyParent);
+    GLGraph *g = new GLGraph(f);
+    QVBoxLayout *bl = new QVBoxLayout(f);
+    bl->addWidget(g);
+    bl->setSpacing(0);
+    bl->setContentsMargins(0,0,0,0);
+
+    tPerGraph = tPerGraph * pregraphs.count();
+    tPerGraph += (getTime()-t0);
+    pregraphs.push_back(f);
+    tPerGraph /= pregraphs.count();
+}
+
 void MainApp::precreateGraphs()
 {
     const int MAX_GRAPHS = maxPreGraphs;
-    int timeout = 30; // 30ms timeout by default
-    if (int(pregraphs.count()) < MAX_GRAPHS) {
-        const double t0 = getTime();
-        // keep creating GLContexts until the creation count hits 64
-        if (!pregraphDummyParent) pregraphDummyParent = new QWidget(0);
-        QFrame *f = new QFrame(pregraphDummyParent);
-        new GLGraph(f);
-        tPerGraph = tPerGraph * pregraphs.count();
-        tPerGraph += (getTime()-t0);
-        pregraphs.push_back(f);
-        tPerGraph /= pregraphs.count();
-        if (pregraphs.count() == MAX_GRAPHS) 
-            Debug () << "Pre-created " << pregraphs.count() << " GLGraphs, creation time " << tPerGraph*1e3 << " msec avg per graph, done.";
-        else
-            timeout = 0; // 0ms timeout -- do it faster 
+    if (!precreateDialog) {
+        precreateDialog = new QMessageBox(QMessageBox::Information, 
+                                          "Precreating GL Graphs",
+                                          QString("Precreating ") + QString::number(MAX_GRAPHS) + " graphs, please wait...",
+                                          QMessageBox::NoButton,
+                                          consoleWindow);
+        precreateDialog->addButton("Quit", QMessageBox::RejectRole);
+        Connect(precreateDialog, SIGNAL(rejected()), this, SLOT(quit()));
+        Connect(precreateDialog, SIGNAL(accepted()), this, SLOT(quit()));
+        precreateDialog->show();
     }
-    // keep polling..
-    pregraphTimer->setInterval(timeout);
+    if (int(pregraphs.count()) < MAX_GRAPHS) {
+        precreateOneGraph();
+        if (pregraphs.count() == MAX_GRAPHS) {
+            Debug () << "Pre-created " << pregraphs.count() << " GLGraphs, creation time " << tPerGraph*1e3 << " msec avg per graph, done.";
+            delete precreateDialog, precreateDialog = 0;
+            delete pregraphTimer, pregraphTimer = 0;
+            appInitialized();
+        } 
+    }
 }
 
 QFrame * MainApp::getGLGraphWithFrame()
 {
     QFrame *f = 0;
     if (!pregraphs.count()) 
-        precreateGraphs(); // creates at least one GLGraph before returning
+        precreateOneGraph(); // creates at least one GLGraph before returning
     f = pregraphs.front();
     pregraphs.pop_front();
     if (!f) Error() << "INTERNAL ERROR: Expected a valid QFrame from pregraphs list! Aiiieee...";
     return f;
+}
+
+void MainApp::putGLGraphWithFrame(QFrame *f)
+{
+    GLGraph *g = dynamic_cast<GLGraph *>(f->children().front());
+    if (!g) {
+        Error() << "INTERNAL ERROR: QFrame passed in to putGLGraphWithFrame does not contain a GLGraph child!";
+        delete f;
+        return;
+    }
+    f->setParent(pregraphDummyParent);
+    g->reset(f);
+    pregraphs.push_back(f);
+    
+}
+
+void MainApp::appInitialized()
+{
+    initializing = false;
+    Log() << "Application initialized";    
+    Status() <<  APPNAME << " initialized.";
+    updateWindowTitles();
 }

@@ -33,6 +33,7 @@ class Par2Window;
 class QDialog;
 class QFrame;
 class QTimer;
+class QMessageBox;
 #include "StimGL_LeoDAQGL_Integration.h"
 
 /**
@@ -103,6 +104,9 @@ public:
         creates a new graph with frame and returns it.  */
     QFrame *getGLGraphWithFrame();
 
+    /** Puts a QFrame with GLGraph * child back into the internal list, 
+        returns the current count of QFrames */
+    void putGLGraphWithFrame(QFrame *);
 
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
@@ -143,6 +147,9 @@ public slots:
 
     /// called by menu option
     void respecAOPassthru();
+
+    /// called by a timer func once all init is done
+    void appInitialized();
    
 protected slots:
     /// Called from a timer every ~250 ms to update the status bar at the bottom of the console window
@@ -184,6 +191,7 @@ private:
     void stimGL_SaveParams(const QMap<QString, QVariant> & pm);
     static void xferWBToScans(WrapBuffer & wb, std::vector<int16> & scans,
                               u64 & firstSamp, i64 & scan0Fudge);
+    void precreateOneGraph();
 
     mutable QMutex mut; ///< used to lock outDir param for now
     ConfigureDialogController *configCtl;
@@ -225,6 +233,8 @@ private:
     WrapBuffer preBuf, preBuf2;
     bool noHotKeys, pdWaitingForStimGL;
 
+    
+    QMessageBox *precreateDialog;
     QTimer *pregraphTimer;
     QWidget *pregraphDummyParent;
     QList<QFrame *> pregraphs;

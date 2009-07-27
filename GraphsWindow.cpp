@@ -22,6 +22,7 @@
 #include <QColorDialog>
 #include <QLineEdit>
 #include <math.h>
+#include <QMessageBox>
 #include "MainApp.h"
 #include "HPFilter.h"
 #include "play.xpm"
@@ -174,15 +175,11 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
                 continue;
             }
             f->setParent(graphsWidget);
-            QVBoxLayout *bl = new QVBoxLayout(f);
             // do this for all the graphs.. disable vsync!
             graphs[num]->makeCurrent();
             Util::setVSyncMode(false, num == 0);
-            bl->addWidget(graphs[num]);
-            bl->setSpacing(0);
-            bl->setContentsMargins(0,0,0,0);
             f->setLineWidth(2);
-            graphFrames[num]->setFrameStyle(QFrame::StyledPanel|QFrame::Plain); // only enable frame when it's selected!
+            f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain); // only enable frame when it's selected!
             graphs[num]->setObjectName(QString("GLGraph %1").arg(num));
             Connect(graphs[num], SIGNAL(cursorOver(double,double)), this, SLOT(mouseOverGraph(double,double)));
             Connect(graphs[num], SIGNAL(clicked(double,double)), this, SLOT(mouseClickGraph(double,double)));
@@ -221,6 +218,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 
 GraphsWindow::~GraphsWindow()
 {
+    const int gfs = graphFrames.size();
+    for (int i = 0; i < gfs; ++i) mainApp()->putGLGraphWithFrame(graphFrames[i]);
     if (filter) delete filter, filter = 0;
 }
 

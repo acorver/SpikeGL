@@ -164,7 +164,7 @@ namespace DAQ
         const QString & devString() const { return params.dev; }
         const QString & doCtlChan() const { return params.doCtlChanString; }
         Mode mode() const { return params.mode; }
-        unsigned numChans() const { return params.aiChannels.size()*((params.mode==AI60Demux||params.mode==AI120Demux)?MUX_CHANS_PER_PHYS_CHAN:1); }
+        unsigned numChans() const { return params.nVAIChans; }
         unsigned samplingRate() const { return params.srate; }
 
         void setDO(bool onoff);
