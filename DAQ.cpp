@@ -378,6 +378,7 @@ namespace DAQ
             } else if (nread > 0) {
                 nread /= sizeof(int16);
                 data.resize(nread);
+                if (!totalRead) emit(gotFirstScan());
                 enqueueBuffer(data, totalRead);
       
                 totalRead += nread;
@@ -592,6 +593,7 @@ namespace DAQ
         
             DAQmxErrChk (DAQmxReadBinaryI16(taskHandle,samplesPerChan,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL));
             u64 sampCount = totalRead;
+            if (!sampCount) emit(gotFirstScan());
             int32 nRead = pointsRead * nChans + oldS;                  
             int nDemuxScans = nRead/nChans/nscans_per_mux_scan;
             if ( nDemuxScans*nscans_per_mux_scan*nChans != nRead ) {// not on 60 (or 75 if have interwoven PD and in PD mode) channel boundary, so save extra channels and enqueue them next time around..

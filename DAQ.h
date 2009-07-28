@@ -174,10 +174,9 @@ namespace DAQ
 
     signals:
         void bufferOverrun();
-
         void daqError(const QString &);
-
         void fastSettleCompleted();
+        void gotFirstScan();
 
     protected: 
         void run();  ///< reimplemented from QThread

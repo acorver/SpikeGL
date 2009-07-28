@@ -171,8 +171,8 @@ protected slots:
     void stimGL_PluginEnded(const QString &, const QMap<QString, QVariant>  &);
 
     void fastSettleCompletion();
-
     void precreateGraphs();
+    void gotFirstScan();
 
 private:
     /// Display a message to the status bar

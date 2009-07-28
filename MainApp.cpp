@@ -572,15 +572,12 @@ void MainApp::newAcq()
         taskReadTimer->start(1000/TASK_READ_FREQ_HZ);
         stopAcq->setEnabled(true);
         aoPassthruAct->setEnabled(params.aoPassthru);
+        Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));
         task->start();
         updateWindowTitles();
-        if (taskWaitingForTrigger) {
-            Systray() << "Acquisition waiting ...";
-            Status() << "Task initiated, waiting for trigger event";
-        } else {
-            Systray() << "Acquisition started";
-            Status() << "Task started";
-        }
+        Systray() << "DAQ task starting up ...";
+        Status() << "DAQ task starting up ...";
+        Log() << "DAQ task starting up ...";
     }
 }
 
@@ -1161,6 +1158,18 @@ void MainApp::fastSettleCompletion()
     disconnect(task, SIGNAL(fastSettleCompleted()), this, SLOT(fastSettleCompletion()));
 }
 
+void MainApp::gotFirstScan()
+{
+    if (taskWaitingForTrigger) {
+        Systray() << "Acquisition waiting ...";
+        Status() << "Task initiated, waiting for trigger event";
+        Log() << "Acquisition initiated, waiting for trigger event";
+    } else {
+        Systray() << "Acquisition started";
+        Status() << "Task started";
+        Log() << "Acquisition started.";
+    }
+}
 
 void MainApp::toggleSave(bool s)
 {
