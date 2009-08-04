@@ -76,7 +76,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(64), tPerGraph(0.)
+    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(64), tPerGraph(0.), acqStartingDialog(0)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -196,7 +196,15 @@ bool MainApp::processKey(QKeyEvent *event)
     case 'G':
         hideUnhideGraphsAct->trigger();
         return true;
+	case 'n':
+	case 'N':
+		newAcqAct->trigger();
+		return true;
+	case Qt::Key_Escape:
+		stopAcq->trigger();
+		return true;
     }
+
     return false;
 }
 
@@ -216,13 +224,18 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
                 return true;
             } 
         }
-    } 
-    if (watched == graphsWindow && type == QEvent::Close) {
-        // request to close the graphsWindow.. this stops the acq -- ask the user to confirm.. do this after this event handler runs, so enqueue it with a timer
-        QTimer::singleShot(1, this, SLOT(maybeCloseCurrentIfRunning()));
-        event->ignore();
-        return true;
     }
+	if (type == QEvent::Close) {
+		if (watched == graphsWindow) {
+			// request to close the graphsWindow.. this stops the acq -- ask the user to confirm.. do this after this event handler runs, so enqueue it with a timer
+			QTimer::singleShot(1, this, SLOT(maybeCloseCurrentIfRunning()));
+			event->ignore();
+			return true;
+		} else if ((precreateDialog && watched == precreateDialog) || (acqStartingDialog && watched == acqStartingDialog)) {
+			event->ignore();
+			return true;
+		}
+	}
     if (watched == consoleWindow) {
         ConsoleWindow *cw = dynamic_cast<ConsoleWindow *>(watched);
         if (type == LogLineEventType) {
@@ -470,9 +483,9 @@ void MainApp::initActions()
     Connect(aboutQtAct = new QAction("About &Qt", this),
             SIGNAL(triggered()), this, SLOT(aboutQt()));
             
-    Connect( newAcqAct = new QAction("New Acquisition...", this),
+    Connect( newAcqAct = new QAction("New Acquisition... &N", this),
              SIGNAL(triggered()), this, SLOT(newAcq()));
-    Connect( stopAcq = new QAction("Stop Running Acquisition", this),
+    Connect( stopAcq = new QAction("Stop Running Acquisition ESC", this),
              SIGNAL(triggered()), this, SLOT(maybeCloseCurrentIfRunning()) );
     stopAcq->setEnabled(false);
 
@@ -512,6 +525,15 @@ void MainApp::newAcq()
                 return;
             }
         }
+
+		// acq starting dialog block -- show this dialog because the startup is kinda slow..
+		if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
+		acqStartingDialog = new QMessageBox ( QMessageBox::Information, "DAQ Task Starting Up", "DAQ task starting up, please wait...", QMessageBox::Ok, consoleWindow, Qt::WindowFlags(Qt::Dialog| Qt::MSWindowsFixedSizeDialogHint));
+		acqStartingDialog->setWindowModality(Qt::ApplicationModal);
+		QAbstractButton *but = acqStartingDialog->button(QMessageBox::Ok);
+		if (but) but->hide();
+		acqStartingDialog->show();
+		// end acq starting dialog block
 
         preBuf.clear();
         preBuf.reserve(0);
@@ -607,6 +629,7 @@ void MainApp::stopTask()
     taskWaitingForTrigger = false;
     scan0Fudge = 0;
     updateWindowTitles();
+	if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
     Systray() << "Acquisition stopped";
 }
 
@@ -1169,6 +1192,7 @@ void MainApp::gotFirstScan()
         Status() << "Task started";
         Log() << "Acquisition started.";
     }
+	delete acqStartingDialog, acqStartingDialog = 0;
 }
 
 void MainApp::toggleSave(bool s)

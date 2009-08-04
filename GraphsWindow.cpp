@@ -218,6 +218,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 
 GraphsWindow::~GraphsWindow()
 {
+	if (maximized) toggleMaximize(); // resets graphs to original state..
     const int gfs = graphFrames.size();
     for (int i = 0; i < gfs; ++i) mainApp()->putGLGraphWithFrame(graphFrames[i]);
     if (filter) delete filter, filter = 0;

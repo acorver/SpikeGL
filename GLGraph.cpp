@@ -45,8 +45,7 @@ GLGraph::GLGraph(QWidget *parent, QMutex *mut)
     reset(parent, mut);
 }
 
-GLGraph::~GLGraph() 
-{}
+GLGraph::~GLGraph() {}
 
 void GLGraph::initializeGL()
 {

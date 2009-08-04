@@ -241,6 +241,8 @@ private:
     int maxPreGraphs;
     double tPerGraph;
 
+	QMessageBox *acqStartingDialog;
+
 public:
 
 /// Main application actions!

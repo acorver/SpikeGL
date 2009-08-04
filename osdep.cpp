@@ -264,6 +264,7 @@ unsigned  setCurrentThreadAffinityMask(unsigned mask)
 	Error() << "setCurrentThreadAffinityMask() unimplemented on this platform!";
 	return 0;
 }
+
 #endif
 
 
