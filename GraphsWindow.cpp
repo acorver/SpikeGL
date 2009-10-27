@@ -385,11 +385,15 @@ void GraphsWindow::selectGraph(int num)
     graphFrames[old]->setFrameStyle(QFrame::StyledPanel|QFrame::Plain);
     selectedGraph = num;
     if (params.mode == DAQ::AIRegular) { // straight AI (no MUX)
-        chanLbl->setText(QString("AI%1").arg(num));
+        chanLbl->setText(QString("AI%1").arg(num));        
     } else { // MUX mode
         if (isAuxChan(num)) {
             chanLbl->setText(QString("AUX%1").arg(int(num-(params.nVAIChans-params.nExtraChans)+1)));
+        } else if (params.mode == DAQ::JFRCIntan32) {
+            // JFRC Intan 32 mode has a hard-coded mapping.. sorry, not elegant but expedient!
+            chanLbl->setText(QString("I%1_C%2").arg(num/16 + 1).arg(num % 16 + 1));            
         } else {
+            // otherwise AIMux60 and AIMux120 both use the real mapping
             chanLbl->setText(QString("I%1_C%2").arg(params.chanMap[num].intan).arg(params.chanMap[num].intanCh));
         }
     }
