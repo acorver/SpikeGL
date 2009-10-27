@@ -115,9 +115,9 @@
         <p align="left">Option specifying whether or not the acquisition uses the external 	Intan demuxer hardware.  This option affects how sample data is 	interpreted as it comes in from hardware (whether or not it is to be 	de-multiplexed, essentially).</p>
         <blockquote>
           <p align="left"> <strong><em>AI 60 Demux</em></strong> – The acquisition will be a 60-channel Intan/MUX acquisition.  It 	will use 4 AI channels on the DAQ board,  each of which is sampled 	simultaneously at 444 kHz.  Each channel multiplexes 15 electrode 	channels in time, thus the electrodes are sampled at 29.63 kHz per 	channel.  See the file  '<em>Leonardo-RetinaMux-Manial.pdf</em>' 	for more information.</p>
-          <p align="left"> <strong><em>AI 120 Demux</em></strong> – Identical to the AI 60 Demux scheme above, but this mechanism 	uses more Intan chips to yield 120 multiplexed channels coming in on 	8 simultaneous AI channels on the DAQ board.<br />
-          </p>
+          <p align="left"> <strong><em>AI 120 Demux</em></strong> – Identical to the AI 60 Demux scheme above, but this mechanism 	uses more Intan chips to yield 120 multiplexed channels coming in on 	8 simultaneous AI channels on the DAQ board.</p>
           <p align="left"> <strong><em>Straight AI</em></strong> – No external MUX hardware is used.  Channels are graphed and 	saved verbatim without any de-multiplexing being applied.</p>
+          <p align="left"> <strong><em>JFRC/Intan 32 Headstage</em></strong> – This mode is similar to the AI60Demux mode, however the acquisition will be a 32-channel Intan/MUX acquisition.  It will use 2 AI channels of the DAQ board each of which is sampled simultaneously at a variable (user-settable) sampling rate.  An external clock is used to time the acquisition on PFI2.  The order of the channels coming in off hardware are such that channels 0-15 come from the first AI channel and 16-31 come from the second AI channel.</p>
           <p align="left">&nbsp;</p>
         </blockquote>
       </blockquote>
