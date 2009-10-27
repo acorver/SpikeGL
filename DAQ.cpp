@@ -270,7 +270,20 @@ namespace DAQ
 #endif
     }
 
-
+    void ApplyJFRCIntan32DemuxToScan(int16 *begin, int16 *end) {        
+        static const int narr = NUM_CHANS_PER_INTAN32*2;
+        if (end - begin < narr) Error() << "Internal DEMUX error for JFRCIntan32 demuxer: the scan has fewer than " << narr << " samples in it!";
+        int16 tmparr[narr];
+        int i,j;
+        for (i = 0, j = 0; j < narr/2; i+=2,++j) {
+            tmparr[j] = begin[i];
+        }
+        for (i = 1, j = NUM_CHANS_PER_INTAN32; j < narr; i+=2,++j) {
+            tmparr[j] = begin[i];
+        }
+        memcpy(begin, tmparr, narr*sizeof(int16));
+    }
+    
 #define DEFAULT_DEV "Dev1"
 #define DEFAULT_DO 0
 
@@ -520,13 +533,14 @@ namespace DAQ
         const float64 aoSampleRate = p.srate;
         const float64     timeout = DAQ_TIMEOUT;
         const int NCHANS = p.nVAIChans;
-        muxMode =  p.mode == AI60Demux || p.mode == AI120Demux;
+        muxMode =  p.mode == AI60Demux || p.mode == AI120Demux || p.mode == JFRCIntan32;
         int nscans_per_mux_scan = 1;
         AOWriteThread * aoWriteThr = 0;
 
         if (muxMode) {
-            sampleRate *= double(MUX_CHANS_PER_PHYS_CHAN);
-            nscans_per_mux_scan = MUX_CHANS_PER_PHYS_CHAN;
+            const int mux_chans_per_phys = p.mode == JFRCIntan32 ? MUX_CHANS_PER_PHYS_CHAN32 : MUX_CHANS_PER_PHYS_CHAN;
+            sampleRate *= double(mux_chans_per_phys);
+            nscans_per_mux_scan = mux_chans_per_phys;
             if (!p.extClock) {
                 /// Aieeeee!  Need ext clock for demux mode!
                 QString e("Aieeeee!  Need to use an EXTERNAL clock for DEMUX mode!");
@@ -542,6 +556,8 @@ namespace DAQ
        
         u64 bufferSize = u64(sampleRate*nChans)/TASK_READ_FREQ_HZ; ///< 1/10th sec per read
         if (bufferSize < NCHANS) bufferSize = NCHANS;
+        if (bufferSize * TASK_READ_FREQ_HZ != u64(sampleRate*nChans)) // make sure buffersize is on scan boundary?
+            bufferSize += TASK_READ_FREQ_HZ - u64(sampleRate*nChans)%TASK_READ_FREQ_HZ; 
         const u64 dmaBufSize = u64(1000000); /// 1000000 sample DMA buffer per chan?
         const u64 samplesPerChan = bufferSize/nChans;
         u64 aoBufferSize = 0; /* needs to be set below!!! */
@@ -651,6 +667,10 @@ namespace DAQ
                     if ((!((tmp.size()+nExtraChans) % NCHANS)) && i+nExtraChans <= datasz) {// if we are on a virtual scan-boundary, then ...
                         begi = data.begin()+i;  endi = begi+nExtraChans;
                         tmp.insert(tmp.end(), begi, endi); // .. we keep the extra channels
+                        if (p.mode == JFRCIntan32) {
+                            // now, optionally demux the channels such that channels 0->15 come from AI0 and 16->31 from AI1
+                            ApplyJFRCIntan32DemuxToScan(&tmp[tmp.size()-p.nVAIChans], &tmp[tmp.size()-nExtraChans]);
+                        }                        
                     }
                 }
                 data.swap(tmp);
@@ -661,6 +681,7 @@ namespace DAQ
                 }
             }
             totalRead += nRead;
+            
             
             // now, do optional AO output .. done in another thread to save on latency...
             if (aoWriteThr) {  

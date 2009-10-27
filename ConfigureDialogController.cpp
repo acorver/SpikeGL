@@ -37,7 +37,7 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     acqPdParams->setupUi(acqPdParamsW);
     acqTimedParams->setupUi(acqTimedParamsW);
     aoPassthru->setupUi(dialog->aoPassthruWidget);
-
+    acceptedParams.mode = DAQ::AIUnknown;
     // connect signal slots
     Connect(dialog->acqStartEndCB, SIGNAL(activated(int)), this, SLOT(acqStartEndCBChanged()));
     Connect(dialog->acqModeCB, SIGNAL(activated(int)), this, SLOT(acqModeCBChanged()));
@@ -197,17 +197,31 @@ void ConfigureDialogController::acqStartEndCBChanged()
 
 void ConfigureDialogController::acqModeCBChanged()
 {
-    int idx = dialog->acqModeCB->currentIndex();
-    bool enabled = idx == 1;
-    bool intan = !enabled;
+    const int idx = dialog->acqModeCB->currentIndex();
+    const bool jfrc32 = idx == 3;
+    const bool enabled = idx == 1 || jfrc32;
+    const bool intan = !enabled;
 
+    /// HACK to auto-repopulate the lineedit based on acquisition mode!
+    if (idx != DAQ::AIRegular) { // if it's not straight AI, 
+        QString txt = dialog->channelListLE->text();
+        if (txt.startsWith("0:1") || txt.startsWith("0:3") || txt.startsWith("0:7"))  {
+            switch (idx) {
+                case DAQ::AI60Demux: txt = QString("0:3") + txt.mid(3); break;
+                case DAQ::AI120Demux: txt = QString("0:7") + txt.mid(3); break;
+                case DAQ::JFRCIntan32: txt = QString("0:1") + txt.mid(3); break;
+            }
+            dialog->channelListLE->setText(txt);
+        }
+    }
+    
     dialog->srateLabel->setEnabled(enabled);
     dialog->srateSB->setEnabled(enabled);
     dialog->clockCB->setEnabled(false); // NB: for now, the clockCB is always disabled!
     dialog->muxMapBut->setEnabled(intan);
 
-    if (intan) {
-        dialog->srateSB->setValue(INTAN_SRATE);    
+    if (intan || jfrc32) {
+        if (!jfrc32) dialog->srateSB->setValue(INTAN_SRATE);
         dialog->clockCB->setCurrentIndex(0); // intan always uses external clock
     } else {
         dialog->clockCB->setCurrentIndex(1); // force INTERNAL clock on !intan
@@ -371,15 +385,15 @@ int ConfigureDialogController::exec()
             
             int nExtraChans = 0;
 
-            if ( acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux ) {
+            if ( acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux || acqMode == DAQ::JFRCIntan32) {
                 if (!DAQ::SupportsAISimultaneousSampling(dev)) {
-                    QMessageBox::critical(dialogW, "INTAN Requires Simultaneous Sampling", QString("INTAN (60/120 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev));
+                    QMessageBox::critical(dialogW, "INTAN Requires Simultaneous Sampling", QString("INTAN (60/120/JFRC32 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev));
                     again = true;
                     continue;
                 }
-                const int minChanSize = acqMode == DAQ::AI120Demux ? 8 : 4;
+                const int minChanSize = acqMode == DAQ::AI120Demux ? 8 : (acqMode == DAQ::JFRCIntan32 ? 2 : 4);
                 if ( int(chanVect.size()) < minChanSize ) {
-                    QMessageBox::critical(dialogW, "AI Chan List Error", "INTAN (60/120 demux) mode requires precisely 4 or 8 channels!");
+                    QMessageBox::critical(dialogW, "AI Chan List Error", "INTAN (60/120/JFRC32 demux) mode requires precisely 4, 8 or 2 channels!");
                     again = true;
                     continue;                
                 }
@@ -412,8 +426,11 @@ int ConfigureDialogController::exec()
             }
 
             unsigned nVAI = chanVect.size();
-            bool isMux = acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux;
-            if (isMux) nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN + nExtraChans;
+            
+            if (acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux) 
+                nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN + nExtraChans;
+            else if (acqMode == DAQ::JFRCIntan32)
+                nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN32 + nExtraChans;
 
             bool usePD = false;
             if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd) {
