@@ -75,6 +75,7 @@ private:
     double min_x, max_x, yscale;
     unsigned short gridLineStipplePattern;
     const Vec2WrapBuffer *pointsWB;
+    mutable QVector<Vec2> pointsDisplayBuf;
     std::vector<Vec2> gridVs, gridHs;
     bool auto_update, need_update;
     QVariant tagData;

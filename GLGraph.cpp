@@ -10,6 +10,8 @@
 #include <QMutex>
 #include <QPoint>
 #include <QMouseEvent>
+#include "Util.h"
+#include <QVarLengthArray.h>
 
 void GLGraph::reset(QWidget *prnt, QMutex *mut)
 {
@@ -84,7 +86,6 @@ void GLGraph::paintGL()
         if (fabs(max_x-min_x) > 0.) {
             glScaled(1./(max_x-min_x), yscale, 1.);
         }
-        glTranslated(-min_x, 0., 0.);
         drawPoints();
         glPopMatrix();
     }
@@ -152,26 +153,23 @@ void GLGraph::drawPoints() const
 
     glColor4f(graph_Color.redF(), graph_Color.greenF(), graph_Color.blueF(), graph_Color.alphaF());
 
-    if (l1 > 1) {
-        glVertexPointer(2, GL_DOUBLE, 0, pv1);
-        glDrawArrays(GL_LINE_STRIP, 0, l1);
-    }
-    if (pv2 && l2 > 1) {
-            glVertexPointer(2, GL_DOUBLE, 0, pv2);
-            glDrawArrays(GL_LINE_STRIP, 0, l2);
-            if (l1 > 1) {
-                // now, draw the connecting line between the 2 groups..
-                GLdouble cv[] = {
-                    pv1[l1-1].x, pv1[l1-1].y,
-                    pv2[0].x, pv2[0].y
-                };
-                glVertexPointer(2, GL_DOUBLE, 0, cv);
-                glDrawArrays(GL_LINES, 0, 2);
-            }
-    }
+    // now we need to scale the graphs back relative to min_x.  The reason
+    // we don't do a glTranslated() and then just graph the points is that
+    // on some OpenGL implementations having such huge values for the translation
+    // and such a difference in scale between x,y causes precision loss!
+    // (See bugs before Oct 27, 2009 build!)
+    const size_t len = l1+l2;
+    QVector<Vec2> & points ( pointsDisplayBuf );
+    // copy point to display vertex buffer
+    if (size_t(points.size()) != len) points.resize(len);
+    if (l1)  memcpy(points.data(), pv1, l1*sizeof(Vec2));
+    if (l2)  memcpy(points.data()+l1, pv2, l2*sizeof(Vec2));
+    for (size_t i = 0; i < len; ++i) points[i].x -= min_x; /// xform relative to min_x
     
-    //glDrawArrays(GL_POINTS, 0, nPts);
+    glVertexPointer(2, GL_DOUBLE, 0, points.constData());
+    glDrawArrays(GL_LINE_STRIP, 0, len);
 
+    
     // restore saved values
     glColor4f(savedColor[0], savedColor[1], savedColor[2], savedColor[3]);
     //glPointSize(savedWidth);
