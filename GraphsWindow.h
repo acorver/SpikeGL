@@ -64,7 +64,7 @@ private:
     void updateGraphCtls();
     void doPauseUnpause(int num, bool updateCtls = true);
     void computeGraphMouseOverVars(unsigned num, double & y,
-                                   double & mean, double & stdev,
+                                   double & mean, double & stdev, double & rms,
                                    const char * & unit);
     static int parseGraphNum(QObject *gl_graph_instance);
     bool isAuxChan(unsigned num) const;    
@@ -89,7 +89,9 @@ private:
         unsigned num; ///< total number of values
         GraphStats()  { clear(); }
         void clear() { s1 = s2 = num = 0; }
-        double mean() const { return s1/num; }
+        double mean() const { return s1/double(num); }
+        double rms2() const { return s2/double(num); }
+        double rms() const;
         double stdDev() const;
     };
     QVector<GraphStats> graphStats; ///< mean/stddev stuff

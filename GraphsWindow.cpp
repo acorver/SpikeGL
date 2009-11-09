@@ -243,6 +243,7 @@ void GraphsWindow::setGraphTimeSecs(int num, double t)
     while (s>0. && !(nlines = int(s))) s*=10.;
     graphs[num]->setNumVGridLines(nlines);
     graphs[num]->setPoints(0);
+    graphStats[num].clear();
     // NOTE: someone should call update_nPtsAllGs() after this!
 }
 
@@ -445,6 +446,7 @@ bool GraphsWindow::isAuxChan(unsigned num) const
 
 void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
                                              double & mean, double & stdev,
+											 double & rms,
                                              const char * & unit)
 {
     y += 1.;
@@ -454,12 +456,14 @@ void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
     y = (y*(params.range.max-params.range.min) + params.range.min) / gain;
     mean = graphStats[num].mean();
     stdev = graphStats[num].stdDev();
+    rms = graphStats[num].rms();
     mean = (((mean+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / gain;
     stdev = (((stdev+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / gain;
+    rms = (((rms+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / gain;
     unit = "V";
     // check for millivolt..
     if ((((params.range.max-params.range.min) + params.range.min) / gain) < 1.0)
-        unit = "mV",y *= 1000., mean *= 1000., stdev *= 1000.;  
+        unit = "mV",y *= 1000., mean *= 1000., stdev *= 1000., rms *= 1000.;  
 }
 
 
@@ -502,9 +506,9 @@ void GraphsWindow::updateMouseOver()
         return;
     }
     double y = lastMousePos.y, x = lastMousePos.x;
-    double mean, stdev;
+    double mean, stdev, rms;
     const char *unit;
-    computeGraphMouseOverVars(num, y, mean, stdev, unit);
+    computeGraphMouseOverVars(num, y, mean, stdev, rms, unit);
     QString msg;
     const ChanMapDesc & desc = params.chanMap[num];
     QString chStr;
@@ -517,7 +521,7 @@ void GraphsWindow::updateMouseOver()
             chStr.sprintf("%d [I%u_C%u pch: %u ech:%u]",num,desc.intan,desc.intanCh,desc.pch,desc.ech);        
         }
     }
-    msg.sprintf("%s %s %s @ pos (%.4f s, %.4f %s) -- mean: %.4f %s stdDev: %.4f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,stdev,unit);
+    msg.sprintf("%s %s %s @ pos (%.4f s, %.4f %s) -- mean: %.4f %s rms: %.4f %s stdDev: %.4f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,rms,unit,stdev,unit);
     statusBar()->showMessage(msg);
 }
 
@@ -601,9 +605,13 @@ void GraphsWindow::hpfChk(bool b)
     }
 }
 
+double GraphsWindow::GraphStats::rms() const { return sqrt(rms2()); }
+
 double GraphsWindow::GraphStats::stdDev() const
 {
-    return sqrt((s2 - ((s1*s1) / num)) / (num - 1));
+//    return sqrt((s2 - ((s1*s1) / num)) / (num - 1));
+    const double m = mean(), r2 = rms2();
+    return sqrt(r2 - m*m);
 }
 
 int GraphsWindow::parseGraphNum(QObject *graph)
