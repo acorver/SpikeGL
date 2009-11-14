@@ -617,7 +617,7 @@ namespace DAQ
                 leftOver.insert(leftOver.end(), data.begin()+nRead, data.end());
                 data.erase(data.begin()+nRead, data.end());
             }
-            // at this point we have scans of size 60 (or 75) channels
+            // at this point we have scans of size 60 (or 75) channels (or 32 in JFRCIntan32)
             // in the 75-channel case we need to throw away 14 of those channels since they are interwoven PD-channels!
             data.resize(nRead);
             if (!nRead) {
@@ -679,6 +679,10 @@ namespace DAQ
                     // data didn't end on scan-boundary -- we have leftover scans!
                     Error() << "INTERNAL ERROR SCAN DIDN'T END ON A SCAN BOUNDARY FIXME!!! in " << __FILE__ << ":" << __LINE__;                 
                 }
+            } else if (muxMode && p.mode == JFRCIntan32) {
+                for (int i = 0; i < (int)data.size(); i+= MUX_CHANS_PER_PHYS_CHAN32*2) 
+                    if (i+MUX_CHANS_PER_PHYS_CHAN32*2 <= (int)data.size())
+                        ApplyJFRCIntan32DemuxToScan(&data[i], &data[i+MUX_CHANS_PER_PHYS_CHAN32*2]);                    
             }
             totalRead += nRead;
             
