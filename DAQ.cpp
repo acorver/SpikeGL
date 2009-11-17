@@ -270,15 +270,14 @@ namespace DAQ
 #endif
     }
 
-    void ApplyJFRCIntan32DemuxToScan(int16 *begin, int16 *end) {        
+    inline void ApplyJFRCIntan32DemuxToScan(int16 *begin) {
         static const int narr = NUM_CHANS_PER_INTAN32*2;
-        if (end - begin < narr) Error() << "Internal DEMUX error for JFRCIntan32 demuxer: the scan has fewer than " << narr << " samples in it!";
         int16 tmparr[narr];
         int i,j;
         for (i = 0, j = 0; j < narr/2; i+=2,++j) {
             tmparr[j] = begin[i];
         }
-        for (i = 1, j = NUM_CHANS_PER_INTAN32; j < narr; i+=2,++j) {
+        for (i = 1, j = narr/2; j < narr; i+=2,++j) {
             tmparr[j] = begin[i];
         }
         memcpy(begin, tmparr, narr*sizeof(int16));
@@ -669,7 +668,7 @@ namespace DAQ
                         tmp.insert(tmp.end(), begi, endi); // .. we keep the extra channels
                         if (p.mode == JFRCIntan32) {
                             // now, optionally demux the channels such that channels 0->15 come from AI0 and 16->31 from AI1
-                            ApplyJFRCIntan32DemuxToScan(&tmp[tmp.size()-p.nVAIChans], &tmp[tmp.size()-nExtraChans]);
+                            ApplyJFRCIntan32DemuxToScan(&tmp[tmp.size()-p.nVAIChans]);
                         }                        
                     }
                 }
@@ -679,10 +678,10 @@ namespace DAQ
                     // data didn't end on scan-boundary -- we have leftover scans!
                     Error() << "INTERNAL ERROR SCAN DIDN'T END ON A SCAN BOUNDARY FIXME!!! in " << __FILE__ << ":" << __LINE__;                 
                 }
-            } else if (muxMode && p.mode == JFRCIntan32) {
+            } else if (p.mode == JFRCIntan32) {
                 for (int i = 0; i < (int)data.size(); i+= MUX_CHANS_PER_PHYS_CHAN32*2) 
                     if (i+MUX_CHANS_PER_PHYS_CHAN32*2 <= (int)data.size())
-                        ApplyJFRCIntan32DemuxToScan(&data[i], &data[i+MUX_CHANS_PER_PHYS_CHAN32*2]);                    
+                        ApplyJFRCIntan32DemuxToScan(&data[i]);                    
             }
             totalRead += nRead;
             
