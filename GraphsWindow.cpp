@@ -627,7 +627,7 @@ void GraphsWindow::toggleSaveChecked(bool b)
 {
     if (b) {
         saveFileLE->setEnabled(false);
-        params.outputFile = saveFileLE->text();
+        params.outputFile = saveFileLE->text().trimmed();
         mainApp()->toggleSave(b);
     } else {
         saveFileLE->setEnabled(true);

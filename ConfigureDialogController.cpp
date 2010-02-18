@@ -501,7 +501,7 @@ int ConfigureDialogController::exec()
             }
 
             DAQ::Params & p (acceptedParams);
-            p.outputFile = p.outputFileOrig = dialog->outputFileLE->text();
+            p.outputFile = p.outputFileOrig = dialog->outputFileLE->text().trimmed();
             p.dev = dev;
             p.stimGlTrigResave = dialog->stimGLReopenCB->isChecked();
             QStringList rngs = dialog->aiRangeCB->currentText().split(" - ");
