@@ -151,6 +151,11 @@ void ConfigureDialogController::aiRangeChanged()
 {
     QString devStr = devNames[dialog->deviceCB->currentIndex()];
     const QList<DAQ::Range> ranges = aiDevRanges.values(devStr);
+	if (!ranges.count()) {
+		QMessageBox::critical(dialogW, "NI Unknown Error", "Error with your NIDAQ setup.  Please make sure all ghost/phantom/unused devices are deleted from your NI Measurement & Autiomation Explorer", QMessageBox::Abort);
+		QApplication::exit(1);
+		return;
+	}
     const DAQ::Range r = ranges[dialog->aiRangeCB->currentIndex()];
     acqPdParams->pdAIThreshSB->setMinimum(r.min);
     acqPdParams->pdAIThreshSB->setMaximum(r.max);
@@ -344,6 +349,12 @@ void ConfigureDialogController::aoPDPassthruUpdateLE()
 
 int ConfigureDialogController::exec()
 {
+
+	if (!aiDevRanges.count()) {
+       QMessageBox::critical(dialogW, "NIDAQ Setup Error", "Something's wrong with your NI-DAQ hardware setup.  Make sure to delete unused devices in the NIDAQ Explorer and try again!");
+	   return QDialog::Rejected;
+	}
+
     bool again;
     int ret;
 
