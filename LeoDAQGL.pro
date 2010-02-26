@@ -34,6 +34,10 @@ unix {
 #        QMAKE_LFLAGS += -pg
 }
 
+macx {
+	LIBS += -framework CoreServices
+}
+
 RESOURCES += CommonResources.qrc
 ICON = LeoDAQGL.icns
 
