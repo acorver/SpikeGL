@@ -10,7 +10,7 @@
    </rect>
   </property>
   <property name="windowTitle" >
-   <string>LeoDAQGL Help</string>
+   <string>SpikeGL Help</string>
   </property>
   <widget class="QWidget" name="verticalLayoutWidget" >
    <property name="geometry" >

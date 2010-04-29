@@ -1,5 +1,5 @@
 #include "ConfigureDialogController.h"
-#include "LeoDAQGL.h"
+#include "SpikeGL.h"
 #include "Util.h"
 #include "MainApp.h"
 #include "ui_Dialog.h"
@@ -680,7 +680,7 @@ void ConfigureDialogController::loadSettings()
 {
     DAQ::Params & p(acceptedParams);
 
-    QSettings settings("janelia.hhmi.org", "LeoDAQGL");
+    QSettings settings("janelia.hhmi.org", "SpikeGL");
 
     settings.beginGroup("ConfigureDialogController");
 
@@ -725,7 +725,7 @@ void ConfigureDialogController::saveSettings()
 {
     DAQ::Params & p(acceptedParams);
 
-    QSettings settings("janelia.hhmi.org", "LeoDAQGL");
+    QSettings settings("janelia.hhmi.org", "SpikeGL");
 
     settings.beginGroup("ConfigureDialogController");
     

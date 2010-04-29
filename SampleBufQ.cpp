@@ -1,6 +1,6 @@
 #include "SampleBufQ.h"
 #include "Util.h"
-#include "LeoDAQGL.h"
+#include "SpikeGL.h"
 
 SampleBufQ::SampleBufQ(unsigned dataQueueMaxSizeInBufs)
     : dataQueueMaxSize(dataQueueMaxSizeInBufs) {}

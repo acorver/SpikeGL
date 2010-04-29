@@ -1,7 +1,8 @@
-<ui version="4.0" >
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
  <class>StimGLIntegration</class>
- <widget class="QDialog" name="StimGLIntegration" >
-  <property name="geometry" >
+ <widget class="QDialog" name="StimGLIntegration">
+  <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
@@ -9,11 +10,11 @@
     <height>194</height>
    </rect>
   </property>
-  <property name="windowTitle" >
+  <property name="windowTitle">
    <string>StimulateOpenGL_II Integration Options</string>
   </property>
-  <widget class="QDialogButtonBox" name="buttonBox" >
-   <property name="geometry" >
+  <widget class="QDialogButtonBox" name="buttonBox">
+   <property name="geometry">
     <rect>
      <x>30</x>
      <y>146</y>
@@ -21,15 +22,15 @@
      <height>32</height>
     </rect>
    </property>
-   <property name="orientation" >
+   <property name="orientation">
     <enum>Qt::Horizontal</enum>
    </property>
-   <property name="standardButtons" >
-    <set>QDialogButtonBox::Cancel|QDialogButtonBox::NoButton|QDialogButtonBox::Ok</set>
+   <property name="standardButtons">
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
    </property>
   </widget>
-  <widget class="QGroupBox" name="enabledGB" >
-   <property name="geometry" >
+  <widget class="QGroupBox" name="enabledGB">
+   <property name="geometry">
     <rect>
      <x>20</x>
      <y>9</y>
@@ -37,23 +38,23 @@
      <height>122</height>
     </rect>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Options for StimulateOpenGL_II plugin start/stop integration</string>
    </property>
-   <property name="whatsThis" >
+   <property name="whatsThis">
     <string>Options for StimulateOpenGL_II plugin start/stop integration</string>
    </property>
-   <property name="title" >
+   <property name="title">
     <string>StimulateOpenGL_II Integration Options</string>
    </property>
-   <property name="checkable" >
+   <property name="checkable">
     <bool>false</bool>
    </property>
-   <property name="checked" >
+   <property name="checked">
     <bool>false</bool>
    </property>
-   <widget class="QLabel" name="label" >
-    <property name="geometry" >
+   <widget class="QLabel" name="label">
+    <property name="geometry">
      <rect>
       <x>20</x>
       <y>26</y>
@@ -61,15 +62,15 @@
       <height>16</height>
      </rect>
     </property>
-    <property name="toolTip" >
-     <string>The hostname of the remote LeoDAQGL program</string>
+    <property name="toolTip">
+     <string>The interface to bind the listening server to (leave as 0.0.0.0 unless you know what this means).</string>
     </property>
-    <property name="text" >
+    <property name="text">
      <string>Interface</string>
     </property>
    </widget>
-   <widget class="QLineEdit" name="interfaceLE" >
-    <property name="geometry" >
+   <widget class="QLineEdit" name="interfaceLE">
+    <property name="geometry">
      <rect>
       <x>100</x>
       <y>23</y>
@@ -77,31 +78,31 @@
       <height>22</height>
      </rect>
     </property>
-    <property name="toolTip" >
-     <string>The hostname of the remote LeoDAQGL program</string>
+    <property name="toolTip">
+     <string>The interface to bind the listening server to (leave as 0.0.0.0 unless you know what this means).</string>
     </property>
-    <property name="text" >
+    <property name="text">
      <string>0.0.0.0</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_2" >
-    <property name="geometry" >
+   <widget class="QLabel" name="label_2">
+    <property name="geometry">
      <rect>
       <x>20</x>
-      <y>57</y>
+      <y>60</y>
       <width>71</width>
       <height>16</height>
      </rect>
     </property>
-    <property name="toolTip" >
-     <string>The port on which the LeoDAQGL program is listening for notifications.</string>
+    <property name="toolTip">
+     <string>The port to bind the listening server to.</string>
     </property>
-    <property name="text" >
+    <property name="text">
      <string>Port:</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_3" >
-    <property name="geometry" >
+   <widget class="QLabel" name="label_3">
+    <property name="geometry">
      <rect>
       <x>20</x>
       <y>91</y>
@@ -109,15 +110,15 @@
       <height>16</height>
      </rect>
     </property>
-    <property name="toolTip" >
-     <string>The communications timeout.  If LeoDAQGL fails to respond within this time limit, abort notification attempt.  Set this to a relatively low number.</string>
+    <property name="toolTip">
+     <string>Communications timeout.  Set this to a relatively low number since high timeouts may impact recording and lead to data skips, etc.</string>
     </property>
-    <property name="text" >
+    <property name="text">
      <string>Timeout (ms):</string>
     </property>
    </widget>
-   <widget class="QSpinBox" name="timeoutSB" >
-    <property name="geometry" >
+   <widget class="QSpinBox" name="timeoutSB">
+    <property name="geometry">
      <rect>
       <x>100</x>
       <y>84</y>
@@ -125,21 +126,21 @@
       <height>22</height>
      </rect>
     </property>
-    <property name="toolTip" >
-     <string>The communications timeout.  If LeoDAQGL fails to respond within this time limit, abort notification attempt.  Set this to a relatively low number.</string>
+    <property name="toolTip">
+     <string>Communications timeout.  Set this to a relatively low number since high timeouts may impact recording and lead to data skips, etc.</string>
     </property>
-    <property name="minimum" >
+    <property name="minimum">
      <number>50</number>
     </property>
-    <property name="maximum" >
+    <property name="maximum">
      <number>30000</number>
     </property>
-    <property name="value" >
+    <property name="value">
      <number>1000</number>
     </property>
    </widget>
-   <widget class="QSpinBox" name="portSB" >
-    <property name="geometry" >
+   <widget class="QSpinBox" name="portSB">
+    <property name="geometry">
      <rect>
       <x>100</x>
       <y>53</y>
@@ -147,13 +148,16 @@
       <height>22</height>
      </rect>
     </property>
-    <property name="minimum" >
+    <property name="toolTip">
+     <string>The port to bind the listening server to.</string>
+    </property>
+    <property name="minimum">
      <number>1</number>
     </property>
-    <property name="maximum" >
+    <property name="maximum">
      <number>65535</number>
     </property>
-    <property name="value" >
+    <property name="value">
      <number>52521</number>
     </property>
    </widget>
@@ -167,11 +171,11 @@
    <receiver>StimGLIntegration</receiver>
    <slot>accept()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>248</x>
      <y>254</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>157</x>
      <y>274</y>
     </hint>
@@ -183,11 +187,11 @@
    <receiver>StimGLIntegration</receiver>
    <slot>reject()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>316</x>
      <y>260</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>286</x>
      <y>274</y>
     </hint>

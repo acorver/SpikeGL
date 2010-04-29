@@ -1,4 +1,4 @@
-#include "LeoDAQGL.h"
+#include "SpikeGL.h"
 #include "DAQ.h"
 #ifdef HAVE_NIDAQmx
 #  include "NI/NIDAQmx.h"
@@ -869,7 +869,7 @@ namespace DAQ
 #endif // ! FAKEDAQ
 
 
-    /// some helper funcs from LeoDAQGL.h
+    /// some helper funcs from SpikeGL.h
     static const QString acqModes[] = { "AI60Demux", "AIRegular", "AI120Demux", QString::null };
     
     const QString & ModeToString(Mode m)

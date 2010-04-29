@@ -1,6 +1,6 @@
 #ifndef DAQ_H
 #define DAQ_H
-#include "LeoDAQGL.h"
+#include "SpikeGL.h"
 #include "SampleBufQ.h"
 #include "ChanMap.h"
 #include <QMultiMap>

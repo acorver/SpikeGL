@@ -36,7 +36,7 @@
 #include "Sha1VerifyTask.h"
 #include "Par2Window.h"
 #include "ui_StimGLIntegration.h"
-#include "StimGL_LeoDAQGL_Integration.h"
+#include "StimGL_SpikeGL_Integration.h"
 #include "ui_TextBrowser.h"
 
 Q_DECLARE_METATYPE(unsigned);
@@ -310,8 +310,8 @@ void MainApp::loadSettings()
     mut.unlock();
     StimGLIntegrationParams & p(stimGLIntParams);
     p.iface = settings.value("StimGLInt_Listen_Interface", "0.0.0.0").toString();
-    p.port = settings.value("StimGLInt_Listen_Port",  LEODAQ_GL_NOTIFY_DEFAULT_PORT).toUInt();
-    p.timeout_ms = settings.value("StimGLInt_TimeoutMS", LEODAQ_GL_NOTIFY_DEFAULT_TIMEOUT_MSECS ).toInt(); 
+    p.port = settings.value("StimGLInt_Listen_Port",  SPIKE_GL_NOTIFY_DEFAULT_PORT).toUInt();
+    p.timeout_ms = settings.value("StimGLInt_TimeoutMS", SPIKE_GL_NOTIFY_DEFAULT_TIMEOUT_MSECS ).toInt(); 
     
 }
 
@@ -476,7 +476,7 @@ void MainApp::initActions()
              SIGNAL(triggered()), this, SLOT(respecAOPassthru()));
     aoPassthruAct->setEnabled(false);
     
-    Connect( helpAct = new QAction("LeoDAQGL &Help", this), 
+    Connect( helpAct = new QAction("SpikeGL &Help", this), 
              SIGNAL(triggered()), this, SLOT(help()));
     Connect( aboutAct = new QAction("&About", this), 
              SIGNAL(triggered()), this, SLOT(about()));
@@ -1054,7 +1054,7 @@ void MainApp::execStimGLIntegrationDialog()
 bool MainApp::setupStimGLIntegration(bool doQuitOnFail)
 {
     if (notifyServer) delete notifyServer;
-    notifyServer = new StimGL_LeoDAQGL_Integration::NotifyServer(this);
+    notifyServer = new StimGL_SpikeGL_Integration::NotifyServer(this);
     StimGLIntegrationParams & p (stimGLIntParams);
     if (!notifyServer->beginListening(p.iface, p.port, p.timeout_ms)) {
         if (doQuitOnFail) {
@@ -1226,10 +1226,10 @@ void MainApp::help()
     if (!helpWindow) {
         Ui::TextBrowser tb;
         helpWindow = new QDialog(0);
-        helpWindow->setWindowTitle("LeoDAQGL Help");
+        helpWindow->setWindowTitle("SpikeGL Help");
         tb.setupUi(helpWindow);
         tb.textBrowser->setSearchPaths(QStringList("qrc:/"));
-        tb.textBrowser->setSource(QUrl("qrc:/LeoDAQGL-help-manual.html"));
+        tb.textBrowser->setSource(QUrl("qrc:/SpikeGL-help-manual.html"));
     }
     helpWindow->show();
 	helpWindow->raise();

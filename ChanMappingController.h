@@ -3,7 +3,7 @@
 #include <QObject>
 #include <QVector>
 #include "ui_ChanMapping.h"
-#include "LeoDAQGL.h"
+#include "SpikeGL.h"
 #include "ChanMap.h"
 class QDialog;
 

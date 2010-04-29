@@ -7,7 +7,7 @@
 #include "ui_AOPassthru.h"
 #include "ui_ApplyDialog.h"
 #include <QObject>
-#include "LeoDAQGL.h"
+#include "SpikeGL.h"
 #include <QVector>
 #include "DAQ.h"
 #include "ChanMappingController.h"

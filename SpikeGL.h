@@ -1,8 +1,8 @@
-#ifndef LeoDAQGL_H
-#define LeoDAQGL_H
+#ifndef SpikeGL_H
+#define SpikeGL_H
 
 /**
-   @file LeoDAQGL.h - some constants and other shared values.
+   @file SpikeGL.h - some constants and other shared values.
 */
 
 #include "Util.h"
@@ -22,7 +22,7 @@
 #if (INTAN_SRATE/TASK_READ_FREQ_HZ)*TASK_READ_FREQ_HZ != INTAN_SRATE
 #  error Please set TASK_READ_FREQ_HZ to a value that is a factor of the INTAN sampling rate
 #endif
-#define APPNAME "LeoDAQGL"
+#define APPNAME "SpikeGL"
 #define DOWNSAMPLE_TARGET_HZ 1000
 #define DEFAULT_GRAPH_TIME_SECS 3.0
 #define MOUSE_OVER_UPDATE_INTERVAL_MS 1000

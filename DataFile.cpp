@@ -1,6 +1,6 @@
 #include "DataFile.h"
 #include "Util.h"
-#include "LeoDAQGL.h"
+#include "SpikeGL.h"
 
 static QString metaFileForFileName(const QString &fname)
 {

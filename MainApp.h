@@ -1,8 +1,8 @@
-/*! \mainpage LeoDAQGL
+/*! \mainpage SpikeGL
  *
  * \section intro_sec Introduction
  *
- * This is documentation for the LeoDAQGL program.  It is mainly
+ * This is documentation for the SpikeGL program.  It is mainly
  * sourcecode documentation. 
  */
 
@@ -34,7 +34,7 @@ class QDialog;
 class QFrame;
 class QTimer;
 class QMessageBox;
-#include "StimGL_LeoDAQGL_Integration.h"
+#include "StimGL_SpikeGL_Integration.h"
 
 /**
    \brief The central class to the program that more-or-less encapsulates most objects and data in the program.
@@ -226,7 +226,7 @@ private:
     QTimer *taskReadTimer;
     GraphsWindow *graphsWindow;
     Par2Window *par2Win;
-    StimGL_LeoDAQGL_Integration::NotifyServer *notifyServer;
+    StimGL_SpikeGL_Integration::NotifyServer *notifyServer;
     bool fastSettleRunning;
     QDialog *helpWindow;
 
