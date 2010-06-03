@@ -89,7 +89,7 @@ namespace SockUtil
     {
         // read greeting from server        
         for (int ct = 0; !sock.canReadLine(); ++ct) {
-            if (!sock.isValid() || !sock.state() == QAbstractSocket::ConnectedState || !sock.waitForReadyRead(timeout_msecs) || ct >= 3) {
+            if (!sock.isValid() || sock.state() != QAbstractSocket::ConnectedState || !sock.waitForReadyRead(timeout_msecs) || ct >= 3) {
                 if (!errStr_out) Error() << contextName() << "timeout or peer shutdown";
                 else *errStr_out = "timeout or peer shutdown";
                 return QString::null;

@@ -591,14 +591,16 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
             p.demuxedBitMap.setBit(n);
         }
     }
-    p.subsetString = dialog->channelSubsetLE->text();    
-    /*QString debugStr = "";
+    p.subsetString = dialog->channelSubsetLE->text();  
+    p.nVAIChansFromDAQ = p.nVAIChans;
+    p.nVAIChans = p.demuxedBitMap.count(true) + p.nExtraChans;
+    QString debugStr = "";
     for (int i = 0; i < p.demuxedBitMap.count(); ++i) {
         debugStr += QString::number(int(p.demuxedBitMap.at(i))) + " ";
-        if (i && !(i % 9)) debugStr += "\n";
+        //if (i && !(i % 9)) debugStr += "\n";
     }
-    Debug() << debugStr;
-    */
+    Debug() << "Channel subset bitmap: " << debugStr;
+    
     saveSettings();       
     
     return OK;

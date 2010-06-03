@@ -320,7 +320,7 @@ namespace DAQ
 
     Task::Task(const Params & acqParams, QObject *p) 
         : QThread(p), pleaseStop(false), params(acqParams), 
-          fast_settle(0), muxMode(false), totalRead(0LL)
+          fast_settle(0), muxMode(false), totalRead(0LL), totalRead_subset(0LL)
     {
     }
 
@@ -380,20 +380,30 @@ namespace DAQ
             emit daqError(err);        
             return;
         }
-        std::vector<int16> data;
+        std::vector<int16> data, data_out;
         const double onePd = int(params.srate/double(TASK_READ_FREQ_HZ));
         while (!pleaseStop) {
-            data.resize(unsigned(params.nVAIChans*onePd));
-            qint64 nread = f.read((char *)&data[0], data.size()*sizeof(int16));
+            data.resize(unsigned(params.nVAIChansFromDAQ*onePd));
+            data_out.resize(unsigned(params.nVAIChans*onePd));
+            qint64 nread = f.read((char *)&data[0], data.size()*sizeof(int16)), nread_subset;
             if (nread != data.size()*sizeof(int16)) {
                 f.seek(0);
             } else if (nread > 0) {
                 nread /= sizeof(int16);
                 data.resize(nread);
                 if (!totalRead) emit(gotFirstScan());
-                enqueueBuffer(data, totalRead);
+                nread_subset = 0;
+                const int dbmsize = params.demuxedBitMap.size();
+                for (int i = 0; i < nread; ++i) {
+                    int rel = i % params.nVAIChansFromDAQ;
+                    if (rel >= dbmsize || params.demuxedBitMap.at(rel)) {
+                        data_out[nread_subset++] = data[i];
+                    }
+                }
+                enqueueBuffer(data_out, totalRead_subset);
       
                 totalRead += nread;
+                totalRead_subset += nread_subset;
             }
             usleep(int((1e6/params.srate)*onePd));
         }
@@ -531,7 +541,7 @@ namespace DAQ
         float64 sampleRate = p.srate;
         const float64 aoSampleRate = p.srate;
         const float64     timeout = DAQ_TIMEOUT;
-        const int NCHANS = p.nVAIChans;
+        const int NCHANS = p.nVAIChansFromDAQ;
         muxMode =  p.mode == AI60Demux || p.mode == AI120Demux || p.mode == JFRCIntan32;
         int nscans_per_mux_scan = 1;
         AOWriteThread * aoWriteThr = 0;
@@ -564,7 +574,9 @@ namespace DAQ
         // Timing parameters
         int32       pointsRead;
         const int32 pointsToRead = bufferSize;
-        std::vector<int16> data, leftOver, aoData;
+        std::vector<int16> data, data_out, leftOver, aoData;
+        bool hasSubset = p.demuxedBitMap.count(0);
+
         QMap<unsigned, unsigned> saved_aoPassthruMap = p.aoPassthruMap;
 		QString saved_aoDev = p.aoDev;
 		Range saved_aoRange = p.aoRange;
@@ -607,7 +619,7 @@ namespace DAQ
             data.resize(pointsToRead+oldS);
         
             DAQmxErrChk (DAQmxReadBinaryI16(taskHandle,samplesPerChan,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL));
-            u64 sampCount = totalRead;
+            u64 sampCount = totalRead, sampCount_subset = totalRead_subset;
             if (!sampCount) emit(gotFirstScan());
             int32 nRead = pointsRead * nChans + oldS;                  
             int nDemuxScans = nRead/nChans/nscans_per_mux_scan;
@@ -668,7 +680,7 @@ namespace DAQ
                         tmp.insert(tmp.end(), begi, endi); // .. we keep the extra channels
                         if (p.mode == JFRCIntan32) {
                             // now, optionally demux the channels such that channels 0->15 come from AI0 and 16->31 from AI1
-                            ApplyJFRCIntan32DemuxToScan(&tmp[tmp.size()-p.nVAIChans]);
+                            ApplyJFRCIntan32DemuxToScan(&tmp[tmp.size()-p.nVAIChansFromDAQ]);
                         }                        
                     }
                 }
@@ -729,7 +741,23 @@ namespace DAQ
                 }
             }
             
-            enqueueBuffer(data, sampCount);
+            if (hasSubset) {
+                data_out.resize(0);
+                data_out.reserve(data.size() * double(p.nVAIChans)/double(p.nVAIChansFromDAQ));
+                const int dsize = data.size(), dbmsize = p.demuxedBitMap.size();
+                for (int i = 0; i < dsize; ++i) {
+                    const int rel = i % p.nVAIChansFromDAQ;
+                    if (rel >= dbmsize || p.demuxedBitMap.at(rel)) {
+                        data_out.push_back(data[i]);
+                        ++totalRead_subset;
+                    }
+                }
+            } else {
+                data_out.swap(data);
+                totalRead_subset = totalRead;
+            }
+            
+            enqueueBuffer(data_out, sampCount_subset);
 
             // fast settle...
             if (muxMode && fast_settle && !leftOver.size()) {

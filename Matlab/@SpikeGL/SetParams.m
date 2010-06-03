@@ -16,6 +16,7 @@ function [s] = SetParams(s, params)
     running = IsAcquiring(s);
     if (running),
         error('Cannot set params while an acquisition is running!  Stop() it first!');
+        return;
     end;
     CalinsNetMex('sendString', s.handle, sprintf('SETPARAMS\n'));
     ReceiveREADY(s, 'SETPARAMS');
