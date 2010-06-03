@@ -12,6 +12,18 @@ public:
     Par2Window(QWidget *parent = 0);
     ~Par2Window();
 
+    /// manually force an operation to start -- simulates a user picking an 
+    /// operation and file from GUI
+    /// @return an error string on error, or QString::null on successful start.
+    QString startOperation(const QString & command, /**< one of "c", "v", or "r" */
+                           const QString & file);
+    
+signals:
+    /// emitted by this object when the par2 subprocess sent some lines.  Useful for the network command server.
+    void gotLines(const QString &);
+    void subprocessError(const QString &);
+    void subprocessEnded();
+        
 protected:
     void closeEvent(QCloseEvent *);
 
@@ -26,7 +38,8 @@ protected slots:
     void procError(QProcess::ProcessError);
 private:
     void killProc();
-
+    bool go(QString & errTitle, QString & errMsg);
+    
     enum Op {
         Unknown, Verify, Create, Repair
     } op;

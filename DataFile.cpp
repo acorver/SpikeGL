@@ -1,6 +1,7 @@
 #include "DataFile.h"
 #include "Util.h"
 #include "SpikeGL.h"
+#include "MainApp.h"
 
 static QString metaFileForFileName(const QString &fname)
 {
@@ -90,8 +91,13 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     }
     if (isOpen()) closeAndFinalize();
 
-    const QString outputFile = filename_override.length() ? filename_override : dp.outputFile;
+    QString outputFile = filename_override.length() ? filename_override : dp.outputFile;
 
+    if (!QFileInfo(outputFile).isAbsolute())
+        outputFile = mainApp()->outputDirectory() + "/" + outputFile; 
+    
+    Debug() << "outdir: " << mainApp()->outputDirectory() << " outfile: " << outputFile;
+    
     outFile.setFileName(outputFile);
     metaFile.setFileName(metaFileForFileName(outputFile));
 

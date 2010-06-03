@@ -70,6 +70,8 @@ namespace DAQ
         bool extClock;
         QString aiString;
         QVector<unsigned> aiChannels;
+        QString subsetString; ///< subset of demuxed AI chans to actually save/graph.
+        QBitArray demuxedBitMap; ///< bitmap of the demuxed AI chans to actually save/graph.  Derived from subsetString above.
         unsigned nVAIChans; ///< number of virtual (demuxed) AI chans
         unsigned nExtraChans; ///< the number of extra channels (PD, etc) that aren't part of the demux.. if not in MUX mode, this is always 0
         bool aoPassthru;
@@ -93,7 +95,7 @@ namespace DAQ
         int pdChan, idxOfPdChan;
         int pdPassThruToAO; ///< if negative, don't, else the channel id
         double pdStopTime; ///< iff PDEnd mode, the amount of time in seconds that need to be elapsed before we pronounce the PD signal as gone and we stop the task
-        double silenceBeforePD; ///< Time, in seconds, of silence before the photodiode signal in PD trigger mode only!
+        double silenceBeforePD; ///< Time, in seconds, of silence before the photodiode signal in PD trigger mode only!  This time window is also applied to the file end as well.
 
         bool suppressGraphs;
 
@@ -108,6 +110,7 @@ namespace DAQ
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }
         void unlock() const { mutex.unlock(); }
+
     };
 
     //-------- NI DAQmx helper methods -------------

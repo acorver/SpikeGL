@@ -29,4 +29,5 @@
 #define NUM_INTANS_MAX 8
 #define NUM_MUX_CHANS_MAX (NUM_INTANS_MAX*MUX_CHANS_PER_PHYS_CHAN)
 #define DEFAULT_PD_SILENCE .010 /* 10 ms silence default */
+
 #endif

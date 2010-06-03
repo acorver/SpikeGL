@@ -1,7 +1,8 @@
-<ui version="4.0" >
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
  <class>AcqPDParams</class>
- <widget class="QWidget" name="AcqPDParams" >
-  <property name="geometry" >
+ <widget class="QWidget" name="AcqPDParams">
+  <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
@@ -9,140 +10,163 @@
     <height>86</height>
    </rect>
   </property>
-  <property name="windowTitle" >
+  <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QWidget" name="layoutWidget" >
-   <property name="geometry" >
+  <widget class="QWidget" name="layoutWidget">
+   <property name="geometry">
     <rect>
      <x>11</x>
      <y>44</y>
-     <width>360</width>
-     <height>25</height>
+     <width>372</width>
+     <height>32</height>
     </rect>
    </property>
-   <layout class="QHBoxLayout" name="horizontalLayout_2" >
+   <layout class="QHBoxLayout" name="horizontalLayout_2">
     <item>
-     <widget class="QCheckBox" name="pdPassthruAOChk" >
-      <property name="toolTip" >
+     <widget class="QCheckBox" name="pdPassthruAOChk">
+      <property name="toolTip">
        <string>Optionally, you may pass thru the photodiode electrode channel back to AO. </string>
       </property>
-      <property name="text" >
+      <property name="text">
        <string>AO passthru:</string>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QSpinBox" name="pdPassthruAOSB" >
-      <property name="enabled" >
+     <widget class="QSpinBox" name="pdPassthruAOSB">
+      <property name="enabled">
        <bool>false</bool>
       </property>
-      <property name="toolTip" >
+      <property name="toolTip">
        <string>The AO channel to pass PD input back out to.  Node this is on the AO device selected above</string>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="pdStopTimeLbl" >
-      <property name="toolTip" >
+     <widget class="QLabel" name="pdStopTimeLbl">
+      <property name="toolTip">
        <string>The time in seconds that the PD signal needs to be off before the 'PD stop' event is triggered (and the acquisition is stopped).</string>
       </property>
-      <property name="text" >
+      <property name="text">
        <string>PD stop time (secs):</string>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QDoubleSpinBox" name="pdStopTimeSB" >
-      <property name="toolTip" >
+     <widget class="QDoubleSpinBox" name="pdStopTimeSB">
+      <property name="toolTip">
        <string>The time in seconds that the PD signal needs to be off before the 'PD stop' event is triggered (and the acquisition is stopped).</string>
       </property>
-      <property name="value" >
+      <property name="value">
        <double>0.500000000000000</double>
       </property>
      </widget>
     </item>
    </layout>
   </widget>
-  <widget class="QWidget" name="layoutWidget" >
-   <property name="geometry" >
+  <widget class="QWidget" name="layoutWidget">
+   <property name="geometry">
     <rect>
      <x>11</x>
      <y>12</y>
-     <width>383</width>
-     <height>25</height>
+     <width>444</width>
+     <height>27</height>
     </rect>
    </property>
-   <layout class="QHBoxLayout" name="horizontalLayout" >
+   <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0">
+    <property name="sizeConstraint">
+     <enum>QLayout::SetDefaultConstraint</enum>
+    </property>
     <item>
-     <widget class="QLabel" name="pdAILabel" >
-      <property name="toolTip" >
+     <widget class="QLabel" name="pdAILabel">
+      <property name="toolTip">
        <string>The physical AI channel to monitor for photodiode threshold crossings</string>
       </property>
-      <property name="text" >
+      <property name="text">
        <string>AI Ch:</string>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QSpinBox" name="pdAISB" >
-      <property name="toolTip" >
+     <widget class="QSpinBox" name="pdAISB">
+      <property name="toolTip">
        <string>The physical AI channel to monitor for photodiode threshold crossings</string>
       </property>
-      <property name="value" >
+      <property name="value">
        <number>4</number>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="pdAIThreshLabel" >
-      <property name="toolTip" >
+     <widget class="QLabel" name="pdAIThreshLabel">
+      <property name="toolTip">
        <string>The threshold to use for crossings.  Note this is a 16-bit value in the range 0-65535</string>
       </property>
-      <property name="text" >
+      <property name="text">
        <string>Thresh (V)</string>
       </property>
-      <property name="alignment" >
+      <property name="alignment">
        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QDoubleSpinBox" name="pdAIThreshSB" >
-      <property name="decimals" >
+     <widget class="QDoubleSpinBox" name="pdAIThreshSB">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>70</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="decimals">
        <number>4</number>
       </property>
-      <property name="minimum" >
+      <property name="minimum">
        <double>-10.000000000000000</double>
       </property>
-      <property name="maximum" >
+      <property name="maximum">
        <double>10.000000000000000</double>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="label" >
-      <property name="toolTip" >
-       <string>The amount of time in milliseconds to preamble the first PD pulse.  
-This parameter ensures data files have a regular amount of leading 
-whitespace before the PD trigger.</string>
+     <widget class="QLabel" name="label">
+      <property name="toolTip">
+       <string>The amount of time in milliseconds to preamble and postamble the recording.  
+The preamble applies to the first PD pulse.   The postamble applies to each individual recording file
+generated. This parameter ensures data files have a regular amount of leading whitespace before the PD
+trigger.</string>
       </property>
-      <property name="text" >
-       <string>Pre. (ms):</string>
+      <property name="text">
+       <string>Pre/Post (ms):</string>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QSpinBox" name="pdPre" >
-      <property name="toolTip" >
-       <string>The amount of time in milliseconds to preamble the first PD pulse.  
-This parameter ensures data files have a regular amount of leading 
-whitespace before the PD trigger.</string>
+     <widget class="QSpinBox" name="pdPre">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
       </property>
-      <property name="maximum" >
+      <property name="toolTip">
+       <string>The amount of time in milliseconds to preamble and postamble the recording.  
+The preamble applies to the first PD pulse.   The postamble applies to each individual recording file
+generated. This parameter ensures data files have a regular amount of leading whitespace before the PD
+trigger.</string>
+      </property>
+      <property name="maximum">
        <number>1000</number>
       </property>
-      <property name="value" >
+      <property name="value">
        <number>10</number>
       </property>
      </widget>

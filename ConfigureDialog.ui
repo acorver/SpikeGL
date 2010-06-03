@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>476</width>
-    <height>660</height>
+    <width>477</width>
+    <height>690</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,8 +29,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>294</x>
-     <y>604</y>
+     <x>293</x>
+     <y>639</y>
      <width>171</width>
      <height>32</height>
     </rect>
@@ -133,8 +133,8 @@
   <widget class="QLineEdit" name="channelListLE">
    <property name="geometry">
     <rect>
-     <x>22</x>
-     <y>267</y>
+     <x>25</x>
+     <y>297</y>
      <width>431</width>
      <height>22</height>
     </rect>
@@ -149,8 +149,8 @@
   <widget class="QLabel" name="channelListLabel">
    <property name="geometry">
     <rect>
-     <x>22</x>
-     <y>241</y>
+     <x>25</x>
+     <y>271</y>
      <width>421</width>
      <height>16</height>
     </rect>
@@ -168,8 +168,8 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>22</x>
-     <y>150</y>
+     <x>25</x>
+     <y>180</y>
      <width>181</width>
      <height>16</height>
     </rect>
@@ -187,8 +187,8 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>212</x>
-     <y>150</y>
+     <x>215</x>
+     <y>180</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -212,8 +212,8 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>342</x>
-     <y>150</y>
+     <x>345</x>
+     <y>180</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -236,8 +236,8 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
   <widget class="QCheckBox" name="disableGraphsChk">
    <property name="geometry">
     <rect>
-     <x>24</x>
-     <y>607</y>
+     <x>23</x>
+     <y>642</y>
      <width>251</width>
      <height>21</height>
     </rect>
@@ -252,8 +252,8 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
   <widget class="QGroupBox" name="acqStartEndGB">
    <property name="geometry">
     <rect>
-     <x>22</x>
-     <y>428</y>
+     <x>21</x>
+     <y>463</y>
      <width>431</width>
      <height>152</height>
     </rect>
@@ -353,8 +353,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="aiRangeMinLbl">
    <property name="geometry">
     <rect>
-     <x>222</x>
-     <y>118</y>
+     <x>225</x>
+     <y>148</y>
      <width>111</width>
      <height>22</height>
     </rect>
@@ -372,8 +372,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QComboBox" name="aiRangeCB">
    <property name="geometry">
     <rect>
-     <x>336</x>
-     <y>118</y>
+     <x>339</x>
+     <y>148</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -385,8 +385,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="deviceLabel">
    <property name="geometry">
     <rect>
-     <x>23</x>
-     <y>119</y>
+     <x>26</x>
+     <y>149</y>
      <width>59</width>
      <height>22</height>
     </rect>
@@ -401,8 +401,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QComboBox" name="deviceCB">
    <property name="geometry">
     <rect>
-     <x>78</x>
-     <y>119</y>
+     <x>81</x>
+     <y>149</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -446,8 +446,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QComboBox" name="aiTerminationCB">
    <property name="geometry">
     <rect>
-     <x>119</x>
-     <y>179</y>
+     <x>122</x>
+     <y>209</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -484,8 +484,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="aiTerminationLabel">
    <property name="geometry">
     <rect>
-     <x>19</x>
-     <y>179</y>
+     <x>22</x>
+     <y>209</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -500,8 +500,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QSpinBox" name="fastSettleSB">
    <property name="geometry">
     <rect>
-     <x>369</x>
-     <y>177</y>
+     <x>372</x>
+     <y>207</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -522,8 +522,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="fastSettleLbl">
    <property name="geometry">
     <rect>
-     <x>269</x>
-     <y>179</y>
+     <x>272</x>
+     <y>209</y>
      <width>91</width>
      <height>20</height>
     </rect>
@@ -541,8 +541,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="auxGainLbl">
    <property name="geometry">
     <rect>
-     <x>21</x>
-     <y>210</y>
+     <x>24</x>
+     <y>240</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -560,8 +560,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QDoubleSpinBox" name="auxGainSB">
    <property name="geometry">
     <rect>
-     <x>119</x>
-     <y>211</y>
+     <x>122</x>
+     <y>241</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -582,8 +582,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QPushButton" name="muxMapBut">
    <property name="geometry">
     <rect>
-     <x>265</x>
-     <y>205</y>
+     <x>268</x>
+     <y>235</y>
      <width>166</width>
      <height>32</height>
     </rect>
@@ -621,11 +621,52 @@ p, li { white-space: pre-wrap; }
   <widget class="QWidget" name="aoPassthruWidget" native="true">
    <property name="geometry">
     <rect>
-     <x>22</x>
-     <y>298</y>
+     <x>21</x>
+     <y>333</y>
      <width>431</width>
      <height>121</height>
     </rect>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="channelSubsetLE">
+   <property name="geometry">
+    <rect>
+     <x>232</x>
+     <y>114</y>
+     <width>222</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>This option is useful if you wish to save &amp; graph only a subset of the demuxed AI channels.  
+Enter a list of virtual (demuxed) AI channels to acquire.  Ranges such as 0:59,  or 
+comma-separated-lists such as 1,2,3,4 are ok.  * or 'ALL' or an empty string indicates all
+channels will be saved.  </string>
+   </property>
+   <property name="text">
+    <string>*</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="channelSubsetLabel">
+   <property name="geometry">
+    <rect>
+     <x>46</x>
+     <y>114</y>
+     <width>177</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>This option is useful if you wish to save &amp; graph only a subset of the demuxed AI channels.  
+Enter a list of virtual (demuxed) AI channels to acquire.  Ranges such as 0:59,  or 
+comma-separated-lists such as 1,2,3,4 are ok.  * or 'ALL' or an empty string indicates all
+channels will be saved.  </string>
+   </property>
+   <property name="text">
+    <string>Save Channel Subset:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
    </property>
   </widget>
  </widget>

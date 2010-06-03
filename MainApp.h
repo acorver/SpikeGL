@@ -9,17 +9,6 @@
 #ifndef MainApp_H
 #define MainApp_H
 
-#include <QApplication>
-#include <QColor>
-#include <QMutex>
-#include <QMutexLocker>
-#include <QByteArray>
-#include <QIcon>
-#include <QList>
-#include "Util.h"
-#include "DAQ.h"
-#include "DataFile.h"
-#include "WrapBuffer.h"
 class QTextEdit;
 class ConsoleWindow;
 class GLWindow;
@@ -34,7 +23,24 @@ class QDialog;
 class QFrame;
 class QTimer;
 class QMessageBox;
+class CommandConnection;
+
+#include <QApplication>
+#include <QColor>
+#include <QMutex>
+#include <QMutexLocker>
+#include <QByteArray>
+#include <QIcon>
+#include <QList>
+#include <QString>
+#include <QMap>
+#include <QSet>
+#include "Util.h"
+#include "DAQ.h"
+#include "DataFile.h"
+#include "WrapBuffer.h"
 #include "StimGL_SpikeGL_Integration.h"
+#include "CommandServer.h"
 
 /**
    \brief The central class to the program that more-or-less encapsulates most objects and data in the program.
@@ -64,7 +70,18 @@ public:
 
     /// Returns true iff the application's console window has debug output printing enabled
     bool isDebugMode() const;
+    
+    /// Returns true if the application is currently acquiring data
+    bool isAcquiring() const { return task; }
 
+    /// Returns true if the application is currently saving data
+    bool isSaving() const;
+    
+    /// Set the save file
+    void setOutputFile(const QString &);
+    /// Query the save file
+    QString outputFile() const;
+    
     /// Returns the directory under which all plugin data files are to be saved.
     QString outputDirectory() const { QMutexLocker l(&mut); return outDir; }
     /// Set the directory under which all plugin data files are to be saved. NB: dpath must exist otherwise it is not set and false is returned
@@ -165,14 +182,25 @@ protected slots:
 
     void showPar2Win();
 
-    void execStimGLIntegrationDialog();
+    void execStimGLIntegrationDialog();    
+    void execCommandServerOptionsDialog();
 
     void stimGL_PluginStarted(const QString &, const QMap<QString, QVariant>  &);
+    void stimGL_SaveParams(const QString & unused, const QMap<QString, QVariant> & pm);
     void stimGL_PluginEnded(const QString &, const QMap<QString, QVariant>  &);
 
     void fastSettleCompletion();
     void precreateGraphs();
     void gotFirstScan();
+
+protected:
+    void customEvent(QEvent *); ///< actually implemented in CommandServer.cpp since it is used to handle events from network connection threads
+
+private slots:
+    void par2WinForCommandConnectionEnded(); ///< implemented in CommandServer.cpp
+    void par2WinForCommandConnectionGotLines(const QString & lines); ///< implemented in CommandServer.cpp
+    void par2WinForCommandConnectionError(const QString & lines); ///< implemented in CommandServer.cpp
+    void fastSettleDoneForCommandConnections();
 
 private:
     /// Display a message to the status bar
@@ -185,15 +213,20 @@ private:
     bool processKey(QKeyEvent *);
     void stopTask();
     bool setupStimGLIntegration(bool doQuitOnFail=true);
+    bool setupCommandServer(bool doQuitOnFail=true);
     bool detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp);
     void triggerTask();
     bool detectStopTask(const std::vector<int16> & scans, u64 firstSamp);
-    void stimGL_SaveParams(const QMap<QString, QVariant> & pm);
     static void xferWBToScans(WrapBuffer & wb, std::vector<int16> & scans,
                               u64 & firstSamp, i64 & scan0Fudge);
     void precreateOneGraph();
+    bool startAcq(QString & errTitle, QString & errMsg);
 
-    mutable QMutex mut; ///< used to lock outDir param for now
+    QMap<QString, QVariant> queuedParams;    
+    QMap<Par2Window *, CommandConnection *> par2WinConnMap;
+    QSet<CommandConnection *> fastSettleConns;  ///< connections waiting for fast settle...
+    
+    mutable QMutex mut; ///< used to lock outDir for now
     ConfigureDialogController *configCtl;
 
     ConsoleWindow *consoleWindow;
@@ -203,12 +236,22 @@ private:
     QString outDir;
     QString sb_String;
     int sb_Timeout;
+    bool warnedDropped;
     QSystemTrayIcon *sysTray;
-    struct StimGLIntegrationParams {
+    
+    struct GenericServerParams {
         QString iface;
         unsigned short port;
-        int timeout_ms;
+        int timeout_ms;        
+    };
+    
+    struct StimGLIntegrationParams : public GenericServerParams {
     } stimGLIntParams;
+    
+    struct CommandServerParams : public GenericServerParams {
+        bool enabled;
+    } commandServerParams;
+    
 #ifndef Q_OS_WIN
     unsigned refresh;
 #endif
@@ -227,6 +270,7 @@ private:
     GraphsWindow *graphsWindow;
     Par2Window *par2Win;
     StimGL_SpikeGL_Integration::NotifyServer *notifyServer;
+    CommandServer *commandServer;
     bool fastSettleRunning;
     QDialog *helpWindow;
 
@@ -248,7 +292,7 @@ public:
 /// Main application actions!
     QAction 
         *quitAct, *toggleDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
-        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct;
+        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct, *commandServerOptionsAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon;

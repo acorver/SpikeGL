@@ -38,6 +38,8 @@
 #include "ui_StimGLIntegration.h"
 #include "StimGL_SpikeGL_Integration.h"
 #include "ui_TextBrowser.h"
+#include "ui_CommandServerOptions.h"
+#include "CommandServer.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -76,7 +78,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(64), tPerGraph(0.), acqStartingDialog(0)
+    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(64), tPerGraph(0.), acqStartingDialog(0)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -128,6 +130,7 @@ MainApp::MainApp(int & argc, char ** argv)
     consoleWindow->show();
 
     setupStimGLIntegration();
+    setupCommandServer();
 
     QTimer *timer = new QTimer(this);
     Connect(timer, SIGNAL(timeout()), this, SLOT(updateStatusBar()));
@@ -147,6 +150,8 @@ MainApp::~MainApp()
     stopTask();
     Log() << "Application shutting down..";
     Status() << "Application shutting down.";
+    if (commandServer) delete commandServer, commandServer = 0;
+    CommandServer::deleteAllActiveConnections();
     saveSettings();
     delete par2Win, par2Win = 0;
     delete configCtl, configCtl = 0;
@@ -308,11 +313,19 @@ void MainApp::loadSettings()
     outDir = settings.value("outDir", QDir::homePath() ).toString();
 #endif
     mut.unlock();
-    StimGLIntegrationParams & p(stimGLIntParams);
-    p.iface = settings.value("StimGLInt_Listen_Interface", "0.0.0.0").toString();
-    p.port = settings.value("StimGLInt_Listen_Port",  SPIKE_GL_NOTIFY_DEFAULT_PORT).toUInt();
-    p.timeout_ms = settings.value("StimGLInt_TimeoutMS", SPIKE_GL_NOTIFY_DEFAULT_TIMEOUT_MSECS ).toInt(); 
-    
+    {
+        StimGLIntegrationParams & p(stimGLIntParams);
+        p.iface = settings.value("StimGLInt_Listen_Interface", "0.0.0.0").toString();
+        p.port = settings.value("StimGLInt_Listen_Port",  SPIKE_GL_NOTIFY_DEFAULT_PORT).toUInt();
+        p.timeout_ms = settings.value("StimGLInt_TimeoutMS", SPIKE_GL_NOTIFY_DEFAULT_TIMEOUT_MSECS ).toInt(); 
+    }
+    {
+        CommandServerParams & p (commandServerParams);
+        p.iface = settings.value("CmdSrvr_Iface", "0.0.0.0").toString();
+        p.port = settings.value("CmdSrvr_Port", DEFAULT_COMMAND_PORT).toUInt();
+        p.timeout_ms = settings.value("CmdSrvr_TimeoutMS", DEFAULT_COMMAND_TIMEOUT_MS).toInt();
+        p.enabled = settings.value("CmdSrvr_Enabled", true).toBool();
+    }
 }
 
 void MainApp::saveSettings()
@@ -324,10 +337,19 @@ void MainApp::saveSettings()
     mut.lock();
     settings.setValue("outDir", outDir);
     mut.unlock();
-    StimGLIntegrationParams & p(stimGLIntParams);
-    settings.setValue("StimGLInt_Listen_Interface", p.iface);
-    settings.setValue("StimGLInt_Listen_Port",  p.port);
-    settings.setValue("StimGLInt_TimeoutMS", p.timeout_ms); 
+    {
+        StimGLIntegrationParams & p(stimGLIntParams);
+        settings.setValue("StimGLInt_Listen_Interface", p.iface);
+        settings.setValue("StimGLInt_Listen_Port",  p.port);
+        settings.setValue("StimGLInt_TimeoutMS", p.timeout_ms); 
+    }
+    {
+        CommandServerParams & p(commandServerParams);
+        settings.setValue("CmdSrvr_Iface", p.iface);
+        settings.setValue("CmdSrvr_Port",  p.port);
+        settings.setValue("CmdSrvr_TimeoutMS", p.timeout_ms); 
+        settings.setValue("CmdSrvr_Enabled", p.enabled); 
+    }
 }
 
 
@@ -391,7 +413,7 @@ volatile int ReentrancyPreventer::ct = 0;
 void MainApp::about()
 {
     QMessageBox::about(consoleWindow, "About "APPNAME, 
-                       VERSION_STR 
+                       VERSION_STR
                        "\n\n(C) 2010 Calin A. Culianu <calin.culianu@gmail.com>\n\n"
                        "Developed for the Anthony Leonardo lab at\n"
                        "Janelia Farm Research Campus, HHMI\n\n"
@@ -497,74 +519,83 @@ void MainApp::initActions()
 
     Connect( stimGLIntOptionsAct = new QAction("StimGL Integration Options", this),
              SIGNAL(triggered()), this, SLOT(execStimGLIntegrationDialog()) );
+	
+    Connect( commandServerOptionsAct = new QAction("Command Server Options", this),
+             SIGNAL(triggered()), this, SLOT(execCommandServerOptionsDialog()) );
 }
 
-void MainApp::newAcq() 
+bool MainApp::startAcq(QString & errTitle, QString & errMsg) 
 {
-    if ( !maybeCloseCurrentIfRunning() ) return;
-    if (DAQ::ProbeAllAIChannels().empty()) {
-            QMessageBox::critical(0, "Analog Input Missing!", "Could not find any analog input channels on this system!  Therefore, data acquisition is unavailable!");
-            return;
+    // NOTE: acq cannot be running here!
+    if (isAcquiring()) {
+        errTitle = "Already running!";
+        errMsg = "The acquisition is already running.  Please stop it first.";
+        return false;
     }
-    noHotKeys = true;
-    int ret = configCtl->exec();
-    noHotKeys = false;
-    if (ret == QDialog::Accepted) {
-        scan0Fudge = 0;
-        scanCt = 0;
-        lastScanSz = 0;
-        tNow = getTime();
-        taskShouldStop = false;
-        pdWaitingForStimGL = false;
-        last5PDSamples.reserve(5);
-        last5PDSamples.clear();
-        DAQ::Params & params (configCtl->acceptedParams);
-        if (!params.stimGlTrigResave) {
-            if (!dataFile.openForWrite(params)) {
-                QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(params.outputFile));
-                return;
-            }
+    scan0Fudge = 0;
+    scanCt = 0;
+    lastScanSz = 0;
+    tNow = getTime();
+    taskShouldStop = false;
+    pdWaitingForStimGL = false;
+    warnedDropped = false;
+    last5PDSamples.reserve(5);
+    last5PDSamples.clear();
+    queuedParams.clear();
+    if (!configCtl) {
+        errTitle = "Internal Error";
+        errMsg = "configCtl pointer is NULL! Shouldn't happen!";
+        return false;
+    }
+    DAQ::Params & params(configCtl->acceptedParams);    
+    if (!params.stimGlTrigResave) {
+        if (!dataFile.openForWrite(params)) {            
+            errTitle = "Error Opening File!";
+            errMsg = QString("Could not open data file `%1'!").arg(params.outputFile);
+            return false;
         }
-
-		// acq starting dialog block -- show this dialog because the startup is kinda slow..
-		if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
-		acqStartingDialog = new QMessageBox ( QMessageBox::Information, "DAQ Task Starting Up", "DAQ task starting up, please wait...", QMessageBox::Ok, consoleWindow, Qt::WindowFlags(Qt::Dialog| Qt::MSWindowsFixedSizeDialogHint));
-		acqStartingDialog->setWindowModality(Qt::ApplicationModal);
-		QAbstractButton *but = acqStartingDialog->button(QMessageBox::Ok);
-		if (but) but->hide();
-		acqStartingDialog->show();
-		// end acq starting dialog block
-
-        preBuf.clear();
-        preBuf.reserve(0);
-        preBuf2.clear();
-        preBuf2.reserve(0);
-        if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd)) {
-            const double sil = params.silenceBeforePD > 0. ? params.silenceBeforePD : DEFAULT_PD_SILENCE;
-            if (params.stimGlTrigResave) pdWaitingForStimGL = true;
-            int szSamps = params.nVAIChans*params.srate*sil;
-            if (szSamps <= 0) szSamps = params.nVAIChans;
-            if (szSamps % params.nVAIChans) 
-                szSamps += params.nVAIChans - szSamps%params.nVAIChans;
-            preBuf.reserve(szSamps*sizeof(int16));
-            preBuf2.reserve(szSamps*sizeof(int16));
-        }
-
-        graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen());
-        graphsWindow->setAttribute(Qt::WA_DeleteOnClose, false);
-
-        graphsWindow->setWindowIcon(appIcon);
-        hideUnhideGraphsAct->setEnabled(true);
-        graphsWindow->installEventFilter(this);
-
-        if (!params.suppressGraphs) {
-            graphsWindow->show();
-        } else {
-            graphsWindow->hide();
-        }
-        taskWaitingForStop = false;
-        
-        switch (params.acqStartEndMode) {
+        if (!queuedParams.isEmpty()) stimGL_SaveParams("", queuedParams);
+    }
+    
+    // acq starting dialog block -- show this dialog because the startup is kinda slow..
+    if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
+    acqStartingDialog = new QMessageBox ( QMessageBox::Information, "DAQ Task Starting Up", "DAQ task starting up, please wait...", QMessageBox::Ok, consoleWindow, Qt::WindowFlags(Qt::Dialog| Qt::MSWindowsFixedSizeDialogHint));
+    acqStartingDialog->setWindowModality(Qt::ApplicationModal);
+    QAbstractButton *but = acqStartingDialog->button(QMessageBox::Ok);
+    if (but) but->hide();
+    acqStartingDialog->show();
+    // end acq starting dialog block
+    
+    preBuf.clear();
+    preBuf.reserve(0);
+    preBuf2.clear();
+    preBuf2.reserve(0);
+    if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd)) {
+        const double sil = params.silenceBeforePD > 0. ? params.silenceBeforePD : DEFAULT_PD_SILENCE;
+        if (params.stimGlTrigResave) pdWaitingForStimGL = true;
+        int szSamps = params.nVAIChans*params.srate*sil;
+        if (szSamps <= 0) szSamps = params.nVAIChans;
+        if (szSamps % params.nVAIChans) 
+            szSamps += params.nVAIChans - szSamps%params.nVAIChans;
+        preBuf.reserve(szSamps*sizeof(int16));
+        preBuf2.reserve(szSamps*sizeof(int16));
+    }
+    
+    graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen());
+    graphsWindow->setAttribute(Qt::WA_DeleteOnClose, false);
+    
+    graphsWindow->setWindowIcon(appIcon);
+    hideUnhideGraphsAct->setEnabled(true);
+    graphsWindow->installEventFilter(this);
+    
+    if (!params.suppressGraphs) {
+        graphsWindow->show();
+    } else {
+        graphsWindow->hide();
+    }
+    taskWaitingForStop = false;
+    
+    switch (params.acqStartEndMode) {
         case DAQ::Immediate: taskWaitingForTrigger = false; break;
         case DAQ::PDStartEnd: 
         case DAQ::PDStart:
@@ -582,24 +613,45 @@ void MainApp::newAcq()
         case DAQ::StimGLStart:
             taskWaitingForTrigger = true; break;
         default:
-            Error() << "Internal error params.acqStartEndMode is an illegal value!  FIXME!";
-            break;
-        }
-        task = new DAQ::Task(params, this);
-        taskReadTimer = new QTimer(this);
-        Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
-        Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
-        Connect(taskReadTimer, SIGNAL(timeout()), this, SLOT(taskReadFunc()));
-        taskReadTimer->setSingleShot(false);
-        taskReadTimer->start(1000/TASK_READ_FREQ_HZ);
-        stopAcq->setEnabled(true);
-        aoPassthruAct->setEnabled(params.aoPassthru);
-        Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));
-        task->start();
-        updateWindowTitles();
-        Systray() << "DAQ task starting up ...";
-        Status() << "DAQ task starting up ...";
-        Log() << "DAQ task starting up ...";
+            errTitle = "Internal Error";
+            errMsg = "params.acqStartEndMode is an illegal value!  FIXME!";
+            Error() << errTitle << " " << errMsg;
+            return false;
+    }
+    task = new DAQ::Task(params, this);
+    taskReadTimer = new QTimer(this);
+    Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
+    Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
+    Connect(taskReadTimer, SIGNAL(timeout()), this, SLOT(taskReadFunc()));
+    taskReadTimer->setSingleShot(false);
+    taskReadTimer->start(1000/TASK_READ_FREQ_HZ);
+    stopAcq->setEnabled(true);
+    aoPassthruAct->setEnabled(params.aoPassthru);
+    Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));
+    task->start();
+    updateWindowTitles();
+    Systray() << "DAQ task starting up ...";
+    Status() << "DAQ task starting up ...";
+    Log() << "DAQ task starting up ...";
+    
+    return true;
+}
+
+void MainApp::newAcq() 
+{
+    if ( !maybeCloseCurrentIfRunning() ) return;
+    if (DAQ::ProbeAllAIChannels().empty()) {
+            QMessageBox::critical(0, "Analog Input Missing!", "Could not find any analog input channels on this system!  Therefore, data acquisition is unavailable!");
+            return;
+    }
+    noHotKeys = true;
+    int ret = configCtl->exec();
+    noHotKeys = false;
+    if (ret == QDialog::Accepted) {
+        QString errTitle, errMsg;
+        if ( ! startAcq(errTitle, errMsg) ) {
+            QMessageBox::critical(0, errTitle, errMsg);
+        }        
     }
 }
 
@@ -624,6 +676,7 @@ void MainApp::stopTask()
     Log() << "Task " << dataFile.fileName() << " stopped.";
     Status() << "Task stopped.";
     dataFile.closeAndFinalize();
+    queuedParams.clear();
     stopAcq->setEnabled(false);
     aoPassthruAct->setEnabled(false);
     taskWaitingForTrigger = false;
@@ -735,24 +788,25 @@ void MainApp::taskReadFunc()
             }
 
             if (dataFile.isOpen()) {
-                if (fudgedFirstSamp != dataFile.sampleCount()) {
+                if (fudgedFirstSamp != dataFile.sampleCount() && !warnedDropped) {
                     QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree!\nAieeeee!!  Aborting acquisition!").arg(dataFile.sampleCount()).arg(firstSamp);
-                    Error() << e;
-                    stopTask();
-                    QMessageBox::critical(0, "DAQ Error", e);
-                    return;
+                    Warning() << e;
+                    warnedDropped = true;
+                    //stopTask();
+                    //QMessageBox::critical(0, "DAQ Error", e);
+                    //return;
                 }
                 dataFile.writeScans(scans);
             }
             qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
-            if (graphsWindow && !graphsWindow->isHidden()) {            
+/*            if (graphsWindow && !graphsWindow->isHidden()) {            
                 if (qFillPct > 70.0) {
                     Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
                 } else { 
                     graphsWindow->putScans(scans, firstSamp);
                 }
             }
-            
+  */          
             if (tNow-lastSBUpd > 0.25) { // every 1/4th of a second
                 QString taskEndStr = "";
                 if (taskWaitingForStop && p.acqStartEndMode == DAQ::Timed) {
@@ -761,7 +815,18 @@ void MainApp::taskReadFunc()
                 Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz - " << dataFile.sampleCount() << " samples read - " << qFillPct << "% buffer fill - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
                 lastSBUpd = tNow;
             }
-        } 
+        }
+        
+        // regardless of waiting or running mode, put scans to graphs
+        qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
+        if (graphsWindow && !graphsWindow->isHidden()) {            
+            if (qFillPct > 70.0) {
+                Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
+             } else { 
+                 graphsWindow->putScans(scans, firstSamp);
+             }
+        }
+        
     }
     if (taskShouldStop || needToStop)
         stopTask();
@@ -885,7 +950,7 @@ void MainApp::triggerTask()
         Status() << "Task triggered";
         DAQ::Params & p(configCtl->acceptedParams);
         switch (p.acqStartEndMode) {
-        case DAQ::PDStartEnd: 
+        case DAQ::PDStartEnd:             
         case DAQ::StimGLStartEnd:
             taskWaitingForStop = true; 
             Log() << "Acquisition triggered";
@@ -951,7 +1016,8 @@ void MainApp::verifySha1()
         return;
     }
     if (!dataFile.length()) dataFile = p["outputFile"].toString();
-    
+    if (!QFileInfo(dataFile).isAbsolute())
+        dataFile = outputDirectory() + "/" + dataFile; 
     if (this->task && this->dataFile.isOpen() && QFileInfo(dataFile) == QFileInfo(this->dataFile.fileName())) {
         QMessageBox::critical(consoleWindow, "Acquisition is running on file", "Cannot verify SHA1 hash on this file as it is currently open and being used as the datafile for the currently-running acquisition!");
         return;
@@ -1003,7 +1069,7 @@ void MainApp::sha1VerifyCancel()
     if (task) fn = task->dataFileNameShort;    
     QString str = fn + " SHA1 verify canceled.";
     Log() << str;
-    if (task) delete task;
+    if (task) task->deleteLater();
     else Error() << "sha1VerifyCancel error, no task!";
 }
 
@@ -1051,6 +1117,49 @@ void MainApp::execStimGLIntegrationDialog()
     saveSettings();
 }
 
+void MainApp::execCommandServerOptionsDialog()
+{
+    bool again = false;
+    QDialog dlg(0);
+    dlg.setWindowIcon(consoleWindow->windowIcon());
+    dlg.setWindowTitle("Command Server Options");    
+    dlg.setModal(true);
+    CommandServerParams & p (commandServerParams);
+    
+    Ui::CommandServerOptions controls;
+    controls.setupUi(&dlg);
+    controls.interfaceLE->setText(p.iface);
+    controls.portSB->setValue(p.port);
+    controls.timeoutSB->setValue(p.timeout_ms);    
+    controls.enabledGB->setChecked(p.enabled);
+    
+    do {     
+        again = false;
+        noHotKeys = true;
+        const int ret = dlg.exec();
+        noHotKeys = false;
+        if ( ret == QDialog::Accepted ) {
+            p.iface = controls.interfaceLE->text();
+            p.port = controls.portSB->value();
+            p.timeout_ms = controls.timeoutSB->value();
+			p.enabled = controls.enabledGB->isChecked();
+            if (!setupCommandServer(false)) {
+                QMessageBox::critical(0, "Listen Error", "Command server could not listen on " + p.iface + ":" + QString::number(p.port) + "\nTry the options again again!");
+                loadSettings();
+                again = true;
+                continue;
+            }
+        } else {
+            loadSettings();
+            if (!commandServer) setupCommandServer();
+            return;
+        }
+    } while (again);
+    
+    saveSettings();
+}
+
+
 bool MainApp::setupStimGLIntegration(bool doQuitOnFail)
 {
     if (notifyServer) delete notifyServer;
@@ -1066,17 +1175,38 @@ bool MainApp::setupStimGLIntegration(bool doQuitOnFail)
         return false;
     }
     Connect(notifyServer, SIGNAL(gotPluginStartNotification(const QString &, const QMap<QString, QVariant>  &)), this, SLOT(stimGL_PluginStarted(const QString &, const QMap<QString, QVariant>  &)));
+    Connect(notifyServer, SIGNAL(gotPluginParamsNotification(const QString &, const QMap<QString, QVariant>  &)), this, SLOT(stimGL_SaveParams(const QString &, const QMap<QString, QVariant>  &)));
     Connect(notifyServer, SIGNAL(gotPluginEndNotification(const QString &, const QMap<QString, QVariant>  &)), this, SLOT(stimGL_PluginEnded(const QString &, const QMap<QString, QVariant>  &)));
     return true;
 }
 
+bool MainApp::setupCommandServer(bool doQuitOnFail) 
+{
+    if (commandServer) delete commandServer, commandServer = 0;
+    CommandServerParams & p (commandServerParams);
+    if (p.enabled) {
+        commandServer = new CommandServer(this);
+        if (!commandServer->beginListening(p.iface, p.port, p.timeout_ms)) {
+            if (doQuitOnFail) {
+                int but = QMessageBox::critical(0, "Listen Error", "Command server could not listen on port " + QString::number(p.port) + "\nAnother copy of this program might already be running.\nContinue anyway?", QMessageBox::Abort, QMessageBox::Ignore);
+                if (but == QMessageBox::Abort) postEvent(this, new QEvent((QEvent::Type)QuitEventType)); // quit doesn't work here because we are in appliation c'tor
+            }
+            Error() << "Failed to start Command server!";
+            delete commandServer, commandServer = 0;
+            return false;
+        }
+    }
+    return true;
+}
 
 QString MainApp::getNewDataFileName(const QString & suffix) const
 {
     const DAQ::Params & p (configCtl->acceptedParams);
     if (p.stimGlTrigResave) {
         QFileInfo fi(p.outputFileOrig);
-
+        if (!fi.isAbsolute()) {
+            fi.setFile(outputDirectory() + "/" + p.outputFileOrig);
+        }
         QString prefix = fi.filePath();
         QString ext = fi.completeSuffix();
         prefix.chop(ext.length()+1);
@@ -1122,18 +1252,27 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
         triggerTask();
         ignored = false;
     }
+    if (task 
+        && taskWaitingForTrigger
+        && (p.acqStartEndMode == DAQ::PDStart || p.acqStartEndMode == DAQ::PDStartEnd)) {
+        // just save params in this mode..
+        ignored = false;
+    }
 
     Debug() << "Received notification that Stim GL plugin `" << plugin << "' started." << (ignored ? " Ignored!" : "");
 
-    if (!ignored) stimGL_SaveParams(pm);
+    if (!ignored) stimGL_SaveParams(plugin, pm);
 }
 
-void MainApp::stimGL_SaveParams(const QMap<QString, QVariant> & pm) 
+void MainApp::stimGL_SaveParams(const QString & unused, const QMap<QString, QVariant> & pm) 
 {
+    (void) unused;
     if (dataFile.isOpen()) {
         for (QMap<QString, QVariant>::const_iterator it = pm.begin(); it != pm.end(); ++it) 
             dataFile.setParam(QString("StimGL_") + it.key(), it.value());   
-    }
+        queuedParams.clear();
+    } else
+        queuedParams = pm;
 }
 
 void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVariant> & pm)
@@ -1144,12 +1283,12 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
     if (task && taskWaitingForStop && p.acqStartEndMode == DAQ::StimGLStartEnd) {
         Log() << "Triggered stop by Stim GL plugin `" << plugin << "'";
         taskShouldStop = true;
-        stimGL_SaveParams(pm);
+        stimGL_SaveParams(plugin,pm);
         task->stop(); ///< stop the daq task now.. we will empty the queue later..
         Log() << "DAQ task no longer acquiring, emptying queue and saving to disk.";
         ignored = false;        
     } else if (task && p.stimGlTrigResave && dataFile.isOpen()) {
-        stimGL_SaveParams(pm);
+        stimGL_SaveParams(plugin,pm);
         Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
         dataFile.closeAndFinalize();
         updateWindowTitles();        
@@ -1195,6 +1334,10 @@ void MainApp::gotFirstScan()
 	delete acqStartingDialog, acqStartingDialog = 0;
 }
 
+bool MainApp::isSaving() const {
+    return dataFile.isOpen();
+}
+
 void MainApp::toggleSave(bool s)
 {
     const DAQ::Params & p (configCtl->acceptedParams);
@@ -1203,6 +1346,7 @@ void MainApp::toggleSave(bool s)
             QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(p.outputFile));
             return;
         }
+        if (!queuedParams.isEmpty()) stimGL_SaveParams("", queuedParams);
         Log() << "Save file: " << dataFile.fileName() << " opened from GUI.";
         scan0Fudge = scanCt*p.nVAIChans + lastScanSz;
         //graphsWindow->clearGraph(-1);
@@ -1211,6 +1355,16 @@ void MainApp::toggleSave(bool s)
         dataFile.closeAndFinalize();
         Log() << "Save file: " << dataFile.fileName() << " closed from GUI.";
         updateWindowTitles();
+    }
+}
+
+QString MainApp::outputFile() const { return configCtl->acceptedParams.outputFile; }
+
+void MainApp::setOutputFile(const QString & fn) {
+    configCtl->acceptedParams.outputFile = fn;
+    configCtl->saveSettings();
+    if (graphsWindow) {
+        graphsWindow->setToggleSaveLE(fn);
     }
 }
 

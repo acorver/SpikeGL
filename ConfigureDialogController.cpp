@@ -11,8 +11,13 @@
 #include <QFileInfo>
 #include <QFileDialog>
 #include <QRegExp>
+#include <QTextStream>
 #include "Icon-Config.xpm"
 #include "ConsoleWindow.h"
+
+#define SETTINGS_DOMAIN "janelia.hhmi.org"
+#define SETTINGS_APP "SpikeGL"
+#define SETTINGS_GROUP "ConfigureDialogController"
 
 ConfigureDialogController::ConfigureDialogController(QObject *parent)
     : QObject(parent), chanMapCtl(this)
@@ -83,15 +88,22 @@ void ConfigureDialogController::resetAOPassFromParams(Ui::AoPassThru *aoPassthru
     
 }
 
-void ConfigureDialogController::resetFromParams()
+void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
 {
-    loadSettings();
-    DAQ::Params & p (acceptedParams); // this just got populated from settings
+    if (!p_in) {
+        loadSettings();
+        p_in = &acceptedParams;
+    }
+    
+    DAQ::Params & p (*p_in); // this just got populated from settings
 
     // initialize the dialogs with some values from settings
     dialog->outputFileLE->setText(p.outputFile);
     if (int(p.mode) < dialog->acqModeCB->count())
-        dialog->acqModeCB->setCurrentIndex((int)p.mode);
+        dialog->acqModeCB->setCurrentIndex((int)p.mode);    
+    dialog->channelSubsetLE->setText(p.subsetString);
+    dialog->channelSubsetLabel->setEnabled(p.mode != DAQ::AIRegular);
+    dialog->channelSubsetLE->setEnabled(p.mode != DAQ::AIRegular);
     dialog->deviceCB->clear();
     dialog->clockCB->setCurrentIndex(p.extClock ? 0 : 1);
     dialog->srateSB->setValue(p.srate);
@@ -205,10 +217,11 @@ void ConfigureDialogController::acqModeCBChanged()
     const int idx = dialog->acqModeCB->currentIndex();
     const bool jfrc32 = idx == 3;
     const bool enabled = idx == 1 || jfrc32;
-    const bool intan = !enabled;
-
+    const bool intan = !enabled;    
+    bool notStraightAI;
+    
     /// HACK to auto-repopulate the lineedit based on acquisition mode!
-    if (idx != DAQ::AIRegular) { // if it's not straight AI, 
+    if ( (notStraightAI = (idx != DAQ::AIRegular)) ) { // if it's not straight AI, 
         QString txt = dialog->channelListLE->text();
         if (txt.startsWith("0:1") || txt.startsWith("0:3") || txt.startsWith("0:7"))  {
             switch (idx) {
@@ -219,6 +232,8 @@ void ConfigureDialogController::acqModeCBChanged()
             dialog->channelListLE->setText(txt);
         }
     }
+    dialog->channelSubsetLE->setEnabled(notStraightAI);
+    dialog->channelSubsetLabel->setEnabled(notStraightAI);
     
     dialog->srateLabel->setEnabled(enabled);
     dialog->srateSB->setEnabled(enabled);
@@ -347,6 +362,248 @@ void ConfigureDialogController::aoPDPassthruUpdateLE()
     aoPassthru->aoPassthruLE->setText(le);
 }
 
+/** Validates the internal form.  If ok, saves form to settings as side-effect, otherwise if not OK, sets errTitle and errMsg.
+ *  OK returned, form is ok, proceed -- form is saved to settings
+ *  AGAIN returned, form is erroneous, but redo ok -- form is not saved, errTitle and errMsg set appropriately
+ *  ABORT returned, form is erroneous, abort altogether -- form is not saved, errTitle and errMsg set appropriately
+ */
+ConfigureDialogController::ValidationResult ConfigureDialogController::validateForm(QString & errTitle, QString & errMsg) 
+{
+    const QString dev = dialog->deviceCB->count() ? devNames[dialog->deviceCB->currentIndex()] : "";
+    const QString aoDev = aoPassthru->aoDeviceCB->count() ? aoDevNames[aoPassthru->aoDeviceCB->currentIndex()] : "";
+    
+    bool err = false;
+    errTitle = errMsg = "";
+    QVector<unsigned> chanVect;
+    QString chans = parseAIChanString(dialog->channelListLE->text(), chanVect, &err);
+    for (int i = 0; i < (int)chanVect.size(); ++i) {
+        if (chanVect[i] >= static_cast<unsigned>(aiChanLists[dev].size())) {
+            err = true; 
+            break;
+        }
+    }
+    if (err) {
+        errTitle = "AI Chan List Error";
+        errMsg = "Error parsing AI channel list!\nSpecify a string of the form 0,1,2,3 or 0-3,5,6 of valid channel id's!";
+        return AGAIN;
+    }
+    const DAQ::Mode acqMode = (DAQ::Mode)dialog->acqModeCB->currentIndex();
+    
+    int nExtraChans = 0;
+    
+    if ( acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux || acqMode == DAQ::JFRCIntan32) {
+        if (!DAQ::SupportsAISimultaneousSampling(dev)) {
+            errTitle = "INTAN Requires Simultaneous Sampling";
+            errMsg = QString("INTAN (60/120/JFRC32 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev);
+            return AGAIN;
+        }
+        const int minChanSize = acqMode == DAQ::AI120Demux ? 8 : (acqMode == DAQ::JFRCIntan32 ? 2 : 4);
+        if ( int(chanVect.size()) < minChanSize ) {
+            errTitle = "AI Chan List Error", errMsg = "INTAN (60/120/JFRC32 demux) mode requires precisely 4, 8 or 2 channels!";
+            return AGAIN;
+        }
+        nExtraChans = chanVect.size() - minChanSize;
+    }
+    
+    if (!chanVect.size()) {
+        errTitle = "AI Chan List Error", errMsg = "Need at least 1 channel in the AI channel list!";
+        return AGAIN;
+    }
+    
+    const unsigned srate = dialog->srateSB->value();
+    if (srate > DAQ::MaximumSampleRate(dev, chanVect.size())) {
+        errTitle = "Sampling Rate Invalid", errMsg = QString().sprintf("The sample rate specified (%d) is too high for the number of channels (%d)!", (int)srate, (int)chanVect.size());
+        return AGAIN;
+    }
+    
+    const DAQ::AcqStartEndMode acqStartEndMode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
+    
+    int pdChan = acqPdParams->pdAISB->value();
+    bool havePD = false;
+    if ( (havePD=(acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart))
+        && (chanVect.contains(pdChan) || pdChan < 0 || pdChan >= aiChanLists[dev].count())
+        ) {
+        errTitle = "PDChannel Invalid", errMsg = QString().sprintf("Specified photodiode channel (%d) is invalid or clashes with another AI channel!", pdChan);
+        return AGAIN;
+    }
+    
+    unsigned nVAI = chanVect.size();
+    
+    if (acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux) 
+        nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN + nExtraChans;
+    else if (acqMode == DAQ::JFRCIntan32)
+        nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN32 + nExtraChans;
+    
+    bool usePD = false;
+    if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd) {
+        chanVect.push_back(pdChan);
+        ++nVAI;
+        ++nExtraChans;
+        usePD = true;
+    }
+    
+    QMap<unsigned, unsigned> aopass;            
+    if (aoPassthru->aoPassthruGB->isChecked() && aoDevNames.count()) {
+        QString le = aoPassthru->aoPassthruLE->text();
+        if (havePD) le=le.replace("PDCHAN", QString::number(nVAI-1)); // PD channel index is always the last index
+        aopass = parseAOPassthruString(le, &err);
+        if (err) {
+            errTitle =  "AO Passthru Error", errMsg = "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=CHANNEL_INDEX_POS!";
+            return AGAIN;
+        }
+    }
+    
+    QVector<unsigned> aoChanVect = aopass.uniqueKeys().toVector();
+    
+    int pdAOChan = acqPdParams->pdPassthruAOSB->value();
+    
+    if (!usePD || !acqPdParams->pdPassthruAOChk->isChecked()) {
+        pdAOChan = -1;
+    } else {
+        if (!aoChanVect.contains(pdAOChan)) {
+            errTitle = "AO Passthru Error", errMsg = QString().sprintf("INTERNAL ERROR: The AO channel specified for the PD (%d) does not exist in the passthru string!", (int)(pdAOChan));
+            return AGAIN;
+        }
+    }
+    
+    // validate AO channels in AO passthru map
+    if (aoChanVect.size()) {
+        QStringList aol = aoChanLists[aoDev];
+        for (int i = 0; i < (int)aoChanVect.size(); ++i) {
+            if ((int)aoChanVect[i] >= (int)aol.size()) {
+                errTitle = "AO Passthru Error", errMsg = QString().sprintf("The AO channel specified in the passthru string (%d) is illegal/invalid!", (int)(aoChanVect[i]));
+                return AGAIN;
+            }
+        }
+    }
+    
+    {
+        // validate AI channels in AO passthru map
+        QList<unsigned> vl = aopass.values();
+        for (QList<unsigned>::const_iterator it = vl.begin(); it != vl.end(); ++it)
+            if (*it >= nVAI) {
+                errTitle = "AO Passthru Invalid", errMsg = QString().sprintf("Chan index %d specified as an AO passthru source but it is > the number of virtual AI channels (%d)!", (int)*it, (int)nVAI);
+                return AGAIN;
+            }
+    }
+    
+    
+    if (dialog->stimGLReopenCB->isChecked() &&
+        (acqStartEndMode == DAQ::StimGLStartEnd
+         || acqStartEndMode == DAQ::PDStartEnd) ) {
+            errTitle = "Incompatible Configuration", errMsg = QString().sprintf("'Re-Open New Save File on StimGL Experiment' not compatible with 'StimGL Plugin Start & End' or 'PD Start & End' acquisition trigger modes!");
+            return AGAIN;
+        }
+    
+    DAQ::Params & p (acceptedParams);
+    p.outputFile = p.outputFileOrig = dialog->outputFileLE->text().trimmed();
+    p.dev = dev;
+    p.stimGlTrigResave = dialog->stimGLReopenCB->isChecked();
+    QStringList rngs = dialog->aiRangeCB->currentText().split(" - ");
+    if (rngs.count() != 2) {
+        errTitle = "AI Range ComboBox invalid!";
+        errMsg = "INTERNAL ERROR: AI Range ComboBox needs numbers of the form REAL - REAL!";
+        Error() << errMsg;
+        return ABORT;
+    }
+    p.range.min = rngs.first().toDouble();
+    p.range.max = rngs.last().toDouble();
+    p.mode = acqMode;
+    p.srate = srate;
+    p.extClock = dialog->clockCB->currentIndex() == 0;
+    p.aiChannels = chanVect;
+    p.nVAIChans = nVAI;
+    p.nExtraChans = nExtraChans;
+    p.aiString = chans;
+    p.doCtlChan = dialog->doCtlCB->currentIndex();
+    p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());
+    p.usePD = usePD;
+    if (!aoDevNames.empty()) {                
+        p.aoPassthru = aoPassthru->aoPassthruGB->isChecked();
+        p.aoDev = aoDev;
+        rngs = aoPassthru->aoRangeCB->currentText().split(" - ");
+        if (rngs.count() != 2) {
+            errTitle = "AO Range ComboBox invalid!";
+            errMsg = "INTERNAL ERROR: AO Range ComboBox needs numbers of the form REAL - REAL!";
+            Error() << errMsg;
+            return ABORT;
+        } 
+        p.aoRange.min = rngs.first().toDouble();
+        p.aoRange.max = rngs.last().toDouble();
+        p.aoPassthruMap = aopass;
+        p.aoChannels = aoChanVect;
+        p.aoPassthruString = aoPassthru->aoPassthruLE->text();
+    } else {
+        p.aoPassthruMap.clear();
+        p.aoChannels.clear();
+        p.aoPassthruString = "";
+        p.aoDev = "";
+        p.aoPassthru = false;
+    }
+    p.suppressGraphs = dialog->disableGraphsChk->isChecked();
+    
+    p.acqStartEndMode = acqStartEndMode;
+    p.isIndefinite = acqTimedParams->indefCB->isChecked();
+    p.isImmediate = acqTimedParams->nowCB->isChecked();
+    p.startIn = acqTimedParams->startHrsSB->value()*60.*60. 
+    +acqTimedParams->startMinsSB->value()*60
+    +acqTimedParams->startSecsSB->value();
+    p.duration = acqTimedParams->durHrsSB->value()*60.*60. 
+    +acqTimedParams->durMinsSB->value()*60
+    +acqTimedParams->durSecsSB->value();
+    
+    p.pdChan = pdChan;
+    p.idxOfPdChan = p.nVAIChans-1 /* always the last index */;
+    p.pdThresh = static_cast<signed short>((acqPdParams->pdAIThreshSB->value()-p.range.min)/(p.range.max-p.range.min) * 65535. - 32768.);
+    p.pdPassThruToAO = pdAOChan;
+    p.pdStopTime = acqPdParams->pdStopTimeSB->value();
+    
+    p.aiTerm = DAQ::StringToTermConfig(dialog->aiTerminationCB->currentText());
+    p.fastSettleTimeMS = dialog->fastSettleSB->value();
+    p.auxGain = dialog->auxGainSB->value();
+    p.chanMap = chanMapCtl.mappingForAll();
+    
+    p.silenceBeforePD = acqPdParams->pdPre->value()/1000.;
+    
+    QVector<unsigned> subsetChans;
+    if (p.mode != DAQ::AIRegular) {
+        QString subsetString = dialog->channelSubsetLE->text();
+        subsetString.replace("ALL", "", Qt::CaseInsensitive);
+        subsetString.replace("*", "", Qt::CaseInsensitive);        
+        subsetString = parseAIChanString(subsetString, subsetChans, &err, true);
+        if (err) {
+            errTitle = "Channel subset error.";
+            errMsg = "The channel subset is incorrectly defined.";
+            return AGAIN;
+        }
+    }
+    p.demuxedBitMap.resize(p.nVAIChans - p.nExtraChans);
+    if (!subsetChans.count()) p.demuxedBitMap.fill(true);
+    else {
+        p.demuxedBitMap.fill(false);
+        for (QVector<unsigned>::iterator it = subsetChans.begin(); it != subsetChans.end(); ++it) {
+            const unsigned n = *it;
+            if (int(n) >= p.demuxedBitMap.size()) {
+                errTitle = "Channel subset error.";
+                errMsg = "The channel subset is incorrectly defined as it contains out-of-range channel id(s).";
+                return AGAIN;
+            }
+            p.demuxedBitMap.setBit(n);
+        }
+    }
+    p.subsetString = dialog->channelSubsetLE->text();    
+    /*QString debugStr = "";
+    for (int i = 0; i < p.demuxedBitMap.count(); ++i) {
+        debugStr += QString::number(int(p.demuxedBitMap.at(i))) + " ";
+        if (i && !(i % 9)) debugStr += "\n";
+    }
+    Debug() << debugStr;
+    */
+    saveSettings();       
+    
+    return OK;
+}
+
 int ConfigureDialogController::exec()
 {
 
@@ -372,212 +629,23 @@ int ConfigureDialogController::exec()
         ret = ((QDialog *)dialogW)->exec();
         again = false;
 
-        // TODO process/validate form here... reject on invalid params!
-    
+   
         if (ret == QDialog::Accepted) {
-            const QString dev = dialog->deviceCB->count() ? devNames[dialog->deviceCB->currentIndex()] : "";
-            const QString aoDev = aoPassthru->aoDeviceCB->count() ? aoDevNames[aoPassthru->aoDeviceCB->currentIndex()] : "";
-
-            bool err;
-            QVector<unsigned> chanVect;
-            QString chans = parseAIChanString(dialog->channelListLE->text(), chanVect, &err);
-            for (int i = 0; i < (int)chanVect.size(); ++i) {
-                if (chanVect[i] >= static_cast<unsigned>(aiChanLists[dev].size())) {
-                    err = true; 
+            QString errTitle, errMsg;
+            ValidationResult result = validateForm(errTitle, errMsg);
+            
+            switch ( result ) {
+                case AGAIN: 
+                    QMessageBox::critical(dialogW, errTitle, errMsg);
+                    again = true; 
                     break;
-                }
-            }
-            if (err) {
-                QMessageBox::critical(dialogW, "AI Chan List Error", "Error parsing AI channel list!\nSpecify a string of the form 0,1,2,3 or 0-3,5,6 of valid channel id's!");
-                again = true;
-                continue;
-            }
-            const DAQ::Mode acqMode = (DAQ::Mode)dialog->acqModeCB->currentIndex();
-            
-            int nExtraChans = 0;
-
-            if ( acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux || acqMode == DAQ::JFRCIntan32) {
-                if (!DAQ::SupportsAISimultaneousSampling(dev)) {
-                    QMessageBox::critical(dialogW, "INTAN Requires Simultaneous Sampling", QString("INTAN (60/120/JFRC32 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev));
-                    again = true;
-                    continue;
-                }
-                const int minChanSize = acqMode == DAQ::AI120Demux ? 8 : (acqMode == DAQ::JFRCIntan32 ? 2 : 4);
-                if ( int(chanVect.size()) < minChanSize ) {
-                    QMessageBox::critical(dialogW, "AI Chan List Error", "INTAN (60/120/JFRC32 demux) mode requires precisely 4, 8 or 2 channels!");
-                    again = true;
-                    continue;                
-                }
-                nExtraChans = chanVect.size() - minChanSize;
-            }
-
-            if (!chanVect.size()) {
-                QMessageBox::critical(dialogW, "AI Chan List Error", "Need at least 1 channel in the AI channel list!");
-                again = true;
-                continue;
-            }
-            
-            const unsigned srate = dialog->srateSB->value();
-            if (srate > DAQ::MaximumSampleRate(dev, chanVect.size())) {
-                QMessageBox::critical(dialogW, "Sampling Rate Invalid", QString().sprintf("The sample rate specified (%d) is too high for the number of channels (%d)!", (int)srate, (int)chanVect.size()));
-                again = true;
-                continue;
-            }
-
-            const DAQ::AcqStartEndMode acqStartEndMode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
-
-            int pdChan = acqPdParams->pdAISB->value();
-            bool havePD = false;
-            if ( (havePD=(acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart))
-                && (chanVect.contains(pdChan) || pdChan < 0 || pdChan >= aiChanLists[dev].count())
-                ) {
-                QMessageBox::critical(dialogW, "PDChannel Invalid", QString().sprintf("Specified photodiode channel (%d) is invalid or clashes with another AI channel!", pdChan));
-                again = true;
-                continue;
-            }
-
-            unsigned nVAI = chanVect.size();
-            
-            if (acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux) 
-                nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN + nExtraChans;
-            else if (acqMode == DAQ::JFRCIntan32)
-                nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN32 + nExtraChans;
-
-            bool usePD = false;
-            if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd) {
-                chanVect.push_back(pdChan);
-                ++nVAI;
-                ++nExtraChans;
-                usePD = true;
-            }
-
-            QMap<unsigned, unsigned> aopass;            
-            if (aoPassthru->aoPassthruGB->isChecked() && aoDevNames.count()) {
-                QString le = aoPassthru->aoPassthruLE->text();
-                if (havePD) le=le.replace("PDCHAN", QString::number(nVAI-1)); // PD channel index is always the last index
-                aopass = parseAOPassthruString(le, &err);
-                if (err) {
-                    QMessageBox::critical(dialogW, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=CHANNEL_INDEX_POS!");
-                    again = true;
-                    continue;
-                }
-            }
-
-            QVector<unsigned> aoChanVect = aopass.uniqueKeys().toVector();
-
-            int pdAOChan = acqPdParams->pdPassthruAOSB->value();
-
-            if (!usePD || !acqPdParams->pdPassthruAOChk->isChecked()) {
-                pdAOChan = -1;
-            } else {
-                if (!aoChanVect.contains(pdAOChan)) {
-                    QMessageBox::critical(dialogW, "AO Passthru Error", QString().sprintf("INTERNAL ERROR: The AO channel specified for the PD (%d) does not exist in the passthru string!", (int)(pdAOChan)));
-                        again = true;
-                        continue;
-                }
-            }
-
-            // validate AO channels in AO passthru map
-            if (aoChanVect.size()) {
-                QStringList aol = aoChanLists[aoDev];
-                for (int i = 0; i < (int)aoChanVect.size(); ++i) {
-                    if ((int)aoChanVect[i] >= (int)aol.size()) {
-                        QMessageBox::critical(dialogW, "AO Passthru Error", QString().sprintf("The AO channel specified in the passthru string (%d) is illegal/invalid!", (int)(aoChanVect[i])));
-                        again = true;
-                        break;
-                    }
-                }
-                if (again) continue;
-            }
-
-            {
-                // validate AI channels in AO passthru map
-                QList<unsigned> vl = aopass.values();
-                for (QList<unsigned>::const_iterator it = vl.begin(); it != vl.end(); ++it)
-                    if (*it >= nVAI) {
-                        QMessageBox::critical(dialogW, "AO Passthru Invalid", QString().sprintf("Chan index %d specified as an AO passthru source but it is > the number of virtual AI channels (%d)!", (int)*it, (int)nVAI));
-                        again = true;
-                        break;
-                    }
-                if (again) continue;
-            }
-
-            
-            if (dialog->stimGLReopenCB->isChecked() &&
-                (acqStartEndMode == DAQ::StimGLStartEnd
-                 || acqStartEndMode == DAQ::PDStartEnd) ) {
-                QMessageBox::critical(dialogW, "Incompatible Configuration", QString().sprintf("'Re-Open New Save File on StimGL Experiment' not compatible with 'StimGL Plugin Start & End' or 'PD Start & End' acquisition trigger modes!"), QMessageBox::Retry);
-                again = true;
-                continue;
-            }
-
-            DAQ::Params & p (acceptedParams);
-            p.outputFile = p.outputFileOrig = dialog->outputFileLE->text().trimmed();
-            p.dev = dev;
-            p.stimGlTrigResave = dialog->stimGLReopenCB->isChecked();
-            QStringList rngs = dialog->aiRangeCB->currentText().split(" - ");
-            if (rngs.count() != 2) {
-                Error() << "INTERNAL ERROR: AI Range ComboBox needs numbers of the form REAL - REAL!";
-                return QDialog::Rejected;
-            }
-            p.range.min = rngs.first().toDouble();
-            p.range.max = rngs.last().toDouble();
-            p.mode = acqMode;
-            p.srate = srate;
-            p.extClock = dialog->clockCB->currentIndex() == 0;
-            p.aiChannels = chanVect;
-            p.nVAIChans = nVAI;
-            p.nExtraChans = nExtraChans;
-            p.aiString = chans;
-            p.doCtlChan = dialog->doCtlCB->currentIndex();
-            p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());
-            p.usePD = usePD;
-            if (!aoDevNames.empty()) {                
-                p.aoPassthru = aoPassthru->aoPassthruGB->isChecked();
-                p.aoDev = aoDev;
-                rngs = aoPassthru->aoRangeCB->currentText().split(" - ");
-                if (rngs.count() != 2) {
-                    Error() << "INTERNAL ERROR: AO Range ComboBox needs numbers of the form REAL - REAL!";
+                case ABORT: 
+                    again = false; 
                     return QDialog::Rejected;
-                }            
-                p.aoRange.min = rngs.first().toDouble();
-                p.aoRange.max = rngs.last().toDouble();
-                p.aoPassthruMap = aopass;
-                p.aoChannels = aoChanVect;
-                p.aoPassthruString = aoPassthru->aoPassthruLE->text();
-            } else {
-                p.aoPassthruMap.clear();
-                p.aoChannels.clear();
-                p.aoPassthruString = "";
-                p.aoDev = "";
-                p.aoPassthru = false;
+                case OK: 
+                    again = false; 
+                    break;
             }
-            p.suppressGraphs = dialog->disableGraphsChk->isChecked();
-
-            p.acqStartEndMode = acqStartEndMode;
-            p.isIndefinite = acqTimedParams->indefCB->isChecked();
-            p.isImmediate = acqTimedParams->nowCB->isChecked();
-            p.startIn = acqTimedParams->startHrsSB->value()*60.*60. 
-                       +acqTimedParams->startMinsSB->value()*60
-                       +acqTimedParams->startSecsSB->value();
-            p.duration = acqTimedParams->durHrsSB->value()*60.*60. 
-                        +acqTimedParams->durMinsSB->value()*60
-                        +acqTimedParams->durSecsSB->value();
-            
-            p.pdChan = pdChan;
-            p.idxOfPdChan = p.nVAIChans-1 /* always the last index */;
-            p.pdThresh = static_cast<signed short>((acqPdParams->pdAIThreshSB->value()-p.range.min)/(p.range.max-p.range.min) * 65535. - 32768.);
-            p.pdPassThruToAO = pdAOChan;
-            p.pdStopTime = acqPdParams->pdStopTimeSB->value();
-
-            p.aiTerm = DAQ::StringToTermConfig(dialog->aiTerminationCB->currentText());
-            p.fastSettleTimeMS = dialog->fastSettleSB->value();
-            p.auxGain = dialog->auxGainSB->value();
-            p.chanMap = chanMapCtl.mappingForAll();
-
-            p.silenceBeforePD = acqPdParams->pdPre->value()/1000.;
-
-            saveSettings();
         }
     } while (again);
 
@@ -588,7 +656,8 @@ int ConfigureDialogController::exec()
 QString
 ConfigureDialogController::parseAIChanString(const QString & str, 
                                              QVector<unsigned> & aiChannels,
-                                             bool *parse_error) 
+                                             bool *parse_error,
+                                             bool emptyOk) 
 {
     QString ret("");
     QVector<unsigned> aiChans;
@@ -635,8 +704,8 @@ ConfigureDialogController::parseAIChanString(const QString & str,
             if (parse_error) *parse_error = true;
             return QString();                
         }
-    }
-    if (!ret.length() && parse_error) *parse_error = true;
+    }    
+    if (!emptyOk && !ret.length() && parse_error) *parse_error = true;
     else if (parse_error) *parse_error = false;
     aiChannels = aiChans;
     return ret;
@@ -676,15 +745,10 @@ ConfigureDialogController::parseAOPassthruString(const QString & str,
     return ret;
 }
 
-void ConfigureDialogController::loadSettings()
+/*static*/ 
+void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const QSettings & settings)
 {
-    DAQ::Params & p(acceptedParams);
-
-    QSettings settings("janelia.hhmi.org", "SpikeGL");
-
-    settings.beginGroup("ConfigureDialogController");
-
-    p.outputFile = mainApp()->outputDirectory() + PATH_SEPARATOR + settings.value("lastOutFile", "data.bin").toString();
+    p.outputFile = settings.value("outputFile", "data.bin").toString();
     p.dev = settings.value("dev", "").toString();
     p.stimGlTrigResave = settings.value("stimGlTrigResave", false).toBool();
     p.doCtlChan = settings.value("doCtlChan", "0").toUInt();
@@ -694,44 +758,59 @@ void ConfigureDialogController::loadSettings()
     p.srate = settings.value("srate", INTAN_SRATE).toUInt();
     p.extClock = settings.value("extClock", true).toBool();
     p.aiString = settings.value("aiString", "0:3").toString();
+    p.subsetString = settings.value("subsetString", "ALL").toString();
     p.aoPassthru = settings.value("aoPassthru", false).toBool();
     p.aoPassthruString = settings.value("aoPassthruString", "0=1,1=2").toString();
     p.aoRange.min = settings.value("aoRangeMin", -2.5).toDouble();
     p.aoRange.max = settings.value("aoRangeMax", 2.5).toDouble();
-
+    
     p.aoDev = settings.value("aoDev", "").toString();
     p.suppressGraphs = settings.value("suppressGraphs", false).toBool();
-
+    
     p.acqStartEndMode =  (DAQ::AcqStartEndMode)settings.value("acqStartEndMode", 0).toInt();
     p.isImmediate = settings.value("acqStartTimedImmed", false).toBool();
     p.isIndefinite = settings.value("acqStartTimedIndef", false).toBool();
     p.startIn = settings.value("acqStartTimedTime", 0.0).toDouble();
     p.duration = settings.value("acqStartTimedDuration", 60.0).toDouble();
-
+    
     p.pdThresh = settings.value("acqPDThresh", 48000-32768).toInt();
     p.pdChan = settings.value("acqPDChan", 4).toInt();
     p.pdStopTime = settings.value("acqPDOffStopTime", .5).toDouble();
     p.pdPassThruToAO = settings.value("acqPDPassthruChanAO", 2).toInt();
-
+    
     p.aiTerm = (DAQ::TermConfig)settings.value("aiTermConfig", (int)DAQ::Default).toInt();
     p.fastSettleTimeMS = settings.value("fastSettleTimeMS", DEFAULT_FAST_SETTLE_TIME_MS).toUInt();
     p.auxGain = settings.value("auxGain", 200.0).toDouble();    
-
+    
     p.silenceBeforePD = settings.value("silenceBeforePD", DEFAULT_PD_SILENCE).toDouble();
-
+    
 }
 
-void ConfigureDialogController::saveSettings()
+void ConfigureDialogController::loadSettings()
 {
     DAQ::Params & p(acceptedParams);
 
-    QSettings settings("janelia.hhmi.org", "SpikeGL");
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 
-    settings.beginGroup("ConfigureDialogController");
+    settings.beginGroup(SETTINGS_GROUP);
+
+    paramsFromSettingsObject(p, settings);
     
-    settings.setValue("lastOutFile", QFileInfo(p.outputFile).fileName());
+    settings.endGroup();
+
+}
+
+void ConfigureDialogController::saveSettings() const
+{
+    const DAQ::Params & p(acceptedParams);
+
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
+
+    settings.beginGroup(SETTINGS_GROUP);
+    
+    settings.setValue("outputFile", QFileInfo(p.outputFile).fileName());
     QString path = QFileInfo(p.outputFile).path();
-    mainApp()->setOutputDirectory(path.length() ? path : QString(PATH_SEPARATOR));
+    //mainApp()->setOutputDirectory(path.length() ? path : QString(PATH_SEPARATOR));
     settings.setValue("dev", p.dev);
     settings.setValue("stimGlTrigResave", p.stimGlTrigResave);
 
@@ -742,6 +821,7 @@ void ConfigureDialogController::saveSettings()
     settings.setValue("srate", p.srate);
     settings.setValue("extClock", p.extClock);
     settings.setValue("aiString", p.aiString);
+    settings.setValue("subsetString", p.subsetString);
     settings.setValue("aoDev", p.aoDev);
     settings.setValue("aoPassthru", p.aoPassthru);
     settings.setValue("aoRangeMin", p.aoRange.min);
@@ -765,6 +845,60 @@ void ConfigureDialogController::saveSettings()
 
 
     settings.setValue("silenceBeforePD", p.silenceBeforePD);
+
+    settings.endGroup();
+}
+
+QString ConfigureDialogController::acqParamsToString() 
+{    
+    loadSettings(); // so that we have fresh settings CREATED (otherwise on first run this would be empty!!)
+    saveSettings();
+    
+    QString out;
+    QTextStream ts(&out, QIODevice::WriteOnly);
+    
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
+    
+    settings.beginGroup(SETTINGS_GROUP);    
+    
+    QStringList keys (settings.childKeys());
+    for (QStringList::const_iterator it = keys.begin(); it != keys.end(); ++it) {
+        ts << *it << " = " << settings.value(*it).toString() << "\n";
+        //Debug() << "sending: " << *it << " = " << settings.value(*it).toString();
+    }
+    ts.flush();
+    return out;
+}
+
+QString ConfigureDialogController::acqParamsFromString(const QString & str)
+{
+    QString err (QString::null);
+    
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
+    settings.beginGroup("TempAcqParamsFromMatlab");
+    QTextStream ts(str.toUtf8());
+    QString line;
+    
+    while (!(line = ts.readLine(65536)).isNull()) {
+        int eq = line.indexOf("=");
+        if (eq > -1 && eq < line.length()) {
+            QString n = line.left(eq).trimmed(), v = line.mid(eq+1).trimmed();
+            settings.setValue(n, v);
+            //Debug() << "Settings set value: " << n << "=" << v;
+        }
+    }
+    
+    DAQ::Params p;
+    paramsFromSettingsObject(p, settings);
+    
+    resetFromParams(&p); // resets the dialog box form from the params
+    
+    QString errTitle, errMsg;
+    ValidationResult result = validateForm(errTitle, errMsg);
+    
+    if (result != OK) err = errTitle + " " + errMsg.replace("\n", " ");
+    
+    return err;
 }
 
 void ConfigureDialogController::showAOPassThruDlg()

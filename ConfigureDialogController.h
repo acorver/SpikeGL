@@ -11,6 +11,7 @@
 #include <QVector>
 #include "DAQ.h"
 #include "ChanMappingController.h"
+class QSettings;
 
 class ConfigureDialogController : public QObject
 {
@@ -36,6 +37,12 @@ public:
 
     bool isDialogVisible() const { return dialogW->isVisible(); }
 
+    QString acqParamsToString();
+    QString acqParamsFromString(const QString & paramString); ///< returns QString::null on success, or an explanatory error message on error
+
+    void loadSettings();
+    void saveSettings() const;
+
 protected slots:    
     void acqStartEndCBChanged();
     void acqModeCBChanged();
@@ -49,10 +56,17 @@ protected slots:
     void applyAOPass();
 
 private:
-    void loadSettings();
-    void saveSettings();
-    void resetFromParams();
+    void resetFromParams(DAQ::Params *p = 0);
     void resetAOPassFromParams(Ui::AoPassThru *);
+    static void paramsFromSettingsObject(DAQ::Params & p, const QSettings & settings);
+    
+    enum ValidationResult {
+        AGAIN = -1,
+        ABORT =  0,
+        OK    =  1
+    };
+    
+    ValidationResult validateForm(QString & errTitle, QString & errMsg);
 
     QWidget *dialogW, *acqPdParamsW, *acqTimedParamsW, *aoPassW;
     ChanMappingController chanMapCtl;
@@ -60,7 +74,7 @@ private:
     QVector<QString> devNames, aoDevNames;
     DAQ::DeviceChanMap aiChanLists, aoChanLists;
 
-    static QString parseAIChanString(const QString & aichanstr, QVector<unsigned> & aiChannels_out, bool *parse_error = 0);
+    static QString parseAIChanString(const QString & aichanstr, QVector<unsigned> & aiChannels_out, bool *parse_error = 0, bool emptyOk = false);
     static QMap<unsigned,unsigned> parseAOPassthruString(const QString & aochanstr, bool *parse_error = 0);
     
 };

@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CommandServerOptions</class>
+ <widget class="QDialog" name="CommandServerOptions">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>396</width>
+    <height>194</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Command Server Options</string>
+  </property>
+  <widget class="QDialogButtonBox" name="buttonBox">
+   <property name="geometry">
+    <rect>
+     <x>30</x>
+     <y>146</y>
+     <width>341</width>
+     <height>32</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+   <property name="standardButtons">
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+   </property>
+  </widget>
+  <widget class="QGroupBox" name="enabledGB">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>9</y>
+     <width>361</width>
+     <height>122</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>Options for the Command Server (Matlab server)</string>
+   </property>
+   <property name="whatsThis">
+    <string>Options for the Command Server (Matlab server)</string>
+   </property>
+   <property name="title">
+    <string>Enable &quot;Command Server&quot; (aka Matlab Server)</string>
+   </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>26</y>
+      <width>71</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>The interface to bind the listening server to (leave as 0.0.0.0 unless you know what this means).</string>
+    </property>
+    <property name="text">
+     <string>Interface</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="interfaceLE">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>23</y>
+      <width>241</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>The interface to bind the listening server to (leave as 0.0.0.0 unless you know what this means).</string>
+    </property>
+    <property name="text">
+     <string>0.0.0.0</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_2">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>60</y>
+      <width>71</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>The port to bind the listening server to.</string>
+    </property>
+    <property name="text">
+     <string>Port:</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_3">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>91</y>
+      <width>71</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>Communications timeout.  Connections are dropped if they take longer than this to respond to immediate commands.</string>
+    </property>
+    <property name="text">
+     <string>Timeout (ms):</string>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="timeoutSB">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>84</y>
+      <width>101</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>Communications timeout.  Connections are dropped if they take longer than this to respond to immediate commands.</string>
+    </property>
+    <property name="minimum">
+     <number>50</number>
+    </property>
+    <property name="maximum">
+     <number>1000000000</number>
+    </property>
+    <property name="value">
+     <number>60000</number>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="portSB">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>53</y>
+      <width>105</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>The port to bind the listening server to.</string>
+    </property>
+    <property name="minimum">
+     <number>1</number>
+    </property>
+    <property name="maximum">
+     <number>65535</number>
+    </property>
+    <property name="value">
+     <number>4142</number>
+    </property>
+   </widget>
+  </widget>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>CommandServerOptions</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>CommandServerOptions</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
