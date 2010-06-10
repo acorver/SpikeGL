@@ -31,7 +31,7 @@ PROJECT_NAME           = SpikeGL
 # This could be handy for archiving the generated documentation or 
 # if some version control system is used.
 
-PROJECT_NUMBER         = "ver 2010.04.28"
+PROJECT_NUMBER         = "ver 2010.06.10"
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute) 
 # base path where the generated documentation will be put. 
@@ -897,7 +897,7 @@ GENERATE_HTMLHELP      = NO
 # can add a path in front of the file if the result should not be 
 # written to the html output directory.
 
-CHM_FILE               = 
+CHM_FILE               = ../StimulateOpenGL_II.chm
 
 # If the GENERATE_HTMLHELP tag is set to YES, the HHC_LOCATION tag can 
 # be used to specify the location (absolute path including file name) of 

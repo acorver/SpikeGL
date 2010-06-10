@@ -235,13 +235,13 @@ void ConfigureDialogController::acqModeCBChanged()
     dialog->channelSubsetLE->setEnabled(notStraightAI);
     dialog->channelSubsetLabel->setEnabled(notStraightAI);
     
-    dialog->srateLabel->setEnabled(enabled);
-    dialog->srateSB->setEnabled(enabled);
+    dialog->srateLabel->setEnabled(/*enabled*/true);
+    dialog->srateSB->setEnabled(/*enabled*/true);
     dialog->clockCB->setEnabled(false); // NB: for now, the clockCB is always disabled!
     dialog->muxMapBut->setEnabled(intan);
 
     if (intan || jfrc32) {
-        if (!jfrc32) dialog->srateSB->setValue(INTAN_SRATE);
+        //if (!jfrc32) dialog->srateSB->setValue(INTAN_SRATE);
         dialog->clockCB->setCurrentIndex(0); // intan always uses external clock
     } else {
         dialog->clockCB->setCurrentIndex(1); // force INTERNAL clock on !intan
@@ -495,6 +495,12 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
             return AGAIN;
         }
     
+    if (acqMode != DAQ::AIRegular && ((srate / TASK_READ_FREQ_HZ) * TASK_READ_FREQ_HZ) != srate) {
+        errTitle = "Invalid sample rate.";
+        errMsg = QString("The specified acquisition mode cannot use the sample rate of ") + QString::number(srate) + ".  The sample rate must be a multiple of " + QString::number(TASK_READ_FREQ_HZ) + " Hz.";
+        return AGAIN;
+    }
+
     DAQ::Params & p (acceptedParams);
     p.outputFile = p.outputFileOrig = dialog->outputFileLE->text().trimmed();
     p.dev = dev;
