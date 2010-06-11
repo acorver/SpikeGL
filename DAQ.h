@@ -80,6 +80,7 @@ namespace DAQ
         QMap<unsigned, unsigned> aoPassthruMap;
         QVector<unsigned> aoChannels; ///< the AO channels from the above map, plus possibly the photodiode-passthru channel
         QString aoPassthruString;
+        int task_read_freq_hz; ///< the task read freq we are using, in Hz
         /// etc...
 
         /// index into the acqStartEndCB in Ui::ConfigureDialog

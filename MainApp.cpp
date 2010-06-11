@@ -618,13 +618,15 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
             Error() << errTitle << " " << errMsg;
             return false;
     }
+    
     task = new DAQ::Task(params, this);
     taskReadTimer = new QTimer(this);
     Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
     Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
     Connect(taskReadTimer, SIGNAL(timeout()), this, SLOT(taskReadFunc()));
     taskReadTimer->setSingleShot(false);
-    taskReadTimer->start(1000/TASK_READ_FREQ_HZ);
+    
+    taskReadTimer->start(1000/params.task_read_freq_hz);
     stopAcq->setEnabled(true);
     aoPassthruAct->setEnabled(params.aoPassthru);
     Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));

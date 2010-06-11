@@ -381,7 +381,7 @@ namespace DAQ
             return;
         }
         std::vector<int16> data, data_out;
-        const double onePd = int(params.srate/double(TASK_READ_FREQ_HZ));
+        const double onePd = int(params.srate/double(params.task_read_freq_hz));
         while (!pleaseStop) {
             data.resize(unsigned(params.nVAIChansFromDAQ*onePd));
             data_out.resize(unsigned(params.nVAIChans*onePd));
@@ -563,10 +563,10 @@ namespace DAQ
 
         recomputeAOAITab(aoAITab, aoChan, p);
        
-        u64 bufferSize = u64(sampleRate*nChans)/TASK_READ_FREQ_HZ; ///< 1/10th sec per read
+        u64 bufferSize = u64(sampleRate*nChans)/params.task_read_freq_hz; ///< 1/10th sec per read
         if (bufferSize < NCHANS) bufferSize = NCHANS;
-        if (bufferSize * TASK_READ_FREQ_HZ != u64(sampleRate*nChans)) // make sure buffersize is on scan boundary?
-            bufferSize += TASK_READ_FREQ_HZ - u64(sampleRate*nChans)%TASK_READ_FREQ_HZ; 
+        if (bufferSize * params.task_read_freq_hz != u64(sampleRate*nChans)) // make sure buffersize is on scan boundary?
+            bufferSize += params.task_read_freq_hz - u64(sampleRate*nChans)%params.task_read_freq_hz; 
         const u64 dmaBufSize = u64(1000000); /// 1000000 sample DMA buffer per chan?
         const u64 samplesPerChan = bufferSize/nChans;
         u64 aoBufferSize = 0; /* needs to be set below!!! */

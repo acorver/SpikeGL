@@ -17,10 +17,10 @@
 #define MUX_CHANS_PER_PHYS_CHAN NUM_CHANS_PER_INTAN
 #define MUX_CHANS_PER_PHYS_CHAN32 NUM_CHANS_PER_INTAN32
 #define LOCK_TIMEOUT_MS 2000
-#define TASK_READ_FREQ_HZ 10
+#define DEF_TASK_READ_FREQ_HZ 10
 #define TASK_WRITE_FREQ_HZ 10
-#if (INTAN_SRATE/TASK_READ_FREQ_HZ)*TASK_READ_FREQ_HZ != INTAN_SRATE
-#  error Please set TASK_READ_FREQ_HZ to a value that is a factor of the INTAN sampling rate
+#if (INTAN_SRATE/DEF_TASK_READ_FREQ_HZ)*DEF_TASK_READ_FREQ_HZ != INTAN_SRATE
+#  error Please set DEF_TASK_READ_FREQ_HZ to a value that is a factor of the INTAN sampling rate
 #endif
 #define APPNAME "SpikeGL"
 #define DOWNSAMPLE_TARGET_HZ 1000

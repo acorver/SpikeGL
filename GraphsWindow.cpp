@@ -205,7 +205,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     QTimer *t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateGraphs()));
     t->setSingleShot(false);
-    t->start(1000/TASK_READ_FREQ_HZ);        
+    t->start(1000/p.task_read_freq_hz);        
 
     t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateMouseOver()));
