@@ -605,14 +605,14 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     // but if that isn't groovy with the sample rate, try a freq that is more groovy
     int & task_freq(p.task_read_freq_hz);
     task_freq = DEF_TASK_READ_FREQ_HZ;
-    while (task_freq > 5 && (p.srate % task_freq)) 
+    while (task_freq >= 3 && (p.srate % task_freq)) 
         --task_freq;
-    if (task_freq <= 5) {
+    if (task_freq < 3) {
         for (task_freq = DEF_TASK_READ_FREQ_HZ; (p.srate % task_freq) && task_freq <= DEF_TASK_READ_FREQ_HZ*2; 
              ++task_freq)
             ;
         if (p.srate % task_freq)
-            task_freq = DEF_TASK_READ_FREQ_HZ;// give up and use 10Hz
+            task_freq = 1;// give up and use 1Hz!
     }    
     Debug() << "Using task read freq: " << task_freq << "Hz.";
     
