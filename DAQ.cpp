@@ -538,7 +538,7 @@ namespace DAQ
         // Params dependent on mode and DAQ::Params, etc
         const char *clockSource = p.extClock ? "PFI2" : "OnboardClock"; ///< TODO: make extClock possibly be something other than PFI2
         const char * const aoClockSource = "OnboardClock";
-        float64 sampleRate = p.srate;
+        unsigned int sampleRate = p.srate;
         const float64 aoSampleRate = p.srate;
         const float64     timeout = DAQ_TIMEOUT;
         const int NCHANS = p.nVAIChansFromDAQ;
@@ -562,11 +562,14 @@ namespace DAQ
         QVector<QPair<int,int> > aoAITab;
 
         recomputeAOAITab(aoAITab, aoChan, p);
-       
-        u64 bufferSize = u64(sampleRate*nChans)/params.task_read_freq_hz; ///< 1/10th sec per read
+        int fudged_srate = sampleRate;
+		while ((fudged_srate/params.task_read_freq_hz) % 2) // samples per chan needs to be a multiple of 2
+			++fudged_srate;
+        u64 bufferSize = u64(fudged_srate*nChans)/params.task_read_freq_hz; ///< 1/10th sec per read
         if (bufferSize < NCHANS) bufferSize = NCHANS;
-        if (bufferSize * params.task_read_freq_hz != u64(sampleRate*nChans)) // make sure buffersize is on scan boundary?
-            bufferSize += params.task_read_freq_hz - u64(sampleRate*nChans)%params.task_read_freq_hz; 
+        if (bufferSize * params.task_read_freq_hz != u64(fudged_srate*nChans)) // make sure buffersize is on scan boundary?
+            bufferSize += params.task_read_freq_hz - u64(fudged_srate*nChans)%params.task_read_freq_hz; 
+		
         const u64 dmaBufSize = u64(1000000); /// 1000000 sample DMA buffer per chan?
         const u64 samplesPerChan = bufferSize/nChans;
         u64 aoBufferSize = 0; /* needs to be set below!!! */
