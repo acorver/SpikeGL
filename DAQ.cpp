@@ -19,6 +19,7 @@
 #include <QPair>
 #include <QSet>
 #include <QMutexLocker>
+#include <math.h>
 #include "SampleBufQ.h"
 
 #define DAQmxErrChk(functionCall) do { if( DAQmxFailed(error=(functionCall)) ) { callStr = STR(functionCall); goto Error_Out; } } while (0)
@@ -357,6 +358,28 @@ namespace DAQ
 #endif
     }
 
+    /* static */
+    int Task::computeTaskReadFreq(double srate_in) {
+        int srate = ceil(srate_in); (void)srate;
+        return DEF_TASK_READ_FREQ_HZ;
+        /*
+        // try and figure out how often to run the task read function.  defaults to 10Hz
+        // but if that isn't groovy with the sample rate, try a freq that is more groovy
+        int task_freq = DEF_TASK_READ_FREQ_HZ;
+        while (task_freq >= 3 && (srate % task_freq)) 
+            --task_freq;
+        if (task_freq < 3) {
+            for (task_freq = DEF_TASK_READ_FREQ_HZ; (srate % task_freq) && task_freq <= DEF_TASK_READ_FREQ_HZ*2; 
+                 ++task_freq)
+                ;
+            if (srate % task_freq)
+                task_freq = 1;// give up and use 1Hz!
+        }    
+        Debug() << "Using task read freq: " << task_freq << "Hz.";        
+        return task_freq;
+         */
+    }
+    
 #ifdef FAKEDAQ
 }// end namespace DAQ
 
@@ -381,7 +404,7 @@ namespace DAQ
             return;
         }
         std::vector<int16> data, data_out;
-        const double onePd = int(params.srate/double(params.task_read_freq_hz));
+        const double onePd = int(params.srate/double(computeTaskReadFreq(params.srate)));
         while (!pleaseStop) {
             data.resize(unsigned(params.nVAIChansFromDAQ*onePd));
             data_out.resize(unsigned(params.nVAIChans*onePd));
@@ -505,7 +528,7 @@ namespace DAQ
             }
         }
     }
-
+    
     void Task::daqThr()
     {
         // Task parameters
@@ -538,7 +561,7 @@ namespace DAQ
         // Params dependent on mode and DAQ::Params, etc
         const char *clockSource = p.extClock ? "PFI2" : "OnboardClock"; ///< TODO: make extClock possibly be something other than PFI2
         const char * const aoClockSource = "OnboardClock";
-        unsigned int sampleRate = p.srate;
+        float64 sampleRate = p.srate;
         const float64 aoSampleRate = p.srate;
         const float64     timeout = DAQ_TIMEOUT;
         const int NCHANS = p.nVAIChansFromDAQ;
@@ -562,13 +585,18 @@ namespace DAQ
         QVector<QPair<int,int> > aoAITab;
 
         recomputeAOAITab(aoAITab, aoChan, p);
-        int fudged_srate = sampleRate;
-		while ((fudged_srate/params.task_read_freq_hz) % 2) // samples per chan needs to be a multiple of 2
+        
+        const int task_read_freq_hz = computeTaskReadFreq(p.srate);
+        
+        int fudged_srate = ceil(sampleRate);
+		while ((fudged_srate/task_read_freq_hz) % 2) // samples per chan needs to be a multiple of 2
 			++fudged_srate;
-        u64 bufferSize = u64(fudged_srate*nChans)/params.task_read_freq_hz; ///< 1/10th sec per read
+        u64 bufferSize = u64(fudged_srate*nChans)/task_read_freq_hz; ///< 1/10th sec per read
         if (bufferSize < NCHANS) bufferSize = NCHANS;
-        if (bufferSize * params.task_read_freq_hz != u64(fudged_srate*nChans)) // make sure buffersize is on scan boundary?
-            bufferSize += params.task_read_freq_hz - u64(fudged_srate*nChans)%params.task_read_freq_hz; 
+/*        if (bufferSize * task_read_freq_hz != u64(fudged_srate*nChans)) // make sure buffersize is on scan boundary?
+            bufferSize += task_read_freq_hz - u64(fudged_srate*nChans)%task_read_freq_hz; */
+        if (bufferSize % nChans) // make sure buffer is on a scan boundary!
+            bufferSize += nChans - (bufferSize%nChans);
 		
         const u64 dmaBufSize = u64(1000000); /// 1000000 sample DMA buffer per chan?
         const u64 samplesPerChan = bufferSize/nChans;

@@ -205,7 +205,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     QTimer *t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateGraphs()));
     t->setSingleShot(false);
-    t->start(1000/p.task_read_freq_hz);        
+    t->start(1000/DEF_TASK_READ_FREQ_HZ);        
 
     t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateMouseOver()));
@@ -257,7 +257,7 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
 {
         const int NGRAPHS (graphs.size());
         const int DOWNSAMPLE_RATIO((int)downsampleRatio);
-        const int SRATE (params.srate);
+        const double SRATE (params.srate);
         // avoid some operator[] and others..
         const int DSIZE = data.size();
         const int16 * const DPTR = &data[0];

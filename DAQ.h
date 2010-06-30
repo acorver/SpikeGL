@@ -66,7 +66,7 @@ namespace DAQ
         unsigned doCtlChan;
         QString doCtlChanString;
         Mode mode;
-        unsigned srate;
+        double srate;
         bool extClock;
         QString aiString;
         QVector<unsigned> aiChannels;
@@ -80,7 +80,6 @@ namespace DAQ
         QMap<unsigned, unsigned> aoPassthruMap;
         QVector<unsigned> aoChannels; ///< the AO channels from the above map, plus possibly the photodiode-passthru channel
         QString aoPassthruString;
-        int task_read_freq_hz; ///< the task read freq we are using, in Hz
         /// etc...
 
         /// index into the acqStartEndCB in Ui::ConfigureDialog
@@ -203,6 +202,8 @@ namespace DAQ
                                      QString & aoChan,
                                      const Params & p);
 
+        static int computeTaskReadFreq(double srate);
+        
     };
 #ifdef HAVE_NIDAQmx
     class AOWriteThread : public QThread, public SampleBufQ {

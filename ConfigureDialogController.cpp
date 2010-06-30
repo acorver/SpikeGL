@@ -284,8 +284,8 @@ void ConfigureDialogController::deviceCBChanged()
     if (dialog->aiRangeCB->count())
         dialog->aiRangeCB->setCurrentIndex(sel);
 
-    dialog->srateSB->setMinimum((unsigned)DAQ::MinimumSampleRate(devStr));
-    dialog->srateSB->setMaximum((unsigned)DAQ::MaximumSampleRate(devStr));
+    dialog->srateSB->setMinimum(DAQ::MinimumSampleRate(devStr));
+    dialog->srateSB->setMaximum(DAQ::MaximumSampleRate(devStr));
 }
 
 void ConfigureDialogController::aoDeviceCBChanged()
@@ -410,7 +410,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
         return AGAIN;
     }
     
-    const unsigned srate = dialog->srateSB->value();
+    const double srate = dialog->srateSB->value();
     if (srate > DAQ::MaximumSampleRate(dev, chanVect.size())) {
         errTitle = "Sampling Rate Invalid", errMsg = QString().sprintf("The sample rate specified (%d) is too high for the number of channels (%d)!", (int)srate, (int)chanVect.size());
         return AGAIN;
@@ -600,22 +600,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
         //if (i && !(i % 9)) debugStr += "\n";
     }
     Debug() << "Channel subset bitmap: " << debugStr;
-    
-    // try and figure out how often to run the task read function.  defaults to 10Hz
-    // but if that isn't groovy with the sample rate, try a freq that is more groovy
-    int & task_freq(p.task_read_freq_hz);
-    task_freq = DEF_TASK_READ_FREQ_HZ;
-    while (task_freq >= 3 && (p.srate % task_freq)) 
-        --task_freq;
-    if (task_freq < 3) {
-        for (task_freq = DEF_TASK_READ_FREQ_HZ; (p.srate % task_freq) && task_freq <= DEF_TASK_READ_FREQ_HZ*2; 
-             ++task_freq)
-            ;
-        if (p.srate % task_freq)
-            task_freq = 1;// give up and use 1Hz!
-    }    
-    Debug() << "Using task read freq: " << task_freq << "Hz.";
-    
+        
     saveSettings();       
     
     return OK;
@@ -772,7 +757,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
     p.range.min = settings.value("rangeMin", -2.5).toDouble();
     p.range.max = settings.value("rangeMax", 2.5).toDouble();
     p.mode = (DAQ::Mode)settings.value("acqMode", 0).toInt();
-    p.srate = settings.value("srate", INTAN_SRATE).toUInt();
+    p.srate = settings.value("srate", INTAN_SRATE).toDouble();
     p.extClock = settings.value("extClock", true).toBool();
     p.aiString = settings.value("aiString", "0:3").toString();
     p.subsetString = settings.value("subsetString", "ALL").toString();

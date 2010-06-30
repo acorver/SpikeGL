@@ -626,7 +626,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     Connect(taskReadTimer, SIGNAL(timeout()), this, SLOT(taskReadFunc()));
     taskReadTimer->setSingleShot(false);
     
-    taskReadTimer->start(1000/params.task_read_freq_hz);
+    taskReadTimer->start(1000/DEF_TASK_READ_FREQ_HZ);
     stopAcq->setEnabled(true);
     aoPassthruAct->setEnabled(params.aoPassthru);
     Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));
