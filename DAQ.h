@@ -72,7 +72,8 @@ namespace DAQ
         QVector<unsigned> aiChannels;
         QString subsetString; ///< subset of demuxed AI chans to actually save/graph.
         QBitArray demuxedBitMap; ///< bitmap of the demuxed AI chans to actually save/graph.  Derived from subsetString above.
-        unsigned nVAIChans, nVAIChansFromDAQ; ///< number of virtual (demuxed) AI chans
+        unsigned nVAIChans; ///< number of virtual (demuxed) AI chans
+		unsigned nVAIChansForSave; ///< number of virtual (demuxed) AI chans that go into the save data file
         unsigned nExtraChans; ///< the number of extra channels (PD, etc) that aren't part of the demux.. if not in MUX mode, this is always 0
         bool aoPassthru;
         QString aoDev;
@@ -194,7 +195,7 @@ namespace DAQ
 
         void daqThr();
 
-        long long totalRead, totalRead_subset;
+        long long totalRead;
 
         friend struct DAQPvt;
 
