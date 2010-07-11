@@ -356,6 +356,9 @@ void ConfigureDialogController::aoPDPassthruUpdateLE()
     le = le.remove(QRegExp(",?\\s*\\d+\\s*=\\s*PDCHAN"));
     if (le.startsWith(",")) le = le.mid(1);
     if (aopd > -1) {
+        // remove possibly already-existing AOPD=BLAH from string.. as per Leonardo email dated 7/8/2010 titled "stimGL bug testing, part II"
+        le = le.remove(QRegExp(QString().sprintf(",?\\s*%d\\s*=\\s*((\\d+)|(PDCHAN))",aopd)));
+        if (le.startsWith(",")) le = le.mid(1); 
         QString s = QString().sprintf("%d=PDCHAN",aopd);
         le = le + QString(le.length() ? ", " : "") + s;
     }
@@ -810,8 +813,8 @@ void ConfigureDialogController::saveSettings() const
 
     settings.beginGroup(SETTINGS_GROUP);
     
-    settings.setValue("outputFile", QFileInfo(p.outputFile).fileName());
-    QString path = QFileInfo(p.outputFile).path();
+    settings.setValue("outputFile", /*QFileInfo(*/p.outputFile/*).fileName()*/);
+    //QString path = QFileInfo(p.outputFile).path();
     //mainApp()->setOutputDirectory(path.length() ? path : QString(PATH_SEPARATOR));
     settings.setValue("dev", p.dev);
     settings.setValue("stimGlTrigResave", p.stimGlTrigResave);

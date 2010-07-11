@@ -133,7 +133,10 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
         params["pdThresh"] = dp.pdThresh;
     }
     params["acqStartEndMode"] = DAQ::AcqStartEndModeToString(dp.acqStartEndMode);
-    
+    if (dp.demuxedBitMap.count(false)) {
+        params["saveChannelSubset"] = dp.subsetString;
+    } else 
+        params["saveChannelSubset"] = "ALL";
     return true;
 }
 
