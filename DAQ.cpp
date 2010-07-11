@@ -406,7 +406,7 @@ namespace DAQ
         std::vector<int16> data;
         const double onePd = int(params.srate/double(computeTaskReadFreq(params.srate)));
         while (!pleaseStop) {
-            data.resize(unsigned(params.nVAIChansFromDAQ*onePd));
+            data.resize(unsigned(params.nVAIChans*onePd));
             qint64 nread = f.read((char *)&data[0], data.size()*sizeof(int16));
             if (nread != data.size()*sizeof(int16)) {
                 f.seek(0);
