@@ -890,6 +890,7 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp)
     if (triggered) {
         triggerTask();
     }
+	graphsWindow->setPDTrig(triggered);
     
     //scan0Fudge = firstSamp + scans.size();
     scan0Fudge = firstSamp;
@@ -926,6 +927,7 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
         }
         if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps) { // timeout PD after X scans..
             stopped = true;
+			graphsWindow->setPDTrig(false);
             Log() << "Triggered stop due to photodiode being off for >" << p.pdStopTime << " seconds.";
         }
     }
@@ -1263,7 +1265,10 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
 
     Debug() << "Received notification that Stim GL plugin `" << plugin << "' started." << (ignored ? " Ignored!" : "");
 
-    if (!ignored) stimGL_SaveParams(plugin, pm);
+	if (!ignored) {
+		stimGL_SaveParams(plugin, pm);
+		graphsWindow->setSGLTrig(true);
+	}
 }
 
 void MainApp::stimGL_SaveParams(const QString & unused, const QMap<QString, QVariant> & pm) 
@@ -1293,7 +1298,10 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
         stimGL_SaveParams(plugin,pm);
         Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
         dataFile.closeAndFinalize();
-        updateWindowTitles();        
+        updateWindowTitles();    
+		if (taskWaitingForTrigger && (p.acqStartEndMode == DAQ::PDStart || p.acqStartEndMode == DAQ::PDStartEnd)) {
+			Warning() << "PD signal never triggered a data save!  Is the PD threshold too low?";
+		}
         ignored = false;
     }
     if (task && p.stimGlTrigResave && p.acqStartEndMode == DAQ::PDStart) {
@@ -1303,7 +1311,8 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
         updateWindowTitles();        
         ignored = false;        
     }
-    Debug() << "Received notification that Stim GL plugin `" << plugin << "' ended." << (ignored ? " Ignored!" : "");
+	graphsWindow->setSGLTrig(false);
+	Debug() << "Received notification that Stim GL plugin `" << plugin << "' ended." << (ignored ? " Ignored!" : "");
 
 }
 

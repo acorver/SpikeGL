@@ -580,7 +580,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
             return AGAIN;
         }
     }
-    p.demuxedBitMap.resize(p.nVAIChans - p.nExtraChans);
+    p.demuxedBitMap.resize(p.nVAIChans);
     if (!subsetChans.count()) p.demuxedBitMap.fill(true);
     else {
         p.demuxedBitMap.fill(false);
@@ -595,8 +595,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
         }
     }
     p.subsetString = dialog->channelSubsetLE->text();  
-    p.nVAIChansFromDAQ = p.nVAIChans;
-    p.nVAIChans = p.demuxedBitMap.count(true) + p.nExtraChans;
+    p.nVAIChansForSave = p.demuxedBitMap.count(true);
     QString debugStr = "";
     for (int i = 0; i < p.demuxedBitMap.count(); ++i) {
         debugStr += QString::number(int(p.demuxedBitMap.at(i))) + " ";

@@ -18,6 +18,7 @@ class QFrame;
 class QDoubleSpinBox;
 class QCheckBox;
 class HPFilter;
+class QLed;
 
 class GraphsWindow : public QMainWindow
 {
@@ -38,6 +39,9 @@ public:
     void setToggleSaveLE(const QString & fname);
 
     const QLineEdit *saveFileLineEdit() const  { return saveFileLE; }
+
+	void setPDTrig(bool);
+	void setSGLTrig(bool);
 
 private slots:
     void updateGraphs();
@@ -105,6 +109,7 @@ private:
     Vec2 lastMousePos;
     int lastMouseOverGraph;
     int selectedGraph;
+	QLed *stimTrigLed, *pdTrigLed;
 };
 
 

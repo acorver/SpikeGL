@@ -13,6 +13,7 @@
 #include <QStatusBar>
 #include <QFrame>
 #include <QVBoxLayout>
+#include <QHboxLayout>
 #include <QDoubleSpinBox>
 #include <QPushButton>
 #include <QCursor>
@@ -23,8 +24,10 @@
 #include <QLineEdit>
 #include <math.h>
 #include <QMessageBox>
+#include <QSettings>
 #include "MainApp.h"
 #include "HPFilter.h"
+#include "QLed.h"
 #include "play.xpm"
 #include "pause.xpm"
 #include "window_fullscreen.xpm"
@@ -57,7 +60,7 @@ static void initIcons()
 }
 
 GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.)
+    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), filter(0), tNow(0.), tLast(0.), tAvg(0.), tNum(0.)
 {
     sharedCtor(p, isSaving);
 }
@@ -104,17 +107,25 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     applyAllAct = graphCtls->addAction(*applyAllIcon, "Apply scale, secs & color to all graphs", this, SLOT(applyAll()));
 
     graphCtls->addSeparator();
+
+
+    QSettings settings("janelia.hhmi.org", APPNAME);
+	settings.beginGroup("GraphsWindow");
+	const bool setting_ds = settings.value("downsample",false).toBool(),
+		       setting_filt = settings.value("filter",true).toBool();
+
     QCheckBox *dsc = new QCheckBox(QString("Downsample (%1 KHz)").arg(DOWNSAMPLE_TARGET_HZ/1000.), graphCtls);
     graphCtls->addWidget(dsc);
-    dsc->setChecked(true);
-    downsampleChk(true);
+    dsc->setChecked(setting_ds);
+    downsampleChk(setting_ds);
     Connect(dsc, SIGNAL(clicked(bool)), this, SLOT(downsampleChk(bool)));
 
     highPassChk = new QCheckBox("Filter < 300Hz", graphCtls);
     graphCtls->addWidget(highPassChk);
-    highPassChk->setChecked(false);
-    Connect(highPassChk, SIGNAL(clicked(bool)), this, SLOT(hpfChk(bool)));
+    highPassChk->setChecked(setting_filt);
     filter = 0;
+	hpfChk(setting_filt);
+    Connect(highPassChk, SIGNAL(clicked(bool)), this, SLOT(hpfChk(bool)));
 
 
     graphCtls->addSeparator();
@@ -214,6 +225,38 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 
     selectGraph(0);
     updateGraphCtls();
+
+	QWidget *leds = new QWidget;
+	QHBoxLayout *hbl = new QHBoxLayout;
+
+
+	// LED setup..
+	stimTrigLed = new QLed;
+	bool modeCaresAboutSGL = false, modeCaresAboutPD = false;
+	switch(p.acqStartEndMode) {
+		case DAQ::PDStart:
+		case DAQ::PDStartEnd:
+			modeCaresAboutPD = true;
+		case DAQ::StimGLStartEnd:
+		case DAQ::StimGLStart:
+			modeCaresAboutSGL = true;
+	}
+	lbl = new QLabel("SGLTrig:");
+	stimTrigLed->setOffColor(p.stimGlTrigResave || modeCaresAboutSGL ? QLed::Red : QLed::Grey);
+	stimTrigLed->setOnColor(QLed::Green);
+	hbl->addWidget(lbl);
+	stimTrigLed->setMinimumSize(20,20);
+	hbl->addWidget(stimTrigLed);
+	lbl = new QLabel("PDTrig:");
+	pdTrigLed = new QLed;
+	pdTrigLed->setOffColor(modeCaresAboutPD ? QLed::Red : QLed::Grey);
+	pdTrigLed->setOnColor(QLed::Green);
+	hbl->addWidget(lbl);
+	pdTrigLed->setMinimumSize(20,20);
+	hbl->addWidget(pdTrigLed);
+	leds->setLayout(hbl);
+//	leds->setMinimumSize(100,40);
+	statusBar()->addPermanentWidget(leds);
 }
 
 GraphsWindow::~GraphsWindow()
@@ -353,6 +396,9 @@ void GraphsWindow::downsampleChk(bool checked)
     for (int i = 0; i < graphs.size(); ++i)
         setGraphTimeSecs(i, graphTimesSecs[i]); // clear the points and reserve the right capacities.
     update_nPtsAllGs();
+    QSettings settings("janelia.hhmi.org", APPNAME);
+	settings.beginGroup("GraphsWindow");
+	settings.setValue("downsample",checked);
 }
 
 
@@ -603,6 +649,9 @@ void GraphsWindow::hpfChk(bool b)
     if (b) {
         filter = new HPFilter(graphs.size(), 300.0);
     }
+    QSettings settings("janelia.hhmi.org", APPNAME);
+	settings.beginGroup("GraphsWindow");
+	settings.setValue("filter",b);
 }
 
 double GraphsWindow::GraphStats::rms() const { return sqrt(rms2()); }
@@ -644,4 +693,12 @@ void GraphsWindow::setToggleSaveChkBox(bool b)
 void GraphsWindow::setToggleSaveLE(const QString & fname)
 {
     saveFileLE->setText(fname);
+}
+
+void GraphsWindow::setPDTrig(bool b) {
+	pdTrigLed->setValue(b);
+}
+
+void GraphsWindow::setSGLTrig(bool b) {
+	stimTrigLed->setValue(b);
 }
