@@ -169,6 +169,8 @@ bool MainApp::isDebugMode() const
     return debug;
 }
 
+bool MainApp::isSaveCBEnabled() const { return saveCBEnabled; }
+
 bool MainApp::isConsoleHidden() const 
 {
     return !consoleWindow || consoleWindow->isHidden();
@@ -179,6 +181,13 @@ void MainApp::toggleDebugMode()
     debug = !debug;
     Log() << "Debug mode: " << (debug ? "on" : "off");
     saveSettings();    
+}
+
+void MainApp::toggleShowChannelSaveCB()
+{
+	saveCBEnabled = !saveCBEnabled;
+	if (graphsWindow) graphsWindow->hideUnhideSaveChannelCBs();	
+	saveSettings();
 }
 
 bool MainApp::isShiftPressed()
@@ -306,6 +315,8 @@ void MainApp::loadSettings()
 
     settings.beginGroup("MainApp");
     debug = settings.value("debug", true).toBool();
+	saveCBEnabled = settings.value("saveChannelCB", true).toBool();
+
     mut.lock();
 #ifdef Q_OS_WIN
     outDir = settings.value("outDir", "c:/users/code").toString();
@@ -334,6 +345,7 @@ void MainApp::saveSettings()
 
     settings.beginGroup("MainApp");
     settings.setValue("debug", debug);
+	settings.setValue("saveChannelCB", saveCBEnabled);
     mut.lock();
     settings.setValue("outDir", outDir);
     mut.unlock();
@@ -486,6 +498,9 @@ void MainApp::initActions()
              SIGNAL(triggered()), this, SLOT(maybeQuit()));
     Connect( toggleDebugAct = new QAction("&Debug Mode D", this) ,
              SIGNAL(triggered()), this, SLOT(toggleDebugMode()));
+	toggleDebugAct->setCheckable(true);
+	toggleDebugAct->setChecked(isDebugMode());
+
     Connect( chooseOutputDirAct = new QAction("Choose &Output Directory...", this),
              SIGNAL(triggered()), this, SLOT(pickOutputDir()));
     Connect( hideUnhideConsoleAct = new QAction("Hide/Unhide &Console C", this),
@@ -522,6 +537,11 @@ void MainApp::initActions()
 	
     Connect( commandServerOptionsAct = new QAction("Command Server Options", this),
              SIGNAL(triggered()), this, SLOT(execCommandServerOptionsDialog()) );
+
+	Connect( showChannelSaveCBAct = new QAction("Show Save Checkboxes", this), 
+		     SIGNAL(triggered()), this, SLOT(toggleShowChannelSaveCB()) );
+	showChannelSaveCBAct->setCheckable(true);
+	showChannelSaveCBAct->setChecked(isSaveCBEnabled());
 }
 
 bool MainApp::startAcq(QString & errTitle, QString & errMsg) 
@@ -739,7 +759,7 @@ void MainApp::xferWBToScans(WrapBuffer & preBuf, std::vector<int16> & scans,
 ///< called from a timer at 30Hz
 void MainApp::taskReadFunc() 
 { 
-    std::vector<int16> scans;
+    std::vector<int16> scans, scans_subsetted;
     u64 firstSamp;
     int ct = 0;
     const int ctMax = 10;
@@ -798,7 +818,20 @@ void MainApp::taskReadFunc()
                     //QMessageBox::critical(0, "DAQ Error", e);
                     //return;
                 }
-                dataFile.writeScans(scans);
+				if (p.nVAIChansForSave != p.nVAIChans) {
+					const double ratio = p.nVAIChansForSave / double(p.nVAIChans ? p.nVAIChans : 0);
+					scans_subsetted.resize(0);
+					scans_subsetted.reserve(scans.size() * ratio + 32);
+					const int n = scans.size();
+					for (int i = 0; i < n; ++i) {
+						const int rel = i % p.nVAIChans;
+						if (p.demuxedBitMap.at(rel)) {
+							scans_subsetted.push_back(scans[i]);
+						}
+					}
+					dataFile.writeScans(scans_subsetted);
+				} else
+					dataFile.writeScans(scans);
             }
             qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
 /*            if (graphsWindow && !graphsWindow->isHidden()) {            
@@ -890,7 +923,7 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp)
     if (triggered) {
         triggerTask();
     }
-	graphsWindow->setPDTrig(triggered);
+	if (graphsWindow) graphsWindow->setPDTrig(triggered);
     
     //scan0Fudge = firstSamp + scans.size();
     scan0Fudge = firstSamp;
@@ -927,7 +960,7 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
         }
         if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps) { // timeout PD after X scans..
             stopped = true;
-			graphsWindow->setPDTrig(false);
+			if (graphsWindow) graphsWindow->setPDTrig(false);
             Log() << "Triggered stop due to photodiode being off for >" << p.pdStopTime << " seconds.";
         }
     }
@@ -1267,7 +1300,7 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
 
 	if (!ignored) {
 		stimGL_SaveParams(plugin, pm);
-		graphsWindow->setSGLTrig(true);
+		if (graphsWindow) graphsWindow->setSGLTrig(true);
 	}
 }
 
@@ -1311,7 +1344,7 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
         updateWindowTitles();        
         ignored = false;        
     }
-	graphsWindow->setSGLTrig(false);
+	if (graphsWindow) graphsWindow->setSGLTrig(false);
 	Debug() << "Received notification that Stim GL plugin `" << plugin << "' ended." << (ignored ? " Ignored!" : "");
 
 }
@@ -1374,9 +1407,7 @@ QString MainApp::outputFile() const { return configCtl->acceptedParams.outputFil
 void MainApp::setOutputFile(const QString & fn) {
     configCtl->acceptedParams.outputFile = fn;
     configCtl->saveSettings();
-    if (graphsWindow) {
-        graphsWindow->setToggleSaveLE(fn);
-    }
+    if (graphsWindow) graphsWindow->setToggleSaveLE(fn);
 }
 
 void MainApp::respecAOPassthru()
@@ -1407,9 +1438,15 @@ void MainApp::precreateOneGraph()
     // keep creating GLContexts until the creation count hits 64
     if (!pregraphDummyParent) pregraphDummyParent = new QWidget(0);
     QFrame *f = new QFrame(pregraphDummyParent);
-    GLGraph *g = new GLGraph(f);
     QVBoxLayout *bl = new QVBoxLayout(f);
-    bl->addWidget(g);
+	
+	QCheckBox *chk = new QCheckBox("Save enabled", f);
+	chk->setToolTip("Enable/disable save of this channel's data to data file.  Note: can only edit this property when not saving.");
+	bl->addWidget(chk);
+
+	GLGraph *g = new GLGraph(f);
+
+	bl->addWidget(g,1);
     bl->setSpacing(0);
     bl->setContentsMargins(0,0,0,0);
 
@@ -1457,16 +1494,16 @@ QFrame * MainApp::getGLGraphWithFrame()
 
 void MainApp::putGLGraphWithFrame(QFrame *f)
 {
-    GLGraph *g = dynamic_cast<GLGraph *>(f->children().front());
-    if (!g) {
+	QList<GLGraph *> cl = f->findChildren<GLGraph *>();
+	if (!cl.size()) {
         Error() << "INTERNAL ERROR: QFrame passed in to putGLGraphWithFrame does not contain a GLGraph child!";
         delete f;
         return;
     }
+    GLGraph *g = cl.front();
     f->setParent(pregraphDummyParent);
     g->reset(f);
-    pregraphs.push_back(f);
-    
+    pregraphs.push_back(f);    
 }
 
 void MainApp::appInitialized()

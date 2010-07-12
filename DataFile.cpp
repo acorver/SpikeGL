@@ -85,7 +85,8 @@ bool DataFile::writeScans(const std::vector<int16> & scans)
 
 bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_override) 
 {
-    if (!dp.aiChannels.size()) {
+	const int nOnChans = dp.demuxedBitMap.count(true);
+    if (!dp.aiChannels.size() || !nOnChans) {
         Error() << "DataFile::openForWrite Error cannot open a datafile with scansize of 0!";
         return false;
     }
@@ -109,7 +110,7 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     sha.Reset();
     params = Params();
     scanCt = 0;
-    nChans = dp.nVAIChans;
+    nChans = nOnChans;
     sRate = dp.srate;
     writeRateAvg = 0.;
     nWritesAvg = 0;
