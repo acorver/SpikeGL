@@ -77,6 +77,9 @@ public:
     /// Returns true if the application is currently saving data
     bool isSaving() const;
     
+	/// Returns true iff the per-channel save checkbox option is enabled
+	bool isSaveCBEnabled() const;
+
     /// Set the save file
     void setOutputFile(const QString &);
     /// Query the save file
@@ -124,6 +127,9 @@ public:
     /** Puts a QFrame with GLGraph * child back into the internal list, 
         returns the current count of QFrames */
     void putGLGraphWithFrame(QFrame *);
+
+	/// The configure dialog controller -- an instance of this is always around 
+	ConfigureDialogController *configureDialogController() { return configCtl; }
 
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
@@ -201,6 +207,7 @@ private slots:
     void par2WinForCommandConnectionGotLines(const QString & lines); ///< implemented in CommandServer.cpp
     void par2WinForCommandConnectionError(const QString & lines); ///< implemented in CommandServer.cpp
     void fastSettleDoneForCommandConnections();
+	void toggleShowChannelSaveCB();
 
 private:
     /// Display a message to the status bar
@@ -230,7 +237,7 @@ private:
     ConfigureDialogController *configCtl;
 
     ConsoleWindow *consoleWindow;
-    bool debug;
+    bool debug, saveCBEnabled;
     volatile bool initializing;
     QColor defaultLogColor;
     QString outDir;
@@ -292,7 +299,8 @@ public:
 /// Main application actions!
     QAction 
         *quitAct, *toggleDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
-        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct, *commandServerOptionsAct;
+        *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct, *commandServerOptionsAct,
+		*showChannelSaveCBAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon;

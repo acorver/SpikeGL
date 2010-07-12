@@ -569,19 +569,20 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     p.silenceBeforePD = acqPdParams->pdPre->value()/1000.;
     
     QVector<unsigned> subsetChans;
+    QString subsetString = dialog->channelSubsetLE->text().trimmed();	
+	if (!subsetString.size()) subsetString = "ALL";
+	const bool hasAllSubset =  !subsetString.compare("ALL", Qt::CaseInsensitive) || subsetString == "*";
     if (p.mode != DAQ::AIRegular) {
-        QString subsetString = dialog->channelSubsetLE->text();
-        subsetString.replace("ALL", "", Qt::CaseInsensitive);
-        subsetString.replace("*", "", Qt::CaseInsensitive);        
         subsetString = parseAIChanString(subsetString, subsetChans, &err, true);
-        if (err) {
+        if (err && !hasAllSubset) {
             errTitle = "Channel subset error.";
             errMsg = "The channel subset is incorrectly defined.";
             return AGAIN;
         }
     }
     p.demuxedBitMap.resize(p.nVAIChans);
-    if (!subsetChans.count()) p.demuxedBitMap.fill(true);
+	if ((!subsetChans.count() && hasAllSubset) || p.mode == DAQ::AIRegular)
+			 p.demuxedBitMap.fill(true);
     else {
         p.demuxedBitMap.fill(false);
         for (QVector<unsigned>::iterator it = subsetChans.begin(); it != subsetChans.end(); ++it) {
@@ -596,6 +597,11 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     }
     p.subsetString = dialog->channelSubsetLE->text();  
     p.nVAIChansForSave = p.demuxedBitMap.count(true);
+	if (!p.nVAIChansForSave) {
+		errTitle = "Channel subset empty error.";
+		errMsg = "Cowardly refusing to save a file with an empty channel-save set!\nSpecify at least 1 channel for the channel subset!";
+		return AGAIN;
+	}
     QString debugStr = "";
     for (int i = 0; i < p.demuxedBitMap.count(); ++i) {
         debugStr += QString::number(int(p.demuxedBitMap.at(i))) + " ";
@@ -1022,4 +1028,31 @@ void ConfigureDialogController::applyAOPass()
     p.unlock();
     saveSettings();
     Log() << "Applied new AO Passthru settings";
+}
+
+/*static */
+QString ConfigureDialogController::generateAIChanString(const QVector<unsigned> & chans)
+{
+	QString ret = "";
+	const int n = chans.count();
+	int diff = 2, lastdiff = 2, last = -10, runct = 0;
+	for (int i = 0; i < n; ++i) {
+		const int c = chans[i];
+		if (i > 0) {
+			diff = c - last;
+		}
+		if (diff == 1) {
+			// we're in a run here.. do nothing
+			++runct;
+		} else {
+			if (runct) ret.append(QString(":%1").arg(last));
+			runct = 0;
+			if (i) ret.append(",");
+			ret.append(QString("%1").arg(c));
+		}
+		lastdiff = diff;
+		last = c;
+	}
+	if (runct) ret.append(QString(":%1").arg(last));
+	return ret;
 }

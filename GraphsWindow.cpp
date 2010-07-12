@@ -28,6 +28,7 @@
 #include "MainApp.h"
 #include "HPFilter.h"
 #include "QLed.h"
+#include "ConfigureDialogController.h"
 #include "play.xpm"
 #include "pause.xpm"
 #include "window_fullscreen.xpm"
@@ -154,6 +155,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     }
     firstExtraChan = p.nVAIChans - p.nExtraChans;
     graphs.resize(p.nVAIChans);
+	chks.resize(graphs.size());
     graphFrames.resize(graphs.size());
     pausedGraphs.resize(graphs.size());
     graphTimesSecs.resize(graphs.size());
@@ -176,15 +178,25 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     };
     for (int r = 0; r < nrows; ++r) {
         for (int c = 0; c < ncols; ++c) {
-            int num = r*ncols+c;
+            const int num = r*ncols+c;
             if (num >= (int)graphs.size()) { r=nrows,c=ncols; break; } // break out of loop
-            QFrame *f = graphFrames[num] = mainApp()->getGLGraphWithFrame();
-            graphs[num] = dynamic_cast<GLGraph *>(f->children().front());
-            if (!graphs[num]) {
+            QFrame * & f = (graphFrames[num] = mainApp()->getGLGraphWithFrame());
+			QList<GLGraph *>  chlds = f->findChildren<GLGraph *>();			
+			graphs[num] = chlds.size() ? chlds.front() : 0;
+			QList<QCheckBox *> chkchlds = f->findChildren<QCheckBox *>();
+			chks[num] = chkchlds.size() ? chkchlds.front() : 0;
+            if (!graphs[num] || !chks[num]) {
                 Error() << "INTERNAL ERROR: GLGraph " << num << " is invalid!";
-                delete f;
+				QMessageBox::critical(0,"INTERNAL ERROR", QString("GLGraph ") + QString::number(num) + " is invalid!");
+				QApplication::exit(1);
+                delete f, f = 0;
                 continue;
             }
+			chks[num]->setObjectName(QString::number(num));
+			chks[num]->setText(QString("Save Graph %1").arg(num));
+			chks[num]->setChecked(p.demuxedBitMap.at(num));
+			chks[num]->setDisabled(isSaving);
+			chks[num]->setHidden(!mainApp()->isSaveCBEnabled() || p.mode == DAQ::AIRegular);
             f->setParent(graphsWidget);
             // do this for all the graphs.. disable vsync!
             graphs[num]->makeCurrent();
@@ -195,9 +207,15 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
             Connect(graphs[num], SIGNAL(cursorOver(double,double)), this, SLOT(mouseOverGraph(double,double)));
             Connect(graphs[num], SIGNAL(clicked(double,double)), this, SLOT(mouseClickGraph(double,double)));
             Connect(graphs[num], SIGNAL(doubleClicked(double,double)), this, SLOT(mouseDoubleClickGraph(double,double)));
+			Connect(chks[num], SIGNAL(toggled(bool)), this, SLOT(saveGraphChecked(bool)));
             graphs[num]->setAutoUpdate(false);
             graphs[num]->setMouseTracking(true);
             l->addWidget(f, r, c);
+			///
+			//QCheckBox *chk = new QCheckBox(graphsWidget);
+			//l->addWidget(chk, r, c);
+			//chk->raise();
+			///
             setGraphTimeSecs(num, DEFAULT_GRAPH_TIME_SECS);
             graphs[num]->setTag(QVariant(num));
             if (num >= firstExtraChan) {
@@ -265,6 +283,12 @@ GraphsWindow::~GraphsWindow()
     const int gfs = graphFrames.size();
     for (int i = 0; i < gfs; ++i) mainApp()->putGLGraphWithFrame(graphFrames[i]);
     if (filter) delete filter, filter = 0;
+}
+
+void GraphsWindow::hideUnhideSaveChannelCBs() 
+{
+	for (int num = 0; num < (int)chks.size(); ++num)
+		chks[num]->setHidden(!mainApp()->isSaveCBEnabled() || params.mode == DAQ::AIRegular);
 }
 
 void GraphsWindow::installEventFilter(QObject *obj)
@@ -682,6 +706,10 @@ void GraphsWindow::toggleSaveChecked(bool b)
         saveFileLE->setEnabled(true);
         mainApp()->toggleSave(b);
     }
+	// hide/unhide all graph save checkboxes..
+	const int n = chks.size();
+	for (int i = 0; i < n; ++i)
+		chks[i]->setDisabled(b || (params.mode == DAQ::AIRegular));
 }
 
 void GraphsWindow::setToggleSaveChkBox(bool b)
@@ -701,4 +729,20 @@ void GraphsWindow::setPDTrig(bool b) {
 
 void GraphsWindow::setSGLTrig(bool b) {
 	stimTrigLed->setValue(b);
+}
+
+
+void GraphsWindow::saveGraphChecked(bool b) {
+	const int num = sender()->objectName().toInt();
+	if (num >= 0 && num < (int)params.nVAIChans) {
+		QVector<unsigned> subset;
+		const int n = chks.size();
+		for (int i = 0; i < n; ++i)
+			if (chks[i]->isChecked()) subset.push_back(i);
+		params.demuxedBitMap.setBit(num, b);
+		qSort(subset);
+		params.subsetString = ConfigureDialogController::generateAIChanString(subset);
+		Debug() << "New subset string: " << params.subsetString;
+		mainApp()->configureDialogController()->saveSettings();
+	}
 }

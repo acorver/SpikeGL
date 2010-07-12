@@ -43,6 +43,10 @@ public:
     void loadSettings();
     void saveSettings() const;
 
+    static QString parseAIChanString(const QString & aichanstr, QVector<unsigned> & aiChannels_out, bool *parse_error = 0, bool emptyOk = false);
+    static QMap<unsigned,unsigned> parseAOPassthruString(const QString & aochanstr, bool *parse_error = 0);
+	static QString generateAIChanString(const QVector<unsigned> & aiChans_sorted_ascending);
+
 protected slots:    
     void acqStartEndCBChanged();
     void acqModeCBChanged();
@@ -72,11 +76,7 @@ private:
     ChanMappingController chanMapCtl;
     DAQ::DeviceRangeMap aiDevRanges, aoDevRanges;
     QVector<QString> devNames, aoDevNames;
-    DAQ::DeviceChanMap aiChanLists, aoChanLists;
-
-    static QString parseAIChanString(const QString & aichanstr, QVector<unsigned> & aiChannels_out, bool *parse_error = 0, bool emptyOk = false);
-    static QMap<unsigned,unsigned> parseAOPassthruString(const QString & aochanstr, bool *parse_error = 0);
-    
+    DAQ::DeviceChanMap aiChanLists, aoChanLists;    
 };
 
 
