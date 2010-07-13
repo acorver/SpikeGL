@@ -555,6 +555,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     scan0Fudge = 0;
     scanCt = 0;
     lastScanSz = 0;
+	stopRecordAtSamp = -1;
     tNow = getTime();
     taskShouldStop = false;
     pdWaitingForStimGL = false;
@@ -703,6 +704,7 @@ void MainApp::stopTask()
     aoPassthruAct->setEnabled(false);
     taskWaitingForTrigger = false;
     scan0Fudge = 0;
+	stopRecordAtSamp = -1;
     updateWindowTitles();
 	if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
     Systray() << "Acquisition stopped";
@@ -784,8 +786,8 @@ void MainApp::taskReadFunc()
                 } else if (p.acqStartEndMode == DAQ::StimGLStart
                           || p.acqStartEndMode == DAQ::StimGLStartEnd) {
                     Status() << "Acquisition waiting for start trigger from StimGL program";
-                } else if (p.acqStartEndMode == DAQ::StimGLStart
-                           || p.acqStartEndMode == DAQ::StimGLStartEnd) {
+                } else if (p.acqStartEndMode == DAQ::PDStart
+                           || p.acqStartEndMode == DAQ::PDStartEnd) {
                     Status() << "Acquisition waiting for start trigger from photo-diode";
                 }
             }
@@ -794,7 +796,7 @@ void MainApp::taskReadFunc()
         // normally always pre-buffer the scans in case we get a re-trigger event
         preBuf2.putData(&scans[0], scans.size()*sizeof(scans[0]));
 
-			// not an else because both if clauses are true on first trigger
+		// not an 'else' because both 'if' clauses are true on first trigger
         
         if (!taskWaitingForTrigger) { // task not waiting from trigger, normal acq..
             if (preBuf.size()) {
@@ -818,6 +820,16 @@ void MainApp::taskReadFunc()
                     //QMessageBox::critical(0, "DAQ Error", e);
                     //return;
                 }
+				std::vector<int16> scans_full;
+				bool doStopRecord = false;
+				if (stopRecordAtSamp > -1 && (doStopRecord = (i64(firstSamp + scanSz) >= stopRecordAtSamp))) {
+					// ok, scheduled a stop, make scans be the subset of scans we want to keep for the datafile, and save the full scan to scans_full
+					scans_full.swap(scans);
+					i64 n = stopRecordAtSamp - firstSamp;
+					if (n < 0) n = 0;
+					else if (n > i64(scanSz)) n = scanSz;
+					scans.insert(scans.begin(), scans_full.begin(), scans_full.begin() + n);
+				}
 				if (p.nVAIChansForSave != p.nVAIChans) {
 					const double ratio = p.nVAIChansForSave / double(p.nVAIChans ? p.nVAIChans : 0);
 					scans_subsetted.resize(0);
@@ -832,6 +844,20 @@ void MainApp::taskReadFunc()
 					dataFile.writeScans(scans_subsetted);
 				} else
 					dataFile.writeScans(scans);
+				// and.. swap back if we have anything in scans_full
+				if (scans_full.size()) scans.swap(scans_full);
+				if (doStopRecord) {
+					if (!p.stimGlTrigResave) needToStop = true;
+                    Debug() << "Post-untrigger window detection: Closing datafile because passed samp# stopRecordAtSamp=" << stopRecordAtSamp;
+                    dataFile.closeAndFinalize();
+                    stopRecordAtSamp = -1;
+                    updateWindowTitles();    
+				    if (p.stimGlTrigResave) {
+						taskWaitingForTrigger = true;
+						preBuf = preBuf2; // we will get a re-trigger soon, so preBuffer the scans we had previously..
+						updateWindowTitles();        
+					}
+				}
             }
             qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
 /*            if (graphsWindow && !graphsWindow->isHidden()) {            
@@ -959,14 +985,20 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
                 last5PDSamples.clear();
         }
         if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps) { // timeout PD after X scans..
-            stopped = true;
+			if (dataFile.isOpen()) {
+				stopRecordAtSamp = (lastSeenPD-i64(p.idxOfPdChan)) + u64(p.silenceBeforePD*p.srate*p.nVAIChans);
+				taskWaitingForStop = false;
+			} else {
+				Warning() << "PD un-trig but datafile not open!  This is not really well-defined, but stopping task anyway.";
+				stopped = true;
+			}
 			if (graphsWindow) graphsWindow->setPDTrig(false);
-            Log() << "Triggered stop due to photodiode being off for >" << p.pdStopTime << " seconds.";
+            Log() << "PD un-trig due to photodiode being off for >" << p.pdStopTime << " seconds.";
         }
     }
         break;
     case DAQ::StimGLStartEnd:
-        // do nothing.. this gets set from stimGL_PluginStarted() slot outside this function..
+        // do nothing.. this gets set from stimGL_PluginEnded() slot outside this function..
         break;
     default: {        
         QString err =  "Unanticipated/illegal p.acqStartEndMode in detectStopTask: " + QString::number((int)p.acqStartEndMode);
@@ -1263,9 +1295,13 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
     DAQ::Params & p (configCtl->acceptedParams);
     if (task && p.stimGlTrigResave) {
         if (dataFile.isOpen()) {
-            scan0Fudge += dataFile.sampleCount();
-            Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
-            dataFile.closeAndFinalize();
+			if (stopRecordAtSamp > -1) {
+				Error() << "Got 'plugin started' message from StimGL, but we were in the post-untrigger window state!  Make sure that the time between loops of StimGL is >= " << p.pdStopTime+p.silenceBeforePD << "s! Forcibly closing the datafile...";
+				stopRecordAtSamp = -1;
+			}
+			scan0Fudge += dataFile.sampleCount();
+			Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
+			dataFile.closeAndFinalize();			
         }
         QString fn = getNewDataFileName(plugin);
         if (!dataFile.openForWrite(p, fn)) {
@@ -1329,9 +1365,13 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
         ignored = false;        
     } else if (task && p.stimGlTrigResave && dataFile.isOpen()) {
         stimGL_SaveParams(plugin,pm);
-        Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
-        dataFile.closeAndFinalize();
-        updateWindowTitles();    
+		if (p.acqStartEndMode != DAQ::PDStartEnd) {
+	        Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
+		    dataFile.closeAndFinalize();
+			updateWindowTitles();    
+		} else if (!taskWaitingForTrigger) {
+			taskWaitingForStop = true;
+		}
 		if (taskWaitingForTrigger && (p.acqStartEndMode == DAQ::PDStart || p.acqStartEndMode == DAQ::PDStartEnd)) {
 			Warning() << "PD signal never triggered a data save!  Is the PD threshold too low?";
 		}
