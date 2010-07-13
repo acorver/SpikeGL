@@ -492,9 +492,8 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     
     
     if (dialog->stimGLReopenCB->isChecked() &&
-        (acqStartEndMode == DAQ::StimGLStartEnd
-         || acqStartEndMode == DAQ::PDStartEnd) ) {
-            errTitle = "Incompatible Configuration", errMsg = QString().sprintf("'Re-Open New Save File on StimGL Experiment' not compatible with 'StimGL Plugin Start & End' or 'PD Start & End' acquisition trigger modes!");
+        (acqStartEndMode == DAQ::StimGLStartEnd) ) {
+            errTitle = "Incompatible Configuration", errMsg = QString().sprintf("'Re-Open New Save File on StimGL Experiment' not compatible with 'StimGL Plugin Start & End'");
             return AGAIN;
         }
     

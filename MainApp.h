@@ -270,7 +270,7 @@ private:
     DAQ::Task *task;
     bool taskWaitingForTrigger, taskWaitingForStop, 
         taskShouldStop; ///< used for StimGL trigger to stop the task when the queue empties
-    i64 scan0Fudge, scanCt, startScanCt, stopScanCt, lastScanSz;
+    i64 scan0Fudge, scanCt, startScanCt, stopScanCt, lastScanSz, stopRecordAtSamp;
     DataFile dataFile;
     std::vector<int16> last5PDSamples;
     QTimer *taskReadTimer;
