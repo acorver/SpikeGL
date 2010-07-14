@@ -18,7 +18,7 @@
     <rect>
      <x>11</x>
      <y>44</y>
-     <width>372</width>
+     <width>391</width>
      <height>32</height>
     </rect>
    </property>
@@ -57,6 +57,9 @@
      <widget class="QDoubleSpinBox" name="pdStopTimeSB">
       <property name="toolTip">
        <string>The time in seconds that the PD signal needs to be off before the 'PD stop' event is triggered (and the acquisition is stopped).</string>
+      </property>
+      <property name="decimals">
+       <number>3</number>
       </property>
       <property name="value">
        <double>0.500000000000000</double>
