@@ -109,7 +109,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 
     graphCtls->addSeparator();
 
-
+	// Create downsample and filter controls and apply saved saved DownSampleChk and HPF Chk
+	// NB: to correctly apply the saved filter and downsample state, we call downsampleChk() and hpfChk() at the end of this contstructor!
     QSettings settings("janelia.hhmi.org", APPNAME);
 	settings.beginGroup("GraphsWindow");
 	const bool setting_ds = settings.value("downsample",false).toBool(),
@@ -126,8 +127,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     filter = 0;
     Connect(highPassChk, SIGNAL(clicked(bool)), this, SLOT(hpfChk(bool)));
 
-
     graphCtls->addSeparator();
+	
     QPushButton *fset = new QPushButton(QIcon(QPixmap(fastsettle_xpm)), "Fast Settle", graphCtls);
     if (p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux) {
         fset->setToolTip("Toggle the DIO control line low/high for 2 seconds to 'fast settle' the input channels.");        
@@ -274,6 +275,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 //	leds->setMinimumSize(100,40);
 	statusBar()->addPermanentWidget(leds);
 
+	/// apply saved settings by calling the callback after everything is constructed
 	downsampleChk(setting_ds);
 	hpfChk(setting_filt);
 }
