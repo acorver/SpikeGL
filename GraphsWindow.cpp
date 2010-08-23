@@ -118,14 +118,12 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     QCheckBox *dsc = new QCheckBox(QString("Downsample (%1 KHz)").arg(DOWNSAMPLE_TARGET_HZ/1000.), graphCtls);
     graphCtls->addWidget(dsc);
     dsc->setChecked(setting_ds);
-    downsampleChk(setting_ds);
     Connect(dsc, SIGNAL(clicked(bool)), this, SLOT(downsampleChk(bool)));
 
     highPassChk = new QCheckBox("Filter < 300Hz", graphCtls);
     graphCtls->addWidget(highPassChk);
     highPassChk->setChecked(setting_filt);
     filter = 0;
-	hpfChk(setting_filt);
     Connect(highPassChk, SIGNAL(clicked(bool)), this, SLOT(hpfChk(bool)));
 
 
@@ -275,6 +273,9 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	leds->setLayout(hbl);
 //	leds->setMinimumSize(100,40);
 	statusBar()->addPermanentWidget(leds);
+
+	downsampleChk(setting_ds);
+	hpfChk(setting_filt);
 }
 
 GraphsWindow::~GraphsWindow()
