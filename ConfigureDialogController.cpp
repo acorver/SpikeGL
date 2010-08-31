@@ -116,6 +116,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
         dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
     dialog->channelListLE->setText(p.aiString);
     dialog->acqStartEndCB->setCurrentIndex((int)p.acqStartEndMode);
+	dialog->lowLatencyCB->setChecked(p.lowLatency);
     acqPdParams->pdAIThreshSB->setValue((p.pdThresh/32768.+1.)/2. * (p.range.max-p.range.min) + p.range.min);
     acqPdParams->pdAISB->setValue(p.pdChan);
     acqPdParams->pdPassthruAOChk->setChecked(p.pdPassThruToAO > -1);
@@ -520,6 +521,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     p.doCtlChan = dialog->doCtlCB->currentIndex();
     p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());
     p.usePD = usePD;
+	p.lowLatency = dialog->lowLatencyCB->isChecked();
     if (!aoDevNames.empty()) {                
         p.aoPassthru = aoPassthru->aoPassthruGB->isChecked();
         p.aoDev = aoDev;
@@ -792,6 +794,8 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
     p.auxGain = settings.value("auxGain", 200.0).toDouble();    
     
     p.silenceBeforePD = settings.value("silenceBeforePD", DEFAULT_PD_SILENCE).toDouble();
+	
+	p.lowLatency = settings.value("lowLatency", false).toBool();
     
 }
 
@@ -852,8 +856,9 @@ void ConfigureDialogController::saveSettings() const
     settings.setValue("fastSettleTimeMS", p.fastSettleTimeMS);
     settings.setValue("auxGain", p.auxGain);
 
-
     settings.setValue("silenceBeforePD", p.silenceBeforePD);
+
+	settings.setValue("lowLatency", p.lowLatency);
 
     settings.endGroup();
 }

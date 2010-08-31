@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>477</width>
-    <height>690</height>
+    <height>717</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,9 +29,9 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>293</x>
-     <y>639</y>
-     <width>171</width>
+     <x>297</x>
+     <y>665</y>
+     <width>173</width>
      <height>32</height>
     </rect>
    </property>
@@ -133,8 +133,8 @@
   <widget class="QLineEdit" name="channelListLE">
    <property name="geometry">
     <rect>
-     <x>25</x>
-     <y>297</y>
+     <x>27</x>
+     <y>300</y>
      <width>431</width>
      <height>22</height>
     </rect>
@@ -149,8 +149,8 @@
   <widget class="QLabel" name="channelListLabel">
    <property name="geometry">
     <rect>
-     <x>25</x>
-     <y>271</y>
+     <x>27</x>
+     <y>274</y>
      <width>421</width>
      <height>16</height>
     </rect>
@@ -236,8 +236,8 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
   <widget class="QCheckBox" name="disableGraphsChk">
    <property name="geometry">
     <rect>
-     <x>23</x>
-     <y>642</y>
+     <x>27</x>
+     <y>668</y>
      <width>251</width>
      <height>21</height>
     </rect>
@@ -252,8 +252,8 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
   <widget class="QGroupBox" name="acqStartEndGB">
    <property name="geometry">
     <rect>
-     <x>21</x>
-     <y>463</y>
+     <x>25</x>
+     <y>489</y>
      <width>431</width>
      <height>152</height>
     </rect>
@@ -446,8 +446,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QComboBox" name="aiTerminationCB">
    <property name="geometry">
     <rect>
-     <x>122</x>
-     <y>209</y>
+     <x>124</x>
+     <y>212</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -484,8 +484,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="aiTerminationLabel">
    <property name="geometry">
     <rect>
-     <x>22</x>
-     <y>209</y>
+     <x>24</x>
+     <y>212</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -500,8 +500,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QSpinBox" name="fastSettleSB">
    <property name="geometry">
     <rect>
-     <x>372</x>
-     <y>207</y>
+     <x>374</x>
+     <y>210</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -522,8 +522,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="fastSettleLbl">
    <property name="geometry">
     <rect>
-     <x>272</x>
-     <y>209</y>
+     <x>274</x>
+     <y>212</y>
      <width>91</width>
      <height>20</height>
     </rect>
@@ -541,8 +541,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="auxGainLbl">
    <property name="geometry">
     <rect>
-     <x>24</x>
-     <y>240</y>
+     <x>26</x>
+     <y>243</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -560,8 +560,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QDoubleSpinBox" name="auxGainSB">
    <property name="geometry">
     <rect>
-     <x>122</x>
-     <y>241</y>
+     <x>124</x>
+     <y>244</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -582,8 +582,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QPushButton" name="muxMapBut">
    <property name="geometry">
     <rect>
-     <x>268</x>
-     <y>235</y>
+     <x>270</x>
+     <y>238</y>
      <width>166</width>
      <height>32</height>
     </rect>
@@ -621,8 +621,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QWidget" name="aoPassthruWidget" native="true">
    <property name="geometry">
     <rect>
-     <x>21</x>
-     <y>333</y>
+     <x>25</x>
+     <y>359</y>
      <width>431</width>
      <height>121</height>
     </rect>
@@ -667,6 +667,19 @@ channels will be saved.  </string>
    </property>
    <property name="alignment">
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="lowLatencyCB">
+   <property name="geometry">
+    <rect>
+     <x>21</x>
+     <y>332</y>
+     <width>192</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Try Low Latency Mode</string>
    </property>
   </widget>
  </widget>

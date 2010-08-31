@@ -98,7 +98,7 @@ namespace DAQ
         double pdStopTime; ///< iff PDEnd mode, the amount of time in seconds that need to be elapsed before we pronounce the PD signal as gone and we stop the task
         double silenceBeforePD; ///< Time, in seconds, of silence before the photodiode signal in PD trigger mode only!  This time window is also applied to the file end as well.
 
-        bool suppressGraphs;
+        bool suppressGraphs, lowLatency;
 
         TermConfig aiTerm;
 

@@ -588,7 +588,7 @@ namespace DAQ
         if (bufferSize % nChans) // make sure buffer is on a scan boundary!
             bufferSize += nChans - (bufferSize%nChans);
 		
-        const u64 dmaBufSize = u64(1000000); /// 1000000 sample DMA buffer per chan?
+        const u64 dmaBufSize = p.lowLatency ? u64(100000) : u64(1000000); /// 1000000 sample DMA buffer per chan?
         const u64 samplesPerChan = bufferSize/nChans;
         u64 aoBufferSize = 0; /* needs to be set below!!! */
 
@@ -616,6 +616,7 @@ namespace DAQ
             DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
             DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
             DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan/*0*/));
+			if (p.lowLatency) DAQmxCfgOutputBuffer(aoTaskHandle, dmaBufSize/10);
             //DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,aoSamplesPerChan));
             aoWriteThr = new AOWriteThread(0, aoTaskHandle, aoBufferSize, p);
             Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
