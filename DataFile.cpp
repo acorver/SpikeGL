@@ -63,6 +63,19 @@ bool DataFile::writeScans(const std::vector<int16> & scans)
         Error() << "writeScan  Need to send scan needs to be of size a multiple of " << nChans << " chans long";
         return false;
     }
+	if (scanCt == 0) {
+		// special case -- Leonardo lab requested that timestamp on data files be the timestamp of when first scan arrived
+		// so, to fudge this we need to close the data file, delete it, and quickly reopen it
+		// the reason we had it open in the first place was to 'reserve' that spot on the disk ;)
+		QString fileName(outFile.fileName());
+		
+		outFile.remove(); /// remove the 0-byte file
+		outFile.setFileName(fileName);
+		if (!outFile.open(QIODevice::WriteOnly|QIODevice::Truncate)) { // reopen it to reset the timestamp
+			Error() << "Failed to open data file " << fileName << " for write!";
+			return false;				
+		}
+	}
     const int n2Write = scans.size()*sizeof(int16);
 
     int nWrit = outFile.write((const char *)&scans[0], n2Write);
