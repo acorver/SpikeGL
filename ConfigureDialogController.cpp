@@ -963,12 +963,17 @@ void ConfigureDialogController::applyAOPass()
     const QVector<unsigned> & chanVect = p.aiChannels;            
     int nExtraChans = 0;
     bool mux = false;
-    if ( (mux = (p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux )) ) {
-        const int minChanSize = p.mode == DAQ::AI120Demux ? 8 : 4;
+	int num_chans_per_intan = 1;
+    if ( (mux = (p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux || p.mode == DAQ::JFRCIntan32 )) ) {
+        const int minChanSize = p.mode == DAQ::AI120Demux ? 8 : (p.mode == DAQ::JFRCIntan32 ? 2 : 4);
+		if (p.mode == DAQ::JFRCIntan32)
+			num_chans_per_intan = NUM_CHANS_PER_INTAN32;
+		else
+			num_chans_per_intan = NUM_CHANS_PER_INTAN;
         nExtraChans = chanVect.size() - minChanSize;
     }
         
-    const unsigned nVAI = (chanVect.size()-nExtraChans) * (mux ? NUM_CHANS_PER_INTAN : 1) + nExtraChans;
+    const unsigned nVAI = (chanVect.size()-nExtraChans) * (mux ? num_chans_per_intan : 1) + nExtraChans;
 
     if (aoDevNames.count()) {
         QString le = aop.aoPassthruLE->text();
