@@ -130,7 +130,7 @@ public:
 
 	/// The configure dialog controller -- an instance of this is always around 
 	ConfigureDialogController *configureDialogController() { return configCtl; }
-
+	
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
     void toggleDebugMode(); 

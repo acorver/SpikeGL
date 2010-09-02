@@ -20,6 +20,7 @@
 #  include <GL/gl.h>
 #endif
 #include "MainApp.h"
+#include "ConfigureDialogController.h"
 
 namespace Util {
 
@@ -70,6 +71,19 @@ MainApp *mainApp()
     return MainApp::instance();
 }
 
+/// public global function.  I hate globals but necessary I guess
+int getTaskReadFreqHz() 
+{
+	MainApp *app = mainApp();
+	ConfigureDialogController *cfgctl = 0;
+	if ( app 
+		&& (cfgctl = app->configureDialogController())
+		&& cfgctl->acceptedParams.lowLatency ){
+		return DEF_TASK_READ_FREQ_HZ_*3;
+	}
+	return DEF_TASK_READ_FREQ_HZ_;
+}
+	
 int ffs(int x)
 {
         int r = 1;

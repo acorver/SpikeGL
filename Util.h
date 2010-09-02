@@ -37,6 +37,9 @@ namespace Util
 
  MainApp *mainApp();
 
+ /// retrieve the task read freq to use for acquisition -- this affects how often we poll the board for data and also affects latency
+ int getTaskReadFreqHz();
+	
 /// retrieve a time value from the system's high resolution timer
  double getTime();
 

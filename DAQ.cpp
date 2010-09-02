@@ -588,7 +588,7 @@ namespace DAQ
         if (bufferSize % nChans) // make sure buffer is on a scan boundary!
             bufferSize += nChans - (bufferSize%nChans);
 		
-        const u64 dmaBufSize = p.lowLatency ? u64(100000) : u64(1000000); /// 1000000 sample DMA buffer per chan?
+        //const u64 dmaBufSize = p.lowLatency ? u64(100000) : u64(1000000); /// 1000000 sample DMA buffer per chan?
         const u64 samplesPerChan = bufferSize/nChans;
         u64 aoBufferSize = 0; /* needs to be set below!!! */
 
@@ -604,19 +604,20 @@ namespace DAQ
         DAQmxErrChk (DAQmxCreateTask("",&taskHandle)); 
         DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
         DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)); 
-        DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize));  //use a 1,000,000 sample DMA buffer per channel
+        //DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize));  //use a 1,000,000 sample DMA buffer per channel
         //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this)); 
         
+		const int task_write_freq_hz = p.lowLatency ? TASK_WRITE_FREQ_HZ*3 : TASK_WRITE_FREQ_HZ;
 
         if (p.aoPassthru && aoAITab.size()) {
             const float64     aoMin = p.aoRange.min;
             const float64     aoMax = p.aoRange.max;
-            const int32 aoSamplesPerChan = (aoSampleRate/TASK_WRITE_FREQ_HZ > 0) ? int(aoSampleRate/TASK_WRITE_FREQ_HZ) : 1;
+            const int32 aoSamplesPerChan = (aoSampleRate/task_write_freq_hz > 0) ? int(aoSampleRate/task_write_freq_hz) : 1;
             aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size();
             DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
             DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
             DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan/*0*/));
-			if (p.lowLatency) DAQmxCfgOutputBuffer(aoTaskHandle, dmaBufSize/10);
+			//if (p.lowLatency) DAQmxCfgOutputBuffer(aoTaskHandle, dmaBufSize/10);
             //DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,aoSamplesPerChan));
             aoWriteThr = new AOWriteThread(0, aoTaskHandle, aoBufferSize, p);
             Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
@@ -734,7 +735,7 @@ namespace DAQ
                         DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
                         const float64     aoMin = p.aoRange.min;
                         const float64     aoMax = p.aoRange.max;
-                        const int32 aoSamplesPerChan = aoSampleRate/TASK_WRITE_FREQ_HZ > 0 ? int(aoSampleRate/TASK_WRITE_FREQ_HZ) : 1;
+                        const int32 aoSamplesPerChan = aoSampleRate/task_write_freq_hz > 0 ? int(aoSampleRate/task_write_freq_hz) : 1;
                         aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size();
                         DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
                         DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan/*0*/));

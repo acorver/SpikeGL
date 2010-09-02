@@ -61,7 +61,7 @@ static void initIcons()
 }
 
 GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), filter(0), tNow(0.), tLast(0.), tAvg(0.), tNum(0.)
+    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0)
 {
     sharedCtor(p, isSaving);
 }
@@ -257,6 +257,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 		case DAQ::StimGLStartEnd:
 		case DAQ::StimGLStart:
 			modeCaresAboutSGL = true;
+		default: break;/* do nothing */
 	}
 	lbl = new QLabel("SGLTrig:");
 	stimTrigLed->setOffColor(p.stimGlTrigResave || modeCaresAboutSGL ? QLed::Red : QLed::Grey);
