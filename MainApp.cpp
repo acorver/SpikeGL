@@ -316,7 +316,7 @@ void MainApp::loadSettings()
     settings.beginGroup("MainApp");
     debug = settings.value("debug", true).toBool();
 	saveCBEnabled = settings.value("saveChannelCB", true).toBool();
-
+	
     mut.lock();
 #ifdef Q_OS_WIN
     outDir = settings.value("outDir", "c:/users/code").toString();
@@ -346,6 +346,7 @@ void MainApp::saveSettings()
     settings.beginGroup("MainApp");
     settings.setValue("debug", debug);
 	settings.setValue("saveChannelCB", saveCBEnabled);
+
     mut.lock();
     settings.setValue("outDir", outDir);
     mut.unlock();
@@ -542,6 +543,7 @@ void MainApp::initActions()
 		     SIGNAL(triggered()), this, SLOT(toggleShowChannelSaveCB()) );
 	showChannelSaveCBAct->setCheckable(true);
 	showChannelSaveCBAct->setChecked(isSaveCBEnabled());
+	
 }
 
 bool MainApp::startAcq(QString & errTitle, QString & errMsg) 
@@ -1340,12 +1342,12 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
 	}
 }
 
-void MainApp::stimGL_SaveParams(const QString & unused, const QMap<QString, QVariant> & pm) 
+void MainApp::stimGL_SaveParams(const QString & plugin, const QMap<QString, QVariant> & pm) 
 {
-    (void) unused;
     if (dataFile.isOpen()) {
-        for (QMap<QString, QVariant>::const_iterator it = pm.begin(); it != pm.end(); ++it) 
-            dataFile.setParam(QString("StimGL_") + it.key(), it.value());   
+		dataFile.setParam("StimGL_PluginName", plugin);  
+        for (QMap<QString, QVariant>::const_iterator it = pm.begin(); it != pm.end(); ++it)
+            dataFile.setParam(QString("StimGL_") + it.key(), it.value());  
         queuedParams.clear();
     } else
         queuedParams = pm;

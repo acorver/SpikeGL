@@ -1,7 +1,7 @@
 #ifndef Version_H
 #define Version_H
 
-#define VERSION 0x20100902
-#define VERSION_STR "SpikeGL v.20100902"
+#define VERSION 0x20100917
+#define VERSION_STR "SpikeGL v.20100917"
 
 #endif

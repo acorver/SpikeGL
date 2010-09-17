@@ -44,7 +44,7 @@ public:
 	void setSGLTrig(bool);
 
 	void hideUnhideSaveChannelCBs();
-
+	
 private slots:
     void updateGraphs();
     void downsampleChk(bool checked);

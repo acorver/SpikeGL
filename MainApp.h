@@ -79,7 +79,7 @@ public:
     
 	/// Returns true iff the per-channel save checkbox option is enabled
 	bool isSaveCBEnabled() const;
-
+	
     /// Set the save file
     void setOutputFile(const QString &);
     /// Query the save file
