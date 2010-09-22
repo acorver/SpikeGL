@@ -415,9 +415,8 @@ quint64 availableDiskSpace()
 
     if (success)
         return freeBytes;
-#else
-    return ~0UL; // FIX_ME: force 4000 MB of available disk space
 #endif
+	return ~0UL; // FIX_ME: force 4000 MB of available disk space
 }
 
 } // end namespace Util
