@@ -208,7 +208,9 @@ enum EvtType {
     E_IsSaving,
     E_SetSaving,
     E_SetSaveFile,
-    E_FastSettle
+    E_FastSettle,
+    E_GetScanCount,
+    E_GetChannelSubset
 };
 
 struct CustomEvt : QEvent
@@ -365,7 +367,83 @@ bool CommandConnection::processLine(const QString & line)
     } else if (cmd == "FASTSETTLE") {
         CustomEvt *e = new CustomEvt(E_FastSettle,this);
         postEventToAppAndWaitForReply(e);
-    } else if (cmd == "BYE" || cmd == "QUIT" || cmd == "EXIT" || cmd == "CLOSE") {
+    } else if (cmd == "GETDAQDATA") {
+        if (!mainApp()->isDSFacilityEnabled())
+        {
+            Warning() << (errMsg = "Matlab data API facility not enabled");
+			ret = false;
+        }
+        else if (2 <= toks.size())
+        {
+            bool bitArrayInitialized = false;
+            QBitArray channelSubset;
+            if (3 <= toks.size())
+            {
+                QStringList strList = toks.at(2).split('#', QString::SkipEmptyParts);
+                unsigned int chanNo = mainApp()->configureDialogController()->acceptedParams.nVAIChans;
+                unsigned int chanToSet = ~0;
+                for (int i = 0, n = strList.size(); i < n; ++i)
+                    if (chanNo > (chanToSet = strList.at(i).toInt()))
+                    {
+                        if (!bitArrayInitialized)
+                        {
+                            channelSubset.resize(chanNo);
+                            channelSubset.fill(false);
+                            bitArrayInitialized = true;
+                        }
+                        channelSubset.setBit(chanToSet);
+                    }
+
+				if (!bitArrayInitialized) 					
+                        Warning() << "Input channel_subset is invalid";
+            }
+			unsigned downsample = 1;
+
+			if (4 <= toks.size()) 
+				downsample = toks.at(3).toUInt();
+
+            if (!bitArrayInitialized)
+                channelSubset = mainApp()->configureDialogController()->acceptedParams.demuxedBitMap;
+
+            QVector<int16> matrix;
+			if (!mainApp()->dataTempFile.readScans(matrix, 
+												   toks.at(0).toLongLong(),
+                                                   toks.at(1).toLongLong(),
+												   channelSubset,
+												   downsample)) {
+				ret = false;
+				errMsg = "Could not read scans as specified.  Check the parameters specified and try again.";				
+				 
+			} else {
+				if (!matrix.isEmpty())
+				{
+					const int chans = channelSubset.count(true);
+					const int scans = matrix.size() / chans;
+
+					SockUtil::send(*sock, QString().sprintf("BINARY DATA %d %d\n", scans, chans), timeout, &errMsg, true);
+					sock->write(QByteArray::fromRawData(reinterpret_cast<char *>(&matrix[0]), matrix.size() * sizeof(int16)));
+				}
+				else
+				{
+					Warning() << (errMsg = "Matlab API: no data read from temp data file");
+					ret = false;
+				}
+			}
+        }
+    } else if (cmd == "GETSCANCOUNT") {
+		if (!mainApp()->isDSFacilityEnabled())
+        {
+            Warning() << "Matlab data API facility not enabled, returning 0 for scan count";
+			resp = "0\n";
+        } else {
+			QEvent *e = new CustomEvt(E_GetScanCount, this);
+			postEventToAppAndWaitForReply(e);
+		}
+    } else if (cmd == "GETCHANNELSUBSET") {
+		QEvent *e = new CustomEvt(E_GetChannelSubset, this);
+        postEventToAppAndWaitForReply(e);
+    }
+    else if (cmd == "BYE" || cmd == "QUIT" || cmd == "EXIT" || cmd == "CLOSE") {
         Debug() << "Client requested shutdown, closing connection..";
         sock->close();
     } else {
@@ -425,6 +503,12 @@ void CommandConnection::postEventToAppAndWaitForReply(QEvent *e) {
                 break;
             case E_IsSaving:
                 resp = QString().sprintf("%d\n",evtResponse.toInt());
+                break;
+            case E_GetScanCount:
+                resp = QString().sprintf("%d\n",evtResponse.toInt());
+                break;
+            case E_GetChannelSubset:
+                resp = evtResponse.toString();
                 break;
         }
     }
@@ -575,6 +659,14 @@ void MainApp::customEvent(QEvent *e) { ///< yes, we are implementing part of thi
                 Connect(task, SIGNAL(fastSettleCompleted()), this, SLOT(fastSettleDoneForCommandConnections()));
                 doFastSettle();
             }
+            e->accept();
+            break;
+        case E_GetScanCount:
+            conn->setResponseAndWake(dataTempFile.getScanCount());
+            e->accept();
+            break;
+        case E_GetChannelSubset:
+            conn->setResponseAndWake(dataTempFile.getChannelSubset());
             e->accept();
             break;
         default:

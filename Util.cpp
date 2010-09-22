@@ -122,7 +122,23 @@ bool objectHasAncestor(QObject *o, const QObject *a)
     return false;
 }
 
-
+void removeDataTempFiles()
+{
+	QStringList filters;
+	filters << (TEMP_FILE_NAME_PREFIX "*" TEMP_FILE_NAME_SUFFIX);
+	QStringList dataTempFiles = QDir::temp().entryList(filters);
+	// remove *US*
+	QFile::remove(QDir::tempPath() + "/" + QString(TEMP_FILE_NAME_PREFIX) + QString::number(QCoreApplication::applicationPid()) + TEMP_FILE_NAME_SUFFIX);
+	// next, remove files that are >= 1 day old.  this is so that concurrent instances don't mess with each other
+	for (int i = 0; i < dataTempFiles.size(); i++)
+	{
+		QString fname = QDir::tempPath() + "/" + dataTempFiles.at(i);
+		QFileInfo fi (fname);
+		if (fi.lastModified().daysTo(QDateTime::currentDateTime()) >= 1)
+			QFile::remove(fname);
+	}
+}
+	
 Log::Log()
     : doprt(true), str(""), s(&str, QIODevice::WriteOnly)
 {

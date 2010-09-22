@@ -220,4 +220,44 @@
 %                completion, the sha1 sum either verifies ok or it doesn't.
 %                The `res' return value is 1 if the verification passed,
 %                zero otherwise.
-
+%
+%    daqData = GetDAQData(myObj, start_scan, scan_ct, channel_subset, downsample_factor)
+%
+%                Obtain a MxN matrix of int16s where M corresponds to
+%                'scan_ct' number of scans requested (or fewer if fewer
+%                were available to read, starting from 'start_scan'), N is
+%                the number of channels currently being acquired and
+%                optionally 'channel_subset' is the desired channel subset.
+%                If channel_subset is not specified, the current channel
+%                subset is used.
+%                The downsample_factor is used to downsample the data by an
+%                integer factor.  Default is 1 (no downsampling).
+%                Note: make sure the Matlab data API facility is enabled in
+%                options for this function to operate correctly.
+%
+%    daqData = GetLastNDAQData(myObj, NUM, channel_subset, downsample_ratio)
+%
+%                Obtain a M x N matrix of the most recent NUM samples.  The
+%                N dimension of the returned matrix is the number of
+%                channels currently being acquired and optionally
+%                'channel_subset' is the desired channel subset. If
+%                channel_subset is not specified, the current channel
+%                subset is used.
+%                The downsample_factor is used to downsample the data by an
+%                integer factor.  Default is 1 (no downsampling).
+%                Note: make sure the Matlab data API facility is enabled in
+%                options for this function to operate correctly.
+%
+%    channelSubset = GetChannelSubset(myobj)
+%
+%                Returns a vector of channel id's representing the channel
+%                subset.  That is, the channels that are currently set to
+%                'save'.  This vector may sometimes be empty if no
+%                acquisition has ever run.
+%
+%    scanCount = GetScanCount(myobj)
+%
+%                Obtains the current scan count.  This is useful for
+%                calling GetDAQData, as the parameter that GetDAQData
+%                expects is a scan count.  If the Matlab data API facility
+%                is not enabled, then 0 is always returned.

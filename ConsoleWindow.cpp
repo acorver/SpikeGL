@@ -34,7 +34,9 @@ ConsoleWindow::ConsoleWindow(QWidget *p, Qt::WindowFlags f)
     m->addAction(app->aoPassthruAct);
 	m->addAction(app->commandServerOptionsAct);
 	m->addAction(app->showChannelSaveCBAct);
-    m = mb->addMenu("&Tools");
+    m->addAction(app->enableDSFacilityAct);
+	m->addAction(app->dsTempFileSizeAct);
+	m = mb->addMenu("&Tools");
     m->addAction(app->verifySha1Act);
     m->addAction(app->par2Act);
     m = mb ->addMenu("&Help");
