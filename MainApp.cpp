@@ -40,6 +40,7 @@
 #include "ui_TextBrowser.h"
 #include "ui_CommandServerOptions.h"
 #include "CommandServer.h"
+#include "ui_TempFileDialog.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -171,6 +172,8 @@ bool MainApp::isDebugMode() const
 
 bool MainApp::isSaveCBEnabled() const { return saveCBEnabled; }
 
+bool MainApp::isDSFacilityEnabled() const { return dsFacilityEnabled; }
+
 bool MainApp::isConsoleHidden() const 
 {
     return !consoleWindow || consoleWindow->isHidden();
@@ -187,6 +190,18 @@ void MainApp::toggleShowChannelSaveCB()
 {
 	saveCBEnabled = !saveCBEnabled;
 	if (graphsWindow) graphsWindow->hideUnhideSaveChannelCBs();	
+	saveSettings();
+}
+
+void MainApp::toggleEnableDSFacility()
+{
+	dsFacilityEnabled = !dsFacilityEnabled;
+	if(dsFacilityEnabled)
+		dsTempFileSizeAct->setEnabled(true);
+	else {
+		dsTempFileSizeAct->setEnabled(false);
+		dataTempFile.close();	 // immediately deletes file, resetting settings	
+	}
 	saveSettings();
 }
 
@@ -316,7 +331,10 @@ void MainApp::loadSettings()
     settings.beginGroup("MainApp");
     debug = settings.value("debug", true).toBool();
 	saveCBEnabled = settings.value("saveChannelCB", true).toBool();
-	
+
+	dsFacilityEnabled = settings.value("dsFacilityEnabled", false).toBool();
+    dataTempFile.setTempFileSize(settings.value("dsTemporaryFileSize", 1048576000).toLongLong());
+
     mut.lock();
 #ifdef Q_OS_WIN
     outDir = settings.value("outDir", "c:/users/code").toString();
@@ -347,6 +365,9 @@ void MainApp::saveSettings()
     settings.setValue("debug", debug);
 	settings.setValue("saveChannelCB", saveCBEnabled);
 
+	settings.setValue("dsFacilityEnabled", dsFacilityEnabled);
+    settings.setValue("dsTemporaryFileSize", dataTempFile.getTempFileSize());
+	
     mut.lock();
     settings.setValue("outDir", outDir);
     mut.unlock();
@@ -543,6 +564,16 @@ void MainApp::initActions()
 		     SIGNAL(triggered()), this, SLOT(toggleShowChannelSaveCB()) );
 	showChannelSaveCBAct->setCheckable(true);
 	showChannelSaveCBAct->setChecked(isSaveCBEnabled());
+
+	Connect( enableDSFacilityAct = new QAction("Enable Matlab Data API", this) ,
+             SIGNAL(triggered()), this, SLOT(toggleEnableDSFacility()));
+	enableDSFacilityAct->setCheckable(true);
+	enableDSFacilityAct->setChecked(isDSFacilityEnabled());
+
+	Connect( dsTempFileSizeAct = new QAction("Matlab Data API Tempfile...", this),
+             SIGNAL(triggered()), this, SLOT(execDSTempFileDialog()) );
+
+	dsTempFileSizeAct->setEnabled(isDSFacilityEnabled());
 	
 }
 
@@ -579,7 +610,12 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         }
         if (!queuedParams.isEmpty()) stimGL_SaveParams("", queuedParams);
     }
-    
+
+	// re-set the data temp file, delete it, etc
+	dataTempFile.close();		
+    dataTempFile.setNChans(params.nVAIChans);
+
+
     // acq starting dialog block -- show this dialog because the startup is kinda slow..
     if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
     acqStartingDialog = new QMessageBox ( QMessageBox::Information, "DAQ Task Starting Up", "DAQ task starting up, please wait...", QMessageBox::Ok, consoleWindow, Qt::WindowFlags(Qt::Dialog| Qt::MSWindowsFixedSizeDialogHint));
@@ -861,6 +897,10 @@ void MainApp::taskReadFunc()
 					}
 				}
             }
+			
+            if (isDSFacilityEnabled())
+                dataTempFile.writeScans(scans); // write all scans
+			
             qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
 /*            if (graphsWindow && !graphsWindow->isHidden()) {            
                 if (qFillPct > 70.0) {
@@ -1230,6 +1270,50 @@ void MainApp::execCommandServerOptionsDialog()
     saveSettings();
 }
 
+void MainApp::execDSTempFileDialog()
+{
+	bool again = false;
+	QDialog dlg(0);
+    dlg.setWindowIcon(consoleWindow->windowIcon());
+    dlg.setWindowTitle("DataStream Temporary File Size");    
+    dlg.setModal(true);
+	dlg.setFixedSize(332, 171);
+
+	Ui::TempFileDialog tmpFileDlg;
+	tmpFileDlg.setupUi(&dlg);
+	tmpFileDlg.fileSizeSB->setValue(dataTempFile.getTempFileSize() / 1048576);
+    tmpFileDlg.avDiskSpaceL->setText(   tmpFileDlg.avDiskSpaceL->text() + 
+                                        QString::number(Util::availableDiskSpace() / 1048576) +
+                                        " MB");
+
+	do 
+    {
+        again = false;
+        const int ret = dlg.exec();
+        if ( ret == QDialog::Accepted ) 
+        {
+            unsigned spinVal = tmpFileDlg.fileSizeSB->value();
+
+            if (spinVal >= Util::availableDiskSpace() / 1048576) 
+            {
+                QMessageBox::information(0, "Disk Space Exceeded", "The file size exceeds the available disk space!");
+                loadSettings();
+                again = true;
+                continue;
+            }
+            else
+                dataTempFile.setTempFileSize((qint64)spinVal * 1048576);
+        }
+        else 
+        {
+            loadSettings();
+            return;
+        }
+    } 
+    while (again);
+
+	saveSettings();
+}
 
 bool MainApp::setupStimGLIntegration(bool doQuitOnFail)
 {

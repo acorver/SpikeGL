@@ -30,4 +30,3 @@ function [s] = SpikeGL(varargin)
     ChkConn(s);
     s.ver = DoQueryCmd(s, 'GETVERSION');
     
-

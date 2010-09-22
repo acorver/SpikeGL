@@ -400,4 +400,23 @@ void setVSyncMode(bool onoff, bool prt)
 #  error Unknown platform, need to implement setVSyncMode()!
 #endif
 
+quint64 availableDiskSpace()
+{
+#ifdef Q_OS_WIN
+    BOOL success = FALSE;
+    quint64 availableBytes;
+    quint64 totalBytes;
+    quint64 freeBytes;
+
+    success = GetDiskFreeSpaceEx(QDir::tempPath().toStdWString().c_str(),
+                                 (PULARGE_INTEGER)&availableBytes,
+                                 (PULARGE_INTEGER)&totalBytes,
+                                 (PULARGE_INTEGER)&freeBytes);
+
+    if (success)
+        return freeBytes;
+#endif
+	return ~0UL; // FIX_ME: force 4000 MB of available disk space
+}
+
 } // end namespace Util

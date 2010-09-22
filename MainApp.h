@@ -38,6 +38,7 @@ class CommandConnection;
 #include "Util.h"
 #include "DAQ.h"
 #include "DataFile.h"
+#include "DataTempFile.h"
 #include "WrapBuffer.h"
 #include "StimGL_SpikeGL_Integration.h"
 #include "CommandServer.h"
@@ -79,7 +80,10 @@ public:
     
 	/// Returns true iff the per-channel save checkbox option is enabled
 	bool isSaveCBEnabled() const;
-	
+
+	/// Returns true if the enable datastream facility checkbox option is enabled
+	bool isDSFacilityEnabled() const;
+
     /// Set the save file
     void setOutputFile(const QString &);
     /// Query the save file
@@ -130,7 +134,7 @@ public:
 
 	/// The configure dialog controller -- an instance of this is always around 
 	ConfigureDialogController *configureDialogController() { return configCtl; }
-	
+		
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
     void toggleDebugMode(); 
@@ -190,6 +194,7 @@ protected slots:
 
     void execStimGLIntegrationDialog();    
     void execCommandServerOptionsDialog();
+	void execDSTempFileDialog();
 
     void stimGL_PluginStarted(const QString &, const QMap<QString, QVariant>  &);
     void stimGL_SaveParams(const QString & unused, const QMap<QString, QVariant> & pm);
@@ -208,6 +213,7 @@ private slots:
     void par2WinForCommandConnectionError(const QString & lines); ///< implemented in CommandServer.cpp
     void fastSettleDoneForCommandConnections();
 	void toggleShowChannelSaveCB();
+	void toggleEnableDSFacility();
 
 private:
     /// Display a message to the status bar
@@ -282,8 +288,8 @@ private:
     QDialog *helpWindow;
 
     WrapBuffer preBuf, preBuf2;
-    bool noHotKeys, pdWaitingForStimGL;
-
+    bool noHotKeys, pdWaitingForStimGL;	
+    bool dsFacilityEnabled;
     
     QMessageBox *precreateDialog;
     QTimer *pregraphTimer;
@@ -300,10 +306,14 @@ public:
     QAction 
         *quitAct, *toggleDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
         *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct, *commandServerOptionsAct,
-		*showChannelSaveCBAct;
+		*showChannelSaveCBAct, *enableDSFacilityAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon;
+
+    QAction *dsTempFileSizeAct;
+
+	DataTempFile dataTempFile;
 };
 
 #endif

@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TempFileDialog</class>
+ <widget class="QDialog" name="TempFileDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>332</width>
+    <height>171</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>Temporary File Dialog</string>
+  </property>
+  <widget class="QDialogButtonBox" name="buttonBox">
+   <property name="geometry">
+    <rect>
+     <x>90</x>
+     <y>130</y>
+     <width>211</width>
+     <height>32</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+   <property name="standardButtons">
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+   </property>
+  </widget>
+  <widget class="QGroupBox" name="fileSizeGB">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>10</y>
+     <width>291</width>
+     <height>101</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Temporary File Size</string>
+   </property>
+   <widget class="QSpinBox" name="fileSizeSB">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>40</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>The file size range is 1MB - 2GB</string>
+    </property>
+    <property name="minimum">
+     <number>1</number>
+    </property>
+    <property name="maximum">
+     <number>2000</number>
+    </property>
+    <property name="value">
+     <number>1000</number>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_2">
+    <property name="geometry">
+     <rect>
+      <x>200</x>
+      <y>45</y>
+      <width>21</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>MB</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>70</x>
+      <y>45</y>
+      <width>46</width>
+      <height>13</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>File Size:</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="avDiskSpaceL">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>75</y>
+      <width>201</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Available disk space:  </string>
+    </property>
+   </widget>
+  </widget>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>TempFileDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>195</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>165</x>
+     <y>85</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>TempFileDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>195</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>165</x>
+     <y>85</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

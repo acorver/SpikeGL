@@ -90,6 +90,12 @@ namespace Util
 /// Returns true if object has parent or grandparent, etc equal to ancestor.  This is a way to test if an object is contained (in a nested fashion) in another object.
  bool objectHasAncestor(QObject *object, const QObject *ancestor);
 
+/// Returns the amount of available space on the disk (in MB)
+ quint64 availableDiskSpace();
+
+ /// Removes all data temporary files (SpikeGL_DSTemp_*.bin) fromn the TEMP directory
+ void removeDataTempFiles();
+
 /// Super class of Debug, Warning, Error classes.  
 class Log 
 {
