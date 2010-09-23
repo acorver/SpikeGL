@@ -1300,9 +1300,10 @@ void MainApp::execDSTempFileDialog()
                 loadSettings();
                 again = true;
                 continue;
-            }
-            else
+            } else {
+				dataTempFile.close(); // will force a re-open if it was running
                 dataTempFile.setTempFileSize((qint64)spinVal * 1048576);
+			}
         }
         else 
         {

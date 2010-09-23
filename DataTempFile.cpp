@@ -5,14 +5,10 @@
 #include "ConfigureDialogController.h"
 
 DataTempFile::DataTempFile()
-    :   tempFile(),
-        maxSize(1048576000),
+    :   maxSize(1048576000),
 		currSize(0),
         nChans(1),
-        pos(0),
-        scanCount(0),
-        fileName(),
-        rwLock()
+        scanCount(0)
 {
     Util::removeDataTempFiles();
     fileName = QDir::tempPath() +
@@ -33,72 +29,68 @@ bool DataTempFile::writeScans(const std::vector<int16> & scans)
     if (!tempFile.isOpen() && !openForWrite())
         return false;
 	
-    qint64 initialPos = pos;
-    tempFile.seek(pos);
+    qint64 pos = tempFile.pos();
 
     std::vector<int16>::size_type bytes2Write = scans.size() * sizeof(int16);
-    quint64 freeSpace = Util::availableDiskSpace();
+    const quint64 freeSpace = Util::availableDiskSpace();
     // check disk filling up and adjust the temporary file's maximum size
     // leave there 10MB of free space
     if (bytes2Write + 10485760 > freeSpace && maxSize > tempFile.size())
     {
-        rwLock.lockForWrite();
+        lock.lock();
 
         maxSize = tempFile.size();
 
-        rwLock.unlock();
+        lock.unlock();
     }
 
-    const qint64 scanSz = nChans * sizeof(int16);
+    const int scanSz = nChans * sizeof(int16);
 	const int nScans = scans.size() / nChans;
     const int nFitsToEOF = (maxSize - pos) / scanSz;
     qint64 nWritten = 0, nWritten0 = 0;
 
-    if (nFitsToEOF < nScans)
+    if (nFitsToEOF < nScans && nFitsToEOF)
     {
         nWritten = tempFile.write((const char*)&scans[0], nFitsToEOF*scanSz) / scanSz;
 
         if (nWritten != nFitsToEOF)
             Warning() << "Writing to temporary file failed (expected to write " << nFitsToEOF << " scans, wrote " << nWritten << " scans)";
 
-		nWritten = nFitsToEOF; // pretend it was ok!
-		nWritten0 = nWritten;
-        bytes2Write -= nWritten*scanSz;
-        tempFile.seek(0);
-        initialPos = tempFile.pos();
+		nWritten0 = nFitsToEOF; // pretend it was ok even on error
+        bytes2Write -= nFitsToEOF*scanSz;
+        tempFile.seek(pos=0);
     }
 
-    nWritten = tempFile.write((const char *)&scans[nWritten], bytes2Write) / scanSz;
+    nWritten = tempFile.write((const char *)&scans[nWritten0*nChans], bytes2Write) / scanSz;
+	pos += bytes2Write;
     if (nWritten*scanSz != bytes2Write)
     {
-        Warning() << "Writing to temporary file failed (expected to write " << (bytes2Write/scanSz) << " scans, wrote " << nWritten << " scans)";
-        tempFile.seek(initialPos + bytes2Write);
+        Warning() << "Writing to temporary file failed (expected to write " << (bytes2Write/scanSz) << " scans, wrote " << nWritten << " scans)";		
+		tempFile.seek(pos);
     }
 
-	pos = tempFile.pos();
-
-    rwLock.lockForWrite();
+    lock.lock();
 
     scanCount += nWritten + nWritten0;
 	currSize = tempFile.size();
 
-    rwLock.unlock();
+    lock.unlock();
 
     return true;
 }
 
-bool DataTempFile::readScans(QVector<int16> & out, qint64 nfrom, qint64 nread, const QBitArray &channelSubset, unsigned downsample)
+bool DataTempFile::readScans(QVector<int16> & out, qint64 nfrom, qint64 nread, const QBitArray &channelSubset, unsigned downsample) const
 {
     QFile readFile;
 	
     if (!openForRead(readFile))
         return false;
 
-    rwLock.lockForRead();
+    lock.lock();
 
 	const qint64 my_scanCount = scanCount, my_currSize = currSize;
 	
-	rwLock.unlock();
+	lock.unlock();
 	
     const qint64 scanSz = nChans * sizeof(int16);
     const qint64 maxNScans = my_currSize / scanSz;
@@ -116,41 +108,38 @@ bool DataTempFile::readScans(QVector<int16> & out, qint64 nfrom, qint64 nread, c
 	}
 	
 	
-    qint64 startPos = (nfrom % maxNScans) * scanSz;
-    if (!readFile.seek(startPos))
+    qint64 pos = (nfrom % maxNScans) * scanSz;
+    if (!readFile.seek(pos))
     {
+		Error() << "Reading seek to " << pos << " failed in DataTempFile::readScans()";
         readFile.close();
         return false;
     }
 
+	if (downsample <= 0) downsample = 1;
+
 	const int nChansOn = channelSubset.count(true), subsetSize = channelSubset.size();
 	out.clear();
-    out.reserve(readCount/downsample * nChansOn);
+    out.reserve((readCount/downsample) * nChansOn);
 
     qint64 readSoFar = 0;
 
 	QVector<int16> scan(nChans,0);
-	qint64 initialPos = readFile.pos();
 
 	QVector<int> chansOn; 
 	chansOn.reserve(nChansOn);
 	for (int i = 0; i < subsetSize; ++i)
 		if (channelSubset.testBit(i))
 			chansOn.append(i);
-
-	if (downsample <= 0) downsample = 1;
 	
     while (readSoFar < readCount)
     {
-        qint64 read = readFile.read((char*)&scan[0], scanSz);
-
-		// skip around in the file -- this is how our downsampling works
-		if (downsample > 1) {
-			const int skip = downsample-1;
-			readFile.seek(readFile.pos() + skip*scanSz);
-			readSoFar += skip;
-		}
+		if (pos + scanSz > maxPos) 
+			readFile.seek(pos=0);
 		
+		
+        qint64 read = readFile.read((char*)&scan[0], scanSz);
+				
         if (scanSz == read)
         {
 			if (((int)nChans) == nChansOn)
@@ -161,30 +150,35 @@ bool DataTempFile::readScans(QVector<int16> & out, qint64 nfrom, qint64 nread, c
 				for (int i = 0; i < nChansOn; ++i)
 					out.append(scan[chansOn[i]]);
 			}
-			initialPos += read;
+			pos += read;
         }
         else
         {
             Warning() << "Reading from temporary file failed (expected " << scanSz << " read " << read << ")";
-            readFile.seek(initialPos += scanSz);			
+			pos = (pos + scanSz) % maxPos;
+            readFile.seek(pos);
         }
 
-        if (initialPos >= maxPos)
-            readFile.seek(0);
-
+		// skip around in the file -- this is how our downsampling works
+		if (downsample > 1) {
+			const int skip = downsample-1;
+			pos = (pos + skip*scanSz) % maxPos;
+			readFile.seek(pos);
+			readSoFar += skip;
+		}
+		
         ++readSoFar;
     }
 
-    readFile.close();
     return true;
 }
 
 bool DataTempFile::openForWrite() 
 {	
 	if (tempFile.isOpen()) return true;
-	rwLock.lockForWrite();
-	pos = scanCount = currSize = 0;
-	rwLock.unlock();
+	lock.lock();
+	scanCount = currSize = 0;
+	lock.unlock();
     if (!tempFile.open(QIODevice::WriteOnly|QIODevice::Truncate)) {
         Error() << "Failed to open the temporary file " << tempFile.fileName() << " for write";
         return false;
@@ -193,7 +187,7 @@ bool DataTempFile::openForWrite()
     return true;
 }
 
-bool DataTempFile::openForRead(QFile &file) const
+bool DataTempFile::openForRead(QFile & file) const
 {
 	file.setFileName(fileName);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -204,12 +198,7 @@ bool DataTempFile::openForRead(QFile &file) const
     return true;
 }
 
-qint64 DataTempFile::getScanCount()
-{
-    return scanCount;
-}
-
-QString DataTempFile::getChannelSubset()
+QString DataTempFile::getChannelSubset() const
 {
     QString ret;
     QTextStream ts(&ret, QIODevice::WriteOnly);
@@ -228,9 +217,9 @@ void DataTempFile::close()
 {
 	tempFile.close();
     Util::removeDataTempFiles();
-	rwLock.lockForWrite();
-	pos = scanCount = currSize = 0;
-	rwLock.unlock();
+	lock.lock();
+	scanCount = currSize = 0;
+	lock.unlock();
 	Debug() << "Closed and removed Matlab API temp file.";
 }
 

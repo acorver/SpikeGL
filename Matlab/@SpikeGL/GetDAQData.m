@@ -26,7 +26,10 @@ function [ret] = GetDAQData(s, start_scan, scan_ct, varargin)
     channel_subset = '';
     if (nargin >= 4),
         channel_subset = sprintf('%d#', varargin{1});
+    else
+        channel_subset = sprintf('%d#', GetChannelSubset(s));
     end;
+    
     downsample = 1;
     if (nargin >= 5),
         downsample = varargin{2};
@@ -49,7 +52,7 @@ function [ret] = GetDAQData(s, start_scan, scan_ct, varargin)
     end;
     
     
-    ret = CalinsNetMex('readMatrix', s.handle, 'int16', [mat_dims(2) mat_dims(1)]);
+    ret = CalinsNetMex('readMatrix', s.handle, 'int16', mat_dims);
     ret = ret'; % need to flip the incoming matrix as per API spec..
     line = CalinsNetMex('readLine', s.handle);
     if (~(strfind(line, 'OK') == 1)),

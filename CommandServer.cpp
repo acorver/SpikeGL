@@ -420,7 +420,7 @@ bool CommandConnection::processLine(const QString & line)
 					const int chans = channelSubset.count(true);
 					const int scans = matrix.size() / chans;
 
-					SockUtil::send(*sock, QString().sprintf("BINARY DATA %d %d\n", scans, chans), timeout, &errMsg, true);
+					SockUtil::send(*sock, QString().sprintf("BINARY DATA %d %d\n", chans, scans), timeout, &errMsg, true);
 					sock->write(QByteArray::fromRawData(reinterpret_cast<char *>(&matrix[0]), matrix.size() * sizeof(int16)));
 				}
 				else
