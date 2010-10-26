@@ -41,6 +41,8 @@
 #include "ui_CommandServerOptions.h"
 #include "CommandServer.h"
 #include "ui_TempFileDialog.h"
+#include "FileViewerWindow.h"
+#include <algorithm>
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -100,8 +102,16 @@ MainApp::MainApp(int & argc, char ** argv)
     installEventFilter(this); // filter our own events
 
     consoleWindow = new ConsoleWindow;
+#ifdef Q_OS_MACX
+	/* add the console window to the Window menu, which, on OSX is an app-global menu
+	   -- on other platform the console window is *in* the window menu so only needs to be done on OSX */
+	windowMenuAdd(consoleWindow);
+#endif
+	
     defaultLogColor = consoleWindow->textEdit()->textColor();
     consoleWindow->setAttribute(Qt::WA_DeleteOnClose, false);
+	
+	Connect(consoleWindow->windowMenu(), SIGNAL(aboutToShow()), this, SLOT(windowMenuAboutToShow()));
 
     sysTray = new QSystemTrayIcon(this);
     sysTray->setContextMenu(new QMenu(consoleWindow));
@@ -118,6 +128,7 @@ MainApp::MainApp(int & argc, char ** argv)
     par2Win->setAttribute(Qt::WA_DeleteOnClose, false); 
     par2Win->setWindowTitle(QString(APPNAME) + " - Par2 Redundancy Tool");
     par2Win->setWindowIcon(QPixmap(ParWindowIcon_xpm));
+	Connect(par2Win, SIGNAL(closed()), this, SLOT(par2WinClosed()));
 
     Log() << "Application started";
 
@@ -197,10 +208,10 @@ void MainApp::toggleEnableDSFacility()
 {
 	dsFacilityEnabled = !dsFacilityEnabled;
 	if(dsFacilityEnabled)
-		dsTempFileSizeAct->setEnabled(true);
+		tempFileSizeAct->setEnabled(true);
 	else {
-		dsTempFileSizeAct->setEnabled(false);
-		dataTempFile.close();	 // immediately deletes file, resetting settings	
+		tempFileSizeAct->setEnabled(false);
+		tmpDataFile.close();	 // immediately deletes file, resetting settings	
 	}
 	saveSettings();
 }
@@ -229,6 +240,10 @@ bool MainApp::processKey(QKeyEvent *event)
 	case 'N':
 		newAcqAct->trigger();
 		return true;
+	case 'o':
+	case 'O':
+		fileOpenAct->trigger();
+		return true;
 	case Qt::Key_Escape:
 		stopAcq->trigger();
 		return true;
@@ -255,6 +270,8 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
         }
     }
 	if (type == QEvent::Close) {
+		FileViewerWindow *fvw = 0;
+		
 		if (watched == graphsWindow) {
 			// request to close the graphsWindow.. this stops the acq -- ask the user to confirm.. do this after this event handler runs, so enqueue it with a timer
 			QTimer::singleShot(1, this, SLOT(maybeCloseCurrentIfRunning()));
@@ -263,6 +280,13 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
 		} else if ((precreateDialog && watched == precreateDialog) || (acqStartingDialog && watched == acqStartingDialog)) {
 			event->ignore();
 			return true;
+		} else if ( (fvw = dynamic_cast<FileViewerWindow *>(watched)) ) {
+			if (fvw->queryCloseOK()) {
+				windowMenuRemove(fvw);
+				fvw->deleteLater(); // schedule window for deletion...
+			} else 
+				event->ignore();
+			return true; // tell Qt we handled the event
 		}
 	}
     if (watched == consoleWindow) {
@@ -333,7 +357,7 @@ void MainApp::loadSettings()
 	saveCBEnabled = settings.value("saveChannelCB", true).toBool();
 
 	dsFacilityEnabled = settings.value("dsFacilityEnabled", false).toBool();
-    dataTempFile.setTempFileSize(settings.value("dsTemporaryFileSize", 1048576000).toLongLong());
+    tmpDataFile.setTempFileSize(settings.value("dsTemporaryFileSize", 1048576000).toLongLong());
 
     mut.lock();
 #ifdef Q_OS_WIN
@@ -341,6 +365,8 @@ void MainApp::loadSettings()
 #else
     outDir = settings.value("outDir", QDir::homePath() ).toString();
 #endif
+	lastOpenFile = settings.value("lastFileOpenFile", "").toString();
+	
     mut.unlock();
     {
         StimGLIntegrationParams & p(stimGLIntParams);
@@ -366,11 +392,13 @@ void MainApp::saveSettings()
 	settings.setValue("saveChannelCB", saveCBEnabled);
 
 	settings.setValue("dsFacilityEnabled", dsFacilityEnabled);
-    settings.setValue("dsTemporaryFileSize", dataTempFile.getTempFileSize());
+    settings.setValue("dsTemporaryFileSize", tmpDataFile.getTempFileSize());
 	
     mut.lock();
     settings.setValue("outDir", outDir);
     mut.unlock();
+	settings.setValue("lastFileOpenFile", lastOpenFile);
+	
     {
         StimGLIntegrationParams & p(stimGLIntParams);
         settings.setValue("StimGLInt_Listen_Interface", p.iface);
@@ -490,9 +518,15 @@ void MainApp::hideUnhideConsole()
     if (consoleWindow) {
         if (consoleWindow->isHidden()) {
             consoleWindow->show();
+#ifdef Q_OS_MACX
+			windowMenuAdd(consoleWindow);
+#endif
         } else {
             bool hadfocus = ( focusWidget() == consoleWindow );
             consoleWindow->hide();
+#ifdef Q_OS_MACX
+			windowMenuRemove(consoleWindow);
+#endif
             if (graphsWindow && hadfocus) graphsWindow->setFocus(Qt::OtherFocusReason);
         }
     }
@@ -570,10 +604,14 @@ void MainApp::initActions()
 	enableDSFacilityAct->setCheckable(true);
 	enableDSFacilityAct->setChecked(isDSFacilityEnabled());
 
-	Connect( dsTempFileSizeAct = new QAction("Matlab Data API Tempfile...", this),
+	Connect( tempFileSizeAct = new QAction("Matlab Data API Tempfile...", this),
              SIGNAL(triggered()), this, SLOT(execDSTempFileDialog()) );
 
-	dsTempFileSizeAct->setEnabled(isDSFacilityEnabled());
+	tempFileSizeAct->setEnabled(isDSFacilityEnabled());
+	
+	Connect( fileOpenAct = new QAction("Open... &O", this), SIGNAL(triggered()), this, SLOT(fileOpen())); 
+	
+	Connect( bringAllToFrontAct = new QAction("Bring All to Front", this), SIGNAL(triggered()), this, SLOT(bringAllToFront()) );
 	
 }
 
@@ -612,8 +650,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     }
 
 	// re-set the data temp file, delete it, etc
-	dataTempFile.close();		
-    dataTempFile.setNChans(params.nVAIChans);
+	tmpDataFile.close();		
+    tmpDataFile.setNChans(params.nVAIChans);
 
 
     // acq starting dialog block -- show this dialog because the startup is kinda slow..
@@ -646,6 +684,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     graphsWindow->setWindowIcon(appIcon);
     hideUnhideGraphsAct->setEnabled(true);
     graphsWindow->installEventFilter(this);
+	
+	windowMenuAdd(graphsWindow);
     
     if (!params.suppressGraphs) {
         graphsWindow->show();
@@ -732,7 +772,10 @@ void MainApp::stopTask()
     delete task, task = 0;  
     fastSettleRunning = false;
     if (taskReadTimer) delete taskReadTimer, taskReadTimer = 0;
-    if (graphsWindow) delete graphsWindow, graphsWindow = 0;
+    if (graphsWindow) {
+		windowMenuRemove(graphsWindow);
+		delete graphsWindow, graphsWindow = 0;
+	}
     hideUnhideGraphsAct->setEnabled(false);
     Log() << "Task " << dataFile.fileName() << " stopped.";
     Status() << "Task stopped.";
@@ -899,7 +942,7 @@ void MainApp::taskReadFunc()
             }
 			
             if (isDSFacilityEnabled())
-                dataTempFile.writeScans(scans); // write all scans
+                tmpDataFile.writeScans(scans); // write all scans
 			
             qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
 /*            if (graphsWindow && !graphsWindow->isHidden()) {            
@@ -1092,12 +1135,17 @@ void MainApp::updateWindowTitles()
         if (initializing) stat = "INITIALIZING";
         else stat = "No Acquisition Running";
     }
-    QString tit = QString(APPNAME) + " - " + stat;
+    QString tit = QString(APPNAME) + " Console - " + stat;
     consoleWindow->setWindowTitle(tit);
+	if (windowActions.contains(consoleWindow)) 
+		windowActions[consoleWindow]->setText(tit);
+	
     sysTray->contextMenu()->setTitle(tit);
     if (graphsWindow) {
         tit = QString(APPNAME) + " Graphs - " + stat;
         graphsWindow->setWindowTitle(tit);
+		if (windowActions.contains(graphsWindow))
+			windowActions[graphsWindow]->setText(tit);
         graphsWindow->setToggleSaveChkBox(isOpen);
         if (isOpen) graphsWindow->setToggleSaveLE(fname);
     }
@@ -1187,6 +1235,12 @@ void MainApp::sha1VerifyCancel()
 void MainApp::showPar2Win()
 {
     par2Win->show();
+	windowMenuAdd(par2Win);
+}
+
+void MainApp::par2WinClosed()
+{
+	windowMenuRemove(par2Win);
 }
 
 void MainApp::execStimGLIntegrationDialog()
@@ -1281,7 +1335,7 @@ void MainApp::execDSTempFileDialog()
 
 	Ui::TempFileDialog tmpFileDlg;
 	tmpFileDlg.setupUi(&dlg);
-	tmpFileDlg.fileSizeSB->setValue(dataTempFile.getTempFileSize() / 1048576);
+	tmpFileDlg.fileSizeSB->setValue(tmpDataFile.getTempFileSize() / 1048576);
     tmpFileDlg.avDiskSpaceL->setText(   tmpFileDlg.avDiskSpaceL->text() + 
                                         QString::number(Util::availableDiskSpace() / 1048576) +
                                         " MB");
@@ -1301,8 +1355,8 @@ void MainApp::execDSTempFileDialog()
                 again = true;
                 continue;
             } else {
-				dataTempFile.close(); // will force a re-open if it was running
-                dataTempFile.setTempFileSize((qint64)spinVal * 1048576);
+				tmpDataFile.close(); // will force a re-open if it was running
+                tmpDataFile.setTempFileSize((qint64)spinVal * 1048576);
 			}
         }
         else 
@@ -1548,15 +1602,27 @@ void MainApp::help()
 {
     if (!helpWindow) {
         Ui::TextBrowser tb;
-        helpWindow = new QDialog(0);
+        helpWindow = new HelpWindow(0);
         helpWindow->setWindowTitle("SpikeGL Help");
         tb.setupUi(helpWindow);
         tb.textBrowser->setSearchPaths(QStringList("qrc:/"));
         tb.textBrowser->setSource(QUrl("qrc:/SpikeGL-help-manual.html"));
+		Connect(helpWindow, SIGNAL(closed()), this, SLOT(helpWindowClosed()));
     }
-    helpWindow->show();
-	helpWindow->raise();
+	helpWindow->show();
+	windowMenuAdd(helpWindow);
+	windowMenuActivate(helpWindow);
     helpWindow->setMaximumSize(helpWindow->size());
+}
+
+void HelpWindow::closeEvent(QCloseEvent *e) {
+	QDialog::closeEvent(e);
+	if (e->isAccepted()) emit closed();
+}	
+
+void MainApp::helpWindowClosed()
+{
+	windowMenuRemove(helpWindow);
 }
 
 void MainApp::precreateOneGraph()
@@ -1639,4 +1705,126 @@ void MainApp::appInitialized()
     Log() << "Application initialized";    
     Status() <<  APPNAME << " initialized.";
     updateWindowTitles();
+}
+
+struct FV_IsViewingFile {
+	FV_IsViewingFile(const QString & fn) : fn(fn) {}
+	bool operator()(QWidget * w) const { 
+		FileViewerWindow *f = dynamic_cast<FileViewerWindow *>(w);
+		if (f) {
+			return f->file() == fn; 
+		}
+		return false;
+	}
+	QString fn;
+};
+
+void MainApp::fileOpen()
+{
+	if (isAcquiring()) {
+		QMessageBox::StandardButtons ret = QMessageBox::warning(consoleWindow, "Acquisition Running", "An acquisition is currently running.  Opening a file now can impact performance cause the acquisition to fail.  It's recommended that you first stop the acquisition before proceeding.\n\nContinue anyway?",  QMessageBox::No|QMessageBox::Yes, QMessageBox::No);
+		if (ret == QMessageBox::Cancel) return;		
+	}
+	QString filters[] = { "SpikeGL Data (*.bin)", "All Files (* *.*)" };
+	noHotKeys = true;
+	if (!lastOpenFile.length()) {
+		mut.lock();
+		lastOpenFile = outDir + "/DUMMY.bin";
+		mut.unlock();
+	}	
+	QString fname = QFileDialog::getOpenFileName( consoleWindow, "Select a data file to open", lastOpenFile,
+												  filters[0] + ";;" + filters[1], &filters[0]);
+	noHotKeys = false;
+
+	if (!fname.length()) 
+		//user closed dialog box
+		return;
+	
+	lastOpenFile = fname;
+	saveSettings();
+	
+	QString errorMsg;
+	if (!DataFile::isValidInputFile(fname, &errorMsg)) {
+		QMessageBox::critical(consoleWindow, "Error Opening File", QFileInfo(fname).fileName() + " cannot be used for input.  " + errorMsg);
+		return;
+	}
+		
+	QList<QWidget *>::iterator it = std::find_if(windows.begin(), windows.end(), FV_IsViewingFile(fname));
+	
+	if (it != windows.end()) {
+		// it already exists.. just raise the one we are working on already!
+		windowMenuActivate(*it);
+	} else {	
+		// doesn't exist, create a new one!
+		FileViewerWindow *fvw = new FileViewerWindow; ///< note we catch its close event and delete it 
+		fvw->setAttribute(Qt::WA_DeleteOnClose, false);
+		fvw->installEventFilter(this);
+		fvw->viewFile(fname);
+		fvw->show();
+		windowMenuAdd(fvw);
+	}
+}
+
+void MainApp::windowMenuRemove(QWidget *w) 
+{
+	QList<QWidget *>::iterator it = std::find(windows.begin(), windows.end(), w);
+	if (it != windows.end()) {
+		windows.erase(it);
+		QAction *a = windowActions[w];
+		consoleWindow->windowMenu()->removeAction(a);
+		windowActions.remove(w);
+		delete a;
+	} else {
+		Error() << "INTERNAL ERROR: A Window was closed but it was not found in the list of Windows!!!  FIXME!";
+	}			
+}
+
+void MainApp::windowMenuAdd(QWidget *w) 
+{
+	QList<QWidget *>::iterator it = std::find(windows.begin(), windows.end(), w);
+	if (it != windows.end()) {
+		// Already in list.. silently ignore.
+		return;
+	}
+	windows.push_back(w);
+	QAction *a = new QAction(w->windowTitle(), w);
+	a->setCheckable(true);
+	a->setData(QVariant(reinterpret_cast<qulonglong>(w)));
+	Connect(a, SIGNAL(triggered()), this, SLOT(windowMenuActivate()));
+	windowActions[w] = a;
+	consoleWindow->windowMenu()->addAction(a);
+}
+
+void MainApp::windowMenuActivate(QWidget *w) 
+{
+	if (!w) {
+		QAction *a = dynamic_cast<QAction *>(sender());
+		if (!a) return;
+		w = reinterpret_cast<QWidget *>(a->data().toULongLong());
+	}
+	if (w) {
+		w->raise();
+		w->activateWindow();
+	}
+}
+
+void MainApp::windowMenuAboutToShow()
+{
+	QWidget *active = activeWindow();
+	// figure out which action to check, if any..	
+	for (QMap<QWidget*,QAction*>::iterator it = windowActions.begin(); it != windowActions.end(); ++it) {
+		QWidget *w = it.key();
+		QAction *a = it.value();
+		a->setChecked(w == active);
+	}	
+}
+
+void MainApp::bringAllToFront()
+{
+	QWidget *previousActive = activeWindow();
+	QWidgetList all = topLevelWidgets();
+	foreach(QWidget *w, all) {
+		if (!w->isHidden())	w->raise();
+	}
+	if (previousActive) previousActive->raise();
 }

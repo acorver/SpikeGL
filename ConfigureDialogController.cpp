@@ -314,7 +314,11 @@ void ConfigureDialogController::aoDeviceCBChanged()
 void ConfigureDialogController::browseButClicked()
 {
     QString fn = QFileDialog::getSaveFileName(dialogW, "Select output file", dialog->outputFileLE->text());
-    if (fn.length()) dialog->outputFileLE->setText(fn);
+    if (fn.length()) {
+		QFileInfo fi(fn);
+		if (fi.completeSuffix().toLower() != ".bin") fn += ".bin";
+		dialog->outputFileLE->setText(fn);
+	}
 }
 
 void ConfigureDialogController::aoPassthruChkd()

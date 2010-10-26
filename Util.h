@@ -94,7 +94,7 @@ namespace Util
  quint64 availableDiskSpace();
 
  /// Removes all data temporary files (SpikeGL_DSTemp_*.bin) fromn the TEMP directory
- void removeDataTempFiles();
+ void removeTempDataFiles();
 
 /// Super class of Debug, Warning, Error classes.  
 class Log 

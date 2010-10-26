@@ -24,6 +24,7 @@ class QFrame;
 class QTimer;
 class QMessageBox;
 class CommandConnection;
+class FileViewerWindow;
 
 #include <QApplication>
 #include <QColor>
@@ -35,10 +36,11 @@ class CommandConnection;
 #include <QString>
 #include <QMap>
 #include <QSet>
+#include <QDialog>
 #include "Util.h"
 #include "DAQ.h"
 #include "DataFile.h"
-#include "DataTempFile.h"
+#include "TempDataFile.h"
 #include "WrapBuffer.h"
 #include "StimGL_SpikeGL_Integration.h"
 #include "CommandServer.h"
@@ -134,6 +136,9 @@ public:
 
 	/// The configure dialog controller -- an instance of this is always around 
 	ConfigureDialogController *configureDialogController() { return configCtl; }
+	
+	/// Get a reference to the temp data file -- used by CommandServer to call readScans(),etc for the Matlab data read API
+	const TempDataFile & tempDataFile() const { return tmpDataFile; }
 		
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
@@ -191,6 +196,7 @@ protected slots:
     void sha1VerifyCancel();
 
     void showPar2Win();
+	void par2WinClosed();
 
     void execStimGLIntegrationDialog();    
     void execCommandServerOptionsDialog();
@@ -214,6 +220,11 @@ private slots:
     void fastSettleDoneForCommandConnections();
 	void toggleShowChannelSaveCB();
 	void toggleEnableDSFacility();
+	void fileOpen(); ///< slot triggered from the File->Open menu to open a new data file for perusal in the app.	
+	void windowMenuActivate(QWidget *w = 0);
+	void windowMenuAboutToShow();
+	void helpWindowClosed();
+	void bringAllToFront();
 
 private:
     /// Display a message to the status bar
@@ -234,6 +245,10 @@ private:
                               u64 & firstSamp, i64 & scan0Fudge);
     void precreateOneGraph();
     bool startAcq(QString & errTitle, QString & errMsg);
+	
+	// WindowMenu stuff
+	void windowMenuRemove(QWidget *w);
+	void windowMenuAdd(QWidget *w);
 
     QMap<QString, QVariant> queuedParams;    
     QMap<Par2Window *, CommandConnection *> par2WinConnMap;
@@ -246,7 +261,7 @@ private:
     bool debug, saveCBEnabled;
     volatile bool initializing;
     QColor defaultLogColor;
-    QString outDir;
+    QString outDir, lastOpenFile;
     QString sb_String;
     int sb_Timeout;
     bool warnedDropped;
@@ -277,7 +292,7 @@ private:
     bool taskWaitingForTrigger, taskWaitingForStop, 
         taskShouldStop; ///< used for StimGL trigger to stop the task when the queue empties
     i64 scan0Fudge, scanCt, startScanCt, stopScanCt, lastScanSz, stopRecordAtSamp;
-    DataFile dataFile;
+    DataFile dataFile; ///< the OUTPUT save file (this member var never used for input)
     std::vector<int16> last5PDSamples;
     QTimer *taskReadTimer;
     GraphsWindow *graphsWindow;
@@ -300,20 +315,34 @@ private:
 
 	QMessageBox *acqStartingDialog;
 
+	TempDataFile tmpDataFile;
+
+	QList<QWidget *> windows;
+	QMap<QWidget *, QAction *> windowActions;
+	
 public:
 
 /// Main application actions!
     QAction 
         *quitAct, *toggleDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
         *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct, *commandServerOptionsAct,
-		*showChannelSaveCBAct, *enableDSFacilityAct;
+		*showChannelSaveCBAct, *enableDSFacilityAct, *fileOpenAct, *tempFileSizeAct, *bringAllToFrontAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon;
+};
 
-    QAction *dsTempFileSizeAct;
-
-	DataTempFile dataTempFile;
+class HelpWindow : public QDialog
+{
+	Q_OBJECT
+public:
+	HelpWindow(QWidget *parent = 0) : QDialog(parent) {}
+	
+signals:
+	void closed();
+	
+protected:
+	void closeEvent(QCloseEvent *e);
 };
 
 #endif

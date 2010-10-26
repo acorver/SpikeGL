@@ -283,6 +283,9 @@ void Par2Window::closeEvent(QCloseEvent *e)
         }
     } else
         e->accept();
+	
+	if (e->isAccepted()) 
+		emit closed();
 }
 
 /// manually force an operation to start -- simulates a user picking an 

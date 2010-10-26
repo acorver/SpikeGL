@@ -16,9 +16,14 @@ ConsoleWindow::ConsoleWindow(QWidget *p, Qt::WindowFlags f)
     te->setUndoRedoEnabled(false);
     te->setReadOnly(true);
     setCentralWidget(te);
+#ifdef Q_OS_MACX
+	QMenuBar *mb = new QMenuBar(0);
+#else	
     QMenuBar *mb = menuBar();
+#endif
     QMenu *m = mb->addMenu("&File");
     MainApp *app = mainApp();
+	m->addAction(app->fileOpenAct);
     m->addAction(app->newAcqAct);
     m->addAction(app->stopAcq);
     m->addSeparator();
@@ -35,17 +40,23 @@ ConsoleWindow::ConsoleWindow(QWidget *p, Qt::WindowFlags f)
 	m->addAction(app->commandServerOptionsAct);
 	m->addAction(app->showChannelSaveCBAct);
     m->addAction(app->enableDSFacilityAct);
-	m->addAction(app->dsTempFileSizeAct);
+	m->addAction(app->tempFileSizeAct);
 	m = mb->addMenu("&Tools");
     m->addAction(app->verifySha1Act);
     m->addAction(app->par2Act);
+	
+	m = mb->addMenu("&Window");
+	windMenu = m;
+	m->addAction(app->bringAllToFrontAct);
+	m->addSeparator();
+	
     m = mb ->addMenu("&Help");
     m->addAction(app->helpAct);
     m->addSeparator();
     m->addAction(app->aboutAct);
     m->addAction(app->aboutQtAct);
-
-    setWindowIcon(app->appIcon);
+	
+    setWindowIcon(app->appIcon);	
 }
 
 

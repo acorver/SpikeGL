@@ -2,19 +2,19 @@
 #include <QFile>
 #include <QMutex>
 #include "TypeDefs.h"
-#ifndef DataTempFile_H
-#define DataTempFile_H
+#ifndef TempDataFile_H
+#define TempDataFile_H
 
 #include "DAQ.h"
 
 #define TEMP_FILE_NAME_PREFIX "SpikeGL_DSTemp_"
 #define TEMP_FILE_NAME_SUFFIX ".bin"
 
-class DataTempFile
+class TempDataFile
 {
 public:
-    DataTempFile();
-    ~DataTempFile();
+    TempDataFile();
+    ~TempDataFile();
 
     bool openForWrite();
     bool openForRead(QFile &file) const;
@@ -23,7 +23,7 @@ public:
     void close();
 
     bool writeScans(const std::vector<int16> & scan);
-    bool readScans(QVector<int16> & outbuf, qint64 nfrom, qint64 nread, const QBitArray & channelSubset, unsigned downsample_factor = 1) const;
+    bool readScans(QVector<int16> & outbuf, i64 nfrom, i64 nread, const QBitArray & channelSubset, unsigned downsample_factor = 1) const;
     void setTempFileSize(qint64 newSize) { maxSize = newSize; }
 
     qint64 getTempFileSize() const { return maxSize; }    
@@ -33,9 +33,9 @@ public:
 
 private:
     QFile tempFile;
-    qint64 maxSize, currSize; // in bytes
+    i64 maxSize, currSize; // in bytes
     unsigned nChans;
-    qint64 scanCount;
+    i64 scanCount;
     QString fileName;
 
     mutable QMutex lock;

@@ -406,7 +406,7 @@ bool CommandConnection::processLine(const QString & line)
                 channelSubset = mainApp()->configureDialogController()->acceptedParams.demuxedBitMap;
 
             QVector<int16> matrix;
-			if (!mainApp()->dataTempFile.readScans(matrix, 
+			if (!mainApp()->tempDataFile().readScans(matrix, 
 												   toks.at(0).toLongLong(),
                                                    toks.at(1).toLongLong(),
 												   channelSubset,
@@ -662,11 +662,11 @@ void MainApp::customEvent(QEvent *e) { ///< yes, we are implementing part of thi
             e->accept();
             break;
         case E_GetScanCount:
-            conn->setResponseAndWake(dataTempFile.getScanCount());
+            conn->setResponseAndWake(tempDataFile().getScanCount());
             e->accept();
             break;
         case E_GetChannelSubset:
-            conn->setResponseAndWake(dataTempFile.getChannelSubset());
+            conn->setResponseAndWake(tempDataFile().getChannelSubset());
             e->accept();
             break;
         default:

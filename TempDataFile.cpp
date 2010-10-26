@@ -1,16 +1,16 @@
-#include "DataTempFile.h"
+#include "TempDataFile.h"
 #include "Util.h"
 #include "SpikeGL.h"
 #include "MainApp.h"
 #include "ConfigureDialogController.h"
 
-DataTempFile::DataTempFile()
+TempDataFile::TempDataFile()
     :   maxSize(1048576000),
 		currSize(0),
         nChans(1),
         scanCount(0)
 {
-    Util::removeDataTempFiles();
+    Util::removeTempDataFiles();
     fileName = QDir::tempPath() +
                "/SpikeGL_DSTemp_" +
                QString::number(QCoreApplication::applicationPid()) +
@@ -19,12 +19,12 @@ DataTempFile::DataTempFile()
     tempFile.setFileName(fileName);
 }
 
-DataTempFile::~DataTempFile() 
+TempDataFile::~TempDataFile() 
 {
-    Util::removeDataTempFiles();
+    Util::removeTempDataFiles();
 }
 
-bool DataTempFile::writeScans(const std::vector<int16> & scans)
+bool TempDataFile::writeScans(const std::vector<int16> & scans)
 {
     if (!tempFile.isOpen() && !openForWrite())
         return false;
@@ -79,7 +79,7 @@ bool DataTempFile::writeScans(const std::vector<int16> & scans)
     return true;
 }
 
-bool DataTempFile::readScans(QVector<int16> & out, qint64 nfrom, qint64 nread, const QBitArray &channelSubset, unsigned downsample) const
+bool TempDataFile::readScans(QVector<int16> & out, qint64 nfrom, qint64 nread, const QBitArray &channelSubset, unsigned downsample) const
 {
     QFile readFile;
 	
@@ -103,7 +103,7 @@ bool DataTempFile::readScans(QVector<int16> & out, qint64 nfrom, qint64 nread, c
 	if (nfrom + readCount > my_scanCount) readCount = my_scanCount - nfrom;
 	
 	if (nfrom < 0 || nfrom+readCount > my_scanCount) {
-		Error() << "Specified invalid scan range for nfrom and nread parameters to DataTempFile::readScans()";
+		Error() << "Specified invalid scan range for nfrom and nread parameters to TempDataFile::readScans()";
 		return false;
 	}
 	
@@ -111,7 +111,7 @@ bool DataTempFile::readScans(QVector<int16> & out, qint64 nfrom, qint64 nread, c
     qint64 pos = (nfrom % maxNScans) * scanSz;
     if (!readFile.seek(pos))
     {
-		Error() << "Reading seek to " << pos << " failed in DataTempFile::readScans()";
+		Error() << "Reading seek to " << pos << " failed in TempDataFile::readScans()";
         readFile.close();
         return false;
     }
@@ -173,7 +173,7 @@ bool DataTempFile::readScans(QVector<int16> & out, qint64 nfrom, qint64 nread, c
     return true;
 }
 
-bool DataTempFile::openForWrite() 
+bool TempDataFile::openForWrite() 
 {	
 	if (tempFile.isOpen()) return true;
 	lock.lock();
@@ -187,7 +187,7 @@ bool DataTempFile::openForWrite()
     return true;
 }
 
-bool DataTempFile::openForRead(QFile & file) const
+bool TempDataFile::openForRead(QFile & file) const
 {
 	file.setFileName(fileName);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -198,7 +198,7 @@ bool DataTempFile::openForRead(QFile & file) const
     return true;
 }
 
-QString DataTempFile::getChannelSubset() const
+QString TempDataFile::getChannelSubset() const
 {
     QString ret;
     QTextStream ts(&ret, QIODevice::WriteOnly);
@@ -213,10 +213,10 @@ QString DataTempFile::getChannelSubset() const
 }
 
 
-void DataTempFile::close()
+void TempDataFile::close()
 {
 	tempFile.close();
-    Util::removeDataTempFiles();
+    Util::removeTempDataFiles();
 	lock.lock();
 	scanCount = currSize = 0;
 	lock.unlock();

@@ -23,7 +23,10 @@ signals:
     void gotLines(const QString &);
     void subprocessError(const QString &);
     void subprocessEnded();
-        
+    
+    /// emitted when the window closes so that we can remove it from the app Window menu
+	void closed();
+	
 protected:
     void closeEvent(QCloseEvent *);
 
