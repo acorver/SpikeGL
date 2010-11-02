@@ -375,7 +375,7 @@ void ConfigureDialogController::aoPDPassthruUpdateLE()
  *  AGAIN returned, form is erroneous, but redo ok -- form is not saved, errTitle and errMsg set appropriately
  *  ABORT returned, form is erroneous, abort altogether -- form is not saved, errTitle and errMsg set appropriately
  */
-ConfigureDialogController::ValidationResult ConfigureDialogController::validateForm(QString & errTitle, QString & errMsg) 
+ConfigureDialogController::ValidationResult ConfigureDialogController::validateForm(QString & errTitle, QString & errMsg, bool isGUI) 
 {
     const QString dev = dialog->deviceCB->count() ? devNames[dialog->deviceCB->currentIndex()] : "";
     const QString aoDev = aoPassthru->aoDeviceCB->count() ? aoDevNames[aoPassthru->aoDeviceCB->currentIndex()] : "";
@@ -503,9 +503,38 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
         }
     
     DAQ::Params & p (acceptedParams);
-    p.outputFile = p.outputFileOrig = dialog->outputFileLE->text().trimmed();
-    p.dev = dev;
     p.stimGlTrigResave = dialog->stimGLReopenCB->isChecked();
+    p.outputFile = p.outputFileOrig = dialog->outputFileLE->text().trimmed();
+	
+	if (!p.stimGlTrigResave && isGUI) {
+		// verify output file and if it exists, act appropriately
+		QString outFile = p.outputFile;
+		if (!QFileInfo(outFile).isAbsolute()) 
+			outFile = mainApp()->outputDirectory() + "/" + outFile; 
+		if (QFileInfo(outFile).exists()) {
+			// output file exists, ask user if they should overwrite, cancel, or auto-rename
+			QMessageBox *mb = new QMessageBox(dialogW);
+			mb->setText("The specified output file already exists.");
+			mb->setInformativeText("Do you want to overwrite it, auto-rename it, or go back and specify a new filename?");
+			// the 'roles' below seem to only affect formatting of the buttons..
+			QPushButton *cancelBut = mb->addButton("Go Back", QMessageBox::DestructiveRole);
+			QPushButton *renameBut = mb->addButton("Auto-Rename", QMessageBox::RejectRole);
+			QPushButton *overBut = mb->addButton("Overwrite", QMessageBox::AcceptRole);
+			mb->exec();
+			QAbstractButton * clicked = mb->clickedButton();
+			(void)overBut;
+			if (clicked == renameBut) {
+				p.outputFile = mainApp()->getNewDataFileName(QString::null);
+			} else if (clicked == cancelBut) {
+				errTitle = QString::null;
+				errMsg = QString::null;
+				return AGAIN;
+			}
+			/// overwrite path is the normal path...
+		}
+	}
+	
+    p.dev = dev;
     QStringList rngs = dialog->aiRangeCB->currentText().split(" - ");
     if (rngs.count() != 2) {
         errTitle = "AI Range ComboBox invalid!";
@@ -647,11 +676,12 @@ int ConfigureDialogController::exec()
    
         if (ret == QDialog::Accepted) {
             QString errTitle, errMsg;
-            ValidationResult result = validateForm(errTitle, errMsg);
+            ValidationResult result = validateForm(errTitle, errMsg, true);
             
             switch ( result ) {
                 case AGAIN: 
-                    QMessageBox::critical(dialogW, errTitle, errMsg);
+					if (!errTitle.isNull() && !errMsg.isNull())
+						QMessageBox::critical(dialogW, errTitle, errMsg);
                     again = true; 
                     break;
                 case ABORT: 

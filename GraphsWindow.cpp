@@ -61,7 +61,7 @@ static void initIcons()
 }
 
 GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0)
+    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), suppressRecursive(false)
 {
     sharedCtor(p, isSaving);
 }
@@ -703,9 +703,18 @@ int GraphsWindow::parseGraphNum(QObject *graph)
 void GraphsWindow::toggleSaveChecked(bool b)
 {
     if (b) {
-        saveFileLE->setEnabled(false);
         params.outputFile = saveFileLE->text().trimmed();
+		if (sender() && !suppressRecursive && QFileInfo(params.outputFile).exists()) {
+			QMessageBox::StandardButton b = QMessageBox::question(this, "File Exists", "The specified output file exists.  Continue with save?", QMessageBox::Save|QMessageBox::Abort, QMessageBox::Save);
+			if (b == QMessageBox::Abort) {
+				toggleSaveChk->setChecked(false);
+				return;
+			}
+		}
+        saveFileLE->setEnabled(false);
+		suppressRecursive = true;
         mainApp()->toggleSave(b);
+		suppressRecursive = false;
     } else {
         saveFileLE->setEnabled(true);
         mainApp()->toggleSave(b);

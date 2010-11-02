@@ -750,9 +750,8 @@ void MainApp::newAcq()
     noHotKeys = false;
     if (ret == QDialog::Accepted) {
         QString errTitle, errMsg;
-        if ( ! startAcq(errTitle, errMsg) ) {
-            QMessageBox::critical(0, errTitle, errMsg);
-        }        
+        if ( ! startAcq(errTitle, errMsg) )
+			QMessageBox::critical(0, errTitle, errMsg);
     }
 }
 
@@ -1409,24 +1408,23 @@ bool MainApp::setupCommandServer(bool doQuitOnFail)
     return true;
 }
 
-QString MainApp::getNewDataFileName(const QString & suffix) const
+QString MainApp::getNewDataFileName(const QString & suf) const
 {
     const DAQ::Params & p (configCtl->acceptedParams);
-    if (p.stimGlTrigResave) {
-        QFileInfo fi(p.outputFileOrig);
-        if (!fi.isAbsolute()) {
-            fi.setFile(outputDirectory() + "/" + p.outputFileOrig);
-        }
-        QString prefix = fi.filePath();
-        QString ext = fi.completeSuffix();
-        prefix.chop(ext.length()+1);
-        
-        for (int i = 1; i > 0; ++i) {
-            QString fn = prefix + "_" + suffix + "_" + QString::number(i) + "." + ext;
-            if (!QFile::exists(fn)) return fn;
-        }
-    }
-    return p.outputFile;
+	QString suffix = p.stimGlTrigResave ? suf : QString::null;
+	QFileInfo fi(p.outputFileOrig);
+	if (!fi.isAbsolute()) {
+		fi.setFile(outputDirectory() + "/" + p.outputFileOrig);
+	}
+	QString prefix = fi.filePath();
+	QString ext = fi.completeSuffix();
+	prefix.chop(ext.length()+1);
+	
+	for (int i = 1; i > 0; ++i) {		
+		QString fn = prefix + "_" + ( !suffix.isNull() ? suffix + "_" + QString::number(i) : QString::number(i)) + "." + ext;
+		if (!QFile::exists(fn)) return fn;
+	}
+	return p.outputFileOrig;  // should never be reached unless we have 2^31 file collisions!
 }
 
 void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QVariant>  &pm)

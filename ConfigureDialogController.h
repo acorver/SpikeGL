@@ -70,7 +70,7 @@ private:
         OK    =  1
     };
     
-    ValidationResult validateForm(QString & errTitle, QString & errMsg);
+    ValidationResult validateForm(QString & errTitle, QString & errMsg, bool isGUI = false);
 
     QWidget *dialogW, *acqPdParamsW, *acqTimedParamsW, *aoPassW;
     ChanMappingController chanMapCtl;

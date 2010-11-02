@@ -115,6 +115,7 @@ private:
     int lastMouseOverGraph;
     int selectedGraph;
 	QLed *stimTrigLed, *pdTrigLed;
+	bool suppressRecursive;
 };
 
 
