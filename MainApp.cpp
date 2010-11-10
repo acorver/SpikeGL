@@ -1757,7 +1757,11 @@ void MainApp::fileOpen()
 		FileViewerWindow *fvw = new FileViewerWindow; ///< note we catch its close event and delete it 
 		fvw->setAttribute(Qt::WA_DeleteOnClose, false);
 		fvw->installEventFilter(this);
-		fvw->viewFile(fname);
+		if (!fvw->viewFile(fname, &errorMsg)) {
+			QMessageBox::critical(consoleWindow, "Error Opening File", errorMsg);
+			delete fvw, fvw = 0;
+			return;
+		}
 		fvw->show();
 		windowMenuAdd(fvw);
 	}

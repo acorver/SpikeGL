@@ -32,7 +32,7 @@ void GLGraph::reset(QWidget *prnt, QMutex *mut)
     setNumVGridLines(4);
     auto_update = true;
 
-    setAutoBufferSwap(true);
+    setAutoBufferSwap(true);	
 }
 
 GLGraph::GLGraph(QGLContext *ctx, QWidget *p, QMutex *mut)
@@ -228,12 +228,14 @@ void GLGraph::setYScale(double d)
 
 void GLGraph::mouseMoveEvent(QMouseEvent *evt)
 {
+	emit(cursorOverWindowCoords(evt->x(), evt->y()));
     Vec2 v(pos2Vec(evt->pos()));
     emit(cursorOver(v.x,v.y));
 }
 
 void GLGraph::mousePressEvent(QMouseEvent *evt)
 {
+	emit(clickedWindowCoords(evt->x(), evt->y()));
     Vec2 v(pos2Vec(evt->pos()));
     emit(clicked(v.x,v.y));
 }

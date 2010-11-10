@@ -173,7 +173,7 @@ protected:
     bool isError;
 };
 
-}
+} // end namespace Util
 
 using namespace Util;
 

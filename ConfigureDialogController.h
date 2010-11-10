@@ -11,6 +11,7 @@
 #include <QVector>
 #include "DAQ.h"
 #include "ChanMappingController.h"
+
 class QSettings;
 
 class ConfigureDialogController : public QObject
@@ -46,7 +47,7 @@ public:
     static QString parseAIChanString(const QString & aichanstr, QVector<unsigned> & aiChannels_out, bool *parse_error = 0, bool emptyOk = false);
     static QMap<unsigned,unsigned> parseAOPassthruString(const QString & aochanstr, bool *parse_error = 0);
 	static QString generateAIChanString(const QVector<unsigned> & aiChans_sorted_ascending);
-
+	
 protected slots:    
     void acqStartEndCBChanged();
     void acqModeCBChanged();

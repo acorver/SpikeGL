@@ -209,6 +209,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 			Connect(chks[num], SIGNAL(toggled(bool)), this, SLOT(saveGraphChecked(bool)));
             graphs[num]->setAutoUpdate(false);
             graphs[num]->setMouseTracking(true);
+			graphs[num]->setCursor(Qt::CrossCursor);
             l->addWidget(f, r, c);
 			///
 			//QCheckBox *chk = new QCheckBox(graphsWidget);

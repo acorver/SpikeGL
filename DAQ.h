@@ -111,7 +111,7 @@ namespace DAQ
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }
         void unlock() const { mutex.unlock(); }
-
+		
     };
 
     //-------- NI DAQmx helper methods -------------

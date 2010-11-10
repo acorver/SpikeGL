@@ -3,6 +3,9 @@
 #include "SpikeGL.h"
 #include "MainApp.h"
 #include <QFileInfo.h>
+#include <memory>
+#include "ConfigureDialogController.h"
+#include "ChanMappingController.h"
 
 static QString metaFileForFileName(const QString &fname)
 {
@@ -155,6 +158,8 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     params["fastSettleTimeMS"] = dp.fastSettleTimeMS;
     params["auxGain"] = dp.auxGain;
     params["termination"] = DAQ::TermConfigToString(dp.aiTerm);
+	params["channelMapping"] = dp.chanMap.toString();
+	
     if (dp.usePD) {
         params["pdChan"] = dp.pdChan;
         params["pdThresh"] = dp.pdThresh;
@@ -256,7 +261,97 @@ bool DataFile::openForRead(const QString & file_in)
 	nChans = params["nChans"].toUInt();
 	sRate = params["sRateHz"].toDouble();
 	scanCt = (fsize / (qint64)sizeof(int16)) / static_cast<qint64>(nChans);
+	rangeMinMax.first = params["rangeMin"].toDouble();
+	rangeMinMax.second = params["rangeMax"].toDouble();
+	// remember channel ids
+	bool parseError = true;
+	if (params.contains("saveChannelSubset"))  {
+		QString s = params["saveChannelSubset"].toString();
+		ConfigureDialogController::parseAIChanString(s, chanIds, &parseError, false);
+	}
+	if (parseError) {
+		chanIds.resize(nChans);
+		for (int i = 0; i < (int)nChans; ++i) chanIds[i] = i;
+	}	
+	
 	Debug() << "Opened " << QFileInfo(file).fileName() << " " << nChans << " chans @" << sRate << " Hz, " << scanCt << " scans total.";
 	mode = Input;
 	return true;
+}
+
+i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, const QBitArray & channelSubset, unsigned downSampleFactor)
+{
+	if (pos > scanCt) return -1;
+	if (num2read + pos > scanCt) num2read = scanCt - pos;
+	QBitArray chset = channelSubset;
+	if (chset.size() != (i64)nChans) chset.fill(true, nChans);
+	if (downSampleFactor <= 0) downSampleFactor = 1;
+	unsigned nChansOn = chset.count(true);
+	scans_out.resize(((num2read / downSampleFactor)+1) * nChansOn);
+	
+	u64 cur = pos;
+	i64 nout = 0;
+	while (cur < pos + num2read) {
+		std::vector<int16> buf(nChans);
+		if (!dataFile.seek(cur * sizeof(int16) * nChans)) {
+			Error() << "Error seeking in dataFile::readScans()!";
+			scans_out.clear();
+			return -1;
+		}		
+		qint64 nr = dataFile.read(reinterpret_cast<char *>(&buf[0]), sizeof(int16) * nChans);
+		if (nr != sizeof(int16) * nChans) {
+			Error() << "Short read in dataFile::readScans()!";
+			scans_out.clear();
+			return -1;
+		}
+		if (nChansOn == nChans) {
+			// all chans on, just put the samples in the output vector
+			std::memcpy(&scans_out[nout * nChans], &buf[0], sizeof(int16) * nChans);
+		} else {
+			// not all chans on, put subset 1 by 1 in the output vector
+			i64 i_out = nout*nChansOn;
+			const int n = chset.size();
+			for (int i = 0; i < n; ++i)
+				if (chset[i]) 
+					scans_out[i_out++] = buf[i];
+		}
+		++nout;
+		cur += downSampleFactor;
+	}
+	
+	return nout;
+}
+
+double DataFile::auxGain() const 
+{
+	if (params.contains("auxGain")) {
+		bool ok = false;
+		double r = params["auxGain"].toDouble(&ok);
+		if (ok) return r;
+	}
+	return 1.0;
+}
+
+DAQ::Mode DataFile::daqMode() const 
+{
+	if (params.contains("acqMode")) {
+		const QString m(params["acqMode"].toString());
+		return DAQ::StringToMode(m);
+	}
+	return DAQ::AIRegular;
+}
+
+ChanMap DataFile::chanMap() const 
+{
+	ChanMap chanMap;
+	if (params.contains("channelMapping")) {
+		chanMap = ChanMap::fromString(params["channelMapping"].toString());
+	}
+	if (!chanMap.size()) {
+		// saved file lacks a chan map -- sneakily pull it from the "current" chan map settings
+		ChanMappingController ctl;
+		ctl.loadSettings();
+		chanMap = ctl.mappingForAll();
+	}
+	return chanMap;
 }

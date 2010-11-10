@@ -1,5 +1,6 @@
 #include <QString>
 #include <QFile>
+#include <QPair>
 #include "TypeDefs.h"
 #include "Params.h"
 #ifndef DataFile_H
@@ -7,6 +8,7 @@
 
 #include "sha1.h"
 #include "DAQ.h"
+#include "ChanMap.h"
 
 class DataFile
 {
@@ -45,12 +47,29 @@ public:
         Must be vector of length a multiple of  numChans() otherwise it will 
 	    fail unconditionally */
     bool writeScans(const std::vector<int16> & scan);
+	
+	/** Read scans from the file.  File must have been opened for read
+	    using openForRead().  Returns number of scans actually read or -1 on failure.  
+		NB: Note that return value is normally num2read / downSampleFactor. 
+	    NB 2: Short reads are supported -- that is, if pos + num2read is past 
+	    the end of file, the number of scans available is read instead.  
+	    The return value will reflect this.	 */
+	i64 readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, const QBitArray & channelSubset = QBitArray(), unsigned downSampleFactor = 1);
+	
 
     u64 sampleCount() const { return scanCt*(u64)nChans; }
     u64 scanCount() const { return scanCt; }
     unsigned numChans() const { return nChans; }
     double samplingRateHz() const { return sRate; }
 	double fileTimeSecs() const { return double(scanCt) / double(sRate); }
+	double rangeMin() const { return rangeMinMax.first; }
+	double rangeMax() const { return rangeMinMax.second; }
+	/// from meta file: based on the channel subset used for this data file, returns a list of the channel id's for all the channels in the data file
+	const QVector<unsigned> & channelIDs() const { return chanIds; }
+	/// aux gain value from .meta file or 1.0 if "auxGain" field not found in meta file
+	double auxGain() const;
+	DAQ::Mode daqMode() const;
+	ChanMap chanMap() const;
 
     /// the average speed in bytes/sec for writes
     double writeSpeedBytesSec() const { return writeRateAvg; }
@@ -71,8 +90,9 @@ private:
     unsigned nChans;
     double sRate;
 	
-	/// member var used for Input mode
-	
+	/// member vars used for Input mode
+	QPair<double,double> rangeMinMax;
+	QVector<unsigned> chanIds;
 	
 	/// member vars used for Output mode only
     SHA1 sha;

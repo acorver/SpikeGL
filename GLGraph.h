@@ -50,7 +50,11 @@ public:
     bool needsUpdateGL() const { return need_update; }
 
 signals:    
-    // for all the below: x is a time value, y is a graph Y-pos in range [-1,1]
+	/// like cursorOver(), except emitted x,y units are in window coordinates, not graph coordinates
+	void cursorOverWindowCoords(int x, int y);
+	/// like clicked(), except emitted x,y units are in window coordinates
+	void clickedWindowCoords(int x, int y);
+    /// for all the below: x is a time value, y is a graph Y-pos in range [-1,1]
     void cursorOver(double x, double y); 
     void clicked(double x, double y);
     void doubleClicked(double x, double y);

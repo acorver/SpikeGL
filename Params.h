@@ -47,6 +47,7 @@ public:
     bool fromFile(const QString & fileName);
     /// Writes the entire contents of the dictionary to a big string, which then gets saved to fileName
     bool toFile(const QString & fileName) const;
+	
 };
 
 #endif
