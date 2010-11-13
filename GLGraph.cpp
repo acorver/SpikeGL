@@ -20,6 +20,8 @@ void GLGraph::reset(QWidget *prnt, QMutex *mut)
     bg_Color = QColor(0x2f, 0x4f, 0x4f);
     graph_Color = QColor(0xee, 0xdd, 0x82);
     grid_Color = QColor(0x87, 0xce, 0xfa, 0x7f);
+	hasSelection = false;
+	selectionBegin = selectionEnd = 0.;
     min_x = 0., max_x = 1.; 
     gridLineStipplePattern = 0xf0f0; // 4pix on 4 off 4 on 4 off
     auto_update = true;
@@ -54,6 +56,7 @@ void GLGraph::initializeGL()
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glDisable(GL_TEXTURE_2D);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     //glEnable(GL_LINE_SMOOTH);
     //glEnable(GL_POINT_SMOOTH);
 }
@@ -92,6 +95,8 @@ void GLGraph::paintGL()
 
     if (ptsMut) ptsMut->unlock();
 
+	drawSelection();
+	
     glDisableClientState(GL_VERTEX_ARRAY);
 
     need_update = false;
@@ -176,6 +181,31 @@ void GLGraph::drawPoints() const
     glLineWidth(savedWidth);
 }
 
+void GLGraph::drawSelection() const
+{
+	if (!isSelectionVisible()) return;
+	int saved_polygonmode[2];
+	// invert selection..
+	glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ZERO);
+
+	glGetIntegerv(GL_POLYGON_MODE, saved_polygonmode);		   
+	glColor4f(.5, .5, .5, .5);
+	glPolygonMode(GL_FRONT, GL_FILL); // make suroe to fill the polygon;	
+	const double vertices[] = {
+		selectionBegin,  -1.,
+		selectionEnd,    -1.,
+		selectionEnd,     1.,
+		selectionBegin,   1.
+	};
+	
+	glVertexPointer(2, GL_DOUBLE, 0, vertices);
+	glDrawArrays(GL_QUADS, 0, 4);	
+	
+	// restore saved OpenGL state
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glPolygonMode(GL_FRONT, saved_polygonmode[0]);
+}
+
 void GLGraph::setNumHGridLines(unsigned n)
 {
     nHGridLines = n;
@@ -235,13 +265,23 @@ void GLGraph::mouseMoveEvent(QMouseEvent *evt)
 
 void GLGraph::mousePressEvent(QMouseEvent *evt)
 {
+	if (!(evt->buttons() & Qt::LeftButton)) return;
 	emit(clickedWindowCoords(evt->x(), evt->y()));
     Vec2 v(pos2Vec(evt->pos()));
     emit(clicked(v.x,v.y));
 }
 
+void GLGraph::mouseReleaseEvent(QMouseEvent *evt)
+{
+	if (evt->buttons() & Qt::LeftButton) return;
+	emit(clickReleasedWindowCoords(evt->x(), evt->y()));
+    Vec2 v(pos2Vec(evt->pos()));
+    emit(clickReleased(v.x,v.y));
+}
+
 void GLGraph::mouseDoubleClickEvent(QMouseEvent *evt)
 {
+	if (!(evt->buttons() & Qt::LeftButton)) return;
     Vec2 v(pos2Vec(evt->pos()));
     emit(doubleClicked(v.x,v.y));
 }
@@ -255,4 +295,24 @@ Vec2 GLGraph::pos2Vec(const QPoint & pos)
     ret.y = (double(y)/height()*2.-1.)/yscale;
     ret.x = (ret.x * (maxx()-minx()))+minx();
     return ret;
+}
+
+
+void GLGraph::setSelectionRange(double begin_x, double end_x)
+{
+	if (begin_x > end_x) 
+		selectionBegin = end_x, selectionEnd = begin_x;
+	else
+		selectionBegin = begin_x, selectionEnd = end_x;
+}
+
+void GLGraph::setSelectionEnabled(bool onoff)
+{
+	hasSelection = onoff;
+}
+
+
+bool GLGraph::isSelectionVisible() const
+{
+	return hasSelection && selectionEnd >= min_x && selectionBegin <= max_x;	
 }

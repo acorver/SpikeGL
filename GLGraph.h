@@ -48,16 +48,23 @@ public:
     void setAutoUpdate(bool b) { auto_update = b; }
 
     bool needsUpdateGL() const { return need_update; }
+	
+	void setSelectionRange(double begin_x, double end_x);
+	void setSelectionEnabled(bool onoff);
+	bool isSelectionEnabled() const { return hasSelection; }
+	bool isSelectionVisible() const;
 
 signals:    
 	/// like cursorOver(), except emitted x,y units are in window coordinates, not graph coordinates
 	void cursorOverWindowCoords(int x, int y);
 	/// like clicked(), except emitted x,y units are in window coordinates
 	void clickedWindowCoords(int x, int y);
+	void clickReleasedWindowCoords(int x, int y);
     /// for all the below: x is a time value, y is a graph Y-pos in range [-1,1]
-    void cursorOver(double x, double y); 
-    void clicked(double x, double y);
-    void doubleClicked(double x, double y);
+    void cursorOver(double x, double y);
+    void clicked(double x, double y); ///< this only emitted on Left mouse button clicks
+    void clickReleased(double x, double y); ///< this only emitted on Right mouse button clicks
+    void doubleClicked(double x, double y); ///< this only emitted on Left dbl-click
 
 protected:
     void initializeGL();
@@ -67,11 +74,13 @@ protected:
     Vec2 pos2Vec(const QPoint & pos);
     void mouseMoveEvent(QMouseEvent *evt);
     void mousePressEvent(QMouseEvent *evt);
+    void mouseReleaseEvent(QMouseEvent *evt);
     void mouseDoubleClickEvent(QMouseEvent *evt);
 
 private:
     void drawGrid() const;
     void drawPoints() const;
+	void drawSelection() const;
 
     QMutex *ptsMut;
     QColor bg_Color, graph_Color, grid_Color;
@@ -83,6 +92,8 @@ private:
     std::vector<Vec2> gridVs, gridHs;
     bool auto_update, need_update;
     QVariant tagData;
+	double selectionBegin, selectionEnd;
+	bool hasSelection;
 };
 
 #endif

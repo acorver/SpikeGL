@@ -24,6 +24,9 @@ class QLabel;
 class QToolBar;
 class QPushButton;
 class QTimer;
+class QMenu;
+class QAction;
+class ExportDialogController;
 
 /// The class that handles the window you get when opening files.
 class FileViewerWindow : public QMainWindow
@@ -57,18 +60,21 @@ private slots:
 	void mouseOverGraph(double,double);
 	void mouseOverGraphInWindowCoords(int,int);
 	void clickedGraphInWindowCoords(int,int);
+	void doubleClickedGraph(); // maximize/minimize
 	void showAllGraphs();
 	void hideUnhideGraphSlot();
 	void hideCloseTimeout();
 	void viewModeMenuSlot();
 	void resizeIt();
-	void updateIt();
+	void updateData();
+	void mouseClickSlot(double,double);
+	void mouseReleaseSlot(double,double);
+	void exportSlot();
 	
 private:
 	void loadSettings();
 	void saveSettings();
 	void layoutGraphs();
-	void updateData();
 	double timeFromPos(qint64 p) const;
 	qint64 posFromTime(double) const;
 	void configureMiscControls();
@@ -78,6 +84,8 @@ private:
 	void hideGraph(int n);
 	void showGraph(int n);
 	void mouseOverGraphInWindowCoords(GLGraph *, int,int);
+	void setFilePos64(qint64 pos, bool noupdate = false);
+	void printStatusMessage();
 	
 	enum ViewMode { Tiled = 0, Stacked, StackedLarge, StackedHuge, N_ViewMode } viewMode;
 	static const QString viewModeNames[];
@@ -115,10 +123,19 @@ private:
 	unsigned nDivs;
 	int maximizedGraph; ///< if non-negative, we are maximized on a particular graph
 	
-	qint64 pos, // in scan counts
-	       pscale; // scaling factor for the QSlider since it uses 32-bit values and file pos can theoretically be 64-bit
+	qint64 pos, ///< in scan counts
+	       pscale; ///< scaling factor for the QSlider since it uses 32-bit values and file pos can theoretically be 64-bit
+	qint64 selectionBegin, selectionEnd; ///< selection position (in scans) and number of scans.  if begin is negative, no selection
+	qint64 saved_selectionBegin, saved_selectionEnd;
 	ChanMap chanMap;
 	QBitArray hiddenGraphs;
+	double mouseOverT, mouseOverV;
+	int mouseOverGNum;
+	
+	bool mouseButtonIsDown;
+	
+	QAction *exportAction, *exportSelectionAction;
+	ExportDialogController *exportCtl;
 };
 
 
