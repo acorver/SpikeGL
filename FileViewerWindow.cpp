@@ -12,6 +12,7 @@
 #include "MainApp.h"
 #include "ConsoleWindow.h"
 #include <QFileInfo>
+#include <QFile>
 #include <QScrollArea>
 #include <limits.h>
 #include <QVBoxLayout>
@@ -32,6 +33,9 @@
 #include <QAction>
 #include <QMenu>
 #include "ExportDialogController.h"
+#include <QProgressDialog>
+#include <QTextStream>
+#include <QMessageBox>
 
 const QString FileViewerWindow::viewModeNames[] = {
 	"Tiled", "Stacked", "Stacked Large", "Stacked Huge"
@@ -42,7 +46,7 @@ const QString FileViewerWindow::colorSchemeNames[] = {
 };
 
 FileViewerWindow::FileViewerWindow()
-: QMainWindow(0), pscale(1), mouseOverT(-1.), mouseOverV(0), mouseOverGNum(-1), mouseButtonIsDown(false)
+: QMainWindow(0), pscale(1), mouseOverT(-1.), mouseOverV(0), mouseOverGNum(-1), mouseButtonIsDown(false), dontKillSelection(false)
 {	
 	QWidget *cw = new QWidget(this);
 	QVBoxLayout *l = new QVBoxLayout(cw);
@@ -271,8 +275,17 @@ void FileViewerWindow::loadSettings()
 	nSecsZoom = settings.value("nSecsZoom", 4.0).toDouble();
 	yZoom = settings.value("yZoom", 1.0).toDouble();
 	nDivs = settings.value("nDivs", 4).toUInt();
-	int cs = settings.value("colorScheme", DefaultScheme).toInt();
+	int cs = settings.value("colorScheme", DefaultScheme).toInt();	
 	if (cs < 0 || cs >= N_ColorScheme) cs = 0;
+	int fmt = settings.value("lastExportFormat", ExportParams::Bin).toInt();
+	if (fmt < 0 || fmt >= ExportParams::N_Format) fmt = ExportParams::Bin;
+	exportCtl->params.format = (ExportParams::Format)fmt;
+	int lec = settings.value("lastExportChans", 1).toInt();
+	if (lec < 0 || lec > 2) lec = 1;
+	exportCtl->params.allChans = exportCtl->params.allShown = exportCtl->params.customSubset = false;
+	if (lec == 0) exportCtl->params.allChans = true;
+	else if (lec == 1) exportCtl->params.allShown = true;
+	else if (lec == 2) exportCtl->params.customSubset = true;
 	colorScheme = (ColorScheme)cs;
 	xScaleSB->blockSignals(true);
 	yScaleSB->blockSignals(true);
@@ -292,6 +305,11 @@ void FileViewerWindow::saveSettings()
     settings.beginGroup("FileViewerWindow");
     settings.setValue("viewMode", (int)viewMode);	
 	settings.setValue("colorScheme", (int)colorScheme);
+	settings.setValue("lastExportFormat", int(exportCtl->params.format));
+	int lec = 0;
+	if (exportCtl->params.allShown) lec = 1;
+	if (exportCtl->params.customSubset) lec = 2;
+	settings.setValue("lastExportChans", lec);
 }
 
 void FileViewerWindow::layoutGraphs()
@@ -407,9 +425,11 @@ void FileViewerWindow::updateData()
 				graphBufs[i].reserve(nread);
 		}
 
+		const double smin(SHRT_MIN), usmax(USHRT_MAX);
 		for (int i = 0; i < nread; ++i) {
 			for (int j = 0; j < nChansOn; ++j) {
-				Vec2 vec(double(i)/double(nread), double(data[i * nChansOn + j])/double(SHRT_MAX));
+				double sampl = ( ((double(data[i * nChansOn + j]) + (-smin))/(usmax)) * (2.0) ) - 1.0;
+				Vec2 vec(double(i)/double(nread), sampl);
 				graphBufs[chanIdsOn[j]].putData(&vec, 1);
 			}
 		}
@@ -682,11 +702,22 @@ void FileViewerWindow::printStatusMessage()
     if (dataFile.daqMode() == DAQ::AIRegular) {
         chStr.sprintf("AI%d", chanId);
     } else { // MUX mode
-		if (num < chanMap.size()) {
+		int first_non_mux_id;
+		switch (dataFile.daqMode()) {
+			case DAQ::AI120Demux: first_non_mux_id = 120; break;
+			case DAQ::JFRCIntan32: first_non_mux_id = 32; break;
+			case DAQ::AI60Demux: 
+			default:
+				first_non_mux_id = 60; break;
+		}
+		if (num < chanMap.size() && chanId < first_non_mux_id) {
 			const ChanMapDesc & desc = chanMap[chanId];
             chStr.sprintf("%d ChanID %d  [I%u_C%u pch: %u ech:%u]", num, chanId, desc.intan,desc.intanCh,desc.pch,desc.ech);        
 		} else {
-			chStr.sprintf("%d ChanID %d", num, chanId);
+			if (chanId == dataFile.pdChanID())
+				chStr.sprintf("%d ChanID %d (PD)", num, chanId);
+			else
+				chStr.sprintf("%d ChanID %d (AUX)", num, chanId);
 		}
     }
 	
@@ -752,6 +783,7 @@ void FileViewerWindow::clickedGraphInWindowCoords(int x, int y)
 	const QSize sz = closeLbl->size();
 	if (!g) return;
 	if (x > g->width()-sz.width()  && y < sz.height() ) {
+		dontKillSelection = true;
 		int num = g->tag().toInt();
 		hideGraph(num);
 		// make sure close label is still visible on the next graph that took this one's place..
@@ -873,6 +905,7 @@ void FileViewerWindow::mouseReleaseSlot(double x, double y)
 
 void FileViewerWindow::mouseClickSlot(double x, double y)
 {	
+	if (dontKillSelection) { dontKillSelection = false; return; }
 	(void)x,(void)y;
 	saved_selectionBegin = selectionBegin;
 	saved_selectionEnd = selectionEnd;
@@ -888,12 +921,120 @@ void FileViewerWindow::exportSlot()
 	QAction *a = dynamic_cast<QAction *>(sender());
 	if (!a) return;
 	
-	// XXX FIXME HACK
-	exportCtl->exec();
+	loadSettings();
 	
-	if (a == exportAction) {
-		
-	} else if (a == exportSelectionAction) {
-		
+	ExportParams & p(exportCtl->params);
+	p.nScans = dataFile.scanCount();
+	p.nChans = dataFile.numChans();
+	p.chansNotHidden = ~hiddenGraphs;
+	p.selectionFrom = selectionBegin;
+	p.selectionTo = selectionEnd;
+	QFileInfo fi(dataFile.fileName());
+	
+	p.filename = fi.absoluteDir().canonicalPath() + "/" + fi.completeBaseName() + "_exported" + (p.format == ExportParams::Bin ? ".bin" : ".csv");
+	
+	if (a == exportSelectionAction || p.from || p.to) {
+		p.allScans = false;
+		p.from = p.to = 0;
+	} else 
+		p.allScans = true;
+
+	if (!p.chanSubset.count(true)) {
+		p.chanSubset.fill(false, p.nChans);
+		p.chanSubset.setBit(mouseOverGNum, true);		
 	}
+	if (!p.allChans && !p.allShown && !p.customSubset) 
+		p.customSubset = true;			
+	
+	ExportParams p_backup = p;
+	if (exportCtl->exec()) {
+		saveSettings();
+		doExport(p);
+	} else
+		p = p_backup; // don't accept params
+	
+}
+
+void FileViewerWindow::doExport(const ExportParams & p)
+{
+	qint64 nscans = (p.to - p.from) + 1;
+
+	QProgressDialog progress(QString("Exporting ") + QString::number(nscans) + " scans...", "Abort Export", 0, 100, this);
+	progress.setWindowModality(Qt::WindowModal);
+	progress.setMinimumDuration(0);
+	
+
+	if (p.format == ExportParams::Bin) {
+	
+		DataFile out;
+		QVector<unsigned> chanNumSubset;
+		for (int i = 0; i < (int)p.chanSubset.size(); ++i) if (p.chanSubset.testBit(i)) chanNumSubset.push_back(i);
+		if (!out.openForReWrite(dataFile, p.filename, chanNumSubset)) {
+			Error() << "Could not open export file for write.";
+			return;
+		}
+		
+		// override the auxGain parameter from the input file with out custom gain setting
+		out.setParam("auxGain", auxGain);
+		
+		int prevVal = -1;
+		std::vector<int16> scan;
+		scan.resize(chanNumSubset.size());
+		
+		for (qint64 i = 0; i < nscans; ++i) {
+			
+			dataFile.readScans(scan, p.from+i, 1, p.chanSubset);
+			out.writeScans(scan);
+			int val = int((i*100LL)/nscans);
+			if (val > prevVal) progress.setValue(prevVal = val);		
+			if (progress.wasCanceled()) {
+				QString f = out.fileName(), m = out.metaFileName();
+				out.closeAndFinalize();
+				QFile::remove(f);
+				QFile::remove(m);
+				return;
+			}
+		}
+		out.closeAndFinalize();
+		progress.setValue(100);
+			
+	} else if (p.format == ExportParams::Csv) {
+		
+		QFile out(p.filename);
+		if (!out.open(QIODevice::WriteOnly|QIODevice::Truncate)) {			
+			Error() << "Could not open export file for write.";
+			return;
+		}
+
+		QTextStream outs(&out);
+		
+		int prevVal = -1;
+		std::vector<int16> scan;
+		const int scansz = p.chanSubset.count(true);
+		scan.resize(scansz);
+		
+		for (qint64 i = 0; i < nscans; ++i) {
+			
+			dataFile.readScans(scan, p.from+i, 1, p.chanSubset);
+			const double minR = dataFile.rangeMin(), maxR = dataFile.rangeMax();
+			const double smin = double(SHRT_MIN), usmax = double(USHRT_MAX);
+			for (int j = 0; j < scansz; ++j) {
+				double sampl = ( ((double(scan[j]) + (-smin))/(usmax)) * (maxR-minR) ) + minR;
+				sampl /= auxGain;
+				outs << sampl << ( j+1 < scansz ? "," : "");
+			}
+			outs << "\n";
+			int val = int((i*100LL)/nscans);
+			if (val > prevVal) progress.setValue(prevVal = val);		
+			if (progress.wasCanceled()) {
+				out.close();
+				out.remove();
+				return;
+			}
+		}
+		
+		progress.setValue(100);				
+	}
+	
+	QMessageBox::information(this, "Export Complete", "Export completed successfully.");	
 }

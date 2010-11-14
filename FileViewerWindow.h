@@ -27,6 +27,7 @@ class QTimer;
 class QMenu;
 class QAction;
 class ExportDialogController;
+struct ExportParams;
 
 /// The class that handles the window you get when opening files.
 class FileViewerWindow : public QMainWindow
@@ -86,6 +87,7 @@ private:
 	void mouseOverGraphInWindowCoords(GLGraph *, int,int);
 	void setFilePos64(qint64 pos, bool noupdate = false);
 	void printStatusMessage();
+	void doExport(const ExportParams &);
 	
 	enum ViewMode { Tiled = 0, Stacked, StackedLarge, StackedHuge, N_ViewMode } viewMode;
 	static const QString viewModeNames[];
@@ -132,7 +134,7 @@ private:
 	double mouseOverT, mouseOverV;
 	int mouseOverGNum;
 	
-	bool mouseButtonIsDown;
+	bool mouseButtonIsDown, dontKillSelection;
 	
 	QAction *exportAction, *exportSelectionAction;
 	ExportDialogController *exportCtl;

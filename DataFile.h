@@ -23,6 +23,13 @@ public:
 	static bool isValidInputFile(const QString & filename, QString * error = 0);
 	
     bool openForWrite(const DAQ::Params & params, const QString & filename_override = "");
+	
+	/** Normally you won't use this method.  This is used by the FileViewerWindow export code to reopen a new file for output
+	    based on a previous input file.  It computers the channel subset and other parameters correctly from the input file.
+	    The passed-in chanNumSubset is a subset of channel indices (not chan id's!) to use in the export.  So if the 
+	    channel id's you are reading in are 0,1,2,3,6,7,8 and you want to export the last 3 of these using openForRewrite, you would 
+	    pass in [4,5,6] (not [6,7,8]) as the chanNumSubset. */
+	bool openForReWrite(const DataFile & other, const QString & filename, const QVector<unsigned> & chanNumSubset);
 
 	/** Returns true if binFileName was successfully opened, false otherwise. If 
 	    opened, puts this instance into Input mode. */
@@ -66,6 +73,7 @@ public:
 	double rangeMax() const { return rangeMinMax.second; }
 	/// from meta file: based on the channel subset used for this data file, returns a list of the channel id's for all the channels in the data file
 	const QVector<unsigned> & channelIDs() const { return chanIds; }
+	int pdChanID() const { return pd_chanId; } ///< returns negative value if not using pd channel
 	/// aux gain value from .meta file or 1.0 if "auxGain" field not found in meta file
 	double auxGain() const;
 	DAQ::Mode daqMode() const;
@@ -87,12 +95,13 @@ private:
     QFile dataFile, metaFile;
     Params params;
     u64 scanCt;
-    unsigned nChans;
+    int nChans;
     double sRate;
 	
 	/// member vars used for Input mode
 	QPair<double,double> rangeMinMax;
 	QVector<unsigned> chanIds;
+	int pd_chanId;
 	
 	/// member vars used for Output mode only
     SHA1 sha;

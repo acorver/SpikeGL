@@ -1721,7 +1721,7 @@ void MainApp::fileOpen()
 {
 	if (isAcquiring()) {
 		QMessageBox::StandardButtons ret = QMessageBox::warning(consoleWindow, "Acquisition Running", "An acquisition is currently running.  Opening a file now can impact performance cause the acquisition to fail.  It's recommended that you first stop the acquisition before proceeding.\n\nContinue anyway?",  QMessageBox::No|QMessageBox::Yes, QMessageBox::No);
-		if (ret == QMessageBox::Cancel) return;		
+		if (ret == QMessageBox::Cancel || ret == QMessageBox::No) return;		
 	}
 	QString filters[] = { "SpikeGL Data (*.bin)", "All Files (* *.*)" };
 	noHotKeys = true;

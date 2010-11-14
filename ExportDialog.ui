@@ -121,7 +121,7 @@
     <bool>false</bool>
    </property>
   </widget>
-  <widget class="QLineEdit" name="lineEdit">
+  <widget class="QLineEdit" name="exportChansLE">
    <property name="geometry">
     <rect>
      <x>60</x>
@@ -154,7 +154,7 @@
     </rect>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton">
+  <widget class="QPushButton" name="browseBut">
    <property name="geometry">
     <rect>
      <x>520</x>

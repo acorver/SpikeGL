@@ -206,27 +206,12 @@ namespace DAQ
         static int computeTaskReadFreq(double srate);
         
     };
-#ifdef HAVE_NIDAQmx
-    class AOWriteThread : public QThread, public SampleBufQ {
-        Q_OBJECT
-    public:
-        AOWriteThread(QObject * parent, 
-                      TaskHandle & taskHandle,
-                      int32 aoBufferSize,
-                      const Params & params);
-        ~AOWriteThread();
-        void stop();
-    signals:
-        void daqError(const QString &);
-    protected:
-        void run();
-    private:
-        volatile bool pleaseStop;
-        TaskHandle & taskHandle;
-        int32 aoBufferSize;
-        const Params & params;
-    };
-#endif
 
+#ifdef HAVE_NIDAQmx
+	struct DAQPvt {
+		static int32 everyNSamples_func (TaskHandle taskHandle, int32 everyNsamplesEventType, uint32 nSamples, void *callbackData); 
+	};
+#endif
+	
 }
 #endif

@@ -111,6 +111,58 @@ bool DataFile::writeScans(const std::vector<int16> & scans)
     return true;
 }
 
+bool DataFile::openForReWrite(const DataFile & other, const QString & filename, const QVector<unsigned> & chanNumSubset)
+{
+	if (!other.isOpenForRead()) {
+		Error() << "INTERNAL ERROR: First parameter to DataFile::openForReWrite() needs to be another DataFile that is opened for reading.";
+		return false;
+	}
+	if (isOpen()) closeAndFinalize();
+	
+	QString outputFile (filename);
+	if (!QFileInfo(outputFile).isAbsolute())
+        outputFile = mainApp()->outputDirectory() + "/" + outputFile; 
+    
+    Debug() << "outdir: " << mainApp()->outputDirectory() << " outfile: " << outputFile;
+    
+	dataFile.close();  metaFile.close();
+    dataFile.setFileName(outputFile);
+    metaFile.setFileName(metaFileForFileName(outputFile));
+	
+    if (!dataFile.open(QIODevice::WriteOnly|QIODevice::Truncate) ||
+        !metaFile.open(QIODevice::WriteOnly|QIODevice::Truncate)) {
+        Error() << "Failed to open either one or both of the data and meta files for " << outputFile;
+        return false;
+    }
+	
+	mode = Output;
+	const int nOnChans = chanNumSubset.size();
+	params = other.params;
+	params["outputFile"] = outputFile;
+	scanCt = 0;
+	nChans = nOnChans;
+	sha.Reset();
+	sRate = other.sRate;
+    writeRateAvg = 0.;
+    nWritesAvg = 0;
+    nWritesAvgMax = /*unsigned(sRate/10.)*/10;
+    if (!nWritesAvgMax) nWritesAvgMax = 1;
+	// compute save channel subset fudge
+	const QVector<unsigned> ocid = other.channelIDs();
+	chanIds.clear();
+	foreach (unsigned i, chanNumSubset) {
+		if (i < unsigned(ocid.size()))
+			chanIds.push_back(ocid[i]);
+		else 
+			Error() << "INTERNAL ERROR: The chanNumSubset passet to DataFile::openForRead must be a subset of channel numbers (indices, not IDs) to use in the rewrite.";
+	}
+	params["saveChannelSubset"] = ConfigureDialogController::generateAIChanString(chanIds);
+	params["nChans"] = nChans;
+	pd_chanId = other.pd_chanId;
+	
+	return true;
+}
+
 bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_override) 
 {
 	const int nOnChans = dp.demuxedBitMap.count(true);
@@ -264,6 +316,7 @@ bool DataFile::openForRead(const QString & file_in)
 	rangeMinMax.first = params["rangeMin"].toDouble();
 	rangeMinMax.second = params["rangeMax"].toDouble();
 	// remember channel ids
+	chanIds.clear();
 	bool parseError = true;
 	if (params.contains("saveChannelSubset"))  {
 		QString s = params["saveChannelSubset"].toString();
@@ -273,7 +326,13 @@ bool DataFile::openForRead(const QString & file_in)
 		chanIds.resize(nChans);
 		for (int i = 0; i < (int)nChans; ++i) chanIds[i] = i;
 	}	
-	
+	while (chanIds.size() < nChans) {
+		int i = chanIds.size() > 0 ? chanIds[chanIds.size()-1]+1 : 0;
+		chanIds.push_back(i);
+	}
+	pd_chanId = -1;
+	if (params.contains("pdChan")) pd_chanId = chanIds.size() ? chanIds[chanIds.size()-1] : -1;
+		
 	Debug() << "Opened " << QFileInfo(file).fileName() << " " << nChans << " chans @" << sRate << " Hz, " << scanCt << " scans total.";
 	mode = Input;
 	return true;
@@ -287,7 +346,14 @@ i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, c
 	if (chset.size() != (i64)nChans) chset.fill(true, nChans);
 	if (downSampleFactor <= 0) downSampleFactor = 1;
 	unsigned nChansOn = chset.count(true);
-	scans_out.resize(((num2read / downSampleFactor)+1) * nChansOn);
+	
+	int sizeofscans;
+	if ( (num2read / downSampleFactor) * downSampleFactor < num2read )
+		sizeofscans = ((num2read / downSampleFactor)+1) * nChansOn;
+	else
+		sizeofscans = ((num2read / downSampleFactor)) * nChansOn;
+	
+	scans_out.resize(sizeofscans);
 	
 	u64 cur = pos;
 	i64 nout = 0;
@@ -304,7 +370,7 @@ i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, c
 			scans_out.clear();
 			return -1;
 		}
-		if (nChansOn == nChans) {
+		if (int(nChansOn) == nChans) {
 			// all chans on, just put the samples in the output vector
 			std::memcpy(&scans_out[nout * nChans], &buf[0], sizeof(int16) * nChans);
 		} else {

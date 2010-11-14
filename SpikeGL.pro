@@ -22,8 +22,10 @@ RESOURCES += qled.qrc
 win32 {
         LIBS += NI/NIDAQmx.lib WS2_32.lib
         DEFINES += HAVE_NIDAQmx _CRT_SECURE_NO_WARNINGS
-	RESOURCES += Resources.qrc
+		RESOURCES += Resources.qrc
         RC_FILE += WinResources.rc
+		HEADERS += AOWriteThread.h
+		SOURCES += AOWriteThread.cpp
 }
 
 unix {

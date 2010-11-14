@@ -2,6 +2,7 @@
 #include "DAQ.h"
 #ifdef HAVE_NIDAQmx
 #  include "NI/NIDAQmx.h"
+#  include "AOWriteThread.h"
 #else
 #  define FAKEDAQ
 #ifndef Q_OS_WIN
@@ -284,41 +285,6 @@ namespace DAQ
         memcpy(begin, tmparr, narr*sizeof(int16));
     }
     
-#define DEFAULT_DEV "Dev1"
-#define DEFAULT_DO 0
-
-#ifndef FAKEDAQ
-
-    struct DAQPvt {
-        static int32 everyNSamples_func (TaskHandle taskHandle, int32 everyNsamplesEventType, uint32 nSamples, void *callbackData); 
-    };
-
-    AOWriteThread::AOWriteThread(QObject *parent, 
-                                 TaskHandle & taskHandle,
-                                 int32 aoBufferSize,
-                                 const Params & params)
-        : QThread(parent), taskHandle(taskHandle), aoBufferSize(aoBufferSize), params(params)
-    {
-        pleaseStop = false;
-    }
-
-    AOWriteThread::~AOWriteThread()
-    {
-        stop();
-    }
-
-    void AOWriteThread::stop() 
-    {
-        if (isRunning()) {
-            pleaseStop = true;
-            std::vector<int16> empty;
-            enqueueBuffer(empty, 0); // forces a wake-up
-            wait(); // wait for thread to join
-        }
-    }
-
-#endif
-
     Task::Task(const Params & acqParams, QObject *p) 
         : QThread(p), pleaseStop(false), params(acqParams), 
           fast_settle(0), muxMode(false), totalRead(0LL)
