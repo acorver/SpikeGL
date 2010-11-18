@@ -36,6 +36,10 @@
 #include <QProgressDialog>
 #include <QTextStream>
 #include <QMessageBox>
+#include <QFrame>
+#include <QCheckBox>
+#include <QPushButton>
+#include "HPFilter.h"
 
 const QString FileViewerWindow::viewModeNames[] = {
 	"Tiled", "Stacked", "Stacked Large", "Stacked Huge"
@@ -88,8 +92,14 @@ FileViewerWindow::FileViewerWindow()
 	Connect(posSecsSB, SIGNAL(valueChanged(double)), this, SLOT(setFilePosSecs(double)));
 	
 	toolBar = addToolBar("Graph Controls");
+	lbl = new QLabel("Graph:", toolBar);
+	toolBar->addWidget(lbl);
+	lbl = graphNameLbl = new QLabel("<font size=-1>0 Ch. 0</font>", toolBar);
+	toolBar->addWidget(lbl);
+	toolBar->addSeparator();
+
 	lbl = new QLabel("<font size=-1>X-Scale (secs):</font>", toolBar);
-    toolBar->addWidget(lbl);
+    toolBar->addWidget(lbl);	
     xScaleSB = new QDoubleSpinBox(toolBar);
     xScaleSB->setDecimals(3);
     xScaleSB->setRange(.0001, 1e6);
@@ -123,6 +133,20 @@ FileViewerWindow::FileViewerWindow()
 	auxGainSB->setDecimals(3);
 	auxGainSB->setRange(0.001,1e6);
 	Connect(auxGainSB, SIGNAL(valueChanged(double)), this, SLOT(setAuxGain(double)));
+
+	toolBar->addSeparator();
+    highPassChk = new QCheckBox(toolBar);
+	lbl = new QLabel("<font size=-1>Filter &lt; 300Hz</font>", toolBar);
+    toolBar->addWidget(highPassChk);
+	toolBar->addWidget(lbl);
+    Connect(highPassChk, SIGNAL(clicked(bool)), this, SLOT(hpfChk(bool)));
+
+	toolBar->addSeparator();
+	QPushButton *but = new QPushButton("Set All", toolBar);
+	but->setToolTip("Apply these graph settings to all graphs");
+	toolBar->addWidget(but);
+	Connect(but, SIGNAL(clicked(bool)), this, SLOT(applyAllSlot()));
+	
 	
 	l->addWidget(w);
 	
@@ -211,11 +235,22 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 				   );
 	
 	loadSettings();
-			
+				
 	graphs.resize(dataFile.numChans());	
+	graphFrames.resize(graphs.size());
 	graphHideUnhideActions.resize(graphs.size());
+	graphParams.clear(); graphParams.resize(graphs.size());
+	defaultGain = dataFile.auxGain();
 	for (int i = 0, n = graphs.size(); i < n; ++i) {
-		graphs[i] = new GLGraph(graphParent);
+		QFrame *f = graphFrames[i] = new QFrame(graphParent);
+		f->setLineWidth(0);
+		f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain); // only enable frame when it's selected!
+		QVBoxLayout *vbl = new QVBoxLayout(f);
+		f->setLayout(vbl);
+		graphs[i] = new GLGraph(f);
+		vbl->addWidget(graphs[i],1);
+		vbl->setSpacing(0);
+		vbl->setContentsMargins(0,0,0,0);		
 		graphs[i]->setAutoUpdate(false);
 		graphs[i]->setMouseTracking(true);
 		graphs[i]->setObjectName(QString("Graph ") + QString::number(i) + " ChanID " + QString::number(dataFile.channelIDs()[i]));
@@ -225,6 +260,9 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 		graphs[i]->addAction(exportAction);
 		graphs[i]->addAction(exportSelectionAction);
 		graphs[i]->setContextMenuPolicy(Qt::ActionsContextMenu);
+		graphParams[i].yZoom = defaultYZoom;
+		graphParams[i].gain = defaultGain;
+		graphParams[i].filter300Hz = true;
 		Connect(graphs[i], SIGNAL(cursorOver(double,double)), this, SLOT(mouseOverGraph(double,double)));
 		Connect(graphs[i], SIGNAL(cursorOverWindowCoords(int,int)), this, SLOT(mouseOverGraphInWindowCoords(int,int)));
 		Connect(graphs[i], SIGNAL(clickedWindowCoords(int,int)), this, SLOT(clickedGraphInWindowCoords(int,int)));
@@ -242,13 +280,13 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	graphBufs.resize(graphs.size());
 	hiddenGraphs.fill(false, graphs.size());
 
-	auxGain = dataFile.auxGain();
-	auxGainSB->blockSignals(true); 	auxGainSB->setValue(auxGain); auxGainSB->blockSignals(false);
 	chanMap = dataFile.chanMap();
 	maximizedGraph = -1;
 	selectionBegin = selectionEnd = -1;
-	mouseOverT = mouseOverV = mouseOverGNum = -1;
-	
+	selectedGraph = mouseOverT = mouseOverV = mouseOverGNum = -1;
+
+	selectGraph(0);
+
 	layoutGraphs();
 	
 	setFilePos64(0, true);
@@ -273,7 +311,7 @@ void FileViewerWindow::loadSettings()
     int vm = settings.value("viewMode", (int)Tiled).toInt();
 	if (vm >= 0 && vm < N_ViewMode) viewMode = (ViewMode)vm;
 	nSecsZoom = settings.value("nSecsZoom", 4.0).toDouble();
-	yZoom = settings.value("yZoom", 1.0).toDouble();
+	defaultYZoom = settings.value("yZoom", 1.0).toDouble();
 	nDivs = settings.value("nDivs", 4).toUInt();
 	int cs = settings.value("colorScheme", DefaultScheme).toInt();	
 	if (cs < 0 || cs >= N_ColorScheme) cs = 0;
@@ -291,7 +329,7 @@ void FileViewerWindow::loadSettings()
 	yScaleSB->blockSignals(true);
 	nDivsSB->blockSignals(true);
 	xScaleSB->setValue(nSecsZoom);
-	yScaleSB->setValue(yZoom);
+	yScaleSB->setValue(defaultYZoom);
 	nDivsSB->setValue(nDivs);
 	nDivsSB->blockSignals(false);
 	xScaleSB->blockSignals(false);
@@ -316,8 +354,8 @@ void FileViewerWindow::layoutGraphs()
 {	
 	didLayout = false;
 	closeLbl->hide();
-	static const int padding = 5;
-	const int n = graphs.size();
+	static const int padding = 2;
+	const int n = graphFrames.size();
 
 	if (graphParent->layout()) 
 		delete graphParent->layout();
@@ -329,19 +367,19 @@ void FileViewerWindow::layoutGraphs()
 		scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);	
 		// hide everything except for maximized graph
 		for (int i = 0; i < n; ++i)
-			graphs[i]->hide();
+			graphFrames[i]->hide();
 		const QSize sz = scrollArea->size();
 		graphParent->resize(sz.width(), sz.height());
-		graphs[maximizedGraph]->resize(sz.width(), sz.height());
-		graphs[maximizedGraph]->move(0, 0);		
-		graphs[maximizedGraph]->show();
+		graphFrames[maximizedGraph]->resize(sz.width(), sz.height());
+		graphFrames[maximizedGraph]->move(0, 0);		
+		graphFrames[maximizedGraph]->show();
 		
 	} else {
 		
 		// non-maximized more.. make sure non-hidden graphs are shown!
 		for (int i = 0; i < n; ++i)
 			if (!hiddenGraphs.testBit(i))
-				graphs[i]->show();
+				graphFrames[i]->show();
 		
 		if (viewMode == Tiled) {
 			updateGeometry();
@@ -354,7 +392,7 @@ void FileViewerWindow::layoutGraphs()
 			l->setVerticalSpacing(padding);
 			graphParent->setLayout(l);
 			updateGeometry();
-			const int ngraphs = graphs.size() - hiddenGraphs.count(true);
+			const int ngraphs = graphFrames.size() - hiddenGraphs.count(true);
 			int nrows = int(sqrtf(ngraphs)), ncols = nrows;
 			while (nrows*ncols < (int)ngraphs) {
 				if (nrows > ncols) ++ncols;
@@ -364,7 +402,7 @@ void FileViewerWindow::layoutGraphs()
 				for (int c = 0; c < ncols; ++num) {
 					if (num >= graphs.size()) { r=nrows,c=ncols; break; } // break out of loop
 					if (!hiddenGraphs.testBit(num)) {
-						l->addWidget(graphs[num], r, c);
+						l->addWidget(graphFrames[num], r, c);
 						if (++c >= ncols) ++r;
 					}
 				}
@@ -382,9 +420,9 @@ void FileViewerWindow::layoutGraphs()
 
 			for (int i = 0; i < n; ++i) {
 				if (!hiddenGraphs.testBit(i)) {
-					graphs[i]->resize(w, stk_h);
-					graphs[i]->move(0,y);
-					y += graphs[i]->height() + padding;
+					graphFrames[i]->resize(w, stk_h);
+					graphFrames[i]->move(0,y);
+					y += graphFrames[i]->height() + padding;
 				}
 			}
 			
@@ -403,11 +441,18 @@ void FileViewerWindow::updateData()
 	QBitArray channelSubset = ~hiddenGraphs;
 	const int nChans = graphs.size(), nChansOn = channelSubset.count(true);	
 	QVector<int> chanIdsOn(nChansOn);
-	for (int i = 0, j = 0; i < nChans; ++i)
-		if (channelSubset.testBit(i)) chanIdsOn[j++] = i;
+	QVector<HPFilter *> filters(nChansOn, 0);
+	int maxW = 1;
+	for (int i = 0, j = 0; i < nChans; ++i) {
+		if (channelSubset.testBit(i)) {
+			if (maxW < graphs[i]->width()) maxW = graphs[i]->width();
+			filters[j] = new HPFilter(1, 300);
+			chanIdsOn[j++] = i;
+		}
+	}
 	
     i64 num = nSecsZoom * srate;
-	int downsample = num / graphs[chanIdsOn[0]]->width();
+	int downsample = num / maxW;
 	downsample /= 2; // Make sure to 2x oversample the data in the graphs.  This, combined with the glBlend we enabled in our graphs should lead to sweetness in the graph detail.  
 	if (downsample <= 0) downsample = 1;
 	std::vector<int16> data;
@@ -426,18 +471,23 @@ void FileViewerWindow::updateData()
 		}
 
 		const double smin(SHRT_MIN), usmax(USHRT_MAX);
+	    const double dt = 1.0 / (srate / double(downsample));
 		for (int i = 0; i < nread; ++i) {
 			for (int j = 0; j < nChansOn; ++j) {
-				double sampl = ( ((double(data[i * nChansOn + j]) + (-smin))/(usmax)) * (2.0) ) - 1.0;
-				Vec2 vec(double(i)/double(nread), sampl);
-				graphBufs[chanIdsOn[j]].putData(&vec, 1);
+				const int chanId = chanIdsOn[j];
+				int16 & rawsampl = data[i * nChansOn + j];
+				if (graphParams[chanId].filter300Hz)
+					filters[j]->apply(&rawsampl, dt);
+			    const double sampl = ( ((double(rawsampl) + (-smin))/(usmax)) * (2.0) ) - 1.0;
+			    Vec2 vec(double(i)/double(nread), sampl);
+				graphBufs[chanId].putData(&vec, 1);
 			}
 		}
 		
 	}
 	
 	for (int i = 0; i < nChans; ++i) {
-		graphs[i]->setYScale(yZoom);
+		graphs[i]->setYScale(graphParams[i].yZoom);
 		graphs[i]->setNumHGridLines(nDivs);
 		graphs[i]->setNumVGridLines(nDivs);
 		applyColorScheme(graphs[i]);
@@ -465,7 +515,8 @@ void FileViewerWindow::updateData()
 	totScansLbl->setText(QString("<font size=-1 face=fixed> to ") + QString().sprintf(fmt.toLatin1(),qint64(pos + nScansPerGraph())) + "</font> <font face=fixed size=-2>(out of " + QString::number(dataFile.scanCount()-1) + ")</font>");
 	totSecsLbl->setText(QString("<font size=-1 face=fixed> to ") + QString::number(timeFromPos(pos + nScansPerGraph()), 'f', 3) + "</font> <font face=fixed size=-2>(out of " + QString::number(timeFromPos(dataFile.scanCount()-1), 'f', 3) + ")</font>");
 	xDivLbl->setText(QString("<font size=-1>Secs/Div: ") + (!nDivs ? "-" : QString::number(nSecsZoom / nDivs)) + "</font>");
-	QPair<double, double> yv = yVoltsAfterGain();
+	QPair<double, double> yv = yVoltsAfterGain(selectedGraph);
+	const double yZoom = selectedGraph > -1 ? graphParams[selectedGraph].yZoom : 1.;
 	yDivLbl->setText(QString("<font size=-1>Volts/Div: ") + (!nDivs ? "-" : QString::number(((yv.second-yv.first) / nDivs) / yZoom)) + "</font>");
 	
 	for (int i = 0; i < (int)N_ColorScheme; ++i) 
@@ -494,6 +545,10 @@ void FileViewerWindow::updateData()
 	
 	for (int i = 0; i < nChans; ++i)
 		graphs[i]->updateGL();
+	
+	foreach (HPFilter *f, filters) {
+		delete f;
+	}
 }
 
 double FileViewerWindow::timeFromPos(qint64 p) const 
@@ -568,15 +623,18 @@ void FileViewerWindow::setXScaleSecs(double d)
 
 void FileViewerWindow::setYScale(double d) 
 { 
-	yZoom = d;
+	if (selectedGraph < 0) return;
+	graphParams[selectedGraph].yZoom = d;
 	updateData();
 }
 
-QPair<double, double> FileViewerWindow::yVoltsAfterGain() const
+QPair<double, double> FileViewerWindow::yVoltsAfterGain(int chan) const
 {
 	QPair<double, double> ret;
-	ret.first = dataFile.rangeMin() / auxGain;
-	ret.second = dataFile.rangeMax() / auxGain;
+	if (chan < 0 || chan >= (int)graphParams.size()) return ret;
+	const double gain = graphParams[chan].gain;
+	ret.first = dataFile.rangeMin() / gain;
+	ret.second = dataFile.rangeMax() / gain;
 	return ret;
 }
 
@@ -641,7 +699,8 @@ void FileViewerWindow::colorSchemeMenuSlot()
 
 void FileViewerWindow::setAuxGain(double d)
 {
-	auxGain = d;
+	if (selectedGraph < 0) return;
+	graphParams[selectedGraph].gain = d;
 	updateData();
 }
 
@@ -659,7 +718,8 @@ void FileViewerWindow::mouseOverGraph(double x, double y)
 	mouseOverT = x;
 	y += 1.;
     y /= 2.;
-    y = (y*(dataFile.rangeMax()-dataFile.rangeMin()) + dataFile.rangeMin()) / auxGain;
+	const double gain = graphParams[num].gain;
+    y = (y*(dataFile.rangeMax()-dataFile.rangeMin()) + dataFile.rangeMin()) / gain;
 	mouseOverV = y;
 
 	// now, handle selection change
@@ -685,19 +745,10 @@ void FileViewerWindow::mouseOverGraph(double x, double y)
 		
 }
 
-void FileViewerWindow::printStatusMessage()
+QString FileViewerWindow::generateGraphNameString(unsigned num, bool verbose) const
 {
-	const int num = mouseOverGNum;
-	if (num < 0) return;
-	double x = mouseOverT, y = mouseOverV;
-	
-	// check for millivolt..
-    const char *unit = "V";
-    if ((((dataFile.rangeMax()-dataFile.rangeMin()) + dataFile.rangeMin()) / auxGain) < 1.0)
-        unit = "mV",y *= 1000.;
-	
-    QString msg;
-    QString chStr;
+	if (num >= (unsigned)graphs.size()) return "";
+	QString chStr;
 	const int chanId = dataFile.channelIDs()[num];
     if (dataFile.daqMode() == DAQ::AIRegular) {
         chStr.sprintf("AI%d", chanId);
@@ -710,16 +761,36 @@ void FileViewerWindow::printStatusMessage()
 			default:
 				first_non_mux_id = 60; break;
 		}
-		if (num < chanMap.size() && chanId < first_non_mux_id) {
+		if (num < unsigned(chanMap.size()) && chanId < first_non_mux_id) {
 			const ChanMapDesc & desc = chanMap[chanId];
-            chStr.sprintf("%d ChanID %d  [I%u_C%u pch: %u ech:%u]", num, chanId, desc.intan,desc.intanCh,desc.pch,desc.ech);        
+			if (verbose) 
+				chStr.sprintf("%u ChanID %d  [I%u_C%u pch: %u ech:%u]", num, chanId, desc.intan,desc.intanCh,desc.pch,desc.ech);
+			else
+				chStr.sprintf("%u Ch. %d [I%u_C%u]", num, chanId, desc.intan, desc.intanCh);
 		} else {
 			if (chanId == dataFile.pdChanID())
-				chStr.sprintf("%d ChanID %d (PD)", num, chanId);
+				chStr.sprintf("%u %s %d (PD)", num, verbose ? "ChanID" : "Ch.", chanId);
 			else
-				chStr.sprintf("%d ChanID %d (AUX)", num, chanId);
+				chStr.sprintf("%u %s %d (AUX)", num, verbose ? "ChanID" : "Ch.", chanId);
 		}
     }
+	return chStr;
+}
+
+void FileViewerWindow::printStatusMessage()
+{
+	const int num = mouseOverGNum;
+	if (num < 0) return;
+	double x = mouseOverT, y = mouseOverV;
+	
+	// check for millivolt..
+    const char *unit = "V";
+	const double gain = graphParams[num].gain;
+    if ((((dataFile.rangeMax()-dataFile.rangeMin()) + dataFile.rangeMin()) / gain) < 1.0)
+        unit = "mV",y *= 1000.;
+	
+    QString msg;
+    QString chStr = generateGraphNameString(num, true);
 	
 	msg.sprintf("Mouse tracking Graph %s @ pos (%.4f s, %.4f %s)", chStr.toUtf8().constData(),x,y,unit);
 	if (selectionBegin >= 0 && selectionEnd >= 0) {
@@ -757,8 +828,8 @@ void FileViewerWindow::mouseOverGraphInWindowCoords(int x, int y)
 void FileViewerWindow::hideGraph(int num)
 {
 	if (num < 0 || num >= graphs.size()) return;
-	GLGraph *g = graphs[num];
-	g->hide();
+	QFrame *f = graphFrames[num];
+	f->hide();
 	hiddenGraphs.setBit(num);
 	graphHideUnhideActions[num]->setChecked(false);	
 	layoutGraphs();
@@ -767,13 +838,13 @@ void FileViewerWindow::hideGraph(int num)
 
 void FileViewerWindow::showGraph(int num)
 {
-	if (num < 0 || num >= graphs.size()) return;
-	GLGraph *g = graphs[num];
+	if (num < 0 || num >= graphFrames.size()) return;
+	QFrame *f = graphFrames[num];
 	hiddenGraphs.clearBit(num);
 	graphHideUnhideActions[num]->setChecked(true);	
 	layoutGraphs();
 	updateData();
-	g->show();
+	f->show();
 }
 
 void FileViewerWindow::clickedGraphInWindowCoords(int x, int y)
@@ -804,7 +875,7 @@ void FileViewerWindow::showAllGraphs()
 	for (int i = 0; i < n; ++i) {
 		hiddenGraphs.clearBit(i);
 		graphHideUnhideActions[i]->setChecked(true);	
-		graphs[i]->show();
+		graphFrames[i]->show();
 	}
 	layoutGraphs();
 	QTimer::singleShot(10,this,SLOT(updateData()));
@@ -869,7 +940,7 @@ void FileViewerWindow::resizeEvent(QResizeEvent *r)
 
 void FileViewerWindow::resizeIt()
 {
-	resize(1024,640);	
+	resize(1050,640);	
 }
 
 void FileViewerWindow::showEvent(QShowEvent *e)
@@ -905,7 +976,14 @@ void FileViewerWindow::mouseReleaseSlot(double x, double y)
 
 void FileViewerWindow::mouseClickSlot(double x, double y)
 {	
+	GLGraph *g = dynamic_cast<GLGraph *>(sender());
+	if (!g) return;
+	int oldSelection = selectedGraph;
+	selectGraph(g->tag().toInt());	
 	if (dontKillSelection) { dontKillSelection = false; return; }
+	/* in order to disambiguate graph selection and region selection, dont do region selection stuff 
+	   until they switched to this graph.  So first click, change graph.  Second click, support selection. */
+	if (oldSelection != selectedGraph) return; 
 	(void)x,(void)y;
 	saved_selectionBegin = selectionBegin;
 	saved_selectionEnd = selectionEnd;
@@ -975,7 +1053,7 @@ void FileViewerWindow::doExport(const ExportParams & p)
 		}
 		
 		// override the auxGain parameter from the input file with out custom gain setting
-		out.setParam("auxGain", auxGain);
+		out.setParam("auxGain", defaultGain);
 		
 		int prevVal = -1;
 		std::vector<int16> scan;
@@ -1009,8 +1087,11 @@ void FileViewerWindow::doExport(const ExportParams & p)
 		QTextStream outs(&out);
 		
 		int prevVal = -1;
-		std::vector<int16> scan;
+		std::vector<int16> scan, chansOn;
 		const int scansz = p.chanSubset.count(true);
+		chansOn.reserve(scansz);
+		for (int i = 0; i < (int)p.chanSubset.size(); ++i) 
+			if (p.chanSubset.testBit(i)) chansOn.push_back(i);		
 		scan.resize(scansz);
 		
 		for (qint64 i = 0; i < nscans; ++i) {
@@ -1019,8 +1100,8 @@ void FileViewerWindow::doExport(const ExportParams & p)
 			const double minR = dataFile.rangeMin(), maxR = dataFile.rangeMax();
 			const double smin = double(SHRT_MIN), usmax = double(USHRT_MAX);
 			for (int j = 0; j < scansz; ++j) {
-				double sampl = ( ((double(scan[j]) + (-smin))/(usmax)) * (maxR-minR) ) + minR;
-				sampl /= auxGain;
+				double sampl = ( ((double(scan[j]) + (-smin))/(usmax+1.)) * (maxR-minR) ) + minR;
+				sampl /= graphParams[chansOn[j]].gain;
 				outs << sampl << ( j+1 < scansz ? "," : "");
 			}
 			outs << "\n";
@@ -1037,4 +1118,46 @@ void FileViewerWindow::doExport(const ExportParams & p)
 	}
 	
 	QMessageBox::information(this, "Export Complete", "Export completed successfully.");	
+}
+
+void FileViewerWindow::selectGraph(int num)
+{
+    int old = selectedGraph;
+	QFrame *f;
+	if (old > -1) {
+		f = graphFrames[old];
+		f->setLineWidth(0);
+		f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain);
+	}
+    selectedGraph = num;
+	f = graphFrames[num];
+    f->setFrameStyle(QFrame::Box|QFrame::Plain);
+	f->setLineWidth(3);
+    graphNameLbl->setText(QString("<font size=-1>") + generateGraphNameString(num, false) + "</font>");
+	yScaleSB->blockSignals(true);
+	auxGainSB->blockSignals(true);
+	highPassChk->blockSignals(true);
+	yScaleSB->setValue(graphParams[num].yZoom);
+	auxGainSB->setValue(graphParams[num].gain);
+	highPassChk->setChecked(graphParams[num].filter300Hz);
+	yScaleSB->blockSignals(false);
+	auxGainSB->blockSignals(false);
+	highPassChk->blockSignals(false);
+	if (didLayout) updateData();
+}
+
+void FileViewerWindow::hpfChk(bool b)
+{
+	if (selectedGraph < 0) return;
+	graphParams[selectedGraph].filter300Hz = b;
+	if (didLayout) updateData();
+}
+
+void FileViewerWindow::applyAllSlot()
+{
+	if (selectedGraph < 0) return;
+	GraphParams & p (graphParams[selectedGraph]);
+	for (int i = 0; i < (int)graphParams.size(); ++i)
+		if (i != selectedGraph) graphParams[i] = p;
+	if (didLayout) updateData();
 }

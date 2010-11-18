@@ -28,6 +28,8 @@ class QMenu;
 class QAction;
 class ExportDialogController;
 struct ExportParams;
+class QFrame;
+class QCheckBox;
 
 /// The class that handles the window you get when opening files.
 class FileViewerWindow : public QMainWindow
@@ -71,6 +73,9 @@ private slots:
 	void mouseClickSlot(double,double);
 	void mouseReleaseSlot(double,double);
 	void exportSlot();
+	void selectGraph(int graphNum);
+	void hpfChk(bool);
+	void applyAllSlot();
 	
 private:
 	void loadSettings();
@@ -80,7 +85,7 @@ private:
 	qint64 posFromTime(double) const;
 	void configureMiscControls();
 	qint64 nScansPerGraph() const;
-	QPair<double, double> yVoltsAfterGain() const;
+	QPair<double, double> yVoltsAfterGain(int whichGraph) const;
 	void applyColorScheme(GLGraph *);
 	void hideGraph(int n);
 	void showGraph(int n);
@@ -88,6 +93,7 @@ private:
 	void setFilePos64(qint64 pos, bool noupdate = false);
 	void printStatusMessage();
 	void doExport(const ExportParams &);
+	QString generateGraphNameString(unsigned graphNum, bool verbose = true) const;
 	
 	enum ViewMode { Tiled = 0, Stacked, StackedLarge, StackedHuge, N_ViewMode } viewMode;
 	static const QString viewModeNames[];
@@ -101,6 +107,7 @@ private:
 	QWidget *graphParent;
 	QVector<GLGraph *> graphs;
 	QVector<Vec2WrapBuffer> graphBufs;	
+	QVector<QFrame *> graphFrames;
 	QSpinBox *posScansSB;
 	QDoubleSpinBox *posSecsSB;
 	QSlider *posSlider;
@@ -111,7 +118,9 @@ private:
 	QLabel *xDivLbl, *yDivLbl;
 	QSpinBox *nDivsSB;
 	QLabel *closeLbl;
+	QLabel *graphNameLbl;
 	QVector<QAction *> graphHideUnhideActions;
+	QCheckBox *highPassChk;
 
 	QMenu *channelsMenu;
 	QAction *colorSchemeActions[N_ColorScheme];	
@@ -121,7 +130,7 @@ private:
 	bool didLayout;
 	
 	// misc graph zoom/view/etc settings
-	double nSecsZoom, yZoom, auxGain;
+	double nSecsZoom, defaultYZoom, defaultGain;
 	unsigned nDivs;
 	int maximizedGraph; ///< if non-negative, we are maximized on a particular graph
 	
@@ -138,6 +147,15 @@ private:
 	
 	QAction *exportAction, *exportSelectionAction;
 	ExportDialogController *exportCtl;
+	int selectedGraph;
+	
+	struct GraphParams {
+		double yZoom, gain;
+		bool filter300Hz;
+		GraphParams() : yZoom(1.0), gain(1.0), filter300Hz(true) {}
+	};
+	
+	QVector<GraphParams> graphParams; ///< per-graph params
 };
 
 

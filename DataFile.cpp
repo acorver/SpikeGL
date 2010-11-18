@@ -357,6 +357,11 @@ i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, c
 	
 	u64 cur = pos;
 	i64 nout = 0;
+	std::vector<int> onChans;
+	onChans.reserve(chset.size());
+	for (int i = 0, n = chset.size(); i < n; ++i) 
+		if (chset.testBit(i)) onChans.push_back(i);
+	
 	while (cur < pos + num2read) {
 		std::vector<int16> buf(nChans);
 		if (!dataFile.seek(cur * sizeof(int16) * nChans)) {
@@ -376,10 +381,9 @@ i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, c
 		} else {
 			// not all chans on, put subset 1 by 1 in the output vector
 			i64 i_out = nout*nChansOn;
-			const int n = chset.size();
+			const int n = onChans.size();
 			for (int i = 0; i < n; ++i)
-				if (chset[i]) 
-					scans_out[i_out++] = buf[i];
+				scans_out[i_out++] = buf[onChans[i]];
 		}
 		++nout;
 		cur += downSampleFactor;
