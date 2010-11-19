@@ -92,6 +92,8 @@ namespace DAQ
 
         // for threshold crossing of PD chan
         int16 pdThresh;
+		unsigned pdThreshW; /**< Number of samples that the signal must be past 
+						         threshhold thold crossing.  Default 5. */
         bool usePD;
         int pdChan, idxOfPdChan;
         int pdPassThruToAO; ///< if negative, don't, else the channel id

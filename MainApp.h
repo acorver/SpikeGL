@@ -293,7 +293,7 @@ private:
         taskShouldStop; ///< used for StimGL trigger to stop the task when the queue empties
     i64 scan0Fudge, scanCt, startScanCt, stopScanCt, lastScanSz, stopRecordAtSamp;
     DataFile dataFile; ///< the OUTPUT save file (this member var never used for input)
-    std::vector<int16> last5PDSamples;
+    std::vector<int16> lastNPDSamples;
     QTimer *taskReadTimer;
     GraphsWindow *graphsWindow;
     Par2Window *par2Win;

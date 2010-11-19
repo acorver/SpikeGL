@@ -631,8 +631,6 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     taskShouldStop = false;
     pdWaitingForStimGL = false;
     warnedDropped = false;
-    last5PDSamples.reserve(5);
-    last5PDSamples.clear();
     queuedParams.clear();
     if (!configCtl) {
         errTitle = "Internal Error";
@@ -640,6 +638,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         return false;
     }
     DAQ::Params & params(configCtl->acceptedParams);    
+    lastNPDSamples.clear();
+    lastNPDSamples.reserve(params.pdThreshW);
     if (!params.stimGlTrigResave) {
         if (!dataFile.openForWrite(params)) {            
             errTitle = "Error Opening File!";
@@ -999,8 +999,8 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp)
         for (int i = p.idxOfPdChan; i < sz; i += p.nVAIChans) {
             const int16 samp = scans[i];
             if (!pdWaitingForStimGL && samp > p.pdThresh) {
-                if (last5PDSamples.size() >= 5) {
-                    triggered = true, last5PDSamples.clear();
+                if (lastNPDSamples.size() >= p.pdThreshW) {
+                    triggered = true, lastNPDSamples.clear();
                     pdOffTimeSamps = p.srate * p.pdStopTime * p.nVAIChans;
                     lastSeenPD = firstSamp + u64(i);
                     // we triggered, so save samples up to this one
@@ -1013,9 +1013,9 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp)
                     }
                     i = sz; // break out of loop
                 } else 
-                    last5PDSamples.push_back(samp);
+                    lastNPDSamples.push_back(samp);
             } else
-                last5PDSamples.clear();
+                lastNPDSamples.clear();
         }
     }
         break;
@@ -1061,12 +1061,12 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
         for (int i = p.idxOfPdChan; i < sz; i += p.nVAIChans) {
             const int16 samp = scans[i];
             if (samp > p.pdThresh) {
-                if (last5PDSamples.size() >= 3) 
-                    lastSeenPD = firstSamp+u64(i), last5PDSamples.clear();
+                if (lastNPDSamples.size() >= p.pdThreshW) 
+                    lastSeenPD = firstSamp+u64(i), lastNPDSamples.clear();
                 else 
-                    last5PDSamples.push_back(samp);
+                    lastNPDSamples.push_back(samp);
             } else
-                last5PDSamples.clear();
+                lastNPDSamples.clear();
         }
         if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps) { // timeout PD after X scans..
 			if (dataFile.isOpen()) {

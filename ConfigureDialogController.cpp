@@ -123,6 +123,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     acqPdParams->pdPassthruAOSB->setValue(p.pdPassThruToAO > -1 ? p.pdPassThruToAO : 0);   
     acqPdParams->pdStopTimeSB->setValue(p.pdStopTime);
     acqPdParams->pdPre->setValue(p.silenceBeforePD*1000.);
+	acqPdParams->pdWSB->setValue(p.pdThreshW);
 
     QList<QString> devs = aiChanLists.uniqueKeys();
     devNames.clear();
@@ -473,7 +474,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
             return AGAIN;
         }
     }
-    
+    	
     // validate AO channels in AO passthru map
     if (aoChanVect.size()) {
         QStringList aol = aoChanLists[aoDev];
@@ -592,6 +593,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     p.pdChan = pdChan;
     p.idxOfPdChan = p.nVAIChans-1 /* always the last index */;
     p.pdThresh = static_cast<signed short>((acqPdParams->pdAIThreshSB->value()-p.range.min)/(p.range.max-p.range.min) * 65535. - 32768.);
+	p.pdThreshW = static_cast<unsigned>(acqPdParams->pdWSB->value());
     p.pdPassThruToAO = pdAOChan;
     p.pdStopTime = acqPdParams->pdStopTimeSB->value();
     
@@ -822,6 +824,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
     p.pdChan = settings.value("acqPDChan", 4).toInt();
     p.pdStopTime = settings.value("acqPDOffStopTime", .5).toDouble();
     p.pdPassThruToAO = settings.value("acqPDPassthruChanAO", 2).toInt();
+	p.pdThreshW = settings.value("acqPDThreshW", 5).toUInt();
     
     p.aiTerm = (DAQ::TermConfig)settings.value("aiTermConfig", (int)DAQ::Default).toInt();
     p.fastSettleTimeMS = settings.value("fastSettleTimeMS", DEFAULT_FAST_SETTLE_TIME_MS).toUInt();
@@ -886,6 +889,7 @@ void ConfigureDialogController::saveSettings() const
     settings.setValue("acqPDChan", p.pdChan);
     settings.setValue("acqPDPassthruChanAO", p.pdPassThruToAO);
     settings.setValue("acqPDOffStopTime", p.pdStopTime);
+	settings.setValue("acqPDThreshW", p.pdThreshW);
     settings.setValue("aiTermConfig", (int)p.aiTerm);
     settings.setValue("fastSettleTimeMS", p.fastSettleTimeMS);
     settings.setValue("auxGain", p.auxGain);
