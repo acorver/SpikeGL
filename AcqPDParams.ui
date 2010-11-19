@@ -30,6 +30,7 @@
    </property>
    <property name="font">
     <font>
+     <family>Arial</family>
      <pointsize>10</pointsize>
     </font>
    </property>
@@ -38,6 +39,7 @@
      <widget class="QCheckBox" name="pdPassthruAOChk">
       <property name="font">
        <font>
+        <family>Arial</family>
         <pointsize>10</pointsize>
        </font>
       </property>
@@ -56,6 +58,7 @@
       </property>
       <property name="font">
        <font>
+        <family>Arial</family>
         <pointsize>10</pointsize>
        </font>
       </property>
@@ -68,6 +71,7 @@
      <widget class="QLabel" name="pdStopTimeLbl">
       <property name="font">
        <font>
+        <family>Arial</family>
         <pointsize>10</pointsize>
        </font>
       </property>
@@ -83,6 +87,7 @@
      <widget class="QDoubleSpinBox" name="pdStopTimeSB">
       <property name="font">
        <font>
+        <family>Arial</family>
         <pointsize>10</pointsize>
        </font>
       </property>
@@ -107,6 +112,7 @@
       </property>
       <property name="font">
        <font>
+        <family>Arial</family>
         <pointsize>10</pointsize>
        </font>
       </property>
@@ -130,6 +136,11 @@ above/below threshold for a crossing to have occurred.</string>
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
+      </property>
+      <property name="font">
+       <font>
+        <family>Arial</family>
+       </font>
       </property>
       <property name="toolTip">
        <string>The 'W' parameter used for threshold detection (in samples).  
@@ -163,6 +174,7 @@ above/below threshold for a crossing to have occurred.</string>
    </property>
    <property name="font">
     <font>
+     <family>Arial</family>
      <pointsize>10</pointsize>
     </font>
    </property>
@@ -174,6 +186,7 @@ above/below threshold for a crossing to have occurred.</string>
      <widget class="QLabel" name="pdAILabel">
       <property name="font">
        <font>
+        <family>Arial</family>
         <pointsize>10</pointsize>
        </font>
       </property>
@@ -189,6 +202,7 @@ above/below threshold for a crossing to have occurred.</string>
      <widget class="QSpinBox" name="pdAISB">
       <property name="font">
        <font>
+        <family>Arial</family>
         <pointsize>10</pointsize>
        </font>
       </property>
@@ -204,6 +218,7 @@ above/below threshold for a crossing to have occurred.</string>
      <widget class="QLabel" name="pdAIThreshLabel">
       <property name="font">
        <font>
+        <family>Arial</family>
         <pointsize>10</pointsize>
        </font>
       </property>
@@ -234,6 +249,7 @@ above/below threshold for a crossing to have occurred.</string>
       </property>
       <property name="font">
        <font>
+        <family>Arial</family>
         <pointsize>10</pointsize>
        </font>
       </property>
@@ -252,6 +268,7 @@ above/below threshold for a crossing to have occurred.</string>
      <widget class="QLabel" name="label">
       <property name="font">
        <font>
+        <family>Arial</family>
         <pointsize>10</pointsize>
        </font>
       </property>
@@ -276,6 +293,7 @@ trigger.</string>
       </property>
       <property name="font">
        <font>
+        <family>Arial</family>
         <pointsize>10</pointsize>
        </font>
       </property>
