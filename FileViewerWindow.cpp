@@ -438,15 +438,17 @@ void FileViewerWindow::updateData()
 {
 	const double srate = dataFile.samplingRateHz();
 
-	QBitArray channelSubset = ~hiddenGraphs;
+	const QBitArray channelSubset = ~hiddenGraphs;
 	const int nChans = graphs.size(), nChansOn = channelSubset.count(true);	
 	QVector<int> chanIdsOn(nChansOn);
-	QVector<HPFilter *> filters(nChansOn, 0);
+	std::vector<bool> chansToFilter(nChansOn, false);
+	HPFilter filter(nChansOn, 300);
 	int maxW = 1;
 	for (int i = 0, j = 0; i < nChans; ++i) {
 		if (channelSubset.testBit(i)) {
 			if (maxW < graphs[i]->width()) maxW = graphs[i]->width();
-			filters[j] = new HPFilter(1, 300);
+			if (graphParams[i].filter300Hz)
+				chansToFilter[j] = true;
 			chanIdsOn[j++] = i;
 		}
 	}
@@ -473,11 +475,10 @@ void FileViewerWindow::updateData()
 		const double smin(SHRT_MIN), usmax(USHRT_MAX);
 	    const double dt = 1.0 / (srate / double(downsample));
 		for (int i = 0; i < nread; ++i) {
+			filter.apply(&data[i * nChansOn], dt, chansToFilter);
 			for (int j = 0; j < nChansOn; ++j) {
 				const int chanId = chanIdsOn[j];
 				int16 & rawsampl = data[i * nChansOn + j];
-				if (graphParams[chanId].filter300Hz)
-					filters[j]->apply(&rawsampl, dt);
 			    const double sampl = ( ((double(rawsampl) + (-smin))/(usmax)) * (2.0) ) - 1.0;
 			    Vec2 vec(double(i)/double(nread), sampl);
 				graphBufs[chanId].putData(&vec, 1);
@@ -544,11 +545,7 @@ void FileViewerWindow::updateData()
 	printStatusMessage();
 	
 	for (int i = 0; i < nChans; ++i)
-		graphs[i]->updateGL();
-	
-	foreach (HPFilter *f, filters) {
-		delete f;
-	}
+		graphs[i]->updateGL();	
 }
 
 double FileViewerWindow::timeFromPos(qint64 p) const 

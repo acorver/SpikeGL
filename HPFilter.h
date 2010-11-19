@@ -19,6 +19,12 @@ public:
     /// Convolves the scan in-place using the filter
     void apply(short *scan, double dt);
 
+	/// Same as above, but supports convolving only a subset of channels in the scan.
+	/// Note that which_chans should be the same size as scanSize().  It specifies
+	/// which channels in the scan array to filter (which_chans[i] == true -> filter).
+	/// (NB: filter state is always updated for each chan even if filtering isn't applied)
+	void apply(short *scan, double dt, const std::vector<bool> & which_chans);
+
 private:
     void recomputeCoeffs();
 

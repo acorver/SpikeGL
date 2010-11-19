@@ -27,6 +27,14 @@ void HPFilter::setCutoffFreqHz(double f)
 
 void HPFilter::apply(short *scan, double dt)
 {
+	std::vector<bool> v;
+	v.resize(scanSize(), true);
+	apply(scan, dt, v);
+}
+
+void HPFilter::apply(short *scan, double dt, const std::vector<bool> & chans)
+{
+	if (chans.size() < scanSize()) return;
     if (dt <= 0.) return; // error!
     if (lastDt != dt || virgin) {
         lastDt = dt;
@@ -35,16 +43,16 @@ void HPFilter::apply(short *scan, double dt)
 
     const int ss = scanSize();
     for (int i = 0; i < ss; ++i) {
-            const double in = static_cast<double>(scan[i])/32768.;
-            state[i] = B * in + A * state[i];            
-            double out =  in - state[i];            
-            if (out > 1.0) out = 1.0;
-            else if (out < -1.0) out = -1.0;
+		const double in = static_cast<double>(scan[i])/32768.;
+		state[i] = B * in + A * state[i];            
+		double out =  in - state[i];            
+		if (out > 1.0) out = 1.0;
+		else if (out < -1.0) out = -1.0;
+		if (chans[i])
             scan[i] = static_cast<short>(out*32767.);
     }
     virgin = false;
 }
-
 
 void HPFilter::recomputeCoeffs()
 {
