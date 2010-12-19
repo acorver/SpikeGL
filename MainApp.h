@@ -139,7 +139,10 @@ public:
 	
 	/// Get a reference to the temp data file -- used by CommandServer to call readScans(),etc for the Matlab data read API
 	const TempDataFile & tempDataFile() const { return tmpDataFile; }
-		
+
+	/// Open a data file for perusal using the already-existing FileViewerWindow reuseWindow.  Called from File->Open slot for the file viewer window.
+	void fileOpen(FileViewerWindow *reuseWindow);
+
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
     void toggleDebugMode(); 
@@ -220,11 +223,11 @@ private slots:
     void fastSettleDoneForCommandConnections();
 	void toggleShowChannelSaveCB();
 	void toggleEnableDSFacility();
-	void fileOpen(); ///< slot triggered from the File->Open menu to open a new data file for perusal in the app.	
 	void windowMenuActivate(QWidget *w = 0);
 	void windowMenuAboutToShow();
 	void helpWindowClosed();
 	void bringAllToFront();
+	void fileOpen(); ///< slot triggered from the File->Open menu to open a new data file for perusal in the app.	
 
 private:
     /// Display a message to the status bar
@@ -249,7 +252,7 @@ private:
 	// WindowMenu stuff
 	void windowMenuRemove(QWidget *w);
 	void windowMenuAdd(QWidget *w);
-
+	
     QMap<QString, QVariant> queuedParams;    
     QMap<Par2Window *, CommandConnection *> par2WinConnMap;
     QSet<CommandConnection *> fastSettleConns;  ///< connections waiting for fast settle...

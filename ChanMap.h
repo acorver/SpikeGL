@@ -1,6 +1,8 @@
 #ifndef ChanMap_H
 #define ChanMap_H
+#include <QString>
 #include <QVector>
+#include <QBitArray>
 
 struct ChanMapDesc 
 {

@@ -50,6 +50,7 @@ QString ChanMap::toString() const
 	const QStringList sl = s_in.split(QRegExp("(^\\()|(\\),)|(\\)$)"), QString::SkipEmptyParts);
 	ChanMap ret;
 	ret.reserve(sl.size());
+
 	foreach(QString s, sl) {		
 		QString inParens = s.length() > 2 ? s.mid(1, s.length()-2) : "";
 		ret.push_back(ChanMapDesc::fromString(inParens));

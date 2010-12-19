@@ -1719,6 +1719,11 @@ struct FV_IsViewingFile {
 
 void MainApp::fileOpen()
 {
+	fileOpen(0);
+}
+
+void MainApp::fileOpen(FileViewerWindow *reuseWindow)
+{
 	if (isAcquiring()) {
 		QMessageBox::StandardButtons ret = QMessageBox::warning(consoleWindow, "Acquisition Running", "An acquisition is currently running.  Opening a file now can impact performance cause the acquisition to fail.  It's recommended that you first stop the acquisition before proceeding.\n\nContinue anyway?",  QMessageBox::No|QMessageBox::Yes, QMessageBox::No);
 		if (ret == QMessageBox::Cancel || ret == QMessageBox::No) return;		
@@ -1749,21 +1754,36 @@ void MainApp::fileOpen()
 		
 	QList<QWidget *>::iterator it = std::find_if(windows.begin(), windows.end(), FV_IsViewingFile(fname));
 	
-	if (it != windows.end()) {
-		// it already exists.. just raise the one we are working on already!
-		windowMenuActivate(*it);
-	} else {	
-		// doesn't exist, create a new one!
-		FileViewerWindow *fvw = new FileViewerWindow; ///< note we catch its close event and delete it 
-		fvw->setAttribute(Qt::WA_DeleteOnClose, false);
-		fvw->installEventFilter(this);
-		if (!fvw->viewFile(fname, &errorMsg)) {
-			QMessageBox::critical(consoleWindow, "Error Opening File", errorMsg);
-			delete fvw, fvw = 0;
-			return;
+	if (reuseWindow) {
+		if (it != windows.end()) {
+			if (*it == reuseWindow) return; // silently ignore.. ;)
+			int b = QMessageBox::question(reuseWindow, "File already open", QFileInfo(fname).fileName() + " is already open in another viewer window.\n\nClose the other window and open the file in this window?", QMessageBox::Yes, QMessageBox::Cancel);
+			if (b != QMessageBox::Yes) return;				
+			QWidget *other = *it;
+			windowMenuRemove(other);
+			delete other;
 		}
-		fvw->show();
-		windowMenuAdd(fvw);
+		if (!reuseWindow->viewFile(fname, &errorMsg)) {
+			QMessageBox::critical(reuseWindow, "Error Opening File", errorMsg);
+			return; // should we delete the reuse window here?
+		}
+	} else {			
+		if (it != windows.end()) {
+				// it already exists.. just raise the one we are working on already!
+				windowMenuActivate(*it);
+		} else {	
+			// doesn't exist, create a new one!
+			FileViewerWindow *fvw = new FileViewerWindow; ///< note we catch its close event and delete it 
+			fvw->setAttribute(Qt::WA_DeleteOnClose, false);
+			fvw->installEventFilter(this);
+			if (!fvw->viewFile(fname, &errorMsg)) {
+				QMessageBox::critical(consoleWindow, "Error Opening File", errorMsg);
+				delete fvw, fvw = 0;
+				return;
+			}
+			fvw->show();
+			windowMenuAdd(fvw);
+		}
 	}
 }
 

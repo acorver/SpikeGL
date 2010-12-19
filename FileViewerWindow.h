@@ -39,7 +39,8 @@ public:
 	FileViewerWindow();
 	~FileViewerWindow();
 
-	/// Call this method to associate a file with this class and open it and view it.
+	/// Call this method to associate a file with this class and open it and view it.  
+	/// Ok to call it multiple times to open new files using same window.
 	bool viewFile(const QString & fileName, QString *errMsg_out = 0);
 	
 	/// Returns the filename with path of the .bin file that is opened by this instance, or null QString if nothing is open
@@ -75,7 +76,9 @@ private slots:
 	void exportSlot();
 	void selectGraph(int graphNum);
 	void hpfChk(bool);
+	void hpfLblClk();
 	void applyAllSlot();
+	void fileOpenMenuSlot();
 	
 private:
 	void loadSettings();
@@ -83,7 +86,7 @@ private:
 	void layoutGraphs();
 	double timeFromPos(qint64 p) const;
 	qint64 posFromTime(double) const;
-	void configureMiscControls();
+	void configureMiscControls(bool blockSignals = false);
 	qint64 nScansPerGraph() const;
 	QPair<double, double> yVoltsAfterGain(int whichGraph) const;
 	void applyColorScheme(GLGraph *);

@@ -40,6 +40,8 @@
 #include <QCheckBox>
 #include <QPushButton>
 #include "HPFilter.h"
+#include "ClickableLabel.h"
+
 
 const QString FileViewerWindow::viewModeNames[] = {
 	"Tiled", "Stacked", "Stacked Large", "Stacked Huge"
@@ -136,7 +138,8 @@ FileViewerWindow::FileViewerWindow()
 
 	toolBar->addSeparator();
     highPassChk = new QCheckBox(toolBar);
-	lbl = new QLabel("<font size=-1>Filter &lt; 300Hz</font>", toolBar);
+	lbl = new ClickableLabel("<font size=-1>Filter &lt; 300Hz</font>", toolBar);
+	Connect(lbl, SIGNAL(clicked()), this, SLOT(hpfLblClk()));
     toolBar->addWidget(highPassChk);
 	toolBar->addWidget(lbl);
     Connect(highPassChk, SIGNAL(clicked(bool)), this, SLOT(hpfChk(bool)));
@@ -160,7 +163,11 @@ FileViewerWindow::FileViewerWindow()
 //	// otherwise window-specific menu bar
 	QMenuBar *mb = menuBar();
 //#endif
-	QMenu *m = mb->addMenu("Color &Scheme");
+	
+	QMenu *m = mb->addMenu("File");
+	m->addAction("Open...", this, SLOT(fileOpenMenuSlot()));
+	
+	m = mb->addMenu("Color &Scheme");
 	for (int i = 0; i < (int)N_ColorScheme; ++i) {
 		QAction * a = colorSchemeActions[i] = m->addAction(colorSchemeNames[i], this, SLOT(colorSchemeMenuSlot()));
 		a->setCheckable(true);
@@ -206,13 +213,7 @@ FileViewerWindow::~FileViewerWindow()
 
 
 bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */)
-{
-	if (dataFile.isOpenForRead()) {
-		QString err = "INTERNAL ERROR: Cannot re-use instances of FileViewerWindow to subsequent multiple files.";
-		if (errMsg) *errMsg = err;
-		Error() << err;
-		return false;
-	}
+{	
 	QString fname_no_path = QFileInfo(fname).fileName();
 	if (!dataFile.openForRead(fname)) {
 		QString err = fname_no_path + ": miscellaneous error on open."; 
@@ -235,7 +236,16 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 				   );
 	
 	loadSettings();
-				
+	
+	const bool reusing = graphFrames.size();
+	// if reopening a file, delete all the old graphs first, and any auxilliary objects, and also do some cleanup/pre-init
+	closeLbl->setParent(this);
+	for (int i = 0, n = graphFrames.size(); i < n; ++i) {
+		delete graphFrames[i];
+		channelsMenu->removeAction(graphHideUnhideActions[i]);
+		delete graphHideUnhideActions[i];
+	}
+	
 	graphs.resize(dataFile.numChans());	
 	graphFrames.resize(graphs.size());
 	graphHideUnhideActions.resize(graphs.size());
@@ -281,6 +291,8 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	hiddenGraphs.fill(false, graphs.size());
 
 	chanMap = dataFile.chanMap();
+	pscale = 1;
+	pos = 0;
 	maximizedGraph = -1;
 	selectionBegin = selectionEnd = -1;
 	selectedGraph = mouseOverT = mouseOverV = mouseOverGNum = -1;
@@ -288,9 +300,11 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	selectGraph(0);
 
 	layoutGraphs();
-	
+
+	pos = 0;
+	if (reusing) configureMiscControls(true);
 	setFilePos64(0, true);
-		
+	if (reusing) QTimer::singleShot(10, this, SLOT(updateData()));
 	if (errMsg) *errMsg = QString::null;
 	
 	return true;
@@ -579,13 +593,19 @@ void FileViewerWindow::setFilePosSecs(double s)
 	setFilePos64(posFromTime(s));
 }
 
-void FileViewerWindow::configureMiscControls()
+void FileViewerWindow::configureMiscControls(bool blockSignals)
 {	
 	xScaleSB->setRange(0.0001, dataFile.fileTimeSecs());
 
 	qint64 maxVal = (dataFile.scanCount()-1) - nScansPerGraph();
 	if (maxVal < 0) maxVal = 0;
 
+	if (blockSignals) {
+		posScansSB->blockSignals(true);
+		posSecsSB->blockSignals(true);
+		posSlider->blockSignals(true);
+	}		
+		
 	posScansSB->setMinimum(0);
 	posScansSB->setMaximum(maxVal);	
 	posSecsSB->setMinimum(0);
@@ -1150,6 +1170,12 @@ void FileViewerWindow::hpfChk(bool b)
 	if (didLayout) updateData();
 }
 
+void FileViewerWindow::hpfLblClk()
+{
+	highPassChk->setChecked(!graphParams[selectedGraph].filter300Hz);
+	hpfChk(highPassChk->isChecked());	
+}
+
 void FileViewerWindow::applyAllSlot()
 {
 	if (selectedGraph < 0) return;
@@ -1157,4 +1183,9 @@ void FileViewerWindow::applyAllSlot()
 	for (int i = 0; i < (int)graphParams.size(); ++i)
 		if (i != selectedGraph) graphParams[i] = p;
 	if (didLayout) updateData();
+}
+
+void FileViewerWindow::fileOpenMenuSlot()
+{
+	mainApp()->fileOpen(this);
 }
