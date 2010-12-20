@@ -12,7 +12,7 @@ HEADERS += SpikeGL.h DataFile.h Params.h sha1.h Util.h TypeDefs.h ConsoleWindow.
 
 SOURCES += DataFile.cpp osdep.cpp Params.cpp sha1.cpp Util.cpp MainApp.cpp ConsoleWindow.cpp main.cpp ConfigureDialogController.cpp DAQ.cpp GraphsWindow.cpp GLGraph.cpp SampleBufQ.cpp WrapBuffer.cpp Sha1VerifyTask.cpp Par2Window.cpp StimGL_SpikeGL_Integration.cpp HPFilter.cpp ChanMappingController.cpp ChanMap.cpp CommandServer.cpp SockUtil.cpp QLed.cpp TempDataFile.cpp FileViewerWindow.cpp ExportDialogController.cpp ClickableLabel.cpp
 
-FORMS += ConfigureDialog.ui AcqPDParams.ui AcqTimedParams.ui Par2Window.ui StimGLIntegration.ui ChanMapping.ui AOPassthru.ui Dialog.ui ApplyDialog.ui TextBrowser.ui CommandServerOptions.ui TempFileDialog.ui ExportDialog.ui
+FORMS += ConfigureDialog.ui AcqPDParams.ui AcqTimedParams.ui Par2Window.ui StimGLIntegration.ui ChanMapping.ui AOPassthru.ui Dialog.ui ApplyDialog.ui TextBrowser.ui CommandServerOptions.ui TempFileDialog.ui ExportDialog.ui FVW_OptionsDialog.ui
 
 QT += opengl network svg
 

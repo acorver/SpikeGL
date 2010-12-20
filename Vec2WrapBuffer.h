@@ -53,6 +53,18 @@ public:
         }
         return p[l-1];
     }
+	
+	Vec2 & at(int i) const {
+		if (i < 0) i = 0;
+		if (i > (int)size()) i = size() - 1;
+		Vec2 *p1, *p2; unsigned l1,l2;
+		dataPtr1(p1, l1);
+		if (i < (int)l1) return p1[i];
+		dataPtr2(p2, l2);
+		return p2[i-l1];
+	}
+	
+	Vec2 & operator[](int i) { return this->at(i); }
 };
 
 #endif

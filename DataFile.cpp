@@ -356,6 +356,7 @@ i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, c
 	scans_out.resize(sizeofscans);
 	
 	u64 cur = pos;
+	unsigned procd = 0;
 	i64 nout = 0;
 	std::vector<int> onChans;
 	onChans.reserve(chset.size());
@@ -381,7 +382,8 @@ i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, c
 		for (int i = 0; i < nChans; ++i)
 			avgs[i] += double(buf[i]) * factor;
 		
-		if (cur && !(cur % downSampleFactor)) { // every Nth sample, write it out
+		++procd;
+		if (downSampleFactor <= 1 || !(procd % downSampleFactor)) { // every Nth sample, write it out
 			if (int(nChansOn) == nChans) {
 				i64 i_out = nout * nChans;
 				for (int i = 0; i < nChans; ++i)

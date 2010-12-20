@@ -30,6 +30,8 @@ class ExportDialogController;
 struct ExportParams;
 class QFrame;
 class QCheckBox;
+class HPFilter;
+class QEvent;
 
 /// The class that handles the window you get when opening files.
 class FileViewerWindow : public QMainWindow
@@ -52,6 +54,7 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *);
 	void showEvent(QShowEvent *);
+	bool eventFilter(QObject *obj, QEvent *event);
 
 private slots:
 	void setFilePos(int pos); // TODO/FIXME/XXX: this should take a 64-bit parameter but we need to connect to Qt gui stuff that is 32 bit
@@ -76,9 +79,12 @@ private slots:
 	void exportSlot();
 	void selectGraph(int graphNum);
 	void hpfChk(bool);
+	void dcfChk(bool);
 	void hpfLblClk();
+	void dcfLblClk();
 	void applyAllSlot();
 	void fileOpenMenuSlot();
+	void fileOptionsMenuSlot();
 	
 private:
 	void loadSettings();
@@ -123,7 +129,7 @@ private:
 	QLabel *closeLbl;
 	QLabel *graphNameLbl;
 	QVector<QAction *> graphHideUnhideActions;
-	QCheckBox *highPassChk;
+	QCheckBox *highPassChk, *dcfilterChk;
 
 	QMenu *channelsMenu;
 	QAction *colorSchemeActions[N_ColorScheme];	
@@ -154,11 +160,13 @@ private:
 	
 	struct GraphParams {
 		double yZoom, gain;
-		bool filter300Hz;
-		GraphParams() : yZoom(1.0), gain(1.0), filter300Hz(true) {}
+		bool filter300Hz, dcFilter;
+		GraphParams() : yZoom(1.0), gain(1.0), filter300Hz(false), dcFilter(true) {}
 	};
 	
 	QVector<GraphParams> graphParams; ///< per-graph params
+	HPFilter *hpfilter;
+	double arrowKeyFactor, pgKeyFactor;
 };
 
 

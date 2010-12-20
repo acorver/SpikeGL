@@ -41,7 +41,9 @@
 #include <QPushButton>
 #include "HPFilter.h"
 #include "ClickableLabel.h"
-
+#include <QKeyEvent>
+#include "ui_FVW_OptionsDialog.h"
+#include <QDialog>
 
 const QString FileViewerWindow::viewModeNames[] = {
 	"Tiled", "Stacked", "Stacked Large", "Stacked Huge"
@@ -52,13 +54,14 @@ const QString FileViewerWindow::colorSchemeNames[] = {
 };
 
 FileViewerWindow::FileViewerWindow()
-: QMainWindow(0), pscale(1), mouseOverT(-1.), mouseOverV(0), mouseOverGNum(-1), mouseButtonIsDown(false), dontKillSelection(false)
+: QMainWindow(0), pscale(1), mouseOverT(-1.), mouseOverV(0), mouseOverGNum(-1), mouseButtonIsDown(false), dontKillSelection(false), hpfilter(0), arrowKeyFactor(.1), pgKeyFactor(.5)
 {	
 	QWidget *cw = new QWidget(this);
 	QVBoxLayout *l = new QVBoxLayout(cw);
 	setCentralWidget(cw);
 	
 	scrollArea = new QScrollArea(cw);	
+	scrollArea->installEventFilter(this);
 	graphParent = new QWidget(scrollArea);
 	scrollArea->setWidget(graphParent);
 	l->addWidget(scrollArea, 1);
@@ -144,6 +147,13 @@ FileViewerWindow::FileViewerWindow()
 	toolBar->addWidget(lbl);
     Connect(highPassChk, SIGNAL(clicked(bool)), this, SLOT(hpfChk(bool)));
 
+	dcfilterChk = new QCheckBox(toolBar);
+	lbl = new ClickableLabel("<font size=-1>DC Filter</font>", toolBar);
+	Connect(lbl, SIGNAL(clicked()), this, SLOT(dcfLblClk()));
+    toolBar->addWidget(dcfilterChk);
+	toolBar->addWidget(lbl);
+    Connect(dcfilterChk, SIGNAL(clicked(bool)), this, SLOT(dcfChk(bool)));
+	
 	toolBar->addSeparator();
 	QPushButton *but = new QPushButton("Set All", toolBar);
 	but->setToolTip("Apply these graph settings to all graphs");
@@ -165,7 +175,8 @@ FileViewerWindow::FileViewerWindow()
 //#endif
 	
 	QMenu *m = mb->addMenu("File");
-	m->addAction("Open...", this, SLOT(fileOpenMenuSlot()));
+	m->addAction("&Open...", this, SLOT(fileOpenMenuSlot()));
+	m->addAction("Misc. Options...", this, SLOT(fileOptionsMenuSlot()));
 	
 	m = mb->addMenu("Color &Scheme");
 	for (int i = 0; i < (int)N_ColorScheme; ++i) {
@@ -209,6 +220,7 @@ FileViewerWindow::FileViewerWindow()
 FileViewerWindow::~FileViewerWindow()
 {	
 	/// scrollArea and graphParent automatically deleted here because they are children of us.
+	delete hpfilter;
 }
 
 
@@ -245,7 +257,9 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 		channelsMenu->removeAction(graphHideUnhideActions[i]);
 		delete graphHideUnhideActions[i];
 	}
-	
+
+	if (hpfilter) delete hpfilter;
+	hpfilter = new HPFilter(dataFile.numChans(), 300);
 	graphs.resize(dataFile.numChans());	
 	graphFrames.resize(graphs.size());
 	graphHideUnhideActions.resize(graphs.size());
@@ -272,7 +286,8 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 		graphs[i]->setContextMenuPolicy(Qt::ActionsContextMenu);
 		graphParams[i].yZoom = defaultYZoom;
 		graphParams[i].gain = defaultGain;
-		graphParams[i].filter300Hz = true;
+		graphParams[i].filter300Hz = false;
+		graphParams[i].dcFilter = true;
 		Connect(graphs[i], SIGNAL(cursorOver(double,double)), this, SLOT(mouseOverGraph(double,double)));
 		Connect(graphs[i], SIGNAL(cursorOverWindowCoords(int,int)), this, SLOT(mouseOverGraphInWindowCoords(int,int)));
 		Connect(graphs[i], SIGNAL(clickedWindowCoords(int,int)), this, SLOT(clickedGraphInWindowCoords(int,int)));
@@ -338,6 +353,10 @@ void FileViewerWindow::loadSettings()
 	if (lec == 0) exportCtl->params.allChans = true;
 	else if (lec == 1) exportCtl->params.allShown = true;
 	else if (lec == 2) exportCtl->params.customSubset = true;
+	arrowKeyFactor = settings.value("arrowKeyFactor", .1).toDouble();
+	if (fabs(arrowKeyFactor) < 0.0001) arrowKeyFactor = .1;
+	pgKeyFactor = settings.value("pgKeyFactor", .5).toDouble();
+	if (fabs(pgKeyFactor) < 0.0001) pgKeyFactor = .5;
 	colorScheme = (ColorScheme)cs;
 	xScaleSB->blockSignals(true);
 	yScaleSB->blockSignals(true);
@@ -358,6 +377,8 @@ void FileViewerWindow::saveSettings()
     settings.setValue("viewMode", (int)viewMode);	
 	settings.setValue("colorScheme", (int)colorScheme);
 	settings.setValue("lastExportFormat", int(exportCtl->params.format));
+	settings.setValue("pgKeyFactor", pgKeyFactor);
+	settings.setValue("arrowKeyFactor", arrowKeyFactor);
 	int lec = 0;
 	if (exportCtl->params.allShown) lec = 1;
 	if (exportCtl->params.customSubset) lec = 2;
@@ -455,14 +476,18 @@ void FileViewerWindow::updateData()
 	const QBitArray channelSubset = ~hiddenGraphs;
 	const int nChans = graphs.size(), nChansOn = channelSubset.count(true);	
 	QVector<int> chanIdsOn(nChansOn);
-	std::vector<bool> chansToFilter(nChansOn, false);
-	HPFilter filter(nChansOn, 300);
+	std::vector<bool> chansToFilter(nChansOn, false), chansToDCSubtract(nChansOn, false);
+	HPFilter & filter(*hpfilter);
+	if ((int)filter.scanSize() != nChansOn) filter.setScanSize(nChansOn);
 	int maxW = 1;
+	bool hasDCSubtract = false;
 	for (int i = 0, j = 0; i < nChans; ++i) {
 		if (channelSubset.testBit(i)) {
 			if (maxW < graphs[i]->width()) maxW = graphs[i]->width();
 			if (graphParams[i].filter300Hz)
 				chansToFilter[j] = true;
+			if (graphParams[i].dcFilter)
+				chansToDCSubtract[j] = true, hasDCSubtract = true; 
 			chanIdsOn[j++] = i;
 		}
 	}
@@ -488,6 +513,8 @@ void FileViewerWindow::updateData()
 
 		const double smin(SHRT_MIN), usmax(USHRT_MAX);
 	    const double dt = 1.0 / (srate / double(downsample));
+		std::vector<double> avgs(nChansOn, 0.);
+		const double avgfactor = 1.0/double(nread);
 		for (int i = 0; i < nread; ++i) {
 			filter.apply(&data[i * nChansOn], dt, chansToFilter);
 			for (int j = 0; j < nChansOn; ++j) {
@@ -496,7 +523,21 @@ void FileViewerWindow::updateData()
 			    const double sampl = ( ((double(rawsampl) + (-smin))/(usmax)) * (2.0) ) - 1.0;
 			    Vec2 vec(double(i)/double(nread), sampl);
 				graphBufs[chanId].putData(&vec, 1);
+				avgs[j] += sampl * avgfactor;
 			}
+		}
+		
+		if (hasDCSubtract) {
+			// if has dc subtract, apply subtract to channels that have it enabled
+			for (int i = 0; i < nread; ++i) {
+				for (int j = 0; j < nChansOn; ++j) {
+					const int chanId = chanIdsOn[j];
+					if (chansToDCSubtract[chanId]) {
+						Vec2 & vec(graphBufs[chanId].at(i));
+						vec.y -= avgs[j];
+					}
+				}
+			}			
 		}
 		
 	}
@@ -1154,12 +1195,15 @@ void FileViewerWindow::selectGraph(int num)
 	yScaleSB->blockSignals(true);
 	auxGainSB->blockSignals(true);
 	highPassChk->blockSignals(true);
+	dcfilterChk->blockSignals(true);
 	yScaleSB->setValue(graphParams[num].yZoom);
 	auxGainSB->setValue(graphParams[num].gain);
 	highPassChk->setChecked(graphParams[num].filter300Hz);
+	dcfilterChk->setChecked(graphParams[num].dcFilter);
 	yScaleSB->blockSignals(false);
 	auxGainSB->blockSignals(false);
 	highPassChk->blockSignals(false);
+	dcfilterChk->blockSignals(false);
 	if (didLayout) updateData();
 }
 
@@ -1170,10 +1214,23 @@ void FileViewerWindow::hpfChk(bool b)
 	if (didLayout) updateData();
 }
 
+void FileViewerWindow::dcfChk(bool b)
+{
+	if (selectedGraph < 0) return;
+	graphParams[selectedGraph].dcFilter = b;
+	if (didLayout) updateData();
+}
+
 void FileViewerWindow::hpfLblClk()
 {
 	highPassChk->setChecked(!graphParams[selectedGraph].filter300Hz);
 	hpfChk(highPassChk->isChecked());	
+}
+
+void FileViewerWindow::dcfLblClk()
+{
+	dcfilterChk->setChecked(!graphParams[selectedGraph].dcFilter);
+	dcfChk(dcfilterChk->isChecked());	
 }
 
 void FileViewerWindow::applyAllSlot()
@@ -1188,4 +1245,38 @@ void FileViewerWindow::applyAllSlot()
 void FileViewerWindow::fileOpenMenuSlot()
 {
 	mainApp()->fileOpen(this);
+}
+
+bool FileViewerWindow::eventFilter(QObject *obj, QEvent *event)
+{
+	if (obj == scrollArea && event->type() == QEvent::KeyPress) {
+		QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+		double sfactor = 0.0;
+		switch(keyEvent->key()) {
+			case Qt::Key_Left: sfactor = -arrowKeyFactor; break;
+			case Qt::Key_Right: sfactor = arrowKeyFactor; break;
+			case Qt::Key_PageUp: sfactor = pgKeyFactor; break;
+			case Qt::Key_PageDown: sfactor = -pgKeyFactor; break;
+		}
+		if (fabs(sfactor) > 0.00001) {
+			qint64 delta = nScansPerGraph() * sfactor;
+			setFilePos64(pos+delta);
+			return true;
+		}
+	} 
+	return QMainWindow::eventFilter(obj, event);
+}
+
+void FileViewerWindow::fileOptionsMenuSlot()
+{
+	QDialog dlg;
+	Ui::FVW_OptionsDialog ui;
+	ui.setupUi(&dlg);
+	ui.arrowSB->setValue(arrowKeyFactor);
+	ui.pgSB->setValue(pgKeyFactor);
+	if (dlg.exec() == QDialog::Accepted) {
+		arrowKeyFactor = ui.arrowSB->value();
+		pgKeyFactor = ui.pgSB->value();
+		saveSettings();
+	}
 }
