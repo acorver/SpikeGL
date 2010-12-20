@@ -471,9 +471,9 @@ void FileViewerWindow::updateData()
 	int downsample = num / maxW;
 	downsample /= 2; // Make sure to 2x oversample the data in the graphs.  This, combined with the glBlend we enabled in our graphs should lead to sweetness in the graph detail.  
 	if (downsample <= 0) downsample = 1;
-	std::vector<int16> data;
-	i64 nread = dataFile.readScans(data, pos, num, channelSubset, downsample);
 	
+	std::vector<int16> data;
+	i64 nread = dataFile.readScans(data, pos, num, channelSubset, downsample);	
 	
 	if (nread < 0) {
 		Error() << "Error reading data from input file!";

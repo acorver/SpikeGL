@@ -362,6 +362,8 @@ i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, c
 	for (int i = 0, n = chset.size(); i < n; ++i) 
 		if (chset.testBit(i)) onChans.push_back(i);
 	
+	std::vector<double> avgs(nChans,0.);
+	const double factor = 1.0/downSampleFactor;
 	while (cur < pos + num2read) {
 		std::vector<int16> buf(nChans);
 		if (!dataFile.seek(cur * sizeof(int16) * nChans)) {
@@ -375,18 +377,26 @@ i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, c
 			scans_out.clear();
 			return -1;
 		}
-		if (int(nChansOn) == nChans) {
-			// all chans on, just put the samples in the output vector
-			std::memcpy(&scans_out[nout * nChans], &buf[0], sizeof(int16) * nChans);
-		} else {
-			// not all chans on, put subset 1 by 1 in the output vector
-			i64 i_out = nout*nChansOn;
-			const int n = onChans.size();
-			for (int i = 0; i < n; ++i)
-				scans_out[i_out++] = buf[onChans[i]];
+		
+		for (int i = 0; i < nChans; ++i)
+			avgs[i] += double(buf[i]) * factor;
+		
+		if (cur && !(cur % downSampleFactor)) { // every Nth sample, write it out
+			if (int(nChansOn) == nChans) {
+				i64 i_out = nout * nChans;
+				for (int i = 0; i < nChans; ++i)
+					scans_out[i_out + i] = int16(avgs[i]);
+			} else {
+				// not all chans on, put subset 1 by 1 in the output vector
+				i64 i_out = nout*nChansOn;
+				const int n = onChans.size();
+				for (int i = 0; i < n; ++i)
+					scans_out[i_out++] = int16(avgs[onChans[i]]);
+			}
+			for (int i = 0; i < (int)nChans; ++i) avgs[i] = 0.;
+			++nout;
 		}
-		++nout;
-		cur += downSampleFactor;
+		++cur;
 	}
 	
 	return nout;
