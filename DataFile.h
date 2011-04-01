@@ -25,7 +25,7 @@ public:
     bool openForWrite(const DAQ::Params & params, const QString & filename_override = "");
 	
 	/** Normally you won't use this method.  This is used by the FileViewerWindow export code to reopen a new file for output
-	    based on a previous input file.  It computers the channel subset and other parameters correctly from the input file.
+	    based on a previous input file.  It computes the channel subset and other parameters correctly from the input file.
 	    The passed-in chanNumSubset is a subset of channel indices (not chan id's!) to use in the export.  So if the 
 	    channel id's you are reading in are 0,1,2,3,6,7,8 and you want to export the last 3 of these using openForRewrite, you would 
 	    pass in [4,5,6] (not [6,7,8]) as the chanNumSubset. */
