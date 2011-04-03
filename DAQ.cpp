@@ -927,4 +927,297 @@ namespace DAQ
 
 } // end namespace DAQ
 
+//-- #pragma mark Windows Hacks
 
+///-- below is a bunch of ugly hacks for windows only to not have this .EXE depend on NI .DLLs!  
+
+#if defined(Q_OS_WIN) && defined(HAVE_NIDAQmx)
+#include <windows.h>
+
+namespace DAQ {
+	static HMODULE module = 0;
+	
+	bool Available(void) {
+		static bool tried = false;
+		//bool hadNoModule = !module;
+		if (!module && !tried && !(module = LoadLibraryA("nicaiu.dll")) ) {
+			//Log() << "Could not find nicaiu.dll, DAQ features disabled!";
+			tried = true;
+			return false;
+		} else if (tried) return false;
+		//if (hadNoModule)
+		//	Log() << "Found and dynamically loaded NI Driver DLL: nicaiu.dll, DAQ features enabled";
+		return true;
+	}
+	
+	template <typename T> void tryLoadFunc(T * & func, const char *funcname) {
+		if (!func && Available()) {
+			func = reinterpret_cast<T *> (GetProcAddress( module, funcname ));
+			if (!func) {
+				//Warning() << "Could not find the function " << funcname << " in nicaiu.dll, NI functionality may fail!";
+				return;				
+			}
+		}
+	}
+}
+
+extern "C" {	
+	//*** Set/Get functions for DAQmx_Dev_DO_Lines ***
+	int32 __CFUNC DAQmxGetDevDOLines(const char device[], char *data, uInt32 bufferSize) {
+		static int32 (__CFUNC *func)(const char *, char *, uInt32) = 0;
+		DAQ::tryLoadFunc(func, "DAQmxGetDevDOLines");
+		//Debug() << "DAQmxGetDevDOLines called";
+		if (func) return func(device, data, bufferSize);
+		return DAQmxErrorRequiredDependencyNotFound;
+	}
+	
+	int32 __CFUNC DAQmxWriteDigitalScalarU32   (TaskHandle taskHandle, bool32 autoStart, float64 timeout, uInt32 value, bool32 *reserved) {
+		static int32 (__CFUNC *func) (TaskHandle, bool32, float64, uInt32, bool32 *) = 0;
+		DAQ::tryLoadFunc(func, "DAQmxWriteDigitalScalarU32");
+		//Debug() << "DAQmxWriteDigitalScalarU32 called";
+		if (func) return func(taskHandle, autoStart, timeout, value, reserved);
+		return DAQmxErrorRequiredDependencyNotFound;
+	}
+	
+	int32 __CFUNC  DAQmxStartTask (TaskHandle taskHandle) {
+		static int32 (__CFUNC  *func) (TaskHandle) = 0;
+		DAQ::tryLoadFunc(func, "DAQmxStartTask");
+		Debug() << "DAQmxStartTask called";
+		if (func) return func(taskHandle);
+		return DAQmxErrorRequiredDependencyNotFound;
+	}	
+	
+	int32 __CFUNC  DAQmxStopTask (TaskHandle taskHandle) {
+		static int32 (__CFUNC  *func) (TaskHandle) = 0;
+		DAQ::tryLoadFunc(func, "DAQmxStopTask");
+		Debug() << "DAQmxStopTask called";
+		if (func) return func(taskHandle);
+		return DAQmxErrorRequiredDependencyNotFound;
+	}
+	
+	int32 __CFUNC  DAQmxClearTask (TaskHandle taskHandle) {
+		static int32 (__CFUNC  *func) (TaskHandle) = 0;
+		DAQ::tryLoadFunc(func, "DAQmxClearTask");
+		//Debug() << "DAQmxClearTask called";
+		if (func) return func(taskHandle);
+		return DAQmxErrorRequiredDependencyNotFound;
+	}
+	
+	int32 __CFUNC DAQmxCreateDOChan (TaskHandle taskHandle, const char lines[], const char nameToAssignToLines[], int32 lineGrouping) {
+		static int32 (__CFUNC *func)(TaskHandle, const char *, const char *, int32 lineGrouping) = 0;
+		DAQ::tryLoadFunc(func, "DAQmxCreateDOChan");
+		//Debug() << "DAQmxCreateDOChan called";
+		if (func) return func(taskHandle,lines,nameToAssignToLines,lineGrouping);
+		return DAQmxErrorRequiredDependencyNotFound;
+	}
+	
+	int32 __CFUNC     DAQmxGetExtendedErrorInfo (char errorString[], uInt32 bufferSize) {
+		static int32 (__CFUNC *func) (char *, uInt32) = 0;
+		DAQ::tryLoadFunc(func, "DAQmxGetExtendedErrorInfo");
+		//Debug() << "DAQmxGetExtendedErrorInfo called";
+		if (func) return func(errorString,bufferSize);
+		strncpy(errorString, "DLL Missing", bufferSize);
+		return DAQmxSuccess;		
+	}
+	
+	int32 __CFUNC     DAQmxCreateTask          (const char taskName[], TaskHandle *taskHandle) {
+		static int32 (__CFUNC *func) (const char *, TaskHandle *) = 0;
+		static const char * const fname = "DAQmxCreateTask";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(taskName,taskHandle);
+		return DAQmxErrorRequiredDependencyNotFound;				
+	}
+	
+	int32 __CFUNC DAQmxGetDevAIMaxMultiChanRate(const char device[], float64 *data) {
+		static int32 (__CFUNC *func)(const char *, float64 *) = 0;
+		static const char * const fname = "DAQmxGetDevAIMaxMultiChanRate";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(device,data);
+		return DAQmxErrorRequiredDependencyNotFound;				
+	}
+	
+	int32 __CFUNC DAQmxGetDevAISimultaneousSamplingSupported(const char device[], bool32 *data) {
+		static int32 (__CFUNC *func)(const char *, bool32 *) 	 = 0;
+		const char *fname = "DAQmxGetDevAISimultaneousSamplingSupported";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(device,data);
+		return DAQmxErrorRequiredDependencyNotFound;						
+	}
+	
+	int32 __CFUNC DAQmxGetDevAIMaxSingleChanRate(const char device[], float64 *data) {
+		static int32 (__CFUNC *func)(const char *, float64 *) 	 = 0;
+		const char *fname = "DAQmxGetDevAIMaxSingleChanRate";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(device,data);
+		return DAQmxErrorRequiredDependencyNotFound;						
+	}
+	
+	int32 __CFUNC DAQmxGetDevAIPhysicalChans(const char device[], char *data, uInt32 bufferSize) {
+		static int32 (__CFUNC *func)(const char *, char *, uInt32) 	 = 0;
+		const char *fname = "DAQmxGetDevAIPhysicalChans";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(device,data,bufferSize);
+		return DAQmxErrorRequiredDependencyNotFound;								
+	}
+	
+	int32 __CFUNC DAQmxGetDevAOVoltageRngs(const char device[], float64 *data, uInt32 arraySizeInSamples) {
+		static int32 (__CFUNC *func)(const char *, float64 *, uInt32) 	 = 0;
+		const char *fname = "DAQmxGetDevAOVoltageRngs";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(device,data,arraySizeInSamples);
+		return DAQmxErrorRequiredDependencyNotFound;										
+	}
+	
+	int32 __CFUNC DAQmxGetDevAIVoltageRngs(const char device[], float64 *data, uInt32 arraySizeInSamples) {
+		static int32 (__CFUNC *func)(const char *, float64 *, uInt32) 	 = 0;
+		const char *fname = "DAQmxGetDevAIVoltageRngs";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(device,data,arraySizeInSamples);
+		return DAQmxErrorRequiredDependencyNotFound;												
+	}
+	
+	int32 __CFUNC DAQmxGetDevAIMinRate(const char device[], float64 *data) {
+		static int32 (__CFUNC *func)(const char *, float64 *) 	 = 0;
+		const char *fname = "DAQmxGetDevAIMinRate";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(device,data);
+		return DAQmxErrorRequiredDependencyNotFound;														
+	}
+	
+	int32 __CFUNC DAQmxGetDevAOPhysicalChans(const char device[], char *data, uInt32 bufferSize) {
+		static int32 (__CFUNC *func)(const char *, char  *, uInt32) 	 = 0;
+		const char *fname = "DAQmxGetDevAOPhysicalChans";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(device,data,bufferSize);
+		return DAQmxErrorRequiredDependencyNotFound;																
+	}
+	
+	int32 __CFUNC DAQmxGetDevProductType(const char device[], char *data, uInt32 bufferSize) {
+		static int32 (__CFUNC *func)(const char *, char  *, uInt32) 	 = 0;
+		const char *fname = "DAQmxGetDevProductType";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(device,data,bufferSize);
+		return DAQmxErrorRequiredDependencyNotFound;																		
+	}
+	
+	int32 __CFUNC DAQmxCfgInputBuffer(TaskHandle taskHandle, uInt32 numSampsPerChan) {
+		static int32 (__CFUNC *func)(TaskHandle, uInt32) 	 = 0;
+		const char *fname = "DAQmxCfgInputBuffer";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(taskHandle,numSampsPerChan);
+		return DAQmxErrorRequiredDependencyNotFound;		
+	}
+	
+	int32 __CFUNC DAQmxCfgOutputBuffer(TaskHandle taskHandle, uInt32 numSampsPerChan) {
+	static int32 (__CFUNC *func)(TaskHandle, uInt32) 	 = 0;
+	const char *fname = "DAQmxCfgOutputBuffer";
+	DAQ::tryLoadFunc(func, fname);
+	//Debug() << fname << " called";
+	if (func) return func(taskHandle,numSampsPerChan);
+		return DAQmxErrorRequiredDependencyNotFound;		
+	}
+	
+	int32 __CFUNC DAQmxCfgSampClkTiming(TaskHandle taskHandle, const char source[], float64 rate, int32 activeEdge, int32 sampleMode, uInt64 sampsPerChan) {
+		static int32 (__CFUNC *func)(TaskHandle, const char *, float64, int32, int32, uInt64) 	 = 0;
+		const char *fname = "DAQmxCfgSampClkTiming";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(taskHandle,source,rate,activeEdge,sampleMode,sampsPerChan);
+		return DAQmxErrorRequiredDependencyNotFound;				
+	}
+
+	int32 __CFUNC DAQmxCreateAIVoltageChan(TaskHandle taskHandle, const char physicalChannel[], const char nameToAssignToChannel[], int32 terminalConfig, float64 minVal, float64 maxVal, int32 units, const char customScaleName[]) {
+		static int32 (__CFUNC *func)(TaskHandle, const char *, const char *, int32, float64, float64, int32, const char *) 	 = 0;
+		const char *fname = "DAQmxCreateAIVoltageChan";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(taskHandle,physicalChannel,nameToAssignToChannel,terminalConfig,minVal,maxVal,units,customScaleName);
+		return DAQmxErrorRequiredDependencyNotFound;				
+	}		
+
+	int32 __CFUNC DAQmxCreateAOVoltageChan(TaskHandle taskHandle, const char physicalChannel[], const char nameToAssignToChannel[], float64 minVal, float64 maxVal, int32 units, const char customScaleName[]) {
+		static int32 (__CFUNC *func)(TaskHandle, const char *, const char *, float64, float64, int32, const char *) 	 = 0;
+		const char *fname = "DAQmxCreateAOVoltageChan";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(taskHandle,physicalChannel,nameToAssignToChannel,minVal,maxVal,units,customScaleName);
+		return DAQmxErrorRequiredDependencyNotFound;				
+	}		
+
+	int32 __CFUNC DAQmxReadBinaryI16(TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, int16 readArray[], uInt32 arraySizeInSamps, int32 *sampsPerChanRead, bool32 *reserved) {
+		static int32 (__CFUNC *func)(TaskHandle, int32, float64, bool32, int16 *, uInt32, int32 *, bool32 *) 	 = 0;
+		const char *fname = "DAQmxReadBinaryI16";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(taskHandle,numSampsPerChan,timeout,fillMode,readArray,arraySizeInSamps,sampsPerChanRead,reserved);
+		return DAQmxErrorRequiredDependencyNotFound;				
+	}
+
+	int32 __CFUNC DAQmxWriteBinaryI16(TaskHandle taskHandle, int32 numSampsPerChan, bool32 autoStart, float64 timeout, bool32 dataLayout, const int16 writeArray[], int32 *sampsPerChanWritten, bool32 *reserved) {
+		static int32 (__CFUNC *func)(TaskHandle, int32, bool32, float64, bool32, const int16 *, int32 *, bool32 *) 	 = 0;
+		const char *fname = "DAQmxWriteBinaryI16";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(taskHandle,numSampsPerChan,autoStart,timeout,dataLayout,writeArray,sampsPerChanWritten,reserved);
+		return DAQmxErrorRequiredDependencyNotFound;				
+	}
+	
+	int32 __CFUNC DAQmxRegisterEveryNSamplesEvent(TaskHandle taskHandle, int32 everyNsamplesEventType, uInt32 nSamples, uInt32 options, DAQmxEveryNSamplesEventCallbackPtr callbackFunction, void *callbackData) {
+		static int32 (__CFUNC *func)(TaskHandle, int32, uInt32, uInt32, DAQmxEveryNSamplesEventCallbackPtr, void *) 	 = 0;
+		const char *fname = "DAQmxRegisterEveryNSamplesEvent";
+		DAQ::tryLoadFunc(func, fname);
+		//Debug() << fname << " called";
+		if (func) return func(taskHandle,everyNsamplesEventType,nSamples,options,callbackFunction,callbackData);
+		return DAQmxErrorRequiredDependencyNotFound;		
+	}
+
+
+	/* Implementation Checklist for DLL decoupling:
+			 √ DAQmxCfgInputBuffer
+			 √ DAQmxCfgOutputBuffer
+			 √ DAQmxCfgSampClkTiming
+			 √ DAQmxClearTask
+			 √ DAQmxCreateAIVoltageChan
+			 √ DAQmxCreateAOVoltageChan
+			 √ DAQmxCreateDOChan
+			 √ DAQmxCreateTask
+			 √ DAQmxErrChk
+			 √ DAQmxErrorRequiredDependencyNotFound
+			 √ DAQmxFailed
+			 √ DAQmxGetDevAIMaxMultiChanRate
+			 √ DAQmxGetDevAIMaxSingleChanRate
+			 √ DAQmxGetDevAIMinRate
+			 √ DAQmxGetDevAIPhysicalChans
+			 √ DAQmxGetDevAISimultaneousSamplingSupported
+			 √ DAQmxGetDevAIVoltageRngs
+			 √ DAQmxGetDevAOPhysicalChans
+			 √ DAQmxGetDevAOVoltageRngs
+			 √ DAQmxGetDevDOLines
+			 √ DAQmxGetDevProductType
+			 √ DAQmxGetExtendedErrorInfo
+			 √ DAQmxReadBinaryI16
+			 √ DAQmxRegisterEveryNSamplesEvent
+			 √ DAQmxStartTask
+			 √ DAQmxStopTask
+			 √ DAQmxSuccess
+			 √ DAQmxWriteBinaryI16
+			 √ DAQmxWriteDigitalScalarU32
+		*/
+	
+}
+#else
+namespace DAQ {
+	bool Available() { return true; /* emulated, but available! */ }
+}
+#endif
