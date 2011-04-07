@@ -210,7 +210,8 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     params["fastSettleTimeMS"] = dp.fastSettleTimeMS;
     params["auxGain"] = dp.auxGain;
     params["termination"] = DAQ::TermConfigToString(dp.aiTerm);
-	params["channelMapping"] = dp.chanMap.toString();
+//	params["channelMapping"] = dp.chanMap.toString();
+	params["channelMappingTerse"] = dp.chanMap.toTerseString(dp.demuxedBitMap);
 	
     if (dp.usePD) {
         params["pdChan"] = dp.pdChan;
@@ -426,7 +427,9 @@ DAQ::Mode DataFile::daqMode() const
 ChanMap DataFile::chanMap() const 
 {
 	ChanMap chanMap;
-	if (params.contains("channelMapping")) {
+	if (params.contains("channelMappingTerse")) {
+		chanMap = ChanMap::fromTerseString(params["channelMappingTerse"].toString());
+	} else if (params.contains("channelMapping")) {
 		chanMap = ChanMap::fromString(params["channelMapping"].toString());
 	}
 	if (!chanMap.size()) {
