@@ -37,6 +37,12 @@ void GLGraph::reset(QWidget *prnt, QMutex *mut)
     setAutoBufferSwap(true);	
 }
 
+GLGraph::GLGraph(const QGLFormat & f, QWidget *p, QMutex *mut)
+	: QGLWidget(f, p), ptsMut(mut)
+{
+	reset(p, mut);
+}
+
 GLGraph::GLGraph(QGLContext *ctx, QWidget *p, QMutex *mut)
     : QGLWidget(ctx, p), ptsMut(mut)
 {

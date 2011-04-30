@@ -45,12 +45,24 @@
 #include "ui_FVW_OptionsDialog.h"
 #include <QDialog>
 
+
 const QString FileViewerWindow::viewModeNames[] = {
 	"Tiled", "Stacked", "Stacked Large", "Stacked Huge"
 };
 
 const QString FileViewerWindow::colorSchemeNames[] = {
 	"Ice", "Fire", "Green", "BlackWhite", "Classic"
+};
+
+
+class TaggableLabel : public QLabel
+{
+public:
+	TaggableLabel(QWidget *parent, Qt::WindowFlags f = 0) : QLabel(parent, f), tagPtr(0) {}
+	void setTag(void *ptr) { tagPtr = ptr; }
+	void *tag() const { return tagPtr; }
+private:
+	mutable void *tagPtr;
 };
 
 FileViewerWindow::FileViewerWindow()
@@ -192,19 +204,21 @@ FileViewerWindow::FileViewerWindow()
 	channelsMenu->addAction("Show All", this, SLOT(showAllGraphs()));
 	channelsMenu->addSeparator();
 	
-	closeLbl = new QLabel(this);
+	closeLbl = new TaggableLabel(0, (Qt::WindowFlags)Qt::FramelessWindowHint);
 	QPixmap pm(close_but_16px);
 	closeLbl->setPixmap(pm);
 	closeLbl->resize(pm.size());
 	closeLbl->setToolTip("Hide this graph");
 	closeLbl->setCursor(Qt::ArrowCursor);
 	closeLbl->hide();
+	closeLbl->setTag(0);
 	closeLbl->move(-100,-100);
+	closeLbl->installEventFilter(this);
 	
 	didLayout = false;
 	
 	hideCloseTimer = new QTimer(this);
-	hideCloseTimer->setInterval(250);
+	hideCloseTimer->setInterval(1000);
 	hideCloseTimer->setSingleShot(false);
 	Connect(hideCloseTimer, SIGNAL(timeout()), this, SLOT(hideCloseTimeout()));
 	
@@ -251,7 +265,6 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	
 	const bool reusing = graphFrames.size();
 	// if reopening a file, delete all the old graphs first, and any auxilliary objects, and also do some cleanup/pre-init
-	closeLbl->setParent(this);
 	for (int i = 0, n = graphFrames.size(); i < n; ++i) {
 		delete graphFrames[i];
 		channelsMenu->removeAction(graphHideUnhideActions[i]);
@@ -532,7 +545,7 @@ void FileViewerWindow::updateData()
 			for (int i = 0; i < nread; ++i) {
 				for (int j = 0; j < nChansOn; ++j) {
 					const int chanId = chanIdsOn[j];
-					if (chansToDCSubtract[chanId]) {
+					if (chansToDCSubtract[j]) {
 						Vec2 & vec(graphBufs[chanId].at(i));
 						vec.y -= avgs[j];
 					}
@@ -868,14 +881,17 @@ void FileViewerWindow::mouseOverGraphInWindowCoords(GLGraph *g, int x, int y)
 		if (hiddenGraphs.count(true) >= graphs.size()-1) // on last graph, can't close
 			return;
 		closeLbl->hide();
-		closeLbl->setParent(g);
-		closeLbl->move(g->width()-sz.width(),0);
+		QPoint p (g->width()-sz.width(),0);
+		p = g->mapToGlobal(p);
+		closeLbl->move(p.x(),p.y());
+		closeLbl->raise();
 		closeLbl->show();
+		closeLbl->setTag(g);
 		hideCloseTimer->stop();
 		hideCloseTimer->start();
 	} else if (closeLbl->isVisible()) {
 		// let the timer hide it! :)
-	}		
+	}
 }
 
 void FileViewerWindow::mouseOverGraphInWindowCoords(int x, int y)
@@ -905,24 +921,22 @@ void FileViewerWindow::showGraph(int num)
 	f->show();
 }
 
+void FileViewerWindow::clickedCloseLbl(GLGraph *g)
+{
+	dontKillSelection = true;
+	int num = g->tag().toInt();
+	hideGraph(num);
+	hideCloseTimeout();
+}
+
 void FileViewerWindow::clickedGraphInWindowCoords(int x, int y)
 {
 	if (!didLayout) return;
 	GLGraph *g = dynamic_cast<GLGraph *>(sender());
 	const QSize sz = closeLbl->size();
 	if (!g) return;
-	if (x > g->width()-sz.width()  && y < sz.height() ) {
-		dontKillSelection = true;
-		int num = g->tag().toInt();
-		hideGraph(num);
-		// make sure close label is still visible on the next graph that took this one's place..
-		while (++num < (int)graphs.size()) {
-			if (!hiddenGraphs.testBit(num)) {
-				mouseOverGraphInWindowCoords(graphs[num], x, y);
-				break;
-			}
-		}
-	}
+	if (x > g->width()-sz.width()  && y < sz.height() )
+		clickedCloseLbl(g);
 }
 
 void FileViewerWindow::showAllGraphs()
@@ -970,6 +984,7 @@ void FileViewerWindow::hideCloseTimeout()
 		// still inside the close but, do nothing
 	} else {
 		closeLbl->hide();
+		closeLbl->setTag(0);
 		hideCloseTimer->stop();
 	}
 }
@@ -1249,7 +1264,11 @@ void FileViewerWindow::fileOpenMenuSlot()
 
 bool FileViewerWindow::eventFilter(QObject *obj, QEvent *event)
 {
-	if (obj == scrollArea && event->type() == QEvent::KeyPress) {
+	if (obj == closeLbl && event->type() == QEvent::MouseButtonRelease) {
+		GLGraph *g = reinterpret_cast<GLGraph *>(closeLbl->tag());
+		if (g) clickedCloseLbl(g);
+		return true;
+	} else if (obj == scrollArea && event->type() == QEvent::KeyPress) {
 		QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
 		double sfactor = 0.0;
 		switch(keyEvent->key()) {

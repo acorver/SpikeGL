@@ -32,6 +32,7 @@ class QFrame;
 class QCheckBox;
 class HPFilter;
 class QEvent;
+class TaggableLabel;
 
 /// The class that handles the window you get when opening files.
 class FileViewerWindow : public QMainWindow
@@ -85,6 +86,7 @@ private slots:
 	void applyAllSlot();
 	void fileOpenMenuSlot();
 	void fileOptionsMenuSlot();
+	void clickedCloseLbl(GLGraph *g);
 	
 private:
 	void loadSettings();
@@ -126,7 +128,7 @@ private:
 	QDoubleSpinBox *xScaleSB, *yScaleSB, *auxGainSB;
 	QLabel *xDivLbl, *yDivLbl;
 	QSpinBox *nDivsSB;
-	QLabel *closeLbl;
+	TaggableLabel *closeLbl;
 	QLabel *graphNameLbl;
 	QVector<QAction *> graphHideUnhideActions;
 	QCheckBox *highPassChk, *dcfilterChk;

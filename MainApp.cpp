@@ -1566,7 +1566,11 @@ void MainApp::toggleSave(bool s)
     const DAQ::Params & p (configCtl->acceptedParams);
     if (s && !dataFile.isOpen()) {
         if (!dataFile.openForWrite(p)) {
-            QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(p.outputFile));
+			if (!p.demuxedBitMap.count(true))
+				// Aha!  Error was due to trying ot save a datafile with 0 chans!
+				QMessageBox::critical(0, "Nothing to Save!", "Save channel subset is empty (cannot save an empty data file).");
+			else
+				QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(p.outputFile));
             return;
         }
         if (!queuedParams.isEmpty()) stimGL_SaveParams("", queuedParams);
