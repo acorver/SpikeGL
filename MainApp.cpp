@@ -910,8 +910,8 @@ void MainApp::taskReadFunc()
 					else if (n > i64(scanSz)) n = scanSz;
 					scans.insert(scans.begin(), scans_full.begin(), scans_full.begin() + n);
 				}
-				if (p.nVAIChansForSave != p.nVAIChans) {
-					const double ratio = p.nVAIChansForSave / double(p.nVAIChans ? p.nVAIChans : 0);
+				if (dataFile.numChans() != p.nVAIChans) {
+					const double ratio = dataFile.numChans() / double(p.nVAIChans ? p.nVAIChans : 1.);
 					scans_subsetted.resize(0);
 					scans_subsetted.reserve(scans.size() * ratio + 32);
 					const int n = scans.size();

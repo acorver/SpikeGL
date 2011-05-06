@@ -632,8 +632,8 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
         }
     }
     p.subsetString = dialog->channelSubsetLE->text();  
-    p.nVAIChansForSave = p.demuxedBitMap.count(true);
-	if (!p.nVAIChansForSave) {
+    const unsigned nVAIChansForSave = p.demuxedBitMap.count(true);
+	if (!nVAIChansForSave) {
 		errTitle = "Channel subset empty error.";
 		errMsg = "Cowardly refusing to save a file with an empty channel-save set!\nSpecify at least 1 channel for the channel subset!";
 		return AGAIN;
