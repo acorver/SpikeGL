@@ -272,9 +272,13 @@ namespace DAQ
 #endif
     }
 
-    inline void ApplyJFRCIntan32DemuxToScan(int16 *begin) {
-        static const int narr = NUM_CHANS_PER_INTAN32*2;
-        int16 tmparr[narr];
+    inline void ApplyJFRCIntanXXDemuxToScan(int16 *begin, unsigned num_intans) {
+        int narr = NUM_CHANS_PER_INTAN_2*num_intans;
+        int16 tmparr[NUM_MUX_CHANS_MAX]; // hopefully 128 channels is freakin' enough.. 
+		if (narr > NUM_MUX_CHANS_MAX) {
+			Error() << "INTERNAL ERROR: Scan size too large for compiled-in limits (too many INTANs?!).  Please fix the sourcecode at DAQ::ApplyJFRCIntanXXDemuxToScan!";
+			narr = NUM_MUX_CHANS_MAX;
+		}
         int i,j;
         for (i = 0, j = 0; j < narr/2; i+=2,++j) {
             tmparr[j] = begin[i];
@@ -521,12 +525,12 @@ namespace DAQ
         const float64 aoSampleRate = p.srate;
         const float64     timeout = DAQ_TIMEOUT;
         const int NCHANS = p.nVAIChans;
-        muxMode =  p.mode == AI60Demux || p.mode == AI120Demux || p.mode == JFRCIntan32;
+        muxMode =  p.mode == AI60Demux || p.mode == AI120Demux || p.mode == JFRCIntan32 || p.mode == AI128Demux;
         int nscans_per_mux_scan = 1;
         AOWriteThread * aoWriteThr = 0;
 
         if (muxMode) {
-            const int mux_chans_per_phys = p.mode == JFRCIntan32 ? MUX_CHANS_PER_PHYS_CHAN32 : MUX_CHANS_PER_PHYS_CHAN;
+            const int mux_chans_per_phys = (p.mode == JFRCIntan32 || p.mode == AI128Demux) ? MUX_CHANS_PER_PHYS_CHAN_2 : MUX_CHANS_PER_PHYS_CHAN;
             sampleRate *= double(mux_chans_per_phys);
             nscans_per_mux_scan = mux_chans_per_phys;
             if (!p.extClock) {
@@ -668,7 +672,7 @@ namespace DAQ
                         tmp.insert(tmp.end(), begi, endi); // .. we keep the extra channels
                         if (p.mode == JFRCIntan32) {
                             // now, optionally demux the channels such that channels 0->15 come from AI0 and 16->31 from AI1
-                            ApplyJFRCIntan32DemuxToScan(&tmp[tmp.size()-p.nVAIChans]);
+                            ApplyJFRCIntanXXDemuxToScan(&tmp[tmp.size()-p.nVAIChans], 2);
                         }                        
                     }
                 }
@@ -679,9 +683,9 @@ namespace DAQ
                     Error() << "INTERNAL ERROR SCAN DIDN'T END ON A SCAN BOUNDARY FIXME!!! in " << __FILE__ << ":" << __LINE__;                 
                 }
             } else if (p.mode == JFRCIntan32) {
-                for (int i = 0; i < (int)data.size(); i+= MUX_CHANS_PER_PHYS_CHAN32*2) 
-                    if (i+MUX_CHANS_PER_PHYS_CHAN32*2 <= (int)data.size())
-                        ApplyJFRCIntan32DemuxToScan(&data[i]);                    
+                for (int i = 0; i < (int)data.size(); i+= MUX_CHANS_PER_PHYS_CHAN_2*2) 
+                    if (i+MUX_CHANS_PER_PHYS_CHAN_2*2 <= (int)data.size())
+                        ApplyJFRCIntanXXDemuxToScan(&data[i], 2);                    
             }
             totalRead += nRead;
             
@@ -870,7 +874,7 @@ namespace DAQ
 
 
     /// some helper funcs from SpikeGL.h
-    static const QString acqModes[] = { "AI60Demux", "AIRegular", "AI120Demux", QString::null };
+    static const QString acqModes[] = { "AI60Demux", "AIRegular", "AI120Demux", "JFRCIntan32", "AI128Demux", QString::null };
     
     const QString & ModeToString(Mode m)
     {

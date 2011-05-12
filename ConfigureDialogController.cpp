@@ -98,6 +98,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     DAQ::Params & p (*p_in); // this just got populated from settings
 
     // initialize the dialogs with some values from settings
+	chanMapCtl.loadSettings(p.mode);
     dialog->outputFileLE->setText(p.outputFile);
     if (int(p.mode) < dialog->acqModeCB->count())
         dialog->acqModeCB->setCurrentIndex((int)p.mode);    
@@ -227,8 +228,9 @@ void ConfigureDialogController::acqModeCBChanged()
         QString txt = dialog->channelListLE->text();
         if (txt.startsWith("0:1") || txt.startsWith("0:3") || txt.startsWith("0:7"))  {
             switch (idx) {
-                case DAQ::AI60Demux: txt = QString("0:3") + txt.mid(3); break;
-                case DAQ::AI120Demux: txt = QString("0:7") + txt.mid(3); break;
+                case DAQ::AI60Demux: txt = QString("0:3") + txt.mid(3); break;			
+                case DAQ::AI120Demux: 
+				case DAQ::AI128Demux: txt = QString("0:7") + txt.mid(3); break;
                 case DAQ::JFRCIntan32: txt = QString("0:1") + txt.mid(3); break;
             }
             dialog->channelListLE->setText(txt);
@@ -252,6 +254,7 @@ void ConfigureDialogController::acqModeCBChanged()
     dialog->doCtlCB->setEnabled(intan);
     dialog->fastSettleSB->setEnabled(intan);
     dialog->fastSettleLbl->setEnabled(intan);
+	chanMapCtl.loadSettings(static_cast<DAQ::Mode>(idx));
 }
 
 void ConfigureDialogController::deviceCBChanged()
@@ -400,15 +403,16 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     
     int nExtraChans = 0;
     
-    if ( acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux || acqMode == DAQ::JFRCIntan32) {
+    if ( acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux || acqMode == DAQ::JFRCIntan32
+		|| acqMode == DAQ::AI128Demux) {
         if (!DAQ::SupportsAISimultaneousSampling(dev)) {
             errTitle = "INTAN Requires Simultaneous Sampling";
-            errMsg = QString("INTAN (60/120/JFRC32 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev);
+            errMsg = QString("INTAN (60/120/128/JFRC32 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev);
             return AGAIN;
         }
-        const int minChanSize = acqMode == DAQ::AI120Demux ? 8 : (acqMode == DAQ::JFRCIntan32 ? 2 : 4);
+        const int minChanSize = (acqMode == DAQ::AI120Demux || acqMode == DAQ::AI128Demux) ? 8 : (acqMode == DAQ::JFRCIntan32 ? 2 : 4);
         if ( int(chanVect.size()) < minChanSize ) {
-            errTitle = "AI Chan List Error", errMsg = "INTAN (60/120/JFRC32 demux) mode requires precisely 4, 8 or 2 channels!";
+            errTitle = "AI Chan List Error", errMsg = "INTAN (60/120/128/JFRC32 demux) mode requires precisely 4, 8 or 2 channels!";
             return AGAIN;
         }
         nExtraChans = chanVect.size() - minChanSize;
@@ -440,8 +444,8 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     
     if (acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux) 
         nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN + nExtraChans;
-    else if (acqMode == DAQ::JFRCIntan32)
-        nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN32 + nExtraChans;
+    else if (acqMode == DAQ::JFRCIntan32 || acqMode == DAQ::AI128Demux)
+        nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN_2 + nExtraChans;
     
     bool usePD = false;
     if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd) {
@@ -1002,10 +1006,10 @@ void ConfigureDialogController::applyAOPass()
     int nExtraChans = 0;
     bool mux = false;
 	int num_chans_per_intan = 1;
-    if ( (mux = (p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux || p.mode == DAQ::JFRCIntan32 )) ) {
-        const int minChanSize = p.mode == DAQ::AI120Demux ? 8 : (p.mode == DAQ::JFRCIntan32 ? 2 : 4);
-		if (p.mode == DAQ::JFRCIntan32)
-			num_chans_per_intan = NUM_CHANS_PER_INTAN32;
+    if ( (mux = (p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux || p.mode == DAQ::AI128Demux || p.mode == DAQ::JFRCIntan32 )) ) {
+        const int minChanSize = (p.mode == DAQ::AI120Demux || p.mode == DAQ::AI128Demux) ? 8 : (p.mode == DAQ::JFRCIntan32 ? 2 : 4);
+		if (p.mode == DAQ::JFRCIntan32 || p.mode == DAQ::AI128Demux)
+			num_chans_per_intan = NUM_CHANS_PER_INTAN_2;
 		else
 			num_chans_per_intan = NUM_CHANS_PER_INTAN;
         nExtraChans = chanVect.size() - minChanSize;

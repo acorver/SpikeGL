@@ -5,6 +5,7 @@
 #include "ui_ChanMapping.h"
 #include "SpikeGL.h"
 #include "ChanMap.h"
+#include "DAQ.h"
 class QDialog;
 
 class ChanMappingController : public QObject
@@ -14,9 +15,11 @@ public:
     ChanMappingController(QObject *parent=0);
     ~ChanMappingController();
 
-    void loadSettings();
+	DAQ::Mode currentMode;
+	
+    void loadSettings(DAQ::Mode currentMode);
     void saveSettings();
-    static unsigned defaultPinMapping[NUM_MUX_CHANS_MAX];
+    static unsigned defaultPinMapping[DAQ::N_Modes][NUM_MUX_CHANS_MAX];
 
     ChanMapDesc mappingForGraph(unsigned graphNum) const;
     ChanMapDesc mappingForIntan(unsigned intan, unsigned intan_chan) const;
@@ -30,6 +33,7 @@ public slots:
 #endif
 
 private:
+    void loadSettings();
     void resetFromSettings();
     QDialog *dialogParent;
     Ui::ChanMapping *dialog;

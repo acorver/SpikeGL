@@ -435,7 +435,7 @@ ChanMap DataFile::chanMap() const
 	if (!chanMap.size()) {
 		// saved file lacks a chan map -- sneakily pull it from the "current" chan map settings
 		ChanMappingController ctl;
-		ctl.loadSettings();
+		ctl.loadSettings(daqMode());
 		chanMap = ctl.mappingForAll();
 	}
 	return chanMap;

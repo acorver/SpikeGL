@@ -33,7 +33,7 @@ namespace DAQ
     };
 
     enum Mode {
-        AI60Demux=0, AIRegular, AI120Demux, JFRCIntan32, N_Modes, AIUnknown = N_Modes
+        AI60Demux=0, AIRegular, AI120Demux, JFRCIntan32, AI128Demux, N_Modes, AIUnknown = N_Modes
     };
 
     enum AcqStartEndMode { 

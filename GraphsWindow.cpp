@@ -130,7 +130,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     graphCtls->addSeparator();
 	
     QPushButton *fset = new QPushButton(QIcon(QPixmap(fastsettle_xpm)), "Fast Settle", graphCtls);
-    if (p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux) {
+    if (p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux || p.mode == DAQ::AI128Demux) {
         fset->setToolTip("Toggle the DIO control line low/high for 2 seconds to 'fast settle' the input channels.");        
     } else {
         fset->setDisabled(true);

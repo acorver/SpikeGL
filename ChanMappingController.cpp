@@ -2,17 +2,38 @@
 #include <QDialog>
 #include <QSettings>
 
-/*static*/ unsigned ChanMappingController::defaultPinMapping[NUM_MUX_CHANS_MAX] = {
-    35, 25, 15, 48, 45, 37, 36, 27, 17, 26, 16, 47, 46, 
-    38, 2, 41, 44, 32, 33, 14, 24, 34, 43, 31, 21, 42, 13,
-    23, 12, 22, 83, 52, 53, 61, 71, 73, 82, 72, 64, 74, 84,
-    63, 62, 54, 51, 78, 68, 56, 57, 86, 76, 87, 77, 66, 67,
-    55, 58, 85, 75, 65
+/*static*/ unsigned ChanMappingController::defaultPinMapping[DAQ::N_Modes][NUM_MUX_CHANS_MAX] = {
+	{
+		/* AI60Demux */
+		35, 25, 15, 48, 45, 37, 36, 27, 17, 26, 16, 47, 46, 38, 2, 
+		41, 44, 32, 33, 14, 24, 34, 43, 31, 21, 42, 13, 23, 12, 22, 
+		83, 52, 53, 61, 71, 73, 82, 72, 64, 74, 84, 63, 62, 54, 51, 
+		78, 68, 56, 57, 86, 76, 87, 77, 66, 67, 55, 58, 85, 75, 65
+	},
+	{ //AIRegular		SET IN C'TOR ONCE GLOBALLY FIRST TIME CLASS C'TOR CALLED
+	},
+	{ //AI120Demux		
+	},
+	{ //JFRNIntan32		
+	},
+	{ //AI128Demux		
+	},
 };
 
+static bool setupDefaults = false;
+
 ChanMappingController::ChanMappingController(QObject *parent)
- :  QObject(parent)
+:  QObject(parent), currentMode(DAQ::AI60Demux)
 {
+	
+	if (!setupDefaults) {
+		setupDefaults = true;
+		// run once -- setup defaults array
+		for (int i = 1; i < (int)DAQ::N_Modes; ++i)
+			for (int j = 0; j < NUM_MUX_CHANS_MAX; ++j)
+				defaultPinMapping[i][j] = j;
+	}
+	
     dialogParent = new QDialog(0);    
     dialog = new Ui::ChanMapping;
     dialog->setupUi(dialogParent);
@@ -21,7 +42,7 @@ ChanMappingController::ChanMappingController(QObject *parent)
 
 void ChanMappingController::resetFromSettings()
 {
-    loadSettings();
+    loadSettings(currentMode);
 
     const int rowct = NUM_MUX_CHANS_MAX; 
     dialog->tableWidget->setRowCount(NUM_MUX_CHANS_MAX);
@@ -80,18 +101,24 @@ bool ChanMappingController::exec()
     return false;
 }
 
-void ChanMappingController::loadSettings()
+void ChanMappingController::loadSettings() { loadSettings(currentMode); }
+
+void ChanMappingController::loadSettings(DAQ::Mode m)
 {
+	currentMode = m;
     QSettings settings("janelia.hhmi.org", "SpikeGL");
 
-    settings.beginGroup("ChanMappingController");
+	if (currentMode != DAQ::AI60Demux)
+		settings.beginGroup(QString("ChanMappingController_") + DAQ::ModeToString(currentMode));
+	else	
+		settings.beginGroup("ChanMappingController");
 
     pinMapping.clear();
     pinMapping.resize(NUM_MUX_CHANS_MAX);
     eMapping.clear();
     eMapping.resize(NUM_MUX_CHANS_MAX);
     for (int i = 0; i < (int)pinMapping.size(); ++i) {
-        pinMapping[i] = settings.value(QString("pinMapping_%1").arg(i), defaultPinMapping[i]).toUInt();
+        pinMapping[i] = settings.value(QString("pinMapping_%1").arg(i), defaultPinMapping[currentMode][i]).toUInt();
         eMapping[i] =  settings.value(QString("electrodeMapping_%1").arg(i), i).toUInt();
     }
 }
@@ -100,8 +127,11 @@ void ChanMappingController::saveSettings()
 {
     QSettings settings("janelia.hhmi.org", "SpikeGL");
 
-    settings.beginGroup("ChanMappingController");
-
+	if (currentMode != DAQ::AI60Demux)
+		settings.beginGroup(QString("ChanMappingController_") + DAQ::ModeToString(currentMode));
+	else	
+		settings.beginGroup("ChanMappingController");
+	
     for (int i = 0; i < (int)pinMapping.size(); ++i) {
         settings.setValue(QString("pinMapping_%1").arg(i), pinMapping[i]);
         settings.setValue(QString("electrodeMapping_%1").arg(i), eMapping[i]);

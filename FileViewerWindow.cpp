@@ -826,6 +826,7 @@ QString FileViewerWindow::generateGraphNameString(unsigned num, bool verbose) co
     } else { // MUX mode
 		int first_non_mux_id;
 		switch (dataFile.daqMode()) {
+			case DAQ::AI128Demux: first_non_mux_id = 128; break;
 			case DAQ::AI120Demux: first_non_mux_id = 120; break;
 			case DAQ::JFRCIntan32: first_non_mux_id = 32; break;
 			case DAQ::AI60Demux: 
