@@ -290,7 +290,7 @@ namespace DAQ
     }
     
     Task::Task(const Params & acqParams, QObject *p) 
-        : QThread(p), pleaseStop(false), params(acqParams), 
+        : QThread(p), SampleBufQ(128), pleaseStop(false), params(acqParams), 
           fast_settle(0), muxMode(false), totalRead(0LL)
     {
     }
