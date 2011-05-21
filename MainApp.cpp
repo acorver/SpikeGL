@@ -149,12 +149,13 @@ MainApp::MainApp(int & argc, char ** argv)
     timer->setSingleShot(false);
     timer->start(247); // update status bar every 247ms.. i like this non-round-numbre.. ;)
     
+	acqWaitingForPrecreate = false;
     pregraphTimer = new QTimer(this);
     Connect(pregraphTimer, SIGNAL(timeout()), this, SLOT(precreateGraphs()));
     pregraphTimer->setSingleShot(false);
     pregraphTimer->start(0);
 
-    updateWindowTitles();
+	appInitialized();	
 }
 
 MainApp::~MainApp()
@@ -739,7 +740,9 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 }
 
 void MainApp::newAcq() 
-{
+{	
+	if (acqWaitingForPrecreate) return; ///< disable 'N' key or new app menu spamming...
+	
     if ( !maybeCloseCurrentIfRunning() ) return;
     if (DAQ::ProbeAllAIChannels().empty()) {
             QMessageBox::critical(0, "Analog Input Missing!", "Could not find any analog input channels on this system!  Therefore, data acquisition is unavailable!");
@@ -749,10 +752,13 @@ void MainApp::newAcq()
     int ret = configCtl->exec();
     noHotKeys = false;
     if (ret == QDialog::Accepted) {
-        QString errTitle, errMsg;
-        if ( ! startAcq(errTitle, errMsg) )
-			QMessageBox::critical(0, errTitle, errMsg);
-    }
+		if (pregraphs.count() < maxPreGraphs) {
+			acqWaitingForPrecreate = true;
+			noHotKeys = true;
+			showPrecreateDialog();
+		} else 
+			startAcqWithPossibleErrDialog();
+	}
 }
 
 /// check if everything is ok, ask user, then quit
@@ -1640,7 +1646,7 @@ void MainApp::precreateOneGraph()
 	bl->addWidget(chk);
 
 	GLGraph *g = new GLGraph(f);
-
+	
 	bl->addWidget(g,1);
     bl->setSpacing(0);
     bl->setContentsMargins(0,0,0,0);
@@ -1651,29 +1657,50 @@ void MainApp::precreateOneGraph()
     tPerGraph /= pregraphs.count();
 }
 
-void MainApp::precreateGraphs()
+void MainApp::showPrecreateDialog()
 {
-    const int MAX_GRAPHS = maxPreGraphs;
     if (!precreateDialog) {
         precreateDialog = new QMessageBox(QMessageBox::Information, 
                                           "Precreating GL Graphs",
-                                          QString("Precreating ") + QString::number(MAX_GRAPHS) + " graphs, please wait...",
+                                          QString("Precreating ") + QString::number(maxPreGraphs) + " graphs, please wait...",
                                           QMessageBox::NoButton,
                                           consoleWindow);
         precreateDialog->addButton("Quit", QMessageBox::RejectRole);
         Connect(precreateDialog, SIGNAL(rejected()), this, SLOT(quit()));
         Connect(precreateDialog, SIGNAL(accepted()), this, SLOT(quit()));
         precreateDialog->show();
-    }
-    if (int(pregraphs.count()) < MAX_GRAPHS) {
+    }	
+}
+
+void MainApp::precreateGraphs()
+{
+    if (int(pregraphs.count()) < maxPreGraphs) {
         precreateOneGraph();
-        if (pregraphs.count() == MAX_GRAPHS) {
-            Debug () << "Pre-created " << pregraphs.count() << " GLGraphs, creation time " << tPerGraph*1e3 << " msec avg per graph, done.";
-            delete precreateDialog, precreateDialog = 0;
-            delete pregraphTimer, pregraphTimer = 0;
-            appInitialized();
+        if (pregraphs.count() == maxPreGraphs) {
+ 			precreateDone();
         } 
     }
+}
+
+void MainApp::precreateDone()
+{
+	if (pregraphTimer) {
+		Log () << "Pre-created " << pregraphs.count() << " GLGraphs, creation time " << tPerGraph*1e3 << " msec avg per graph, done.";
+		delete precreateDialog, precreateDialog = 0;
+		delete pregraphTimer, pregraphTimer = 0;
+	}
+	if (acqWaitingForPrecreate) {
+		acqWaitingForPrecreate = false;
+		noHotKeys = false;
+		startAcqWithPossibleErrDialog();
+	}	
+}
+
+void MainApp::startAcqWithPossibleErrDialog()
+{
+	QString errTitle, errMsg;
+	if ( ! startAcq(errTitle, errMsg) )
+	QMessageBox::critical(0, errTitle, errMsg);
 }
 
 QFrame * MainApp::getGLGraphWithFrame()

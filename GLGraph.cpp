@@ -37,17 +37,33 @@ void GLGraph::reset(QWidget *prnt, QMutex *mut)
     setAutoBufferSwap(true);	
 }
 
-GLGraph::GLGraph(const QGLFormat & f, QWidget *p, QMutex *mut)
+/*GLGraph::GLGraph(const QGLFormat & f, QWidget *p, QMutex *mut)
 	: QGLWidget(f, p), ptsMut(mut)
 {
 	reset(p, mut);
 }
+*/
 
-GLGraph::GLGraph(QGLContext *ctx, QWidget *p, QMutex *mut)
+/*GLGraph::GLGraph(QGLContext *ctx, QWidget *p, QMutex *mut)
     : QGLWidget(ctx, p), ptsMut(mut)
 {
     reset(p, mut);
 }
+ */
+
+/*GLGraph::GLGraph(QGLContext *c, QWidget *parent, QGLWidget *shareWidget, QMutex *mut)
+: QGLWidget(c, parent, shareWidget), ptsMut(mut)
+{
+	reset(parent, mut);
+}
+*/
+
+/*GLGraph::GLGraph(QWidget *parent, QGLWidget *shareWidget, QMutex *mut)
+: QGLWidget(parent, shareWidget), ptsMut(mut)
+{
+	reset(parent, mut);
+}
+*/
 
 GLGraph::GLGraph(QWidget *parent, QMutex *mut)
     : QGLWidget(parent), ptsMut(mut)    

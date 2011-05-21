@@ -13,9 +13,11 @@ class GLGraph : public QGLWidget
 {
     Q_OBJECT
 public:
-    GLGraph(QGLContext *ctx, QWidget *parent = 0, QMutex *ptsMutex = 0);
+    //GLGraph(QGLContext *ctx, QWidget *parent = 0, QMutex *ptsMutex = 0);
+	//GLGraph(QWidget *parent, QGLWidget *shareWidget, QMutex *ptsMutex = 0);
+	//GLGraph(QGLContext *c, QWidget *parent=0, QGLWidget *shareWidget=0, QMutex *ptsMutex = 0);
     GLGraph(QWidget *parent = 0, QMutex *ptsMutex = 0);
-	GLGraph(const QGLFormat & f, QWidget *p = 0, QMutex *mut = 0);
+	//GLGraph(const QGLFormat & f, QWidget *p = 0, QMutex *mut = 0);
     virtual ~GLGraph();
 
     /// Reset the graph to default params, as if it were freshly constructed

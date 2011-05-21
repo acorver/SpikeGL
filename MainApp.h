@@ -248,6 +248,9 @@ private:
                               u64 & firstSamp, i64 & scan0Fudge);
     void precreateOneGraph();
     bool startAcq(QString & errTitle, QString & errMsg);
+	void showPrecreateDialog();
+	void precreateDone();
+	void startAcqWithPossibleErrDialog();
 	
 	// WindowMenu stuff
 	void windowMenuRemove(QWidget *w);
@@ -322,6 +325,8 @@ private:
 
 	QList<QWidget *> windows;
 	QMap<QWidget *, QAction *> windowActions;
+	
+	bool acqWaitingForPrecreate;
 	
 public:
 
