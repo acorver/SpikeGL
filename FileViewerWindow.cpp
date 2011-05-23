@@ -118,7 +118,7 @@ FileViewerWindow::FileViewerWindow()
 	lbl = new QLabel("<font size=-1>X-Scale (secs):</font>", toolBar);
     toolBar->addWidget(lbl);	
     xScaleSB = new QDoubleSpinBox(toolBar);
-    xScaleSB->setDecimals(3);
+    xScaleSB->setDecimals(4);
     xScaleSB->setRange(.0001, 1e6);
     xScaleSB->setSingleStep(.25);    
     toolBar->addWidget(xScaleSB);
@@ -649,6 +649,7 @@ void FileViewerWindow::setFilePosSecs(double s)
 
 void FileViewerWindow::configureMiscControls(bool blockSignals)
 {	
+	xScaleSB->setDecimals(4);
 	xScaleSB->setRange(0.0001, dataFile.fileTimeSecs());
 
 	qint64 maxVal = (dataFile.scanCount()-1) - nScansPerGraph();
