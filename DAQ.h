@@ -109,6 +109,16 @@ namespace DAQ
 
         ChanMap chanMap;
 
+		bool doPreJuly2011IntanDemux; /**< This affects how we demux the AI channels as they come in
+									       off the card -- Pre July 2011 demux lead to scans demuxed as:
+									       
+									           Intan0_CH0, Intan1_CH0, ... IntanN_ChanM, extrachan1, extrachan2
+									   
+										   Whereas now, the new scheme is:
+									   
+									           Intan0_CH0, Intan0_CH1, ... Intan0_ChanM, Intan1_Chan0, ... IntanN_ChanM, extrachan1, extrachan2
+									   */
+		
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }
         void unlock() const { mutex.unlock(); }

@@ -118,6 +118,8 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     dialog->channelListLE->setText(p.aiString);
     dialog->acqStartEndCB->setCurrentIndex((int)p.acqStartEndMode);
 	dialog->lowLatencyCB->setChecked(p.lowLatency);
+	dialog->preJuly2011DemuxCB->setChecked(p.doPreJuly2011IntanDemux);
+	dialog->preJuly2011DemuxCB->setEnabled(p.mode != DAQ::AIRegular);
     acqPdParams->pdAIThreshSB->setValue((p.pdThresh/32768.+1.)/2. * (p.range.max-p.range.min) + p.range.min);
     acqPdParams->pdAISB->setValue(p.pdChan);
     acqPdParams->pdPassthruAOChk->setChecked(p.pdPassThruToAO > -1);
@@ -238,6 +240,7 @@ void ConfigureDialogController::acqModeCBChanged()
     }
     dialog->channelSubsetLE->setEnabled(notStraightAI);
     dialog->channelSubsetLabel->setEnabled(notStraightAI);
+    dialog->preJuly2011DemuxCB->setEnabled(notStraightAI);
     
     dialog->srateLabel->setEnabled(/*enabled*/true);
     dialog->srateSB->setEnabled(/*enabled*/true);
@@ -560,6 +563,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());
     p.usePD = usePD;
 	p.lowLatency = dialog->lowLatencyCB->isChecked();
+	p.doPreJuly2011IntanDemux = dialog->preJuly2011DemuxCB->isChecked();
     if (!aoDevNames.empty()) {                
         p.aoPassthru = aoPassthru->aoPassthruGB->isChecked();
         p.aoDev = aoDev;
@@ -837,6 +841,8 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
     p.silenceBeforePD = settings.value("silenceBeforePD", DEFAULT_PD_SILENCE).toDouble();
 	
 	p.lowLatency = settings.value("lowLatency", false).toBool();
+	
+	p.doPreJuly2011IntanDemux = settings.value("doPreJuly2011IntanDemux", false).toBool();
     
 }
 
@@ -901,6 +907,7 @@ void ConfigureDialogController::saveSettings() const
     settings.setValue("silenceBeforePD", p.silenceBeforePD);
 
 	settings.setValue("lowLatency", p.lowLatency);
+	settings.setValue("doPreJuly2011IntanDemux", p.doPreJuly2011IntanDemux);
 
     settings.endGroup();
 }

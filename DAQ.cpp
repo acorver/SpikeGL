@@ -272,21 +272,25 @@ namespace DAQ
 #endif
     }
 
-    inline void ApplyJFRCIntanXXDemuxToScan(int16 *begin, unsigned num_intans) {
-        int narr = NUM_CHANS_PER_INTAN_2*num_intans;
+	inline void ApplyNewIntanDemuxToScan(int16 *begin, const unsigned nchans_per_intan, const unsigned num_intans) {
+        int narr = nchans_per_intan*num_intans;
         int16 tmparr[NUM_MUX_CHANS_MAX]; // hopefully 128 channels is freakin' enough.. 
 		if (narr > NUM_MUX_CHANS_MAX) {
 			Error() << "INTERNAL ERROR: Scan size too large for compiled-in limits (too many INTANs?!).  Please fix the sourcecode at DAQ::ApplyJFRCIntanXXDemuxToScan!";
 			narr = NUM_MUX_CHANS_MAX;
 		}
-        int i,j;
-        for (i = 0, j = 0; j < narr/2; i+=2,++j) {
-            tmparr[j] = begin[i];
-        }
-        for (i = 1, j = narr/2; j < narr; i+=2,++j) {
-            tmparr[j] = begin[i];
-        }
+        int i,j,k;
+		for (k = 0; k < int(num_intans); ++k) {			
+			for (i = k, j = k*int(narr/num_intans); j < k+int(narr/num_intans); i+=num_intans,++j) {
+				tmparr[j] = begin[i];
+			}
+		}
         memcpy(begin, tmparr, narr*sizeof(int16));
+		
+	}
+	
+    inline void ApplyJFRCIntanXXDemuxToScan(int16 *begin, unsigned num_intans) {
+		ApplyNewIntanDemuxToScan(begin, NUM_CHANS_PER_INTAN_2, num_intans);
     }
     
     Task::Task(const Params & acqParams, QObject *p) 
@@ -629,10 +633,11 @@ namespace DAQ
             }
 
             //Debug() << "Acquired " << nRead << " samples. Total " << totalRead;
-            if (muxMode && nExtraChans) {
+            if (muxMode) {
                 /*
                   NB: at this point data contains scans of the form:
 
+				
                   | 0 | 1 | 2 | 3 | Extra 1 | Extra 2 | PD | ...
                   | 4 | 5 | 6 | 7 | Extra 1 | Extra 2 | PD | ... 
                   | 56| 57| 58| 59| Extra 1 | Extra 2 | PD |
@@ -644,11 +649,18 @@ namespace DAQ
                   We need to remove them!
 
                   We want to turn that into 1 (or more) demuxed VIRTUAL scans
-                  of the form:
+                  of either form:
+				 
+                  Pre-July 2011 ordering, which was INTAN_Channel major:
 
                   | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | ... | 58 | 59 | Extra 1 | Extra 2| PD |
-                  -----------------------------------------------------
+                  -------------------------------------------------------------------------
 
+                  Or, the current ordering, which is INTAN major:
+				 
+                  | 0 | 4 | 8 | 12 | 16 | 20 | 24 | 28 | ... | 55 | 59 | Extra 1 | Extra 2| PD |
+                  ------------------------------------------------------------------------------
+				 
                   Where we remove every `nChans' extraChans except for when 
                   we have (NCHANS-extraChans) samples, then we add the extraChans, 
                   effectively downsampling the extra channels from 444kHz to 
@@ -670,10 +682,26 @@ namespace DAQ
                     if ((!((tmp.size()+nExtraChans) % NCHANS)) && i+nExtraChans <= datasz) {// if we are on a virtual scan-boundary, then ...
                         begi = data.begin()+i;  endi = begi+nExtraChans;
                         tmp.insert(tmp.end(), begi, endi); // .. we keep the extra channels
-                        if (p.mode == JFRCIntan32) {
-                            // now, optionally demux the channels such that channels 0->15 come from AI0 and 16->31 from AI1
-                            ApplyJFRCIntanXXDemuxToScan(&tmp[tmp.size()-p.nVAIChans], 2);
-                        }                        
+						if ( !p.doPreJuly2011IntanDemux || p.mode == JFRCIntan32 ) {
+							int16 *scanBegin = &tmp[tmp.size()-p.nVAIChans];
+							switch (p.mode) {
+								case JFRCIntan32:
+									// now, optionally demux the channels such that channels 0->15 come from AI0 and 16->31 from AI1
+									ApplyJFRCIntanXXDemuxToScan(scanBegin, 2);
+									break;
+								case AI60Demux:
+									ApplyNewIntanDemuxToScan(scanBegin, 15, 4);
+									break;
+								case AI120Demux:
+									ApplyNewIntanDemuxToScan(scanBegin, 15, 8);
+									break;
+								case AI128Demux:
+									ApplyNewIntanDemuxToScan(scanBegin, 16, 8);
+									break;
+								default:
+									Error() << "INTERNAL ERROR: Unknown acquisition/mux mode.  Please fixeme in " << __FILE__ << ":" << __LINE__;
+							}
+						}
                     }
                 }
                 data.swap(tmp);
@@ -682,10 +710,6 @@ namespace DAQ
                     // data didn't end on scan-boundary -- we have leftover scans!
                     Error() << "INTERNAL ERROR SCAN DIDN'T END ON A SCAN BOUNDARY FIXME!!! in " << __FILE__ << ":" << __LINE__;                 
                 }
-            } else if (p.mode == JFRCIntan32) {
-                for (int i = 0; i < (int)data.size(); i+= MUX_CHANS_PER_PHYS_CHAN_2*2) 
-                    if (i+MUX_CHANS_PER_PHYS_CHAN_2*2 <= (int)data.size())
-                        ApplyJFRCIntanXXDemuxToScan(&data[i], 2);                    
             }
             totalRead += nRead;
             

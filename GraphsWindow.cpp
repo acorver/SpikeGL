@@ -34,7 +34,7 @@
 #include "window_fullscreen.xpm"
 #include "window_nofullscreen.xpm"
 #include "apply_all.xpm"
-#include "fastsettle.xpm"
+//#include "fastsettle.xpm"
 
 static const QIcon *playIcon(0), *pauseIcon(0), *windowFullScreenIcon(0), *windowNoFullScreenIcon(0), *applyAllIcon(0);
 
