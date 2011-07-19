@@ -1,7 +1,8 @@
-<ui version="4.0" >
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
  <class>ChanMapping</class>
- <widget class="QDialog" name="ChanMapping" >
-  <property name="geometry" >
+ <widget class="QDialog" name="ChanMapping">
+  <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
@@ -9,11 +10,11 @@
     <height>418</height>
    </rect>
   </property>
-  <property name="windowTitle" >
+  <property name="windowTitle">
    <string>INTAN Channel Mapping</string>
   </property>
-  <widget class="QDialogButtonBox" name="buttonBox" >
-   <property name="geometry" >
+  <widget class="QDialogButtonBox" name="buttonBox">
+   <property name="geometry">
     <rect>
      <x>140</x>
      <y>365</y>
@@ -21,15 +22,15 @@
      <height>32</height>
     </rect>
    </property>
-   <property name="orientation" >
+   <property name="orientation">
     <enum>Qt::Horizontal</enum>
    </property>
-   <property name="standardButtons" >
+   <property name="standardButtons">
     <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
    </property>
   </widget>
-  <widget class="QTableWidget" name="tableWidget" >
-   <property name="geometry" >
+  <widget class="QTableWidget" name="tableWidget">
+   <property name="geometry">
     <rect>
      <x>15</x>
      <y>19</y>
@@ -38,33 +39,33 @@
     </rect>
    </property>
    <row>
-    <property name="text" >
+    <property name="text">
      <string>0</string>
     </property>
    </row>
    <row>
-    <property name="text" >
+    <property name="text">
      <string>1</string>
     </property>
    </row>
    <row>
-    <property name="text" >
+    <property name="text">
      <string>2</string>
     </property>
    </row>
    <column>
-    <property name="text" >
-     <string>INTAN Chip/Channel</string>
+    <property name="text">
+     <string>INTAN Number</string>
     </property>
    </column>
    <column>
-    <property name="text" >
-     <string>Pin Channel</string>
+    <property name="text">
+     <string>INTAN Channel</string>
     </property>
    </column>
    <column>
-    <property name="text" >
-     <string>Electrode Channel</string>
+    <property name="text">
+     <string>Electrode ID</string>
     </property>
    </column>
   </widget>
@@ -77,11 +78,11 @@
    <receiver>ChanMapping</receiver>
    <slot>accept()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>248</x>
      <y>254</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>157</x>
      <y>274</y>
     </hint>
@@ -93,11 +94,11 @@
    <receiver>ChanMapping</receiver>
    <slot>reject()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>316</x>
      <y>260</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>286</x>
      <y>274</y>
     </hint>

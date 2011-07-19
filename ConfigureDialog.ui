@@ -18,7 +18,7 @@
   </property>
   <property name="windowIcon">
    <iconset>
-    <normaloff>Icon-Config.xpm</normaloff>Icon-Config.xpm</iconset>
+    <normaloff>../../../.designer/backup/Icon-Config.xpm</normaloff>../../../.designer/backup/Icon-Config.xpm</iconset>
   </property>
   <property name="toolTip">
    <string/>
@@ -358,9 +358,9 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="aiRangeMinLbl">
    <property name="geometry">
     <rect>
-     <x>225</x>
+     <x>213</x>
      <y>148</y>
-     <width>111</width>
+     <width>123</width>
      <height>22</height>
     </rect>
    </property>
@@ -503,6 +503,9 @@ p, li { white-space: pre-wrap; }
    </property>
   </widget>
   <widget class="QSpinBox" name="fastSettleSB">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="geometry">
     <rect>
      <x>374</x>
@@ -525,6 +528,9 @@ p, li { white-space: pre-wrap; }
    </property>
   </widget>
   <widget class="QLabel" name="fastSettleLbl">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="geometry">
     <rect>
      <x>274</x>
@@ -594,7 +600,7 @@ p, li { white-space: pre-wrap; }
     </rect>
    </property>
    <property name="text">
-    <string>INTAN MUX Mapping...</string>
+    <string>Electrode Mapping...</string>
    </property>
   </widget>
   <widget class="QCheckBox" name="stimGLReopenCB">

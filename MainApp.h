@@ -228,6 +228,7 @@ private slots:
 	void helpWindowClosed();
 	void bringAllToFront();
 	void fileOpen(); ///< slot triggered from the File->Open menu to open a new data file for perusal in the app.	
+	void optionsSortGraphsByElectrode(); ///< slot triggered by Options->sort graph by electrode menu action
 
 private:
     /// Display a message to the status bar
@@ -334,10 +335,14 @@ public:
     QAction 
         *quitAct, *toggleDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
         *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct, *commandServerOptionsAct,
-		*showChannelSaveCBAct, *enableDSFacilityAct, *fileOpenAct, *tempFileSizeAct, *bringAllToFrontAct;
+		*showChannelSaveCBAct, *enableDSFacilityAct, *fileOpenAct, *tempFileSizeAct, *bringAllToFrontAct,
+	    *sortGraphsByElectrodeAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon;
+	
+/// Used by GraphsWindow to re-sort graphs according to current app state...
+	bool sortGraphsByElectrodeId;
 };
 
 class HelpWindow : public QDialog

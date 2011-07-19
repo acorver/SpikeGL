@@ -196,6 +196,13 @@ FileViewerWindow::FileViewerWindow()
 		a->setCheckable(true);
 	}
 	m = mb->addMenu("&View Mode");
+	sortByIntan = m->addAction("Sort Graphs by Intan Channel", this, SLOT(sortGraphsByIntan()));
+	sortByElectrode = m->addAction("Sort Graphs by Electrode Id", this, SLOT(sortGraphsByElectrode()));
+	sortByIntan->setCheckable(true);
+	sortByIntan->setChecked(true);
+	sortByElectrode->setCheckable(true);
+	m->addSeparator();
+	
 	for (int i = 0; i < (int)N_ViewMode; ++i) {
 		QAction *a = viewModeActions[i] = m->addAction(viewModeNames[i], this, SLOT(viewModeMenuSlot()));
 		a->setCheckable(true);
@@ -278,7 +285,17 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	graphHideUnhideActions.resize(graphs.size());
 	graphParams.clear(); graphParams.resize(graphs.size());
 	defaultGain = dataFile.auxGain();
+	chanMap = dataFile.chanMap();
+	graphSorting.resize(graphs.size());
+	if (electrodeSort) {
+		sortByIntan->setChecked(false);
+		sortByElectrode->setChecked(true);
+	} else {
+		sortByIntan->setChecked(true);
+		sortByElectrode->setChecked(false);
+	}
 	for (int i = 0, n = graphs.size(); i < n; ++i) {
+		graphSorting[i] = i; ///< identity sort initially
 		QFrame *f = graphFrames[i] = new QFrame(graphParent);
 		f->setLineWidth(0);
 		f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain); // only enable frame when it's selected!
@@ -290,7 +307,10 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 		vbl->setContentsMargins(0,0,0,0);		
 		graphs[i]->setAutoUpdate(false);
 		graphs[i]->setMouseTracking(true);
-		graphs[i]->setObjectName(QString("Graph ") + QString::number(i) + " ChanID " + QString::number(dataFile.channelIDs()[i]));
+		if (i < (int)chanMap.size())
+			graphs[i]->setObjectName(QString("Graph ") + QString::number(i) + " Electrode " + QString::number(chanMap[i].electrodeId));			
+		else
+			graphs[i]->setObjectName(QString("Graph ") + QString::number(i) + " ChanID " + QString::number(dataFile.channelIDs()[i]));
 		graphs[i]->setToolTip(graphs[i]->objectName());
 		graphs[i]->setTag(i);
 		graphs[i]->setCursor(Qt::CrossCursor);
@@ -318,7 +338,6 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	graphBufs.resize(graphs.size());
 	hiddenGraphs.fill(false, graphs.size());
 
-	chanMap = dataFile.chanMap();
 	pscale = 1;
 	pos = 0;
 	maximizedGraph = -1;
@@ -327,8 +346,11 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 
 	selectGraph(0);
 
-	layoutGraphs();
-
+	if (electrodeSort)
+		sortGraphsByElectrode(); ///< implicitly calls layoutGraphs()
+	else
+		sortGraphsByIntan(); ///< implicitly calls layoutGraphs()
+			
 	pos = 0;
 	if (reusing) configureMiscControls(true);
 	setFilePos64(0, true);
@@ -380,6 +402,7 @@ void FileViewerWindow::loadSettings()
 	nDivsSB->blockSignals(false);
 	xScaleSB->blockSignals(false);
 	yScaleSB->blockSignals(false);	
+	electrodeSort = settings.value("sortGraphsByElectrode", false).toBool();
 }
 
 void FileViewerWindow::saveSettings()
@@ -396,6 +419,7 @@ void FileViewerWindow::saveSettings()
 	if (exportCtl->params.allShown) lec = 1;
 	if (exportCtl->params.customSubset) lec = 2;
 	settings.setValue("lastExportChans", lec);
+	settings.setValue("sortGraphsByElectrode", electrodeSort);
 }
 
 void FileViewerWindow::layoutGraphs()
@@ -423,7 +447,7 @@ void FileViewerWindow::layoutGraphs()
 		graphFrames[maximizedGraph]->show();
 		
 	} else {
-		
+
 		// non-maximized more.. make sure non-hidden graphs are shown!
 		for (int i = 0; i < n; ++i)
 			if (!hiddenGraphs.testBit(i))
@@ -449,8 +473,8 @@ void FileViewerWindow::layoutGraphs()
 			for (int r = 0, num = 0; r < nrows; ) {
 				for (int c = 0; c < ncols; ++num) {
 					if (num >= graphs.size()) { r=nrows,c=ncols; break; } // break out of loop
-					if (!hiddenGraphs.testBit(num)) {
-						l->addWidget(graphFrames[num], r, c);
+					if (!hiddenGraphs.testBit(graphSorting[num])) {
+						l->addWidget(graphFrames[graphSorting[num]], r, c);
 						if (++c >= ncols) ++r;
 					}
 				}
@@ -467,10 +491,11 @@ void FileViewerWindow::layoutGraphs()
 			int y = 0;
 
 			for (int i = 0; i < n; ++i) {
-				if (!hiddenGraphs.testBit(i)) {
-					graphFrames[i]->resize(w, stk_h);
-					graphFrames[i]->move(0,y);
-					y += graphFrames[i]->height() + padding;
+				if (!hiddenGraphs.testBit(graphSorting[i])) {
+					QFrame *f = graphFrames[graphSorting[i]];
+					f->resize(w, stk_h);
+					f->move(0,y);
+					y += f->height() + padding;
 				}
 			}
 			
@@ -825,21 +850,14 @@ QString FileViewerWindow::generateGraphNameString(unsigned num, bool verbose) co
     if (dataFile.daqMode() == DAQ::AIRegular) {
         chStr.sprintf("AI%d", chanId);
     } else { // MUX mode
-		int first_non_mux_id;
-		switch (dataFile.daqMode()) {
-			case DAQ::AI128Demux: first_non_mux_id = 128; break;
-			case DAQ::AI120Demux: first_non_mux_id = 120; break;
-			case DAQ::JFRCIntan32: first_non_mux_id = 32; break;
-			case DAQ::AI60Demux: 
-			default:
-				first_non_mux_id = 60; break;
-		}
+		const int m = dataFile.daqMode();
+		const int first_non_mux_id = (DAQ::ModeNumIntans[m] * DAQ::ModeNumChansPerIntan[m]);
 		if (num < unsigned(chanMap.size()) && chanId < first_non_mux_id) {
-			const ChanMapDesc & desc = chanMap[chanId];
+			const ChanMapDesc & desc = chanMap[num];
 			if (verbose) 
-				chStr.sprintf("%u ChanID %d  [I%u_C%u pch: %u ech:%u]", num, chanId, desc.intan,desc.intanCh,desc.pch,desc.ech);
+				chStr.sprintf("%u ChanID %d  [I%u_C%u e:%u]", num, chanId, desc.intan,desc.intanCh,desc.electrodeId);
 			else
-				chStr.sprintf("%u Ch. %d [I%u_C%u]", num, chanId, desc.intan, desc.intanCh);
+				chStr.sprintf("%u Ch. %d [I%u_C%u e:%u]", num, chanId, desc.intan, desc.intanCh, desc.electrodeId);
 		} else {
 			if (chanId == dataFile.pdChanID())
 				chStr.sprintf("%u %s %d (PD)", num, verbose ? "ChanID" : "Ch.", chanId);
@@ -1300,4 +1318,33 @@ void FileViewerWindow::fileOptionsMenuSlot()
 		pgKeyFactor = ui.pgSB->value();
 		saveSettings();
 	}
+}
+
+void FileViewerWindow::sortGraphsByIntan() {
+	electrodeSort = false; saveSettings();
+	sortByElectrode->setChecked(false);
+	for (int i = 0; i < (int)graphs.size(); ++i)
+		graphSorting[i] = i;
+	
+	layoutGraphs();
+}
+
+void FileViewerWindow::sortGraphsByElectrode() {
+	sortByIntan->setChecked(false);
+	electrodeSort = true; saveSettings();
+	QMap<int,int> eid2graph;
+	const int cms = chanMap.size(), gs = graphs.size();
+	int i;
+	for (i = 0; i < cms; ++i) {
+		eid2graph[chanMap[i].electrodeId] = i;
+	}
+	QVector<int> & sorting (graphSorting);
+	sorting.clear();
+	sorting.reserve(gs);
+	for (QMap<int,int>::iterator it = eid2graph.begin(); it != eid2graph.end(); ++it)
+		sorting.push_back(it.value());
+	for ( ; i < gs; ++i)
+		sorting.push_back(i);
+		
+	layoutGraphs();
 }

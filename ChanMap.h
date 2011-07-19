@@ -6,8 +6,8 @@
 
 struct ChanMapDesc 
 {
-    unsigned graphNum, intan, intanCh, pch, ech;
-    ChanMapDesc() : graphNum(0), intan(0), intanCh(0), pch(0), ech(0) {}
+    unsigned intan, intanCh, electrodeId;
+    ChanMapDesc() : intan(0), intanCh(0), electrodeId(0) {}
 	QString toString() const;
 	QString toTerseString() const;
 	static ChanMapDesc fromString(const QString &);

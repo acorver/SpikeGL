@@ -87,6 +87,8 @@ private slots:
 	void fileOpenMenuSlot();
 	void fileOptionsMenuSlot();
 	void clickedCloseLbl(GLGraph *g);
+	void sortGraphsByIntan();
+	void sortGraphsByElectrode();
 	
 private:
 	void loadSettings();
@@ -132,10 +134,12 @@ private:
 	QLabel *graphNameLbl;
 	QVector<QAction *> graphHideUnhideActions;
 	QCheckBox *highPassChk, *dcfilterChk;
+	bool electrodeSort;
 
 	QMenu *channelsMenu;
 	QAction *colorSchemeActions[N_ColorScheme];	
 	QAction *viewModeActions[N_ViewMode];
+	QAction *sortByElectrode, *sortByIntan;
 	QTimer *hideCloseTimer;
 
 	bool didLayout;
@@ -169,6 +173,7 @@ private:
 	QVector<GraphParams> graphParams; ///< per-graph params
 	HPFilter *hpfilter;
 	double arrowKeyFactor, pgKeyFactor;
+	QVector<int> graphSorting; ///< used for sort by electrode id/sort by intan feature  to sort the graphs.  read by layoutGraphs() 
 };
 
 

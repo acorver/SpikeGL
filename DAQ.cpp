@@ -29,6 +29,14 @@ namespace DAQ
 {
     static bool noDaqErrPrint = false;
 
+	const unsigned ModeNumChansPerIntan[N_Modes] = {
+		15, 0, 15, 16, 16,
+	};
+	
+	const unsigned ModeNumIntans[N_Modes] = {
+		4, 0, 8, 2, 8,
+	};
+	
     /// if empty map returned, no devices with AI!
     DeviceRangeMap ProbeAllAIRanges() 
     {
@@ -687,16 +695,12 @@ namespace DAQ
 							switch (p.mode) {
 								case JFRCIntan32:
 									// now, optionally demux the channels such that channels 0->15 come from AI0 and 16->31 from AI1
-									ApplyJFRCIntanXXDemuxToScan(scanBegin, 2);
+									ApplyJFRCIntanXXDemuxToScan(scanBegin, ModeNumIntans[p.mode]);
 									break;
 								case AI60Demux:
-									ApplyNewIntanDemuxToScan(scanBegin, 15, 4);
-									break;
 								case AI120Demux:
-									ApplyNewIntanDemuxToScan(scanBegin, 15, 8);
-									break;
 								case AI128Demux:
-									ApplyNewIntanDemuxToScan(scanBegin, 16, 8);
+									ApplyNewIntanDemuxToScan(scanBegin, ModeNumChansPerIntan[p.mode], ModeNumIntans[p.mode]);
 									break;
 								default:
 									Error() << "INTERNAL ERROR: Unknown acquisition/mux mode.  Please fixeme in " << __FILE__ << ":" << __LINE__;

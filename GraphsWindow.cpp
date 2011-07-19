@@ -194,7 +194,10 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
                 continue;
             }
 			chks[num]->setObjectName(QString::number(num));
-			chks[num]->setText(QString("Save Graph %1").arg(num));
+			if (p.mode != DAQ::AIRegular && num < p.chanMap.size())
+				chks[num]->setText(QString("Save Elec. %1").arg(p.chanMap[num].electrodeId));
+			else
+				chks[num]->setText(QString("Save Graph %1").arg(num));
 			chks[num]->setChecked(p.demuxedBitMap.at(num));
 			chks[num]->setDisabled(isSaving);
 			chks[num]->setHidden(!mainApp()->isSaveCBEnabled() || p.mode == DAQ::AIRegular);
@@ -282,6 +285,11 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	/// apply saved settings by calling the callback after everything is constructed
 	downsampleChk(setting_ds);
 	hpfChk(setting_filt);
+	
+	if (mainApp()->sortGraphsByElectrodeId) {
+		// re-sort the graphs on-screen by electrode Id to restore previous state..
+		sortGraphsByElectrodeId();
+	}
 }
 
 GraphsWindow::~GraphsWindow()
@@ -587,7 +595,6 @@ void GraphsWindow::updateMouseOver()
     const char *unit;
     computeGraphMouseOverVars(num, y, mean, stdev, rms, unit);
     QString msg;
-    const ChanMapDesc & desc = params.chanMap[num];
     QString chStr;
     if (params.mode == DAQ::AIRegular) {
         chStr.sprintf("AI%d", num);
@@ -595,7 +602,8 @@ void GraphsWindow::updateMouseOver()
         if (isAuxChan(num)) {
             chStr.sprintf("AUX%d",int(num-(params.nVAIChans-params.nExtraChans)+1));
         } else {
-            chStr.sprintf("%d [I%u_C%u pch: %u ech:%u]",num,desc.intan,desc.intanCh,desc.pch,desc.ech);        
+			const ChanMapDesc & desc = params.chanMap[num];
+            chStr.sprintf("%d [I%u_C%u elec:%u]",num,desc.intan,desc.intanCh,desc.electrodeId);        
         }
     }
     msg.sprintf("%s %s %s @ pos (%.4f s, %.4f %s) -- mean: %.4f %s rms: %.4f %s stdDev: %.4f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,rms,unit,stdev,unit);
@@ -762,3 +770,57 @@ void GraphsWindow::saveGraphChecked(bool b) {
 		mainApp()->configureDialogController()->saveSettings();
 	}
 }
+
+void GraphsWindow::retileGraphsAccordingToSorting(const QVector<int> & sorting) {
+    int nrows = int(sqrtf(graphs.size())), ncols = nrows;
+    while (nrows*ncols < (int)graphs.size()) {
+        if (nrows > ncols) ++ncols;
+        else ++nrows;
+    };
+	QGridLayout *l = (QGridLayout *)graphsWidget->layout();
+    for (int i = 0; i < (int)graphFrames.size(); ++i) {
+		// clear the layout of widgets..
+           QFrame * f = graphFrames[i];
+		l->removeWidget(f);
+	}
+	// no re-add them in the sorting order
+    for (int r = 0; r < nrows; ++r) {
+        for (int c = 0; c < ncols; ++c) {
+            const int num = r*ncols+c;
+            if (num >= (int)graphs.size()) { r=nrows,c=ncols; break; } // break out of loop
+			const int graphId = sorting[num];
+            QFrame * & f = graphFrames[graphId];
+            l->addWidget(f, r, c);
+        }
+    }
+}
+
+
+void GraphsWindow::sortGraphsByElectrodeId() {
+	QMap<int,int> eid2graph;
+	DAQ::Params & p (params);
+	const int cms = p.chanMap.size(), gs = graphs.size();
+	int i;
+	for (i = 0; i < cms; ++i) {
+		eid2graph[p.chanMap[i].electrodeId] = i;
+	}
+	QVector<int> sorting;
+	sorting.reserve(gs);
+	for (QMap<int,int>::iterator it = eid2graph.begin(); it != eid2graph.end(); ++it)
+		sorting.push_back(it.value());
+	for ( ; i < gs; ++i)
+		sorting.push_back(i);
+	
+	retileGraphsAccordingToSorting(sorting);
+}
+
+void GraphsWindow::sortGraphsByIntan() {
+	const int gs = graphs.size();
+	QVector<int> sorting;
+	sorting.reserve(gs);
+	// graph id's were originally sorted in this order so just specify that order..
+	for (int i = 0; i < gs; ++i) sorting.push_back(i);
+	
+	retileGraphsAccordingToSorting(sorting);
+}
+

@@ -1,26 +1,13 @@
 #include "ChanMappingController.h"
 #include <QDialog>
 #include <QSettings>
-
-/*static*/ unsigned ChanMappingController::defaultPinMapping[DAQ::N_Modes][NUM_MUX_CHANS_MAX] = {
-	{
-		/* AI60Demux */
-		35, 25, 15, 48, 45, 37, 36, 27, 17, 26, 16, 47, 46, 38, 2, 
-		41, 44, 32, 33, 14, 24, 34, 43, 31, 21, 42, 13, 23, 12, 22, 
-		83, 52, 53, 61, 71, 73, 82, 72, 64, 74, 84, 63, 62, 54, 51, 
-		78, 68, 56, 57, 86, 76, 87, 77, 66, 67, 55, 58, 85, 75, 65
-	},
-	{ //AIRegular		SET IN C'TOR ONCE GLOBALLY FIRST TIME CLASS C'TOR CALLED
-	},
-	{ //AI120Demux		
-	},
-	{ //JFRNIntan32		
-	},
-	{ //AI128Demux		
-	},
-};
+#include <QMessageBox>
+#include <QSet>
 
 static bool setupDefaults = false;
+
+/* static */
+ChanMap ChanMappingController::defaultMapping[DAQ::N_Modes];
 
 ChanMappingController::ChanMappingController(QObject *parent)
 :  QObject(parent), currentMode(DAQ::AI60Demux)
@@ -29,9 +16,14 @@ ChanMappingController::ChanMappingController(QObject *parent)
 	if (!setupDefaults) {
 		setupDefaults = true;
 		// run once -- setup defaults array
-		for (int i = 1; i < (int)DAQ::N_Modes; ++i)
-			for (int j = 0; j < NUM_MUX_CHANS_MAX; ++j)
-				defaultPinMapping[i][j] = j;
+		for (int i = 0; i < (int)DAQ::N_Modes; ++i) {
+			ChanMap & cm (defaultMapping[i]);
+			const unsigned numIntans = DAQ::ModeNumIntans[i], numChansPerIntan = DAQ::ModeNumChansPerIntan[i];
+			cm.reserve(numIntans*numChansPerIntan);
+			for (int j = 0; j < (int)numIntans; ++j)
+				for (int k = 0; k < (int)numChansPerIntan; ++k)
+					cm.push_back(defaultMappingForIntan(j, k, numChansPerIntan));
+		}
 	}
 	
     dialogParent = new QDialog(0);    
@@ -42,10 +34,11 @@ ChanMappingController::ChanMappingController(QObject *parent)
 
 void ChanMappingController::resetFromSettings()
 {
-    loadSettings(currentMode);
-
-    const int rowct = NUM_MUX_CHANS_MAX; 
-    dialog->tableWidget->setRowCount(NUM_MUX_CHANS_MAX);
+    loadSettings();
+	const ChanMap & cm (mapping[currentMode]);
+	
+    const int rowct = cm.size(); 
+    dialog->tableWidget->setRowCount(rowct);
     for (int i = 0; i < rowct; ++i) {
         // row label
         QTableWidgetItem *ti = dialog->tableWidget->verticalHeaderItem(i);
@@ -54,35 +47,34 @@ void ChanMappingController::resetFromSettings()
             dialog->tableWidget->setVerticalHeaderItem(i,ti);
         }
         ti->setText(QString::number(i));
-        // intan chip/channel column 0
+        // intan chip column 0
         ti = dialog->tableWidget->item(i, 0);
         if (!ti) {
             ti = new QTableWidgetItem;
             dialog->tableWidget->setItem(i,0,ti);
         }
-        ti->setText(QString("%1/%2").arg(i/NUM_CHANS_PER_INTAN + 1).arg(i%NUM_CHANS_PER_INTAN + 1));
-        ti->setFlags(Qt::NoItemFlags);
-        // pin channel column 1
+        ti->setText(QString::number(cm[i].intan+1));
+        ti->setFlags(Qt::ItemIsEnabled);
+        // intan channel column 1
         ti = dialog->tableWidget->item(i, 1);
         if (!ti) {
             ti = new QTableWidgetItem;
             dialog->tableWidget->setItem(i,1,ti);
         }
-        ti->setText(QString::number(pinMapping[i]));
-        ti->setFlags(Qt::ItemIsEditable|Qt::ItemIsEnabled);
+        ti->setText(QString::number(cm[i].intanCh+1));
+        ti->setFlags(Qt::ItemIsEnabled);
         // electrode channel column 2
         ti = dialog->tableWidget->item(i, 2);
         if (!ti) {
             ti = new QTableWidgetItem;
             dialog->tableWidget->setItem(i,2,ti);
         }
-        ti->setText(QString::number(i));
+        ti->setText(QString::number(cm[i].electrodeId));
         ti->setFlags(Qt::ItemIsEditable|Qt::ItemIsEnabled);        
     }
     dialog->tableWidget->setColumnWidth(0,150);
     dialog->tableWidget->setColumnWidth(1,150);
     dialog->tableWidget->setColumnWidth(2,150);
-    
 }
 
 ChanMappingController::~ChanMappingController()
@@ -91,78 +83,81 @@ ChanMappingController::~ChanMappingController()
     delete dialogParent, dialogParent = 0;
 }
 
+bool ChanMappingController::mappingFromForm()
+{
+	ChanMap cm (mapping[currentMode]);
+    const int rowct = dialog->tableWidget->rowCount();
+	QSet<int> seen;
+    for (int i = 0; i < rowct; ++i) {
+        QTableWidgetItem *ti = dialog->tableWidget->item(i, 2);
+		bool ok;
+		int val = ti->text().toInt(&ok);
+		if (ok) {
+			cm[i].electrodeId = val;
+			if (seen.contains(val)) {
+				return false;
+			}
+			seen.insert(val);
+		}
+	}
+	// now that everything's ok, save mapping to class state...
+	mapping[currentMode] = cm;
+	return true;
+}
+
 bool ChanMappingController::exec()
 {
     resetFromSettings();
-    if (dialogParent->exec() == QDialog::Accepted) {        
-        saveSettings();
-        return true;
-    }
+	bool again;
+	do {
+		again = false;
+		if (dialogParent->exec() == QDialog::Accepted) {    
+			if (!mappingFromForm()) {
+				QMessageBox::critical(dialogParent, "Invalid Electrode Mapping", "The electrode mapping specified is invalid.  This is probably due to having specified dupe electrode id's."); 
+				again = true;
+				continue;
+			} else {
+				saveSettings();
+				return true;
+			}
+		}
+	} while (again);
     return false;
 }
 
-void ChanMappingController::loadSettings() { loadSettings(currentMode); }
-
-void ChanMappingController::loadSettings(DAQ::Mode m)
+void ChanMappingController::loadSettings()
 {
-	currentMode = m;
     QSettings settings("janelia.hhmi.org", "SpikeGL");
 
-	if (currentMode != DAQ::AI60Demux)
-		settings.beginGroup(QString("ChanMappingController_") + DAQ::ModeToString(currentMode));
-	else	
-		settings.beginGroup("ChanMappingController");
+	settings.beginGroup(QString("ChanMappingController2"));
 
-    pinMapping.clear();
-    pinMapping.resize(NUM_MUX_CHANS_MAX);
-    eMapping.clear();
-    eMapping.resize(NUM_MUX_CHANS_MAX);
-    for (int i = 0; i < (int)pinMapping.size(); ++i) {
-        pinMapping[i] = settings.value(QString("pinMapping_%1").arg(i), defaultPinMapping[currentMode][i]).toUInt();
-        eMapping[i] =  settings.value(QString("electrodeMapping_%1").arg(i), i).toUInt();
-    }
+	for (int i = 0; i < (int)DAQ::N_Modes; ++i) {
+		QString ts = settings.value(QString("terseString_%1").arg(i), QString("")).toString();
+		if (!ts.length()) {
+			mapping[i] = defaultMapping[i];	
+		} else
+			mapping[i] = ChanMap::fromTerseString(ts);
+	}						
 }
 
 void ChanMappingController::saveSettings()
 {
     QSettings settings("janelia.hhmi.org", "SpikeGL");
 
-	if (currentMode != DAQ::AI60Demux)
-		settings.beginGroup(QString("ChanMappingController_") + DAQ::ModeToString(currentMode));
-	else	
-		settings.beginGroup("ChanMappingController");
+	settings.beginGroup("ChanMappingController2");
 	
-    for (int i = 0; i < (int)pinMapping.size(); ++i) {
-        settings.setValue(QString("pinMapping_%1").arg(i), pinMapping[i]);
-        settings.setValue(QString("electrodeMapping_%1").arg(i), eMapping[i]);
-    }
+	for (int i = 0; i < (int)DAQ::N_Modes; ++i) {
+		settings.setValue(QString("terseString_%1").arg(i), mapping[i].toTerseString(QBitArray(mapping[i].size(),true)));
+	}
 }
 
-ChanMapDesc ChanMappingController::mappingForGraph(unsigned graphNum) const 
+ChanMapDesc ChanMappingController::defaultMappingForIntan(unsigned intan, unsigned intan_ch,
+														  unsigned chans_per_intan) 
 {
-    ChanMapDesc ret;
-    ret.graphNum = graphNum;
-    if (graphNum < NUM_MUX_CHANS_MAX) {
-        ret.intan = graphNum / NUM_CHANS_PER_INTAN + 1;
-        ret.intanCh = graphNum % NUM_CHANS_PER_INTAN + 1;
-        ret.pch = pinMapping[graphNum];
-        ret.ech = eMapping[graphNum];
-    }
-    return ret;
-}
-
-ChanMapDesc ChanMappingController::mappingForIntan(unsigned intan, unsigned intan_ch) const
-{
-    unsigned graphNum = (intan-1)*15 + (intan_ch-1);
-    return mappingForGraph(graphNum);
-}
-
-ChanMap ChanMappingController::mappingForAll() const
-{
-    ChanMap ret;
-    ret.reserve(NUM_MUX_CHANS_MAX);
-    for (int i = 0; i < NUM_MUX_CHANS_MAX; ++i)
-        ret.push_back(mappingForGraph(i));
+	ChanMapDesc ret;
+	ret.electrodeId = intan*chans_per_intan + intan_ch;
+	ret.intan = intan;
+	ret.intanCh = intan_ch;
     return ret;
 }
 

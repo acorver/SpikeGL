@@ -5,20 +5,16 @@
 
 QString ChanMapDesc::toTerseString() const
 {
-	return  QString("g:") + QString::number(graphNum)
-	+ ",i:" + QString::number(intan)
+	return  QString("i:") + QString::number(intan)
 	+ ",ic:" + QString::number(intanCh)
-	+ ",p:" + QString::number(pch) 
-	+ ",e:" + QString::number(ech);
+	+ ",e:" + QString::number(electrodeId);
 }
 
 QString ChanMapDesc::toString() const
 {
-	return  QString("graphNum:") + QString::number(graphNum)
-			+ ", intan:" + QString::number(intan)
+	return  QString("intan:") + QString::number(intan)
 			+ ", intanCh:" + QString::number(intanCh)
-			+ ", pch:" + QString::number(pch) 
-			+ ", ech:" + QString::number(ech);
+			+ ", electrodeId:" + QString::number(electrodeId);
 }
 
 //#include "Util.h"
@@ -35,11 +31,9 @@ QString ChanMapDesc::toString() const
 			QString name = il.at(0);
 			unsigned value = il.at(1).toUInt();
 			//Debug() << "name: " << name << " value: " << value;
-			if (name == "graphNum") ret.graphNum = value;
 			if (name == "intan") ret.intan = value;
 			if (name == "intanCh") ret.intanCh = value;
-			if (name == "pch") ret.pch = value;
-			if (name == "ech") ret.ech = value;
+			if (name == "electrodeId") ret.electrodeId = value;
 		}
 	}
 	return ret;
@@ -57,11 +51,9 @@ QString ChanMapDesc::toString() const
 			QString name = il.at(0);
 			unsigned value = il.at(1).toUInt();
 			//Debug() << "name: " << name << " value: " << value;
-			if (name == "g") ret.graphNum = value;
 			if (name == "i") ret.intan = value;
 			if (name == "ic") ret.intanCh = value;
-			if (name == "p") ret.pch = value;
-			if (name == "e") ret.ech = value;
+			if (name == "e") ret.electrodeId = value;
 		}
 	}
 	return ret;
@@ -109,12 +101,13 @@ QString ChanMap::toTerseString(const QBitArray & bm) const
 			// first thing in the list is the size of the total chanmap
 			bool ok;
 			unsigned chanMapSize = inParens.toUInt(&ok);
-			if (!ok) ret.resize(120);
-			else ret.resize(chanMapSize);
+			if (!ok) ret.reserve(128);
+			else ret.reserve(chanMapSize);
 		} else {
 			// rest of the items are the chan map tuples, only the "on" channels exist
 			ChanMapDesc cmd (ChanMapDesc::fromTerseString(inParens));
-			ret[cmd.graphNum] = cmd;
+			//ret[cmd.graphNum] = cmd;
+			ret.push_back(cmd);
 		}
 		++i;
 	}

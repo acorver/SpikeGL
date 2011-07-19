@@ -54,6 +54,10 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     Connect(dialog->muxMapBut, SIGNAL(clicked()), &chanMapCtl, SLOT(exec()));
     Connect(dialog->aiRangeCB, SIGNAL(currentIndexChanged(int)), this, SLOT(aiRangeChanged()));
     Connect(acqPdParams->pdPassthruAOSB, SIGNAL(valueChanged(int)), this, SLOT(aoPDPassthruUpdateLE()));
+	
+	// hide fast settle stuff as it's no longer supported
+	dialog->fastSettleSB->hide();
+	dialog->fastSettleLbl->hide();
 }
 
 ConfigureDialogController::~ConfigureDialogController()
@@ -98,7 +102,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     DAQ::Params & p (*p_in); // this just got populated from settings
 
     // initialize the dialogs with some values from settings
-	chanMapCtl.loadSettings(p.mode);
+	chanMapCtl.loadSettings();
     dialog->outputFileLE->setText(p.outputFile);
     if (int(p.mode) < dialog->acqModeCB->count())
         dialog->acqModeCB->setCurrentIndex((int)p.mode);    
@@ -221,8 +225,7 @@ void ConfigureDialogController::acqModeCBChanged()
 {
     const int idx = dialog->acqModeCB->currentIndex();
     const bool jfrc32 = idx == 3;
-    const bool enabled = idx == 1 || jfrc32;
-    const bool intan = !enabled;    
+    const bool intan = idx != 1;    
     bool notStraightAI;
     
     /// HACK to auto-repopulate the lineedit based on acquisition mode!
@@ -246,6 +249,7 @@ void ConfigureDialogController::acqModeCBChanged()
     dialog->srateSB->setEnabled(/*enabled*/true);
     dialog->clockCB->setEnabled(false); // NB: for now, the clockCB is always disabled!
     dialog->muxMapBut->setEnabled(intan);
+	chanMapCtl.currentMode = (DAQ::Mode)idx;
 
     if (intan || jfrc32) {
         //if (!jfrc32) dialog->srateSB->setValue(INTAN_SRATE);
@@ -253,11 +257,11 @@ void ConfigureDialogController::acqModeCBChanged()
     } else {
         dialog->clockCB->setCurrentIndex(1); // force INTERNAL clock on !intan
     }
-    dialog->doCtlLabel->setEnabled(intan);
-    dialog->doCtlCB->setEnabled(intan);
-    dialog->fastSettleSB->setEnabled(intan);
-    dialog->fastSettleLbl->setEnabled(intan);
-	chanMapCtl.loadSettings(static_cast<DAQ::Mode>(idx));
+    dialog->doCtlLabel->setEnabled(intan && !jfrc32);
+    dialog->doCtlCB->setEnabled(intan && !jfrc32);
+    dialog->fastSettleSB->setEnabled(intan && !jfrc32);
+    dialog->fastSettleLbl->setEnabled(intan && !jfrc32);
+	chanMapCtl.loadSettings();
 }
 
 void ConfigureDialogController::deviceCBChanged()
@@ -608,7 +612,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     p.aiTerm = DAQ::StringToTermConfig(dialog->aiTerminationCB->currentText());
     p.fastSettleTimeMS = dialog->fastSettleSB->value();
     p.auxGain = dialog->auxGainSB->value();
-    p.chanMap = chanMapCtl.mappingForAll();
+    p.chanMap = chanMapCtl.mappingForMode(p.mode);
     
     p.silenceBeforePD = acqPdParams->pdPre->value()/1000.;
     

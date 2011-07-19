@@ -36,6 +36,9 @@ namespace DAQ
         AI60Demux=0, AIRegular, AI120Demux, JFRCIntan32, AI128Demux, N_Modes, AIUnknown = N_Modes
     };
 
+	extern const unsigned ModeNumChansPerIntan[N_Modes];
+	extern const unsigned ModeNumIntans[N_Modes];
+	
     enum AcqStartEndMode { 
         /* these correspond to items in 'acqStartEndCB' combobox in 
            the Ui::ConfigureDialog form */

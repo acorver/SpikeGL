@@ -210,8 +210,8 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     params["fastSettleTimeMS"] = dp.fastSettleTimeMS;
     params["auxGain"] = dp.auxGain;
     params["termination"] = DAQ::TermConfigToString(dp.aiTerm);
-//	params["channelMapping"] = dp.chanMap.toString();
-	params["channelMappingTerse"] = dp.chanMap.toTerseString(dp.demuxedBitMap);
+//	params["channelMapping2"] = dp.chanMap.toString();
+	params["channelMapping2Terse"] = dp.chanMap.toTerseString(dp.demuxedBitMap);
 	
     if (dp.usePD) {
         params["pdChan"] = dp.pdChan;
@@ -427,16 +427,16 @@ DAQ::Mode DataFile::daqMode() const
 ChanMap DataFile::chanMap() const 
 {
 	ChanMap chanMap;
-	if (params.contains("channelMappingTerse")) {
-		chanMap = ChanMap::fromTerseString(params["channelMappingTerse"].toString());
-	} else if (params.contains("channelMapping")) {
-		chanMap = ChanMap::fromString(params["channelMapping"].toString());
+	if (params.contains("channelMapping2Terse")) {
+		chanMap = ChanMap::fromTerseString(params["channelMapping2Terse"].toString());
+	} else if (params.contains("channelMapping2")) {
+		chanMap = ChanMap::fromString(params["channelMapping2"].toString());
 	}
 	if (!chanMap.size()) {
 		// saved file lacks a chan map -- sneakily pull it from the "current" chan map settings
 		ChanMappingController ctl;
-		ctl.loadSettings(daqMode());
-		chanMap = ctl.mappingForAll();
+		ctl.loadSettings();
+		chanMap = ctl.mappingForMode(daqMode());
 	}
 	return chanMap;
 }

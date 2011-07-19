@@ -45,6 +45,9 @@ public:
 
 	void hideUnhideSaveChannelCBs();
 	
+	void sortGraphsByElectrodeId();
+	void sortGraphsByIntan();
+
 private slots:
     void updateGraphs();
     void downsampleChk(bool checked);
@@ -64,7 +67,7 @@ private slots:
     void toggleSaveChecked(bool b);
 
 	void saveGraphChecked(bool b);
-
+	
 private:
     void setGraphTimeSecs(int graphnum, double t); // note you should call update_nPtsAllGs after this!  (Not auto-called in this function just in case of batch setGraphTimeSecs() in which case 1 call at end to update_nPtsAllGs() suffices.)
     void update_nPtsAllGs();
@@ -77,6 +80,8 @@ private:
     static int parseGraphNum(QObject *gl_graph_instance);
     bool isAuxChan(unsigned num) const;    
     void sharedCtor(DAQ::Params & p, bool isSaving);
+
+	void retileGraphsAccordingToSorting(const QVector<int> & sorting);
 
     DAQ::Params & params;
     QWidget *graphsWidget;

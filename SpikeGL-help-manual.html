@@ -77,7 +77,7 @@
       </p>
       <p align="left"> A dialog window will appear with various options, described below.</p>
       <p align="left">&nbsp;</p>
-      <p align="center"><img src="SpikeGL-help-ConfigWindow.png" alt="ConfigDialog" width="484" height="684" longdesc="The configuration dialog box" /></p>
+      <p align="center"><img src="SpikeGL-help-ConfigWindow.png" alt="ConfigDialog" longdesc="The configuration dialog box" /></p>
       <p align="left"><br />
       </p>
       <p align="left"><U><strong>Output 	filename</strong></U> </p>
@@ -116,6 +116,7 @@
         <blockquote>
           <p align="left"> <strong><em>AI 60 Demux</em></strong> – The acquisition will be a 60-channel Intan/MUX acquisition.  It 	will use 4 AI channels on the DAQ board,  each of which is sampled 	simultaneously at 444 kHz.  Each channel multiplexes 15 electrode 	channels in time, thus the electrodes are sampled at 29.63 kHz per 	channel.  See the file  '<em>Leonardo-RetinaMux-Manial.pdf</em>' 	for more information.</p>
           <p align="left"> <strong><em>AI 120 Demux</em></strong> – Identical to the AI 60 Demux scheme above, but this mechanism 	uses more Intan chips to yield 120 multiplexed channels coming in on 	8 simultaneous AI channels on the DAQ board.</p>
+          <p align="left"> <strong><em>AI 128 Demux</em></strong> – Identical to the AI 60 Demux scheme above, but this mechanism 	uses more Intan chips and more channels per chip to yield 128 multiplexed channels coming in on 	8 simultaneous AI channels on the DAQ board.</p>
           <p align="left"> <strong><em>Straight AI</em></strong> – No external MUX hardware is used.  Channels are graphed and 	saved verbatim without any de-multiplexing being applied.</p>
           <p align="left"> <strong><em>JFRC/Intan 32 Headstage</em></strong> – This mode is similar to the AI60Demux mode, however the acquisition will be a 32-channel Intan/MUX acquisition.  It will use 2 AI channels of the DAQ board each of which is sampled simultaneously at a variable (user-settable) sampling rate.  An external clock is used to time the acquisition on PFI2.  The order of the channels coming in off hardware are such that channels 0-15 come from the first AI channel and 16-31 come from the second AI channel.</p>
           <p align="left">&nbsp;</p>
@@ -126,12 +127,17 @@
         <p align="left">(Only applies to Intan/MUX modes above.) The digital output (DO) 	line number used for controlling the Intan RHA chip.  This is line 	is used to control the stop and start of the multiplexer – it is 	set low to reset or shut off the chip and asserted high to start the 	multiplexer at the first channel.  The 'fast settle' button in the 	GUI uses this line as well, cycling it low to high in order to 	restart and re-settle the multiplexer.</p>
         <p align="left">&nbsp;</p>
       </blockquote>
+      <p align="left"><U><strong>Save Channel Subset</strong></U> </p>
+      <blockquote>
+        <p align="left">You may optionally save only a subset of the (possibly demuxed) channels.  All channels will be graphed but only the subset specified will be saved. Specify 'ALL' (default) or ranges of the form 0,1,2,3 or 0:3.  (Channel id's indexed from 0, so the last AI60Mux channel would be 59.)</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
       <p align="left"><U><strong>Device</strong></U> </p>
       <blockquote>
         <p align="left">Specifies which of the installed National Instruments data 	acquisition boards is to be used for the acquisition's input (this 	device must support analog input otherwise the acquisition will fail 	to start).</p>
         <p align="left">&nbsp;</p>
       </blockquote>
-      <p align="left"><U><strong>AI 	Range Min-Max</strong></U> </p>
+      <p align="left"><U><strong>AI Range Min-Max</strong></U> </p>
       <blockquote>
         <p align="left">The gain setting on the board to use when configuring the AI 	channels for the acquisition.  In order to best utilize the dynamic 	range of the analog input channels, it is best to specify a range 	setting that is as close as possible to the anticipated minimum and 	maximum input voltages.  Specifying a range that is too small will 	result in clipping artifacts, so the range should at least be big 	enough to encompass the anticipated input voltage range.</p>
         <p align="left">&nbsp;</p>
@@ -161,24 +167,25 @@
         <p align="left"><br />
         </p>
       </blockquote>
-      <p align="left"><U><strong>Fast 	Settle MS</strong></U> </p>
+<!--      <p align="left"><U><strong>Fast 	Settle MS</strong></U> </p>
       <blockquote>
         <p align="left">Specifies the amount of time (in ms) to leave the Intan chip in the 	'off' setting (via the DO control line) when performing a 'fast 	settle'.  15 milliseconds is good enough for most situations, but 	experiment with a higher or lower value if your Intan doesn't appear 	to settle properly after clicking the 'fast settle' button in the 	GUI.</p>
         <p align="left">&nbsp;</p>
       </blockquote>
+-->
       <p align="left"><U><strong>AUX 	Gain</strong></U></p>
       <blockquote>
         <p align="left"> The gain setting that was used on the external amplifier.  This 	option only affects the display.  Incoming voltage values are 	divided by this value before being graphed to the screen to 	hopefully arrive at the pre-amp input voltage value for display 	purposes.</p>
         <p align="left">&nbsp;</p>
       </blockquote>
-      <p align="left"><U><strong>Intan 	MUX Mapping...</strong></U></p>
+      <p align="left"><U><strong>Electrode Mapping...</strong></U></p>
       <blockquote>
         <p align="left"> Clicking this button pops up a GUI dialog where you may specify the 	mapping from      </p>
         <blockquote>
-          <p align="left"><em>Intan 	Chip/Channel → Pin channel → Electrode channel</em><br />
+          <p align="left"><em>Intan 	Chip/Channel → Electrode Id</em><br />
           </p>
         </blockquote>
-        <p align="left">The 	purpose of this mapping is for GUI display purposes only and affects 	how graphs are labeled in the GUI in Intan/MUX mode only.</p>
+        <p align="left">The 	purpose of this mapping is for GUI display purposes only and affects 	how graphs are labeled in the GUI in Intan/MUX mode only.  The default mapping has electrodes numbered from 0->NUM_CHANS however, you may relabel any electrode to any unique number.  In the GUI, you can then sort graphs by either Electrode Id or Intan/Channel.</p>
         <p align="left">&nbsp;</p>
       </blockquote>
       <p align="left"><U><strong>AI 	Channel List</strong></U> </p>
@@ -186,6 +193,27 @@
         <p align="left">The list of analog input channels to use for the acquisition.  The 	syntax for this list is a comma-separated list of integer values 	from 0-NUM_AI_CHANS.  Ranges may be specified with ':' notation e.g. <em>0:4. </em>An 	example channel list would be: <em>0:4,5,7</em>. </p>
         <p align="left">Note 	that in Intan/MUX mode, the first 4 (or 8 if using Intan 120 mode) 	AI channels specified are assumed to be connected to the INTAN in 	increasing chip/channel order, and thus are subject to 	de-multiplexing. </p>
         <p align="left">In 	Intan/MUX mode, any channels not connected to the Intan are 	considered auxiliary (AUX) channels and are not de-multiplexed – 	they are graphed verbatim as they come in off the board. </p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>Try Low Latency Mode</strong></U> </p>
+      <blockquote>
+        <p align="left">Attempt to acquire data and write to AO using low-latency mode.  That is, smaller NI buffers on AI and AO.  This mode may mean data arrives in more real time, but it also runs the risk of errors due to buffer overruns/underruns.  Your mileage may vary.</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
+      <p align="left"><U><strong>Use pre-July 2011 Demux Order</strong></U> </p>
+      <blockquote>
+        <p align="left">		
+		If enabled, then the INTAN channels will be demuxed to the old, pre-July 2011 ordering:
+        </p>
+		<blockquote><font face="fixed">
+           Intan0_CH0, Intan1_CH0, ... IntanN_ChanM, extrachan1, extrachan2</font>
+        </blockquote>
+		<p>
+		Whereas the new current scheme is:
+		</p>
+		<blockquote><font face="fixed">
+           Intan0_CH0, Intan0_CH1, ... Intan0_ChanM, Intan1_Chan0, ... IntanN_ChanM, extrachan1, extrachan2
+		   </font></blockquote>
         <p align="left">&nbsp;</p>
       </blockquote>
       <p align="left"><U><strong>AO 	Passthru</strong></U> </p>
@@ -348,12 +376,14 @@
   </blockquote>
   <p align="left"><br />
   </p>
+<!--
   <p align="left"><U><strong>Fast Settle </strong></U></p>
   <blockquote>
     <p align="left"> This button is only clickable in Intan/MUX acquisition mode.  Clicking it resets the Intan by setting the DO control line low and then high again.  See the '<a href="#Configuring">Configuring an Acquisition</a>' section for more information on the DO control line or fast settle time parameters.</p>
   </blockquote>
   <p align="left"><br />
   </p>
+-->
   <p align="left"><U><strong>Toggle save </strong></U></p>
   <blockquote>
     <p align="left"> Manually open/close the data file.  When this box is unchecked, the data file is closed and no data is being saved to disk.  When it is checked, the data file is (re)opened and data is being saved to disk.  Note that re-opening the same data file repeatedly overwrites it each time it is reopened.  You may also type a data file name into the line-edit next to this checkbox to change the save file name.</p>

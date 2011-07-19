@@ -368,6 +368,8 @@ void MainApp::loadSettings()
 #endif
 	lastOpenFile = settings.value("lastFileOpenFile", "").toString();
 	
+	sortGraphsByElectrodeId = settings.value("sortGraphsByElectrodeId", false).toBool();
+	
     mut.unlock();
     {
         StimGLIntegrationParams & p(stimGLIntParams);
@@ -394,7 +396,9 @@ void MainApp::saveSettings()
 
 	settings.setValue("dsFacilityEnabled", dsFacilityEnabled);
     settings.setValue("dsTemporaryFileSize", tmpDataFile.getTempFileSize());
-	
+
+	settings.setValue("sortGraphsByElectrodeId", sortGraphsByElectrodeId);
+
     mut.lock();
     settings.setValue("outDir", outDir);
     mut.unlock();
@@ -613,6 +617,10 @@ void MainApp::initActions()
 	Connect( fileOpenAct = new QAction("Open... &O", this), SIGNAL(triggered()), this, SLOT(fileOpen())); 
 	
 	Connect( bringAllToFrontAct = new QAction("Bring All to Front", this), SIGNAL(triggered()), this, SLOT(bringAllToFront()) );
+	
+	Connect( sortGraphsByElectrodeAct = new QAction("Sort graphs by Electrode", this), SIGNAL(triggered()), this, SLOT(optionsSortGraphsByElectrode()) );
+	sortGraphsByElectrodeAct->setCheckable(true);
+	sortGraphsByElectrodeAct->setChecked(sortGraphsByElectrodeId);
 	
 }
 
@@ -1880,4 +1888,16 @@ void MainApp::bringAllToFront()
 		if (!w->isHidden())	w->raise();
 	}
 	if (previousActive) previousActive->raise();
+}
+
+void MainApp::optionsSortGraphsByElectrode()
+{
+	sortGraphsByElectrodeId = sortGraphsByElectrodeAct->isChecked();
+	if (graphsWindow) {
+		if (sortGraphsByElectrodeId)
+			graphsWindow->sortGraphsByElectrodeId();
+		else
+			graphsWindow->sortGraphsByIntan();
+	}
+	saveSettings();
 }

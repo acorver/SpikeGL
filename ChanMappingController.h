@@ -17,15 +17,16 @@ public:
 
 	DAQ::Mode currentMode;
 	
-    void loadSettings(DAQ::Mode currentMode);
+    void loadSettings();
     void saveSettings();
-    static unsigned defaultPinMapping[DAQ::N_Modes][NUM_MUX_CHANS_MAX];
+    static ChanMap defaultMapping[DAQ::N_Modes];
 
-    ChanMapDesc mappingForGraph(unsigned graphNum) const;
-    ChanMapDesc mappingForIntan(unsigned intan, unsigned intan_chan) const;
+    static ChanMapDesc defaultMappingForIntan(unsigned intan, unsigned intan_chan,
+											  unsigned chans_per_intan);
 
-    ChanMap mappingForAll() const;
 
+	const ChanMap & mappingForMode(DAQ::Mode m) const { return mapping[m]; }
+	
 public slots:
     bool exec();
 #ifdef TEST_CH_MAP_CNTRL
@@ -33,12 +34,11 @@ public slots:
 #endif
 
 private:
-    void loadSettings();
     void resetFromSettings();
+	bool mappingFromForm();
     QDialog *dialogParent;
     Ui::ChanMapping *dialog;
-    QVector<unsigned> pinMapping, eMapping;
-    
+	ChanMap mapping[DAQ::N_Modes];
 };
 
 #endif
