@@ -2,6 +2,8 @@
 #include <QTextStream>
 #include <QRegExp>
 #include <QStringList>
+#include <QMap>
+#include <QVector>
 
 QString ChanMapDesc::toTerseString() const
 {
@@ -127,4 +129,18 @@ QString ChanMap::toTerseString(const QBitArray & bm) const
 		ret.push_back(ChanMapDesc::fromString(inParens));
 	}
 	return ret;
+}
+
+void ChanMap::scrambleToPreJuly2011Demux()
+{
+	// sort it by intan then by channel..
+	QMap<QString, ChanMapDesc> m;
+	for (int i = 0; i < (int)size(); ++i) {
+		ChanMapDesc & d = (*this)[i];
+		m[QString().sprintf("%03d_%03d",int(d.intanCh),int(d.intan))] = d;
+	}
+	int i = 0;
+	for (QMap<QString, ChanMapDesc>::iterator it = m.begin(); it != m.end(); ++it, ++i) {
+		(*this)[i] = it.value();
+	}
 }

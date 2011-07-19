@@ -20,6 +20,7 @@ struct ChanMap : public QVector<ChanMapDesc>
 	QString toTerseString(const QBitArray & chansOnBitMap) const;
 	static ChanMap fromString(const QString &);
 	static ChanMap fromTerseString(const QString &);
+	void scrambleToPreJuly2011Demux();
 };
 
 
