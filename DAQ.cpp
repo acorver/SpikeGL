@@ -521,7 +521,7 @@ namespace DAQ
         const float64 aoSampleRate = p.srate;
         const float64     timeout = DAQ_TIMEOUT;
         const int NCHANS = p.nVAIChans;
-        muxMode =  p.mode != AIRegular
+        muxMode =  (p.mode != AIRegular);
         int nscans_per_mux_scan = 1;
         AOWriteThread * aoWriteThr = 0;
 
