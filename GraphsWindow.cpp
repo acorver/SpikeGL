@@ -73,7 +73,9 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     statusBar();
     resize(1024,768);
     graphCtls = addToolBar("Graph Controls");
-    graphCtls->addWidget(new QLabel("Channel:", graphCtls));
+    graphCtls->addWidget(chanBut = new QPushButton("Sorting by Channel:", graphCtls));
+	chanBut->setToolTip("Click to toggle between sorting graphs by either electrode id or INTAN channel.");
+	Connect(chanBut, SIGNAL(clicked()), mainApp()->sortGraphsByElectrodeAct, SLOT(trigger()));
     graphCtls->addWidget(chanLbl = new QLabel("", graphCtls));
     chanLbl->setMargin(5);
     chanLbl->setFont(QFont("Courier", 10, QFont::Bold));
@@ -475,12 +477,16 @@ void GraphsWindow::selectGraph(int num)
     } else { // MUX mode
         if (isAuxChan(num)) {
             chanLbl->setText(QString("AUX%1").arg(int(num-(params.nVAIChans-params.nExtraChans)+1)));
-        } else if (params.mode == DAQ::JFRCIntan32) {
+        }/* else if (params.mode == DAQ::JFRCIntan32) {
             // JFRC Intan 32 mode has a hard-coded mapping.. sorry, not elegant but expedient!
             chanLbl->setText(QString("I%1_C%2").arg(num/16 + 1).arg(num % 16 + 1));            
-        } else {
-            // otherwise AIMux60 and AIMux120 both use the real mapping
-            chanLbl->setText(QString("I%1_C%2").arg(params.chanMap[num].intan).arg(params.chanMap[num].intanCh));
+        }*/ else {
+			// otherwise MUX modes use the real mapping
+			if (mainApp()->sortGraphsByElectrodeId) { // show electorde number if in electrode sort mode
+				chanLbl->setText(QString("%1").arg(params.chanMap[num].electrodeId));				
+			} else {
+				chanLbl->setText(QString("I%1_C%2").arg(params.chanMap[num].intan).arg(params.chanMap[num].intanCh));
+			}
         }
     }
     graphFrames[num]->setFrameStyle(QFrame::Box|QFrame::Plain);
@@ -776,13 +782,12 @@ void GraphsWindow::retileGraphsAccordingToSorting(const QVector<int> & sorting) 
     while (nrows*ncols < (int)graphs.size()) {
         if (nrows > ncols) ++ncols;
         else ++nrows;
-    };
-	QGridLayout *l = (QGridLayout *)graphsWidget->layout();
-    for (int i = 0; i < (int)graphFrames.size(); ++i) {
-		// clear the layout of widgets..
-           QFrame * f = graphFrames[i];
-		l->removeWidget(f);
-	}
+    }
+	
+	delete graphsWidget->layout();
+	QGridLayout *l = new QGridLayout(graphsWidget);
+    l->setHorizontalSpacing(1);
+    l->setVerticalSpacing(1);
 	// no re-add them in the sorting order
     for (int r = 0; r < nrows; ++r) {
         for (int c = 0; c < ncols; ++c) {
@@ -795,8 +800,8 @@ void GraphsWindow::retileGraphsAccordingToSorting(const QVector<int> & sorting) 
     }
 }
 
-
 void GraphsWindow::sortGraphsByElectrodeId() {
+	chanBut->setText("Sorting by Electrode:");
 	QMap<int,int> eid2graph;
 	DAQ::Params & p (params);
 	const int cms = p.chanMap.size(), gs = graphs.size();
@@ -812,9 +817,11 @@ void GraphsWindow::sortGraphsByElectrodeId() {
 		sorting.push_back(i);
 	
 	retileGraphsAccordingToSorting(sorting);
+	selectGraph(selectedGraph); ///< redoes the top toolbar labeling
 }
 
 void GraphsWindow::sortGraphsByIntan() {
+	chanBut->setText("Sorting by Channel:");
 	const int gs = graphs.size();
 	QVector<int> sorting;
 	sorting.reserve(gs);
@@ -822,5 +829,6 @@ void GraphsWindow::sortGraphsByIntan() {
 	for (int i = 0; i < gs; ++i) sorting.push_back(i);
 	
 	retileGraphsAccordingToSorting(sorting);
+	selectGraph(selectedGraph); ///< redoes the top toolbar labeling
 }
 

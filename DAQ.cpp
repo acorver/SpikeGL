@@ -289,7 +289,8 @@ namespace DAQ
 		}
         int i,j,k;
 		for (k = 0; k < int(num_intans); ++k) {			
-			for (i = k, j = k*int(narr/num_intans); j < k+int(narr/num_intans); i+=num_intans,++j) {
+			const int jlimit = (k+1)*int(nchans_per_intan); 
+			for (i = k, j = k*int(nchans_per_intan); j < jlimit; i+=num_intans,++j) {
 				tmparr[j] = begin[i];
 			}
 		}

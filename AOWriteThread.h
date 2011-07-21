@@ -9,10 +9,11 @@
 #ifndef AOWriteThread_H
 #define AOWriteThread_H
 #include "DAQ.h"
-//#ifdef HAVE_NIDAQmx
 #include "SampleBufQ.h"
 #include <QThread>
-#include "NI/NIDAQmx.h"
+//#ifdef HAVE_NIDAQmx
+#  include "NI/NIDAQmx.h"
+//#endif
 
 namespace DAQ {
 
@@ -37,5 +38,4 @@ private:
 };
 	
 }
-//#endif
 #endif
