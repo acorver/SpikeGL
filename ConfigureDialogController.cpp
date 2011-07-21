@@ -449,10 +449,9 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     
     unsigned nVAI = chanVect.size();
     
-    if (acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux) 
-        nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN + nExtraChans;
-    else if (acqMode == DAQ::JFRCIntan32 || acqMode == DAQ::AI128Demux)
-        nVAI = (nVAI-nExtraChans) * MUX_CHANS_PER_PHYS_CHAN_2 + nExtraChans;
+	if (acqMode != DAQ::AIRegular) {
+		nVAI = (nVAI-nExtraChans) * DAQ::ModeNumChansPerIntan[acqMode] + nExtraChans;
+	}
     
     bool usePD = false;
     if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd) {
@@ -1019,12 +1018,9 @@ void ConfigureDialogController::applyAOPass()
     int nExtraChans = 0;
     bool mux = false;
 	int num_chans_per_intan = 1;
-    if ( (mux = (p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux || p.mode == DAQ::AI128Demux || p.mode == DAQ::JFRCIntan32 )) ) {
-        const int minChanSize = (p.mode == DAQ::AI120Demux || p.mode == DAQ::AI128Demux) ? 8 : (p.mode == DAQ::JFRCIntan32 ? 2 : 4);
-		if (p.mode == DAQ::JFRCIntan32 || p.mode == DAQ::AI128Demux)
-			num_chans_per_intan = NUM_CHANS_PER_INTAN_2;
-		else
-			num_chans_per_intan = NUM_CHANS_PER_INTAN;
+    if ( (mux = (p.mode != DAQ::AIRegular)) ) {
+        const int minChanSize = DAQ::ModeNumIntans[p.mode];
+		num_chans_per_intan = DAQ::ModeNumChansPerIntan[p.mode];
         nExtraChans = chanVect.size() - minChanSize;
     }
         

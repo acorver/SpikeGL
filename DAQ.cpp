@@ -279,29 +279,7 @@ namespace DAQ
         return "FakeDAQ";
 #endif
     }
-
-	inline void ApplyNewIntanDemuxToScan(int16 *begin, const unsigned nchans_per_intan, const unsigned num_intans) {
-        int narr = nchans_per_intan*num_intans;
-        int16 tmparr[NUM_MUX_CHANS_MAX]; // hopefully 128 channels is freakin' enough.. 
-		if (narr > NUM_MUX_CHANS_MAX) {
-			Error() << "INTERNAL ERROR: Scan size too large for compiled-in limits (too many INTANs?!).  Please fix the sourcecode at DAQ::ApplyJFRCIntanXXDemuxToScan!";
-			narr = NUM_MUX_CHANS_MAX;
-		}
-        int i,j,k;
-		for (k = 0; k < int(num_intans); ++k) {			
-			const int jlimit = (k+1)*int(nchans_per_intan); 
-			for (i = k, j = k*int(nchans_per_intan); j < jlimit; i+=num_intans,++j) {
-				tmparr[j] = begin[i];
-			}
-		}
-        memcpy(begin, tmparr, narr*sizeof(int16));
-		
-	}
 	
-    inline void ApplyJFRCIntanXXDemuxToScan(int16 *begin, unsigned num_intans) {
-		ApplyNewIntanDemuxToScan(begin, NUM_CHANS_PER_INTAN_2, num_intans);
-    }
-    
     Task::Task(const Params & acqParams, QObject *p) 
         : QThread(p), SampleBufQ(128), pleaseStop(false), params(acqParams), 
           fast_settle(0), muxMode(false), totalRead(0LL)
@@ -501,6 +479,11 @@ namespace DAQ
             }
         }
     }
+	
+	static inline int mapNewChanIdToPreJuly2011ChanId(int c, DAQ::Mode m) {
+		const int intan = c/DAQ::ModeNumChansPerIntan[m], chan = c % DAQ::ModeNumChansPerIntan[m];
+		return chan*DAQ::ModeNumIntans[m] + intan;
+	}
     
     void Task::daqThr()
     {
@@ -538,12 +521,12 @@ namespace DAQ
         const float64 aoSampleRate = p.srate;
         const float64     timeout = DAQ_TIMEOUT;
         const int NCHANS = p.nVAIChans;
-        muxMode =  p.mode == AI60Demux || p.mode == AI120Demux || p.mode == JFRCIntan32 || p.mode == AI128Demux;
+        muxMode =  p.mode != AIRegular
         int nscans_per_mux_scan = 1;
         AOWriteThread * aoWriteThr = 0;
 
         if (muxMode) {
-            const int mux_chans_per_phys = (p.mode == JFRCIntan32 || p.mode == AI128Demux) ? MUX_CHANS_PER_PHYS_CHAN_2 : MUX_CHANS_PER_PHYS_CHAN;
+            const int mux_chans_per_phys = ModeNumChansPerIntan[p.mode];
             sampleRate *= double(mux_chans_per_phys);
             nscans_per_mux_scan = mux_chans_per_phys;
             if (!p.extClock) {
@@ -642,7 +625,7 @@ namespace DAQ
             }
 
             //Debug() << "Acquired " << nRead << " samples. Total " << totalRead;
-            if (muxMode) {
+            if (muxMode && nExtraChans) {
                 /*
                   NB: at this point data contains scans of the form:
 
@@ -691,22 +674,6 @@ namespace DAQ
                     if ((!((tmp.size()+nExtraChans) % NCHANS)) && i+nExtraChans <= datasz) {// if we are on a virtual scan-boundary, then ...
                         begi = data.begin()+i;  endi = begi+nExtraChans;
                         tmp.insert(tmp.end(), begi, endi); // .. we keep the extra channels
-						if ( !p.doPreJuly2011IntanDemux || p.mode == JFRCIntan32 ) {
-							int16 *scanBegin = &tmp[tmp.size()-p.nVAIChans];
-							switch (p.mode) {
-								case JFRCIntan32:
-									// now, optionally demux the channels such that channels 0->15 come from AI0 and 16->31 from AI1
-									ApplyJFRCIntanXXDemuxToScan(scanBegin, ModeNumIntans[p.mode]);
-									break;
-								case AI60Demux:
-								case AI120Demux:
-								case AI128Demux:
-									ApplyNewIntanDemuxToScan(scanBegin, ModeNumChansPerIntan[p.mode], ModeNumIntans[p.mode]);
-									break;
-								default:
-									Error() << "INTERNAL ERROR: Unknown acquisition/mux mode.  Please fixeme in " << __FILE__ << ":" << __LINE__;
-							}
-						}
                     }
                 }
                 data.swap(tmp);
@@ -751,7 +718,7 @@ namespace DAQ
                 aoData.reserve(aoData.size()+dsize);
                 for (int i = 0; i < dsize; i += NCHANS) { // for each scan..
                     for (QVector<QPair<int,int> >::const_iterator it = aoAITab.begin(); it != aoAITab.end(); ++it) { // take ao channels
-                        const int aiChIdx = (*it).second;
+                        const int aiChIdx = p.doPreJuly2011IntanDemux ? (*it).second : mapNewChanIdToPreJuly2011ChanId(aiChIdx, p.mode);
                         aoData.push_back(data[i+aiChIdx]);
                     }
                 }

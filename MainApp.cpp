@@ -852,6 +852,23 @@ void MainApp::xferWBToScans(WrapBuffer & preBuf, std::vector<int16> & scans,
     preBuf.clear();    
 }
 
+inline void ApplyNewIntanDemuxToScan(int16 *begin, const unsigned nchans_per_intan, const unsigned num_intans) {
+	int narr = nchans_per_intan*num_intans;
+	int16 tmparr[NUM_MUX_CHANS_MAX]; // hopefully 128 channels is freakin' enough.. 
+	if (narr > NUM_MUX_CHANS_MAX) {
+		Error() << "INTERNAL ERROR: Scan size too large for compiled-in limits (too many INTANs?!).  Please fix the sourcecode at DAQ::ApplyJFRCIntanXXDemuxToScan!";
+		narr = NUM_MUX_CHANS_MAX;
+	}
+	int i,j,k;
+	for (k = 0; k < int(num_intans); ++k) {			
+		const int jlimit = (k+1)*int(nchans_per_intan); 
+		for (i = k, j = k*int(nchans_per_intan); j < jlimit; i+=num_intans,++j) {
+			tmparr[j] = begin[i];
+		}
+	}
+	memcpy(begin, tmparr, narr*sizeof(int16));
+}
+
 ///< called from a timer at 30Hz
 void MainApp::taskReadFunc() 
 { 
@@ -870,6 +887,17 @@ void MainApp::taskReadFunc()
         tNow = getTime();
         lastScanSz = scans.size();
         scanCt = firstSamp/p.nVAIChans;
+		
+		// BEGIN the new post July 2011 demux... it's important we do this HERE before going any further..
+		if (!p.doPreJuly2011IntanDemux) {
+			const int nVAIChans = p.nVAIChans;
+			for (int i = nVAIChans; i <= int(lastScanSz); i += nVAIChans) {
+				int16 *scanBegin = &scans[i-nVAIChans];
+				ApplyNewIntanDemuxToScan(scanBegin, DAQ::ModeNumChansPerIntan[p.mode], DAQ::ModeNumIntans[p.mode]);
+			}
+		}
+		// END post July 2011 demux
+		
         if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
             if (!detectTriggerEvent(scans, firstSamp))
                 preBuf.putData(&scans[0], scans.size()*sizeof(scans[0])); // save data to pre-buffer ringbuffer if not triggered yet
