@@ -25,6 +25,7 @@ class QTimer;
 class QMessageBox;
 class CommandConnection;
 class FileViewerWindow;
+class PostJuly2011Remuxer;
 
 #include <QApplication>
 #include <QColor>
@@ -328,6 +329,8 @@ private:
 	QMap<QWidget *, QAction *> windowActions;
 	
 	bool acqWaitingForPrecreate;
+	
+	PostJuly2011Remuxer *addtlDemuxTask;
 	
 public:
 

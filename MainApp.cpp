@@ -78,10 +78,27 @@ namespace {
 
 };
 
+/// simply remuxes the samples to the post july 2011 ordering from off the hardware daq task..
+/// if params.doPreJuly2011Demux is true, then does a noop and just passes scans along..
+class PostJuly2011Remuxer : public QThread, public SampleBufQ {
+public:
+	PostJuly2011Remuxer(const DAQ::Params & p, DAQ::Task *daqTask, QObject *parent = 0);
+	~PostJuly2011Remuxer();	
+	void stop(); 
+	
+protected:
+	/* virtual */ void run();
+	
+private:
+	volatile bool pleaseStop;
+	const DAQ::Params & p;
+	DAQ::Task *task;
+};
+
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(128), tPerGraph(0.), acqStartingDialog(0)
+    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(128), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -728,6 +745,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     }
     
     task = new DAQ::Task(params, this);
+	addtlDemuxTask = new PostJuly2011Remuxer(params, task, this);
     taskReadTimer = new QTimer(this);
     Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
     Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
@@ -739,6 +757,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     aoPassthruAct->setEnabled(params.aoPassthru);
     Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));
     task->start();
+	addtlDemuxTask->start();
     updateWindowTitles();
     Systray() << "DAQ task starting up ...";
     Status() << "DAQ task starting up ...";
@@ -782,7 +801,8 @@ void MainApp::maybeQuit()
 void MainApp::stopTask()
 {
     if (!task) return;
-    delete task, task = 0;  
+	delete addtlDemuxTask, addtlDemuxTask = 0;
+    delete task, task = 0;	
     fastSettleRunning = false;
     if (taskReadTimer) delete taskReadTimer, taskReadTimer = 0;
     if (graphsWindow) {
@@ -869,6 +889,47 @@ inline void ApplyNewIntanDemuxToScan(int16 *begin, const unsigned nchans_per_int
 	memcpy(begin, tmparr, narr*sizeof(int16));
 }
 
+
+PostJuly2011Remuxer::PostJuly2011Remuxer(const DAQ::Params & p, DAQ::Task *task, QObject *parent)
+: QThread(parent), SampleBufQ(128), pleaseStop(false), p(p), task(task) {}
+
+PostJuly2011Remuxer::~PostJuly2011Remuxer() { stop(); }
+
+void PostJuly2011Remuxer::stop() 
+{
+	if (isRunning() && !pleaseStop) {
+		pleaseStop = true;
+		wait();
+		pleaseStop = false;
+	}
+}
+
+void PostJuly2011Remuxer::run()
+{
+	std::vector<int16>scans;
+	u64 firstSamp;
+	while ( !pleaseStop ) {
+		while ( task && task->dequeueBuffer(scans, firstSamp) ) {
+
+			// BEGIN the new post July 2011 demux... it's important we do this HERE before going any further..
+			if (!p.doPreJuly2011IntanDemux) {
+				const int nVAIChans = p.nVAIChans;
+				const int lastScanSz = scans.size();
+				for (int i = nVAIChans; i <= lastScanSz; i += nVAIChans) {
+					int16 *scanBegin = &scans[i-nVAIChans];
+					ApplyNewIntanDemuxToScan(scanBegin, DAQ::ModeNumChansPerIntan[p.mode], DAQ::ModeNumIntans[p.mode]);
+				}
+			}
+			// END post July 2011 demux
+			
+			// now, re-enque!
+			enqueueBuffer(scans, firstSamp);
+		}
+		msleep(1000/DEF_TASK_READ_FREQ_HZ); // sleep 33 ms and try again since task wasn't ready?
+	}
+}
+
+
 ///< called from a timer at 30Hz
 void MainApp::taskReadFunc() 
 { 
@@ -882,21 +943,12 @@ void MainApp::taskReadFunc()
     const DAQ::Params & p (configCtl->acceptedParams);
     while ((ct++ < ctMax || taskShouldStop) ///< on taskShouldStop, keep trying to empty queue!
            && !needToStop
-           && task
-           && task->dequeueBuffer(scans, firstSamp)) {
+           && addtlDemuxTask
+           && addtlDemuxTask->dequeueBuffer(scans, firstSamp)) {
         tNow = getTime();
         lastScanSz = scans.size();
         scanCt = firstSamp/p.nVAIChans;
 		
-		// BEGIN the new post July 2011 demux... it's important we do this HERE before going any further..
-		if (!p.doPreJuly2011IntanDemux) {
-			const int nVAIChans = p.nVAIChans;
-			for (int i = nVAIChans; i <= int(lastScanSz); i += nVAIChans) {
-				int16 *scanBegin = &scans[i-nVAIChans];
-				ApplyNewIntanDemuxToScan(scanBegin, DAQ::ModeNumChansPerIntan[p.mode], DAQ::ModeNumIntans[p.mode]);
-			}
-		}
-		// END post July 2011 demux
 		
         if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
             if (!detectTriggerEvent(scans, firstSamp))
@@ -1018,6 +1070,7 @@ void MainApp::taskReadFunc()
     if (taskShouldStop || needToStop)
         stopTask();
 }
+		   
 
 bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp)
 {
