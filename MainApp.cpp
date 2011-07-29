@@ -745,7 +745,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     }
     
     task = new DAQ::Task(params, this);
-	addtlDemuxTask = new PostJuly2011Remuxer(params, task, this);
+	if (!params.doPreJuly2011IntanDemux) addtlDemuxTask = new PostJuly2011Remuxer(params, task, this);
     taskReadTimer = new QTimer(this);
     Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
     Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
@@ -757,7 +757,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     aoPassthruAct->setEnabled(params.aoPassthru);
     Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));
     task->start();
-	addtlDemuxTask->start();
+	if (addtlDemuxTask)	addtlDemuxTask->start();
     updateWindowTitles();
     Systray() << "DAQ task starting up ...";
     Status() << "DAQ task starting up ...";
@@ -801,7 +801,7 @@ void MainApp::maybeQuit()
 void MainApp::stopTask()
 {
     if (!task) return;
-	delete addtlDemuxTask, addtlDemuxTask = 0;
+	if (addtlDemuxTask) delete addtlDemuxTask, addtlDemuxTask = 0;
     delete task, task = 0;	
     fastSettleRunning = false;
     if (taskReadTimer) delete taskReadTimer, taskReadTimer = 0;
@@ -912,13 +912,11 @@ void PostJuly2011Remuxer::run()
 		while ( task && task->dequeueBuffer(scans, firstSamp) ) {
 
 			// BEGIN the new post July 2011 demux... it's important we do this HERE before going any further..
-			if (!p.doPreJuly2011IntanDemux) {
-				const int nVAIChans = p.nVAIChans;
-				const int lastScanSz = scans.size();
-				for (int i = nVAIChans; i <= lastScanSz; i += nVAIChans) {
-					int16 *scanBegin = &scans[i-nVAIChans];
-					ApplyNewIntanDemuxToScan(scanBegin, DAQ::ModeNumChansPerIntan[p.mode], DAQ::ModeNumIntans[p.mode]);
-				}
+			const int nVAIChans = p.nVAIChans;
+			const int lastScanSz = scans.size();
+			for (int i = nVAIChans; i <= lastScanSz; i += nVAIChans) {
+				int16 *scanBegin = &scans[i-nVAIChans];
+				ApplyNewIntanDemuxToScan(scanBegin, DAQ::ModeNumChansPerIntan[p.mode], DAQ::ModeNumIntans[p.mode]);
 			}
 			// END post July 2011 demux
 			
@@ -943,8 +941,10 @@ void MainApp::taskReadFunc()
     const DAQ::Params & p (configCtl->acceptedParams);
     while ((ct++ < ctMax || taskShouldStop) ///< on taskShouldStop, keep trying to empty queue!
            && !needToStop
-           && addtlDemuxTask
-           && addtlDemuxTask->dequeueBuffer(scans, firstSamp)) {
+           && ( (!p.doPreJuly2011IntanDemux && addtlDemuxTask && addtlDemuxTask->dequeueBuffer(scans, firstSamp))
+			    || (p.doPreJuly2011IntanDemux && task && task->dequeueBuffer(scans, firstSamp)) 
+			   ) 
+		   ) {
         tNow = getTime();
         lastScanSz = scans.size();
         scanCt = firstSamp/p.nVAIChans;
