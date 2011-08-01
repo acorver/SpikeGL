@@ -121,7 +121,7 @@ namespace DAQ
 									   
 									           Intan0_CH0, Intan0_CH1, ... Intan0_ChanM, Intan1_Chan0, ... IntanN_ChanM, extrachan1, extrachan2
 									   */
-		
+				
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }
         void unlock() const { mutex.unlock(); }

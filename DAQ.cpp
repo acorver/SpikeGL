@@ -529,13 +529,14 @@ namespace DAQ
             const int mux_chans_per_phys = ModeNumChansPerIntan[p.mode];
             sampleRate *= double(mux_chans_per_phys);
             nscans_per_mux_scan = mux_chans_per_phys;
-            if (!p.extClock) {
+            /*if (!p.extClock) {
                 /// Aieeeee!  Need ext clock for demux mode!
                 QString e("Aieeeee!  Need to use an EXTERNAL clock for DEMUX mode!");
                 Error() << e;
                 emit daqError(e);
                 return;
             }
+			 */
         }
 
         QVector<QPair<int,int> > aoAITab;
@@ -547,7 +548,7 @@ namespace DAQ
         int fudged_srate = ceil(sampleRate);
 		while ((fudged_srate/task_read_freq_hz) % 2) // samples per chan needs to be a multiple of 2
 			++fudged_srate;
-        u64 bufferSize = u64(fudged_srate*nChans)/task_read_freq_hz; ///< 1/10th sec per read
+        u64 bufferSize = u64(fudged_srate*nChans)/(p.lowLatency ? (task_read_freq_hz/2) : 1); ///< 1/10th sec per read
         if (bufferSize < NCHANS) bufferSize = NCHANS;
 /*        if (bufferSize * task_read_freq_hz != u64(fudged_srate*nChans)) // make sure buffersize is on scan boundary?
             bufferSize += task_read_freq_hz - u64(fudged_srate*nChans)%task_read_freq_hz; */
@@ -718,7 +719,7 @@ namespace DAQ
                 aoData.reserve(aoData.size()+dsize);
                 for (int i = 0; i < dsize; i += NCHANS) { // for each scan..
                     for (QVector<QPair<int,int> >::const_iterator it = aoAITab.begin(); it != aoAITab.end(); ++it) { // take ao channels
-                        const int aiChIdx = p.doPreJuly2011IntanDemux ? (*it).second : mapNewChanIdToPreJuly2011ChanId(aiChIdx, p.mode);
+                        const int aiChIdx = p.doPreJuly2011IntanDemux || !muxMode ? (*it).second : mapNewChanIdToPreJuly2011ChanId(aiChIdx, p.mode);
                         aoData.push_back(data[i+aiChIdx]);
                     }
                 }

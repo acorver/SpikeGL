@@ -161,6 +161,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     // fire off the slots to polish?
     acqStartEndCBChanged();
     acqModeCBChanged();
+    dialog->clockCB->setCurrentIndex(p.extClock ? 0 : 1);
     deviceCBChanged();
     aoDeviceCBChanged();
     aoPassthruChkd();
@@ -247,7 +248,7 @@ void ConfigureDialogController::acqModeCBChanged()
     
     dialog->srateLabel->setEnabled(/*enabled*/true);
     dialog->srateSB->setEnabled(/*enabled*/true);
-    dialog->clockCB->setEnabled(false); // NB: for now, the clockCB is always disabled!
+    dialog->clockCB->setEnabled(true); // NB: for now, the clockCB is always enabled!
     dialog->muxMapBut->setEnabled(intan);
 	chanMapCtl.currentMode = (DAQ::Mode)idx;
 
@@ -413,9 +414,11 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     if ( acqMode == DAQ::AI60Demux || acqMode == DAQ::AI120Demux || acqMode == DAQ::JFRCIntan32
 		|| acqMode == DAQ::AI128Demux) {
         if (!DAQ::SupportsAISimultaneousSampling(dev)) {
-            errTitle = "INTAN Requires Simultaneous Sampling";
-            errMsg = QString("INTAN (60/120/128/JFRC32 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev);
-            return AGAIN;
+            QString title = "INTAN Requires Simultaneous Sampling",
+                    msg = QString("INTAN (60/120/128/JFRC32 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev);
+			if (QMessageBox::Cancel == QMessageBox::warning(dialogW, title, msg, QMessageBox::Ignore, QMessageBox::Cancel)) 
+				return AGAIN;
+			// else continue and ignore the error...
         }
         const int minChanSize = (acqMode == DAQ::AI120Demux || acqMode == DAQ::AI128Demux) ? 8 : (acqMode == DAQ::JFRCIntan32 ? 2 : 4);
         if ( int(chanVect.size()) < minChanSize ) {
@@ -695,7 +698,7 @@ int ConfigureDialogController::exec()
             
             switch ( result ) {
                 case AGAIN: 
-					if (!errTitle.isNull() && !errMsg.isNull())
+					if (errTitle.length() && errMsg.length())
 						QMessageBox::critical(dialogW, errTitle, errMsg);
                     again = true; 
                     break;
@@ -848,7 +851,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.lowLatency = settings.value("lowLatency", false).toBool();
 	
 	p.doPreJuly2011IntanDemux = settings.value("doPreJuly2011IntanDemux", false).toBool();
-    
+	    
 }
 
 void ConfigureDialogController::loadSettings()

@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>477</width>
-    <height>717</height>
+    <width>472</width>
+    <height>716</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,8 +29,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>297</x>
-     <y>665</y>
+     <x>296</x>
+     <y>667</y>
      <width>173</width>
      <height>32</height>
     </rect>
@@ -45,21 +45,24 @@
   <widget class="QLabel" name="outputFileLabel">
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>12</x>
      <y>21</y>
-     <width>101</width>
+     <width>111</width>
      <height>21</height>
     </rect>
    </property>
    <property name="text">
     <string>Output filename:</string>
    </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
   </widget>
   <widget class="QLineEdit" name="outputFileLE">
    <property name="geometry">
     <rect>
-     <x>120</x>
-     <y>20</y>
+     <x>131</x>
+     <y>23</y>
      <width>231</width>
      <height>22</height>
     </rect>
@@ -71,9 +74,9 @@
   <widget class="QPushButton" name="browseBut">
    <property name="geometry">
     <rect>
-     <x>360</x>
+     <x>370</x>
      <y>19</y>
-     <width>75</width>
+     <width>92</width>
      <height>26</height>
     </rect>
    </property>
@@ -86,7 +89,7 @@
     <rect>
      <x>22</x>
      <y>85</y>
-     <width>101</width>
+     <width>126</width>
      <height>20</height>
     </rect>
    </property>
@@ -96,13 +99,16 @@
    <property name="text">
     <string>Acquisition Mode:</string>
    </property>
+   <property name="alignment">
+    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+   </property>
   </widget>
   <widget class="QComboBox" name="acqModeCB">
    <property name="geometry">
     <rect>
-     <x>132</x>
-     <y>84</y>
-     <width>175</width>
+     <x>152</x>
+     <y>82</y>
+     <width>147</width>
      <height>22</height>
     </rect>
    </property>
@@ -138,8 +144,8 @@
   <widget class="QLineEdit" name="channelListLE">
    <property name="geometry">
     <rect>
-     <x>27</x>
-     <y>300</y>
+     <x>26</x>
+     <y>302</y>
      <width>431</width>
      <height>22</height>
     </rect>
@@ -154,8 +160,8 @@
   <widget class="QLabel" name="channelListLabel">
    <property name="geometry">
     <rect>
-     <x>27</x>
-     <y>274</y>
+     <x>26</x>
+     <y>276</y>
      <width>421</width>
      <height>16</height>
     </rect>
@@ -173,10 +179,10 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>25</x>
-     <y>180</y>
-     <width>181</width>
-     <height>16</height>
+     <x>22</x>
+     <y>182</y>
+     <width>183</width>
+     <height>21</height>
     </rect>
    </property>
    <property name="toolTip">
@@ -192,8 +198,8 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>215</x>
-     <y>180</y>
+     <x>214</x>
+     <y>182</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -213,12 +219,12 @@
   </widget>
   <widget class="QComboBox" name="clockCB">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="geometry">
     <rect>
-     <x>345</x>
-     <y>180</y>
+     <x>344</x>
+     <y>182</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -241,9 +247,9 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
   <widget class="QCheckBox" name="disableGraphsChk">
    <property name="geometry">
     <rect>
-     <x>27</x>
-     <y>668</y>
-     <width>251</width>
+     <x>26</x>
+     <y>670</y>
+     <width>273</width>
      <height>21</height>
     </rect>
    </property>
@@ -257,8 +263,8 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
   <widget class="QGroupBox" name="acqStartEndGB">
    <property name="geometry">
     <rect>
-     <x>25</x>
-     <y>489</y>
+     <x>24</x>
+     <y>491</y>
      <width>431</width>
      <height>152</height>
     </rect>
@@ -358,9 +364,9 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="aiRangeMinLbl">
    <property name="geometry">
     <rect>
-     <x>213</x>
-     <y>148</y>
-     <width>123</width>
+     <x>209</x>
+     <y>150</y>
+     <width>126</width>
      <height>22</height>
     </rect>
    </property>
@@ -377,8 +383,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QComboBox" name="aiRangeCB">
    <property name="geometry">
     <rect>
-     <x>339</x>
-     <y>148</y>
+     <x>338</x>
+     <y>150</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -390,9 +396,9 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="deviceLabel">
    <property name="geometry">
     <rect>
-     <x>26</x>
-     <y>149</y>
-     <width>59</width>
+     <x>22</x>
+     <y>151</y>
+     <width>57</width>
      <height>22</height>
     </rect>
    </property>
@@ -402,13 +408,16 @@ p, li { white-space: pre-wrap; }
    <property name="text">
     <string>Device:</string>
    </property>
+   <property name="alignment">
+    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+   </property>
   </widget>
   <widget class="QComboBox" name="deviceCB">
    <property name="geometry">
     <rect>
-     <x>81</x>
-     <y>149</y>
-     <width>121</width>
+     <x>84</x>
+     <y>151</y>
+     <width>120</width>
      <height>22</height>
     </rect>
    </property>
@@ -419,9 +428,9 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="doCtlLabel">
    <property name="geometry">
     <rect>
-     <x>312</x>
-     <y>86</y>
-     <width>51</width>
+     <x>305</x>
+     <y>82</y>
+     <width>60</width>
      <height>20</height>
     </rect>
    </property>
@@ -438,9 +447,9 @@ p, li { white-space: pre-wrap; }
   <widget class="QComboBox" name="doCtlCB">
    <property name="geometry">
     <rect>
-     <x>372</x>
-     <y>84</y>
-     <width>91</width>
+     <x>371</x>
+     <y>80</y>
+     <width>87</width>
      <height>22</height>
     </rect>
    </property>
@@ -451,8 +460,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QComboBox" name="aiTerminationCB">
    <property name="geometry">
     <rect>
-     <x>124</x>
-     <y>212</y>
+     <x>123</x>
+     <y>214</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -489,9 +498,9 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="aiTerminationLabel">
    <property name="geometry">
     <rect>
-     <x>24</x>
-     <y>212</y>
-     <width>101</width>
+     <x>19</x>
+     <y>214</y>
+     <width>100</width>
      <height>22</height>
     </rect>
    </property>
@@ -501,6 +510,9 @@ p, li { white-space: pre-wrap; }
    <property name="text">
     <string>Termination:</string>
    </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
   </widget>
   <widget class="QSpinBox" name="fastSettleSB">
    <property name="enabled">
@@ -508,8 +520,8 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="geometry">
     <rect>
-     <x>374</x>
-     <y>210</y>
+     <x>373</x>
+     <y>212</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -533,8 +545,8 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="geometry">
     <rect>
-     <x>274</x>
-     <y>212</y>
+     <x>273</x>
+     <y>214</y>
      <width>91</width>
      <height>20</height>
     </rect>
@@ -552,9 +564,9 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="auxGainLbl">
    <property name="geometry">
     <rect>
-     <x>26</x>
-     <y>243</y>
-     <width>101</width>
+     <x>19</x>
+     <y>245</y>
+     <width>97</width>
      <height>22</height>
     </rect>
    </property>
@@ -565,14 +577,14 @@ p, li { white-space: pre-wrap; }
     <string>AUX Gain:</string>
    </property>
    <property name="alignment">
-    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="auxGainSB">
    <property name="geometry">
     <rect>
-     <x>124</x>
-     <y>244</y>
+     <x>123</x>
+     <y>246</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -593,8 +605,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QPushButton" name="muxMapBut">
    <property name="geometry">
     <rect>
-     <x>270</x>
-     <y>238</y>
+     <x>269</x>
+     <y>240</y>
      <width>166</width>
      <height>32</height>
     </rect>
@@ -632,8 +644,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QWidget" name="aoPassthruWidget" native="true">
    <property name="geometry">
     <rect>
-     <x>25</x>
-     <y>359</y>
+     <x>24</x>
+     <y>361</y>
      <width>431</width>
      <height>121</height>
     </rect>
@@ -642,9 +654,9 @@ p, li { white-space: pre-wrap; }
   <widget class="QLineEdit" name="channelSubsetLE">
    <property name="geometry">
     <rect>
-     <x>232</x>
-     <y>114</y>
-     <width>222</width>
+     <x>175</x>
+     <y>116</y>
+     <width>278</width>
      <height>22</height>
     </rect>
    </property>
@@ -661,9 +673,9 @@ channels will be saved.  </string>
   <widget class="QLabel" name="channelSubsetLabel">
    <property name="geometry">
     <rect>
-     <x>46</x>
-     <y>114</y>
-     <width>177</width>
+     <x>22</x>
+     <y>117</y>
+     <width>147</width>
      <height>20</height>
     </rect>
    </property>
@@ -677,16 +689,16 @@ channels will be saved.  </string>
     <string>Save Channel Subset:</string>
    </property>
    <property name="alignment">
-    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
    </property>
   </widget>
   <widget class="QCheckBox" name="lowLatencyCB">
    <property name="geometry">
     <rect>
-     <x>21</x>
+     <x>20</x>
      <y>332</y>
      <width>192</width>
-     <height>20</height>
+     <height>24</height>
     </rect>
    </property>
    <property name="text">
@@ -696,10 +708,10 @@ channels will be saved.  </string>
   <widget class="QCheckBox" name="preJuly2011DemuxCB">
    <property name="geometry">
     <rect>
-     <x>214</x>
-     <y>329</y>
+     <x>213</x>
+     <y>331</y>
      <width>245</width>
-     <height>20</height>
+     <height>28</height>
     </rect>
    </property>
    <property name="toolTip">

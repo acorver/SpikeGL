@@ -745,7 +745,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     }
     
     task = new DAQ::Task(params, this);
-	if (!params.doPreJuly2011IntanDemux) addtlDemuxTask = new PostJuly2011Remuxer(params, task, this);
+	if (!params.doPreJuly2011IntanDemux && params.mode != DAQ::AIRegular) 
+		addtlDemuxTask = new PostJuly2011Remuxer(params, task, this);
     taskReadTimer = new QTimer(this);
     Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
     Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
@@ -940,11 +941,15 @@ void MainApp::taskReadFunc()
     static double lastSBUpd = 0;
     const DAQ::Params & p (configCtl->acceptedParams);
     while ((ct++ < ctMax || taskShouldStop) ///< on taskShouldStop, keep trying to empty queue!
-           && !needToStop
-           && ( (!p.doPreJuly2011IntanDemux && addtlDemuxTask && addtlDemuxTask->dequeueBuffer(scans, firstSamp))
-			    || (p.doPreJuly2011IntanDemux && task && task->dequeueBuffer(scans, firstSamp)) 
-			   ) 
-		   ) {
+           && !needToStop ) {
+		bool gotSomething = false;
+		if (addtlDemuxTask) {
+			gotSomething = addtlDemuxTask->dequeueBuffer(scans, firstSamp);
+		} else if (task) {
+			gotSomething = task->dequeueBuffer(scans, firstSamp);
+		}
+		if (!gotSomething) break;
+
         tNow = getTime();
         lastScanSz = scans.size();
         scanCt = firstSamp/p.nVAIChans;
