@@ -420,6 +420,13 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
 				return AGAIN;
 			// else continue and ignore the error...
         }
+		if (dialog->clockCB->currentIndex() != 0) {
+            QString title = "INTAN Requires External Clock",
+			msg = QString("INTAN (60/120/128/JFRC32 demux) mode requires an external clock source for correct operation, yet you specified the use of the internal clock.  Ignore and use the internal clock anyway?");
+			if (QMessageBox::Cancel == QMessageBox::warning(dialogW, title, msg, QMessageBox::Ignore, QMessageBox::Cancel)) 
+				return AGAIN;
+			// else continue and ignore the error...			
+		}
         const int minChanSize = (acqMode == DAQ::AI120Demux || acqMode == DAQ::AI128Demux) ? 8 : (acqMode == DAQ::JFRCIntan32 ? 2 : 4);
         if ( int(chanVect.size()) < minChanSize ) {
             errTitle = "AI Chan List Error", errMsg = "INTAN (60/120/128/JFRC32 demux) mode requires precisely 4, 8 or 2 channels!";
