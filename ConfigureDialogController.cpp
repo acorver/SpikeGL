@@ -626,7 +626,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     p.fastSettleTimeMS = dialog->fastSettleSB->value();
     p.auxGain = dialog->auxGainSB->value();
     p.chanMap = chanMapCtl.mappingForMode(p.mode);
-    if (p.doPreJuly2011IntanDemux) {
+    if (p.doPreJuly2011IntanDemux && p.mode != DAQ::AIRegular) {
 		p.chanMap.scrambleToPreJuly2011Demux();
 	}
     p.silenceBeforePD = acqPdParams->pdPre->value()/1000.;
