@@ -121,6 +121,8 @@ namespace DAQ
 									   
 									           Intan0_CH0, Intan0_CH1, ... Intan0_ChanM, Intan1_Chan0, ... IntanN_ChanM, extrachan1, extrachan2
 									   */
+		
+		unsigned aiBufferSizeCS; ///< a value from 1 -> 100, which represents the centiseconds (.01 sec or 10 ms) worth of time to make the analog input buffer
 				
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }

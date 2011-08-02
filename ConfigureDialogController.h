@@ -59,6 +59,7 @@ protected slots:
     void aiRangeChanged();
     void aoPDPassthruUpdateLE();
     void applyAOPass();
+	void bufferSizeSliderChanged();
 
 private:
     void resetFromParams(DAQ::Params *p = 0);

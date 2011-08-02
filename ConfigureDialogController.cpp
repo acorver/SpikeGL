@@ -54,7 +54,8 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     Connect(dialog->muxMapBut, SIGNAL(clicked()), &chanMapCtl, SLOT(exec()));
     Connect(dialog->aiRangeCB, SIGNAL(currentIndexChanged(int)), this, SLOT(aiRangeChanged()));
     Connect(acqPdParams->pdPassthruAOSB, SIGNAL(valueChanged(int)), this, SLOT(aoPDPassthruUpdateLE()));
-	
+	Connect(dialog->bufferSizeSlider, SIGNAL(valueChanged(int)), this, SLOT(bufferSizeSliderChanged()));
+	Connect(dialog->lowLatencyChk, SIGNAL(clicked()), this, SLOT(bufferSizeSliderChanged()));
 	// hide fast settle stuff as it's no longer supported
 	dialog->fastSettleSB->hide();
 	dialog->fastSettleLbl->hide();
@@ -121,7 +122,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
         dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
     dialog->channelListLE->setText(p.aiString);
     dialog->acqStartEndCB->setCurrentIndex((int)p.acqStartEndMode);
-	dialog->lowLatencyCB->setChecked(p.lowLatency);
+	dialog->lowLatencyChk->setChecked(p.lowLatency);
 	dialog->preJuly2011DemuxCB->setChecked(p.doPreJuly2011IntanDemux);
 	dialog->preJuly2011DemuxCB->setEnabled(p.mode != DAQ::AIRegular);
     acqPdParams->pdAIThreshSB->setValue((p.pdThresh/32768.+1.)/2. * (p.range.max-p.range.min) + p.range.min);
@@ -131,6 +132,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     acqPdParams->pdStopTimeSB->setValue(p.pdStopTime);
     acqPdParams->pdPre->setValue(p.silenceBeforePD*1000.);
 	acqPdParams->pdWSB->setValue(p.pdThreshW);
+	dialog->bufferSizeSlider->setValue(p.aiBufferSizeCS);
 
     QList<QString> devs = aiChanLists.uniqueKeys();
     devNames.clear();
@@ -167,6 +169,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     aoPassthruChkd();
     aoPDChanChkd();
     aiRangeChanged();
+	bufferSizeSliderChanged();
 }
 
 void ConfigureDialogController::aiRangeChanged()
@@ -575,8 +578,9 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     p.doCtlChan = dialog->doCtlCB->currentIndex();
     p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());
     p.usePD = usePD;
-	p.lowLatency = dialog->lowLatencyCB->isChecked();
+	p.lowLatency = dialog->lowLatencyChk->isChecked();
 	p.doPreJuly2011IntanDemux = dialog->preJuly2011DemuxCB->isChecked();
+	p.aiBufferSizeCS = dialog->bufferSizeSlider->value(); if (p.aiBufferSizeCS > 100) p.aiBufferSizeCS = 100;
     if (!aoDevNames.empty()) {                
         p.aoPassthru = aoPassthru->aoPassthruGB->isChecked();
         p.aoDev = aoDev;
@@ -858,6 +862,8 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.lowLatency = settings.value("lowLatency", false).toBool();
 	
 	p.doPreJuly2011IntanDemux = settings.value("doPreJuly2011IntanDemux", false).toBool();
+	
+	p.aiBufferSizeCS = settings.value("aiBufferSizeCentiSeconds", 25).toUInt();
 	    
 }
 
@@ -923,6 +929,8 @@ void ConfigureDialogController::saveSettings() const
 
 	settings.setValue("lowLatency", p.lowLatency);
 	settings.setValue("doPreJuly2011IntanDemux", p.doPreJuly2011IntanDemux);
+	settings.setValue("aiBufferSizeCentiSeconds", p.aiBufferSizeCS);
+
 
     settings.endGroup();
 }
@@ -1125,4 +1133,13 @@ QString ConfigureDialogController::generateAIChanString(const QVector<unsigned> 
 	}
 	if (runct) ret.append(QString(":%1").arg(last));
 	return ret;
+}
+
+void ConfigureDialogController::bufferSizeSliderChanged()
+{
+	dialog->aiBufSzLbl->setText(QString("%1 ms").arg(dialog->bufferSizeSlider->value()*10));
+	const bool en = !dialog->lowLatencyChk->isChecked();
+	dialog->aiBufSzLbl->setEnabled(en);
+	dialog->bufferSizeSlider->setEnabled(en);
+	dialog->aiBufferSizeLbl->setEnabled(en);
 }

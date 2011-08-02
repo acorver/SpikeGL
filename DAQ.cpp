@@ -548,7 +548,12 @@ namespace DAQ
         int fudged_srate = ceil(sampleRate);
 		while ((fudged_srate/task_read_freq_hz) % 2) // samples per chan needs to be a multiple of 2
 			++fudged_srate;
-        u64 bufferSize = u64(fudged_srate*nChans)/(p.lowLatency ? (task_read_freq_hz/2) : 1); ///< 1/10th sec per read
+        u64 bufferSize = u64(fudged_srate*nChans);
+		if (p.lowLatency)
+			bufferSize /= (task_read_freq_hz); ///< 1/10th sec per read
+		else 
+			bufferSize *= double(p.aiBufferSizeCS) / 100.0; ///< otherwise just use user spec..
+		
         if (bufferSize < NCHANS) bufferSize = NCHANS;
 /*        if (bufferSize * task_read_freq_hz != u64(fudged_srate*nChans)) // make sure buffersize is on scan boundary?
             bufferSize += task_read_freq_hz - u64(fudged_srate*nChans)%task_read_freq_hz; */
