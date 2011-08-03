@@ -216,6 +216,13 @@
 		   </font></blockquote>
         <p align="left">&nbsp;</p>
       </blockquote>
+      <p align="left"><U><strong>AI BufferSize</strong></U> </p>
+      <blockquote>
+        <p align="left">The AI buffer size directly affects the read buffer size used with the NI driver.  Smaller values lead to lower-latency data acquisitions (that is, more frequent reads from the board and thus faster screen updates of the graphs) but may run the risk of buffer overflows (depending on system performance), whereas larger values are safer for even the most taxed systems, but may lead to laggy graph updates.  The default value, 90ms is a good sized buffer for fast systems.  
+</p><p align="left">
+<b><i>Increase this value if you find you are getting buffer overrun errors from the NI driver and the acquisition fails.</b></i>  (Increase it to the minimum size that is stable on your system under load.)</p>
+        <p align="left">&nbsp;</p>
+      </blockquote>
       <p align="left"><U><strong>AO 	Passthru</strong></U> </p>
       <blockquote>
         <p align="left">If enabled, then pass-thru (echo) AI channels back out to AO 	(post-demux).  This requires that a board with an analog output 	subdevice be present on the system.  This option contains the 	following sub-options:</p>

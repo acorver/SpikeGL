@@ -862,8 +862,8 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.lowLatency = settings.value("lowLatency", false).toBool();
 	
 	p.doPreJuly2011IntanDemux = settings.value("doPreJuly2011IntanDemux", false).toBool();
-	
-	p.aiBufferSizeCS = settings.value("aiBufferSizeCentiSeconds", 25).toUInt();
+
+	p.aiBufferSizeCS = settings.value("aiBufferSizeCentiSeconds", DEF_AI_BUFFER_SIZE_CENTISECONDS).toUInt();
 	    
 }
 

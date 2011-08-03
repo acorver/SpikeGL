@@ -741,6 +741,15 @@ p, li { white-space: pre-wrap; }
      <height>22</height>
     </rect>
    </property>
+   <property name="toolTip">
+    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Lucida Grande'; font-size:13pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;The AI buffer size directly affects the read buffer size used with the NI driver.  Smaller values lead to lower-latency data acquisitions (that is, more frequent reads from the board and thus faster screen updates of the graphs) but may run the risk of buffer overflows (depending on system performance), whereas larger values are safer for even the most taxed systems, but may lead to laggy graph updates.  The default value, 90ms is a good sized buffer for fast systems.  &lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;Increase this value if you find you are getting buffer overrun errors from the NI driver and the acquisition fails.  &lt;/span&gt;(Increase it to the minimum size that is stable on your system under load.)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
    <property name="minimum">
     <number>1</number>
    </property>
@@ -748,7 +757,7 @@ p, li { white-space: pre-wrap; }
     <number>100</number>
    </property>
    <property name="value">
-    <number>25</number>
+    <number>9</number>
    </property>
    <property name="orientation">
     <enum>Qt::Horizontal</enum>
@@ -762,6 +771,15 @@ p, li { white-space: pre-wrap; }
      <width>97</width>
      <height>16</height>
     </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Lucida Grande'; font-size:13pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;The AI buffer size directly affects the read buffer size used with the NI driver.  Smaller values lead to lower-latency data acquisitions (that is, more frequent reads from the board and thus faster screen updates of the graphs) but may run the risk of buffer overflows (depending on system performance), whereas larger values are safer for even the most taxed systems, but may lead to laggy graph updates.  The default value, 90ms is a good sized buffer for fast systems.  &lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;Increase this value if you find you are getting buffer overrun errors from the NI driver and the acquisition fails.  &lt;/span&gt;(Increase it to the minimum size that is stable on your system under load.)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <property name="text">
     <string>AI BufferSize:</string>
@@ -782,8 +800,17 @@ p, li { white-space: pre-wrap; }
      <italic>true</italic>
     </font>
    </property>
+   <property name="toolTip">
+    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Lucida Grande'; font-size:13pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;The AI buffer size directly affects the read buffer size used with the NI driver.  Smaller values lead to lower-latency data acquisitions (that is, more frequent reads from the board and thus faster screen updates of the graphs) but may run the risk of buffer overflows (depending on system performance), whereas larger values are safer for even the most taxed systems, but may lead to laggy graph updates.  The default value, 90ms is a good sized buffer for fast systems.  &lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;Increase this value if you find you are getting buffer overrun errors from the NI driver and the acquisition fails.  &lt;/span&gt;(Increase it to the minimum size that is stable on your system under load.)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
    <property name="text">
-    <string>250 ms</string>
+    <string>90 ms</string>
    </property>
    <property name="alignment">
     <set>Qt::AlignCenter</set>
