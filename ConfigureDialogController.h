@@ -78,7 +78,7 @@ private:
     ChanMappingController chanMapCtl;
     DAQ::DeviceRangeMap aiDevRanges, aoDevRanges;
     QVector<QString> devNames, aoDevNames;
-    DAQ::DeviceChanMap aiChanLists, aoChanLists;    
+    DAQ::DeviceChanMap aiChanLists, aoChanLists;
 };
 
 

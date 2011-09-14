@@ -922,7 +922,7 @@ namespace DAQ
     }
 
 
-    static const QString acqStartEndModes[] = { "Immediate", "PDStartEnd", "PDStart", "Timed", "StimGLStartEnd", "StimGLStart", QString::null };
+    static const QString acqStartEndModes[] = { "Immediate", "PDStartEnd", "PDStart", "Timed", "StimGLStartEnd", "StimGLStart", "AITriggered", QString::null };
     
     const QString & AcqStartEndModeToString(AcqStartEndMode m) {
         if (m >= 0 && m < N_AcqStartEndModes) 

@@ -188,7 +188,7 @@ void ConfigureDialogController::aiRangeChanged()
 
 void ConfigureDialogController::acqStartEndCBChanged()
 {
-    bool entmp = false;
+    bool entmp = false, aitriggered = false;
     acqPdParamsW->hide();
     acqTimedParamsW->hide();
     DAQ::AcqStartEndMode mode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
@@ -199,10 +199,17 @@ void ConfigureDialogController::acqStartEndCBChanged()
         dialog->acqStartEndDescrLbl->setText("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\"><html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">p, li { white-space: pre-wrap; }</style></head><body style=\" font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;\"><p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:10pt; font-style:italic; \">The acquisition will start immediately.</span></p></body></html>");
         dialog->acqStartEndDescrLbl->show();
         break;
+	case DAQ::AITriggered:
+		aitriggered = true;
     case DAQ::PDStartEnd:
         entmp = true;
     case DAQ::PDStart:
         acqPdParams->pdStopTimeLbl->setEnabled(entmp);
+		if (aitriggered) {
+			acqPdParams->pdStopTimeLbl->setText("AI stop time (sec):");
+		} else {
+			acqPdParams->pdStopTimeLbl->setText("PD stop time (sec):");	
+		}
         acqPdParams->pdStopTimeSB->setEnabled(entmp);
         acqPdParamsW->setParent(dialog->acqFrame);
         acqPdParamsW->show();
@@ -218,11 +225,14 @@ void ConfigureDialogController::acqStartEndCBChanged()
     case DAQ::StimGLStart:
         dialog->acqStartEndDescrLbl->setText("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\"><html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">p, li { white-space: pre-wrap; }</style></head><body style=\" font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;\"><p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:10pt; font-style:italic; color:#294928;\">The acquisition will be triggered to start by the external StimGL II program.</span></p></body></html>");
         dialog->acqStartEndDescrLbl->show();
-        break;
+        break;			
     default:
         Error() << "INTERNAL ERROR: INVALID ACQSTARTENDMODE!  FIXME!";
         break;
     }
+	
+	dialog->stimGLReopenCB->setEnabled(!aitriggered);
+	if (aitriggered) dialog->stimGLReopenCB->setChecked(false);
 }
 
 void ConfigureDialogController::acqModeCBChanged()
@@ -453,10 +463,10 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     
     int pdChan = acqPdParams->pdAISB->value();
     bool havePD = false;
-    if ( (havePD=(acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart))
+    if ( (havePD=(acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::AITriggered))
         && (chanVect.contains(pdChan) || pdChan < 0 || pdChan >= aiChanLists[dev].count())
         ) {
-        errTitle = "PDChannel Invalid", errMsg = QString().sprintf("Specified photodiode channel (%d) is invalid or clashes with another AI channel!", pdChan);
+        errTitle = "Trigger Channel Invalid", errMsg = QString().sprintf("Specified trigger channel (%d) is invalid or clashes with another AI channel!", pdChan);
         return AGAIN;
     }
     
@@ -467,7 +477,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
 	}
     
     bool usePD = false;
-    if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd) {
+    if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::AITriggered) {
         chanVect.push_back(pdChan);
         ++nVAI;
         ++nExtraChans;
@@ -525,6 +535,12 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
             errTitle = "Incompatible Configuration", errMsg = QString().sprintf("'Re-Open New Save File on StimGL Experiment' not compatible with 'StimGL Plugin Start & End'");
             return AGAIN;
         }
+	
+    if (dialog->stimGLReopenCB->isChecked() &&
+        (acqStartEndMode == DAQ::AITriggered) ) {
+		errTitle = "Incompatible Configuration", errMsg = QString().sprintf("'Re-Open New Save File on StimGL Experiment' not compatible with 'TTL Controlled Start & Re-Triggered'");
+		return AGAIN;
+	}
     
     DAQ::Params & p (acceptedParams);
     p.stimGlTrigResave = dialog->stimGLReopenCB->isChecked();

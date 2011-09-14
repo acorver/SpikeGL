@@ -44,7 +44,7 @@
        </font>
       </property>
       <property name="toolTip">
-       <string>Optionally, you may pass thru the photodiode electrode channel back to AO. </string>
+       <string>Optionally, you may pass thru the trigger channel back to AO. </string>
       </property>
       <property name="text">
        <string>AO passthru:</string>
@@ -63,7 +63,7 @@
        </font>
       </property>
       <property name="toolTip">
-       <string>The AO channel to pass PD input back out to.  Node this is on the AO device selected above</string>
+       <string>The AO channel to pass trigger input back out to.  Node this is on the AO device selected above.</string>
       </property>
      </widget>
     </item>
@@ -76,7 +76,7 @@
        </font>
       </property>
       <property name="toolTip">
-       <string>The time in seconds that the PD signal needs to be off before the 'PD stop' event is triggered (and the acquisition is stopped).</string>
+       <string>The time in seconds that the trigger signal needs to be off before the 'stop' condition is satisfied (and the acquisition is stopped).</string>
       </property>
       <property name="text">
        <string>PD stop time (secs):</string>
@@ -92,7 +92,7 @@
        </font>
       </property>
       <property name="toolTip">
-       <string>The time in seconds that the PD signal needs to be off before the 'PD stop' event is triggered (and the acquisition is stopped).</string>
+       <string>The time in seconds that the trigger signal needs to be off before the 'stop' condition is satisfied (and the acquisition is stopped).</string>
       </property>
       <property name="decimals">
        <number>3</number>
@@ -191,7 +191,7 @@ above/below threshold for a crossing to have occurred.</string>
        </font>
       </property>
       <property name="toolTip">
-       <string>The physical AI channel to monitor for photodiode threshold crossings</string>
+       <string>The physical AI channel to monitor for trigger threshold crossings</string>
       </property>
       <property name="text">
        <string>AI Ch:</string>
@@ -207,7 +207,7 @@ above/below threshold for a crossing to have occurred.</string>
        </font>
       </property>
       <property name="toolTip">
-       <string>The physical AI channel to monitor for photodiode threshold crossings</string>
+       <string>The physical AI channel to monitor for trigger threshold crossings</string>
       </property>
       <property name="value">
        <number>4</number>
@@ -223,7 +223,7 @@ above/below threshold for a crossing to have occurred.</string>
        </font>
       </property>
       <property name="toolTip">
-       <string>The threshold to use for crossings.  Note this is a 16-bit value in the range 0-65535</string>
+       <string>The threshold to use for crossings.  This value is in volts.</string>
       </property>
       <property name="text">
        <string>Thresh (V)</string>
@@ -253,6 +253,9 @@ above/below threshold for a crossing to have occurred.</string>
         <pointsize>10</pointsize>
        </font>
       </property>
+      <property name="toolTip">
+       <string>The threshold to use for crossings.  This value is in volts.</string>
+      </property>
       <property name="decimals">
        <number>4</number>
       </property>
@@ -274,9 +277,8 @@ above/below threshold for a crossing to have occurred.</string>
       </property>
       <property name="toolTip">
        <string>The amount of time in milliseconds to preamble and postamble the recording.  
-The preamble applies to the first PD pulse.   The postamble applies to each individual recording file
-generated. This parameter ensures data files have a regular amount of leading whitespace before the PD
-trigger.</string>
+The preamble applies to the first trigger pulse.   The postamble applies to each individual recording file
+generated. This parameter ensures data files have a regular amount of leading whitespace before the trigger signal.</string>
       </property>
       <property name="text">
        <string>Pre/Post (ms):</string>
@@ -299,9 +301,8 @@ trigger.</string>
       </property>
       <property name="toolTip">
        <string>The amount of time in milliseconds to preamble and postamble the recording.  
-The preamble applies to the first PD pulse.   The postamble applies to each individual recording file
-generated. This parameter ensures data files have a regular amount of leading whitespace before the PD
-trigger.</string>
+The preamble applies to the first trigger pulse.   The postamble applies to each individual recording file
+generated. This parameter ensures data files have a regular amount of leading whitespace before the trigger signal.</string>
       </property>
       <property name="maximum">
        <number>1000</number>

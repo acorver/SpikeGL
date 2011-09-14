@@ -693,7 +693,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     preBuf.reserve(0);
     preBuf2.clear();
     preBuf2.reserve(0);
-    if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd)) {
+    if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd
+						 || params.acqStartEndMode == DAQ::AITriggered)) {
         const double sil = params.silenceBeforePD > 0. ? params.silenceBeforePD : DEFAULT_PD_SILENCE;
         if (params.stimGlTrigResave) pdWaitingForStimGL = true;
         int szSamps = params.nVAIChans*params.srate*sil;
@@ -736,6 +737,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
             
         case DAQ::StimGLStartEnd:
         case DAQ::StimGLStart:
+		case DAQ::AITriggered:
             taskWaitingForTrigger = true; break;
         default:
             errTitle = "Internal Error";
@@ -968,6 +970,8 @@ void MainApp::taskReadFunc()
                 } else if (p.acqStartEndMode == DAQ::PDStart
                            || p.acqStartEndMode == DAQ::PDStartEnd) {
                     Status() << "Acquisition waiting for start trigger from photo-diode";
+                } else if (p.acqStartEndMode == DAQ::AITriggered) {
+                    Status() << "Acquisition waiting for start trigger from AI";
                 }
             }
         } 
@@ -1026,12 +1030,12 @@ void MainApp::taskReadFunc()
 				// and.. swap back if we have anything in scans_full
 				if (scans_full.size()) scans.swap(scans_full);
 				if (doStopRecord) {
-					if (!p.stimGlTrigResave) needToStop = true;
+					if (!p.stimGlTrigResave && p.acqStartEndMode != DAQ::AITriggered) needToStop = true;
                     Debug() << "Post-untrigger window detection: Closing datafile because passed samp# stopRecordAtSamp=" << stopRecordAtSamp;
                     dataFile.closeAndFinalize();
                     stopRecordAtSamp = -1;
                     updateWindowTitles();    
-				    if (p.stimGlTrigResave) {
+				    if (p.stimGlTrigResave || p.acqStartEndMode == DAQ::AITriggered) {
 						taskWaitingForTrigger = true;
 						preBuf = preBuf2; // we will get a re-trigger soon, so preBuffer the scans we had previously..
 						updateWindowTitles();        
@@ -1072,6 +1076,7 @@ void MainApp::taskReadFunc()
         }
         
     }
+	
     if (taskShouldStop || needToStop)
         stopTask();
 }
@@ -1088,7 +1093,8 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp)
         }
         break;
     case DAQ::PDStartEnd:
-    case DAQ::PDStart: {
+    case DAQ::PDStart:
+	case DAQ::AITriggered: {
         // NB: photodiode channel is always the last channel
         const int sz = scans.size();
         if (p.idxOfPdChan < 0) {
@@ -1152,9 +1158,10 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
             Log() << "Triggered stop because acquisition duration has fully elapsed.";
         }
         break;
+	case DAQ::AITriggered: 
     case DAQ::PDStartEnd: {
         if (p.idxOfPdChan < 0) {
-            Error() << "INTERNAL ERROR, acqEndMode is PD based but no PD channel specified in DAQ params!";
+            Error() << "INTERNAL ERROR, acqEndMode is PD/AI based but no PD/AI channel specified in DAQ params!";
             return true;
         }
         const int sz = scans.size();
@@ -1173,11 +1180,11 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
 				stopRecordAtSamp = (lastSeenPD-i64(p.idxOfPdChan)) + u64(p.silenceBeforePD*p.srate*p.nVAIChans);
 				taskWaitingForStop = false;
 			} else {
-				Warning() << "PD un-trig but datafile not open!  This is not really well-defined, but stopping task anyway.";
+				Warning() << "PD/AI un-trig but datafile not open!  This is not really well-defined, but stopping task anyway.";
 				stopped = true;
 			}
 			if (graphsWindow) graphsWindow->setPDTrig(false);
-            Log() << "PD un-trig due to photodiode being off for >" << p.pdStopTime << " seconds.";
+            Log() << "PD/AI un-trig due to input line being off for >" << p.pdStopTime << " seconds.";
         }
     }
         break;
@@ -1205,6 +1212,7 @@ void MainApp::triggerTask()
         switch (p.acqStartEndMode) {
         case DAQ::PDStartEnd:             
         case DAQ::StimGLStartEnd:
+		case DAQ::AITriggered: 
             taskWaitingForStop = true; 
             Log() << "Acquisition triggered";
             break;

@@ -88,7 +88,7 @@
    <property name="geometry">
     <rect>
      <x>22</x>
-     <y>85</y>
+     <y>59</y>
      <width>126</width>
      <height>20</height>
     </rect>
@@ -107,7 +107,7 @@
    <property name="geometry">
     <rect>
      <x>152</x>
-     <y>82</y>
+     <y>56</y>
      <width>147</width>
      <height>22</height>
     </rect>
@@ -145,7 +145,7 @@
    <property name="geometry">
     <rect>
      <x>26</x>
-     <y>302</y>
+     <y>276</y>
      <width>431</width>
      <height>22</height>
     </rect>
@@ -161,7 +161,7 @@
    <property name="geometry">
     <rect>
      <x>26</x>
-     <y>276</y>
+     <y>250</y>
      <width>421</width>
      <height>16</height>
     </rect>
@@ -180,7 +180,7 @@
    <property name="geometry">
     <rect>
      <x>22</x>
-     <y>182</y>
+     <y>156</y>
      <width>183</width>
      <height>21</height>
     </rect>
@@ -199,7 +199,7 @@
    <property name="geometry">
     <rect>
      <x>214</x>
-     <y>182</y>
+     <y>156</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -224,7 +224,7 @@
    <property name="geometry">
     <rect>
      <x>344</x>
-     <y>182</y>
+     <y>156</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -264,9 +264,9 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
    <property name="geometry">
     <rect>
      <x>22</x>
-     <y>525</y>
+     <y>500</y>
      <width>431</width>
-     <height>152</height>
+     <height>193</height>
     </rect>
    </property>
    <property name="toolTip">
@@ -320,12 +320,17 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
       <string>StimulateOpenGLII Plugin Start Only</string>
      </property>
     </item>
+    <item>
+     <property name="text">
+      <string>AI Controlled Start &amp; ReTriggering</string>
+     </property>
+    </item>
    </widget>
    <widget class="QFrame" name="acqFrame">
     <property name="geometry">
      <rect>
-      <x>7</x>
-      <y>55</y>
+      <x>9</x>
+      <y>86</y>
       <width>417</width>
       <height>92</height>
      </rect>
@@ -342,7 +347,7 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
        <x>15</x>
        <y>9</y>
        <width>381</width>
-       <height>69</height>
+       <height>82</height>
       </rect>
      </property>
      <property name="text">
@@ -360,12 +365,42 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </widget>
+   <widget class="QCheckBox" name="stimGLReopenCB">
+    <property name="geometry">
+     <rect>
+      <x>24</x>
+      <y>52</y>
+      <width>397</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p align=&quot;justify&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;If checked, then whenever a Stimulate OpenGL Plugin (re)starts, the current save file is closed and a new one is opened.  The format for this save file name is:&lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;PREFIX_STIMGLPLUGINNAME_N&lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;
+&lt;p align=&quot;justify&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Where PREFIX is the filename specified in the above lineedit, STIMPLUGINNAME is the name of the plugin, and N is an integer number to make the filename unique.&lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;
+&lt;p align=&quot;justify&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Note: Checking this requires a copy of StimGL II to be running otherwise data will not be saved.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="text">
+     <string>Re-Open New Save File on StimGL Experiment (Re)Start</string>
+    </property>
+   </widget>
+   <zorder>acqStartEndCB</zorder>
+   <zorder>acqFrame</zorder>
+   <zorder>stimGLReopenCB</zorder>
+   <zorder>acqStartEndDescrLbl</zorder>
   </widget>
   <widget class="QLabel" name="aiRangeMinLbl">
    <property name="geometry">
     <rect>
      <x>209</x>
-     <y>150</y>
+     <y>124</y>
      <width>126</width>
      <height>22</height>
     </rect>
@@ -384,7 +419,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>338</x>
-     <y>150</y>
+     <y>124</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -397,7 +432,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>22</x>
-     <y>151</y>
+     <y>125</y>
      <width>57</width>
      <height>22</height>
     </rect>
@@ -416,7 +451,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>84</x>
-     <y>151</y>
+     <y>125</y>
      <width>120</width>
      <height>22</height>
     </rect>
@@ -429,7 +464,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>305</x>
-     <y>82</y>
+     <y>56</y>
      <width>60</width>
      <height>20</height>
     </rect>
@@ -448,7 +483,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>371</x>
-     <y>80</y>
+     <y>54</y>
      <width>87</width>
      <height>22</height>
     </rect>
@@ -461,7 +496,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>123</x>
-     <y>214</y>
+     <y>188</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -499,7 +534,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>19</x>
-     <y>214</y>
+     <y>188</y>
      <width>100</width>
      <height>22</height>
     </rect>
@@ -521,7 +556,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>373</x>
-     <y>212</y>
+     <y>186</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -546,7 +581,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>273</x>
-     <y>214</y>
+     <y>188</y>
      <width>91</width>
      <height>20</height>
     </rect>
@@ -565,7 +600,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>19</x>
-     <y>245</y>
+     <y>219</y>
      <width>97</width>
      <height>22</height>
     </rect>
@@ -584,7 +619,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>123</x>
-     <y>246</y>
+     <y>220</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -606,7 +641,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>269</x>
-     <y>240</y>
+     <y>214</y>
      <width>166</width>
      <height>32</height>
     </rect>
@@ -615,37 +650,11 @@ p, li { white-space: pre-wrap; }
     <string>Electrode Mapping...</string>
    </property>
   </widget>
-  <widget class="QCheckBox" name="stimGLReopenCB">
-   <property name="geometry">
-    <rect>
-     <x>22</x>
-     <y>52</y>
-     <width>435</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="toolTip">
-    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p align=&quot;justify&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;If checked, then whenever a Stimulate OpenGL Plugin (re)starts, the current save file is closed and a new one is opened.  The format for this save file name is:&lt;/p&gt;
-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;PREFIX_STIMGLPLUGINNAME_N&lt;/p&gt;
-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;
-&lt;p align=&quot;justify&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Where PREFIX is the filename specified in the above lineedit, STIMPLUGINNAME is the name of the plugin, and N is an integer number to make the filename unique.&lt;/p&gt;
-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;
-&lt;p align=&quot;justify&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Note: Checking this requires a copy of StimGL II to be running otherwise data will not be saved.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-   </property>
-   <property name="text">
-    <string>Re-Open New Save File on StimGL Experiment (Re)Start</string>
-   </property>
-  </widget>
   <widget class="QWidget" name="aoPassthruWidget" native="true">
    <property name="geometry">
     <rect>
      <x>22</x>
-     <y>395</y>
+     <y>369</y>
      <width>431</width>
      <height>121</height>
     </rect>
@@ -655,7 +664,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>175</x>
-     <y>116</y>
+     <y>90</y>
      <width>278</width>
      <height>22</height>
     </rect>
@@ -674,7 +683,7 @@ channels will be saved.  </string>
    <property name="geometry">
     <rect>
      <x>22</x>
-     <y>117</y>
+     <y>91</y>
      <width>147</width>
      <height>20</height>
     </rect>
@@ -696,7 +705,7 @@ channels will be saved.  </string>
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>332</y>
+     <y>306</y>
      <width>192</width>
      <height>24</height>
     </rect>
@@ -709,7 +718,7 @@ channels will be saved.  </string>
    <property name="geometry">
     <rect>
      <x>213</x>
-     <y>331</y>
+     <y>305</y>
      <width>245</width>
      <height>28</height>
     </rect>
@@ -736,7 +745,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>224</x>
-     <y>363</y>
+     <y>337</y>
      <width>228</width>
      <height>22</height>
     </rect>
@@ -767,7 +776,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>24</x>
-     <y>366</y>
+     <y>340</y>
      <width>97</width>
      <height>16</height>
     </rect>
@@ -789,7 +798,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>119</x>
-     <y>366</y>
+     <y>340</y>
      <width>98</width>
      <height>20</height>
     </rect>

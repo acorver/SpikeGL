@@ -43,6 +43,7 @@ namespace DAQ
         /* these correspond to items in 'acqStartEndCB' combobox in 
            the Ui::ConfigureDialog form */
         Immediate=0, PDStartEnd, PDStart, Timed, StimGLStartEnd, StimGLStart, 
+		AITriggered,
         N_AcqStartEndModes
     };
 
