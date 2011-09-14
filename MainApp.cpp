@@ -994,6 +994,15 @@ void MainApp::taskReadFunc()
                 needToStop = detectStopTask(scans, firstSamp);
             }
 
+			if (p.acqStartEndMode == DAQ::AITriggered && !dataFile.isOpen()) {
+				// HACK!
+				QString fn = getNewDataFileName();
+				if (!dataFile.openForWrite(p, fn)) {
+					Error() << "Could not open data file `" << fn << "'!";
+				}
+				updateWindowTitles();
+			}
+			
             if (dataFile.isOpen()) {
                 if (fudgedFirstSamp != dataFile.sampleCount() && !warnedDropped) {
                     QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree!\nAieeeee!!  Aborting acquisition!").arg(dataFile.sampleCount()).arg(firstSamp);
