@@ -97,7 +97,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     lbl = new QLabel("YScale:", graphCtls);
     graphCtls->addWidget(lbl);
     graphYScale = new QDoubleSpinBox(graphCtls);
-    graphYScale->setRange(.01, 100.0);
+    graphYScale->setRange(.01, 9999.0);
     graphYScale->setSingleStep(0.25);
     graphCtls->addWidget(graphYScale);
 

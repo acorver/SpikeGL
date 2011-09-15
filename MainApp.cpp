@@ -988,11 +988,6 @@ void MainApp::taskReadFunc()
  
             const u64 fudgedFirstSamp = firstSamp - scan0Fudge;            
             const u64 scanSz = scans.size();
-            if (!dataFile.isOpen()) scan0Fudge = firstSamp + scanSz;
-
-            if (!needToStop && !taskShouldStop && taskWaitingForStop) {
-                needToStop = detectStopTask(scans, firstSamp);
-            }
 
 			if (p.acqStartEndMode == DAQ::AITriggered && !dataFile.isOpen()) {
 				// HACK!
@@ -1003,9 +998,16 @@ void MainApp::taskReadFunc()
 				updateWindowTitles();
 			}
 			
+            if (!dataFile.isOpen() && p.acqStartEndMode != DAQ::AITriggered) 
+				scan0Fudge = firstSamp + scanSz;
+
+            if (!needToStop && !taskShouldStop && taskWaitingForStop) {
+                needToStop = detectStopTask(scans, firstSamp);
+            }
+			
             if (dataFile.isOpen()) {
-                if (fudgedFirstSamp != dataFile.sampleCount() && !warnedDropped) {
-                    QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree!\nAieeeee!!  Aborting acquisition!").arg(dataFile.sampleCount()).arg(firstSamp);
+                if (!warnedDropped && fudgedFirstSamp != dataFile.scanCount()*u64(p.nVAIChans)) {
+                    QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree!").arg(dataFile.sampleCount()).arg(firstSamp);
                     Warning() << e;
                     warnedDropped = true;
                     //stopTask();
@@ -1186,7 +1188,7 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
         }
         if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps) { // timeout PD after X scans..
 			if (dataFile.isOpen()) {
-				stopRecordAtSamp = (lastSeenPD-i64(p.idxOfPdChan)) + u64(p.silenceBeforePD*p.srate*p.nVAIChans);
+				stopRecordAtSamp = (lastSeenPD-i64(p.idxOfPdChan)) + preBuf.capacity() /**< NB: preBuf.capacity() is the amount of silence time before/after PD, sample-aligned! */;
 				taskWaitingForStop = false;
 			} else {
 				Warning() << "PD/AI un-trig but datafile not open!  This is not really well-defined, but stopping task anyway.";
