@@ -579,12 +579,12 @@ namespace DAQ
         //DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize));  //use a 1,000,000 sample DMA buffer per channel
         //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this)); 
         
-		//const int task_write_freq_hz = p.lowLatency ? TASK_WRITE_FREQ_HZ*3 : TASK_WRITE_FREQ_HZ;
+		const int task_write_freq_hz = p.lowLatency ? TASK_WRITE_FREQ_HZ*3 : TASK_WRITE_FREQ_HZ;
 
         if (p.aoPassthru && aoAITab.size()) {
             const float64     aoMin = p.aoRange.min;
             const float64     aoMax = p.aoRange.max;
-            const int32 aoSamplesPerChan = aoSampleRate * (double(p.aiBufferSizeCS) / 100.0);//(aoSampleRate/task_write_freq_hz > 0) ? int(aoSampleRate/task_write_freq_hz) : 1;
+            const int32 aoSamplesPerChan = /*aoSampleRate * (double(p.aiBufferSizeCS) / 100.0);*/(aoSampleRate/task_write_freq_hz > 0) ? int(aoSampleRate/task_write_freq_hz) : 1;
             aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size();
             DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
             DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
@@ -707,7 +707,7 @@ namespace DAQ
                         DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
                         const float64     aoMin = p.aoRange.min;
                         const float64     aoMax = p.aoRange.max;
-                        const int32 aoSamplesPerChan = aoSampleRate * (double(p.aiBufferSizeCS) / 100.0); //aoSampleRate/task_write_freq_hz > 0 ? int(aoSampleRate/task_write_freq_hz) : 1;
+                        const int32 aoSamplesPerChan = /*aoSampleRate * (double(p.aiBufferSizeCS) / 100.0); */aoSampleRate/task_write_freq_hz > 0 ? int(aoSampleRate/task_write_freq_hz) : 1;
                         aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size();
                         DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
                         DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan/*0*/));
