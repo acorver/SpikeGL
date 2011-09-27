@@ -724,8 +724,16 @@ namespace DAQ
                 aoData.reserve(aoData.size()+dsize);
                 for (int i = 0; i < dsize; i += NCHANS) { // for each scan..
                     for (QVector<QPair<int,int> >::const_iterator it = aoAITab.begin(); it != aoAITab.end(); ++it) { // take ao channels
-                        const int aiChIdx = p.doPreJuly2011IntanDemux || !muxMode ? (*it).second : mapNewChanIdToPreJuly2011ChanId(aiChIdx, p.mode);
-                        aoData.push_back(data[i+aiChIdx]);
+                        const int aiChIdx = p.doPreJuly2011IntanDemux || !muxMode ? (*it).second : mapNewChanIdToPreJuly2011ChanId((*it).second, p.mode);
+						const int dix = i+aiChIdx;
+						if (dix < dsize)
+							aoData.push_back(data[dix]);
+						else {
+							static int errct = 0;
+							aoData.push_back(0);
+							if (errct++ < 5)
+								Error() << "INTERNAL ERROR: This shouldn't happen.  AO passthru code is buggy. FIX ME!!";
+						}
                     }
                 }
                 if (aoData.size() >= aoBufferSize) { 
