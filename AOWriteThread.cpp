@@ -17,7 +17,7 @@ AOWriteThread::AOWriteThread(QObject *parent,
 							 TaskHandle & taskHandle,
 							 int32 aoBufferSize,
 							 const Params & params)
-: QThread(parent), taskHandle(taskHandle), aoBufferSize(aoBufferSize), params(params)
+: QThread(parent), SampleBufQ(128), taskHandle(taskHandle), aoBufferSize(aoBufferSize), params(params)
 {
 	pleaseStop = false;
 }
