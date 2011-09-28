@@ -127,7 +127,7 @@ bool ChanMappingController::exec()
 
 void ChanMappingController::loadSettings()
 {
-    QSettings settings("janelia.hhmi.org", "SpikeGL");
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 
 	settings.beginGroup(QString("ChanMappingController2"));
 
@@ -142,7 +142,7 @@ void ChanMappingController::loadSettings()
 
 void ChanMappingController::saveSettings()
 {
-    QSettings settings("janelia.hhmi.org", "SpikeGL");
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 
 	settings.beginGroup("ChanMappingController2");
 	

@@ -15,8 +15,6 @@
 #include "Icon-Config.xpm"
 #include "ConsoleWindow.h"
 
-#define SETTINGS_DOMAIN "janelia.hhmi.org"
-#define SETTINGS_APP "SpikeGL"
 #define SETTINGS_GROUP "ConfigureDialogController"
 
 ConfigureDialogController::ConfigureDialogController(QObject *parent)

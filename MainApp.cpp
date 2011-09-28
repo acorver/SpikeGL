@@ -368,7 +368,7 @@ void MainApp::logLine(const QString & line, const QColor & c)
 
 void MainApp::loadSettings()
 {
-    QSettings settings("janelia.hhmi.org", APPNAME);
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 
     settings.beginGroup("MainApp");
     debug = settings.value("debug", true).toBool();
@@ -405,7 +405,7 @@ void MainApp::loadSettings()
 
 void MainApp::saveSettings()
 {
-    QSettings settings("janelia.hhmi.org", APPNAME);
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 
     settings.beginGroup("MainApp");
     settings.setValue("debug", debug);
@@ -1269,13 +1269,28 @@ void MainApp::updateWindowTitles()
     }
 }
 
+static QString getLastSha1FileName(const QString & def)
+{
+	QSettings s(SETTINGS_DOMAIN, SETTINGS_APP);
+	s.beginGroup("Sha1Verify");
+	return s.value("FileName", def).toString();
+}
+static void saveLastSha1FileName(const QString & f)
+{
+	if (f.isNull() || f.isEmpty()) return;
+	QSettings s(SETTINGS_DOMAIN, SETTINGS_APP);
+	s.beginGroup("Sha1Verify");
+	s.setValue("FileName", f);
+}
+
 void MainApp::verifySha1()
 {
     noHotKeys = true;
-    QString dataFile = QFileDialog::getOpenFileName ( consoleWindow, "Select data file for SHA1 verification", outputDirectory());
+    QString dataFile = QFileDialog::getOpenFileName ( consoleWindow, "Select data file for SHA1 verification", getLastSha1FileName(outputDirectory()));
     noHotKeys = false;
-    if (dataFile.isNull()) return;
+    if (dataFile.isNull() || dataFile.isEmpty()) return;
     QFileInfo pickedFI(dataFile);
+	saveLastSha1FileName(dataFile);
     Params p;
 
 

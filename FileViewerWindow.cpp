@@ -368,7 +368,7 @@ bool FileViewerWindow::queryCloseOK()
 
 void FileViewerWindow::loadSettings() 
 {
-    QSettings settings("janelia.hhmi.org", APPNAME);
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 	
     settings.beginGroup("FileViewerWindow");
 	viewMode = Tiled;
@@ -407,7 +407,7 @@ void FileViewerWindow::loadSettings()
 
 void FileViewerWindow::saveSettings()
 {
-    QSettings settings("janelia.hhmi.org", APPNAME);
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 	
     settings.beginGroup("FileViewerWindow");
     settings.setValue("viewMode", (int)viewMode);	

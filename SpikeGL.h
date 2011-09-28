@@ -24,5 +24,7 @@
 #define NUM_INTANS_MAX 8
 #define NUM_MUX_CHANS_MAX (128)
 #define DEFAULT_PD_SILENCE .010 /* 10 ms silence default */
+#define SETTINGS_DOMAIN "janelia.hhmi.org"
+#define SETTINGS_APP APPNAME
 
 #endif

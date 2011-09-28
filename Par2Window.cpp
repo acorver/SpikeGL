@@ -12,6 +12,8 @@
 #include <windows.h>
 #include <QFile>
 #endif
+#include <QSettings>
+
 Par2Window::Par2Window(QWidget *parent)
     : QWidget(parent)
 {       
@@ -34,14 +36,29 @@ Par2Window::~Par2Window()
     killProc();
 }
 
+static QString getLastFileName(int op, const QString & f)
+{
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
+    settings.beginGroup("Par2Window");
+	return settings.value(QString("lastOpenFileName_") + QString::number(op), f).toString();
+}
+static void saveLastFileName(int op, const QString & f)
+{
+	if (f.isNull() || f.isEmpty()) return;
+    QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
+    settings.beginGroup("Par2Window");
+	settings.setValue(QString("lastOpenFileName_") + QString::number(op), f);
+}
+
 void Par2Window::browseButClicked()
 {
-    QString f;
+    QString f = getLastFileName(op, mainApp()->outputDirectory()); 	// get last file name form Settings, if any
     if (op == Create) {
-        f = QFileDialog::getOpenFileName(this, "Select a data file for PAR2 operation", mainApp()->outputDirectory());
+        f = QFileDialog::getOpenFileName(this, "Select a data file for PAR2 operation", f);
     } else {
-        f = QFileDialog::getOpenFileName(this, "Select a PAR2 file for verify", mainApp()->outputDirectory(), "PAR2 Files (*.par2 *.PAR2)");
-    }
+        f = QFileDialog::getOpenFileName(this, "Select a PAR2 file for verify", f, "PAR2 Files (*.par2 *.PAR2)");
+    }	
+	if (f.isNull() || f.isEmpty()) return;
     if (f.endsWith(".meta") && op == Create) {
         Params p;
         p.fromFile(f);
@@ -53,6 +70,8 @@ void Par2Window::browseButClicked()
         }
     }   
     gui->fileLE->setText(f);
+	// set last file, save
+	saveLastFileName(op, f);
 }
 
 void Par2Window::killProc()
