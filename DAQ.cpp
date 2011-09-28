@@ -573,6 +573,7 @@ namespace DAQ
 		QString saved_aoDev = p.aoDev;
 		Range saved_aoRange = p.aoRange;
 
+
         DAQmxErrChk (DAQmxCreateTask("",&taskHandle)); 
         DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
         DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)); 
@@ -585,7 +586,7 @@ namespace DAQ
             const float64     aoMin = p.aoRange.min;
             const float64     aoMax = p.aoRange.max;
             const int32 aoSamplesPerChan = aoSampleRate * (double(p.aiBufferSizeCS) / 100.0);//(aoSampleRate/task_write_freq_hz > 0) ? int(aoSampleRate/task_write_freq_hz) : 1;
-            aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size();
+            aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size() * sizeof(int16);
             DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
             DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
             DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan/*0*/));
@@ -596,12 +597,13 @@ namespace DAQ
             aoWriteThr->start();                
         }
 
-        if (muxMode)
-            setDO(false); // set DO line low to reset external MUX
+		if (muxMode) {
+			setDO(false);// set DO line low to reset external MUX
+			msleep(1000); // keep it low for 1 second
+            setDO(true); // now set DO line high to start external MUX and clock on PFI2
+		}
 
         DAQmxErrChk (DAQmxStartTask(taskHandle)); 
-        if (muxMode)
-            setDO(true); // now set DO line high to start external MUX and clock on PFI2
 
         startTime = getTime();
         u64 aoSampCount = 0;
@@ -708,7 +710,7 @@ namespace DAQ
                         const float64     aoMin = p.aoRange.min;
                         const float64     aoMax = p.aoRange.max;
                         const int32 aoSamplesPerChan = aoSampleRate * (double(p.aiBufferSizeCS) / 100.0); //aoSampleRate/task_write_freq_hz > 0 ? int(aoSampleRate/task_write_freq_hz) : 1;
-                        aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size();
+                        aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size() * sizeof(int16);
                         DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
                         DAQmxErrChk (DAQmxCfgSampClkTiming(aoTaskHandle,aoClockSource,aoSampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan/*0*/));
                         //DAQmxErrChk (DAQmxCfgOutputBuffer(aoTaskHandle,aoSamplesPerChan));     
