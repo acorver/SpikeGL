@@ -5,6 +5,9 @@
 #else
 #include <GL/gl.h>
 #endif
+#ifdef Q_WS_WIN32
+#  include <GL/GLU.h>
+#endif
 #include <QPainter>
 #include <math.h>
 #include <QMutex>
