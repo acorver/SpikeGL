@@ -1,7 +1,8 @@
-<ui version="4.0" >
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
  <class>AcqTimedParams</class>
- <widget class="QWidget" name="AcqTimedParams" >
-  <property name="geometry" >
+ <widget class="QWidget" name="AcqTimedParams">
+  <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
@@ -9,14 +10,14 @@
     <height>86</height>
    </rect>
   </property>
-  <property name="windowTitle" >
+  <property name="windowTitle">
    <string>Form</string>
   </property>
-  <property name="toolTip" >
+  <property name="toolTip">
    <string>Specify start and duration times for the acquisition</string>
   </property>
-  <widget class="QWidget" name="layoutWidget" >
-   <property name="geometry" >
+  <widget class="QWidget" name="layoutWidget">
+   <property name="geometry">
     <rect>
      <x>10</x>
      <y>11</y>
@@ -24,20 +25,20 @@
      <height>25</height>
     </rect>
    </property>
-   <layout class="QHBoxLayout" name="hbox1" >
+   <layout class="QHBoxLayout" name="hbox1">
     <item>
-     <widget class="QLabel" name="startLbl" >
-      <property name="text" >
+     <widget class="QLabel" name="startLbl">
+      <property name="text">
        <string>Start in:  </string>
       </property>
      </widget>
     </item>
     <item>
      <spacer>
-      <property name="orientation" >
+      <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" stdset="0" >
+      <property name="sizeHint" stdset="0">
        <size>
         <width>40</width>
         <height>20</height>
@@ -46,25 +47,25 @@
      </spacer>
     </item>
     <item>
-     <widget class="QSpinBox" name="startHrsSB" >
-      <property name="maximum" >
+     <widget class="QSpinBox" name="startHrsSB">
+      <property name="maximum">
        <number>23</number>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="hrsLbl" >
-      <property name="text" >
+     <widget class="QLabel" name="hrsLbl">
+      <property name="text">
        <string>Hrs</string>
       </property>
      </widget>
     </item>
     <item>
      <spacer>
-      <property name="orientation" >
+      <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" stdset="0" >
+      <property name="sizeHint" stdset="0">
        <size>
         <width>40</width>
         <height>20</height>
@@ -73,25 +74,25 @@
      </spacer>
     </item>
     <item>
-     <widget class="QSpinBox" name="startMinsSB" >
-      <property name="maximum" >
+     <widget class="QSpinBox" name="startMinsSB">
+      <property name="maximum">
        <number>59</number>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="minsLbl" >
-      <property name="text" >
+     <widget class="QLabel" name="minsLbl">
+      <property name="text">
        <string>Mins</string>
       </property>
      </widget>
     </item>
     <item>
      <spacer>
-      <property name="orientation" >
+      <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" stdset="0" >
+      <property name="sizeHint" stdset="0">
        <size>
         <width>40</width>
         <height>20</height>
@@ -100,28 +101,28 @@
      </spacer>
     </item>
     <item>
-     <widget class="QSpinBox" name="startSecsSB" >
-      <property name="maximum" >
+     <widget class="QSpinBox" name="startSecsSB">
+      <property name="maximum">
        <number>59</number>
       </property>
-      <property name="value" >
+      <property name="value">
        <number>10</number>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="secsLbl" >
-      <property name="text" >
+     <widget class="QLabel" name="secsLbl">
+      <property name="text">
        <string>Secs</string>
       </property>
      </widget>
     </item>
     <item>
      <spacer>
-      <property name="orientation" >
+      <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" stdset="0" >
+      <property name="sizeHint" stdset="0">
        <size>
         <width>40</width>
         <height>20</height>
@@ -131,8 +132,8 @@
     </item>
    </layout>
   </widget>
-  <widget class="QCheckBox" name="nowCB" >
-   <property name="geometry" >
+  <widget class="QCheckBox" name="nowCB">
+   <property name="geometry">
     <rect>
      <x>430</x>
      <y>14</y>
@@ -140,12 +141,12 @@
      <height>21</height>
     </rect>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>Now</string>
    </property>
   </widget>
-  <widget class="QCheckBox" name="indefCB" >
-   <property name="geometry" >
+  <widget class="QCheckBox" name="indefCB">
+   <property name="geometry">
     <rect>
      <x>430</x>
      <y>41</y>
@@ -153,12 +154,12 @@
      <height>21</height>
     </rect>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>Indef.</string>
    </property>
   </widget>
-  <widget class="QWidget" name="layoutWidget" >
-   <property name="geometry" >
+  <widget class="QWidget" name="layoutWidget">
+   <property name="geometry">
     <rect>
      <x>10</x>
      <y>42</y>
@@ -166,20 +167,20 @@
      <height>25</height>
     </rect>
    </property>
-   <layout class="QHBoxLayout" name="hbox2" >
+   <layout class="QHBoxLayout" name="hbox2">
     <item>
-     <widget class="QLabel" name="durLbl" >
-      <property name="text" >
+     <widget class="QLabel" name="durLbl">
+      <property name="text">
        <string>Duration:</string>
       </property>
      </widget>
     </item>
     <item>
      <spacer>
-      <property name="orientation" >
+      <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" stdset="0" >
+      <property name="sizeHint" stdset="0">
        <size>
         <width>40</width>
         <height>20</height>
@@ -188,25 +189,25 @@
      </spacer>
     </item>
     <item>
-     <widget class="QSpinBox" name="durHrsSB" >
-      <property name="maximum" >
+     <widget class="QSpinBox" name="durHrsSB">
+      <property name="maximum">
        <number>23</number>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="hrsLbl2" >
-      <property name="text" >
+     <widget class="QLabel" name="hrsLbl2">
+      <property name="text">
        <string>Hrs</string>
       </property>
      </widget>
     </item>
     <item>
      <spacer>
-      <property name="orientation" >
+      <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" stdset="0" >
+      <property name="sizeHint" stdset="0">
        <size>
         <width>40</width>
         <height>20</height>
@@ -215,28 +216,28 @@
      </spacer>
     </item>
     <item>
-     <widget class="QSpinBox" name="durMinsSB" >
-      <property name="maximum" >
+     <widget class="QSpinBox" name="durMinsSB">
+      <property name="maximum">
        <number>59</number>
       </property>
-      <property name="value" >
+      <property name="value">
        <number>1</number>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="minsLbl2" >
-      <property name="text" >
+     <widget class="QLabel" name="minsLbl2">
+      <property name="text">
        <string>Mins</string>
       </property>
      </widget>
     </item>
     <item>
      <spacer>
-      <property name="orientation" >
+      <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" stdset="0" >
+      <property name="sizeHint" stdset="0">
        <size>
         <width>40</width>
         <height>20</height>
@@ -245,25 +246,25 @@
      </spacer>
     </item>
     <item>
-     <widget class="QSpinBox" name="durSecsSB" >
-      <property name="maximum" >
+     <widget class="QSpinBox" name="durSecsSB">
+      <property name="maximum">
        <number>59</number>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="secsLbl2" >
-      <property name="text" >
+     <widget class="QLabel" name="secsLbl2">
+      <property name="text">
        <string>Secs</string>
       </property>
      </widget>
     </item>
     <item>
      <spacer>
-      <property name="orientation" >
+      <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="sizeHint" stdset="0" >
+      <property name="sizeHint" stdset="0">
        <size>
         <width>40</width>
         <height>20</height>
@@ -274,6 +275,16 @@
    </layout>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>startHrsSB</tabstop>
+  <tabstop>startMinsSB</tabstop>
+  <tabstop>startSecsSB</tabstop>
+  <tabstop>nowCB</tabstop>
+  <tabstop>durHrsSB</tabstop>
+  <tabstop>durMinsSB</tabstop>
+  <tabstop>durSecsSB</tabstop>
+  <tabstop>indefCB</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
@@ -282,11 +293,11 @@
    <receiver>startLbl</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>24</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>35</x>
      <y>22</y>
     </hint>
@@ -298,11 +309,11 @@
    <receiver>startHrsSB</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>24</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>115</x>
      <y>22</y>
     </hint>
@@ -314,11 +325,11 @@
    <receiver>hrsLbl</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>24</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>157</x>
      <y>22</y>
     </hint>
@@ -330,11 +341,11 @@
    <receiver>startMinsSB</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>24</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>221</x>
      <y>22</y>
     </hint>
@@ -346,11 +357,11 @@
    <receiver>minsLbl</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>24</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>267</x>
      <y>22</y>
     </hint>
@@ -362,11 +373,11 @@
    <receiver>startSecsSB</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>24</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>336</x>
      <y>22</y>
     </hint>
@@ -378,11 +389,11 @@
    <receiver>secsLbl</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>24</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>382</x>
      <y>22</y>
     </hint>
@@ -394,11 +405,11 @@
    <receiver>durLbl</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>51</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>35</x>
      <y>53</y>
     </hint>
@@ -410,11 +421,11 @@
    <receiver>durHrsSB</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>51</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>115</x>
      <y>53</y>
     </hint>
@@ -426,11 +437,11 @@
    <receiver>durMinsSB</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>51</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>221</x>
      <y>53</y>
     </hint>
@@ -442,11 +453,11 @@
    <receiver>durSecsSB</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>51</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>336</x>
      <y>53</y>
     </hint>
@@ -458,11 +469,11 @@
    <receiver>hrsLbl2</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>51</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>157</x>
      <y>53</y>
     </hint>
@@ -474,11 +485,11 @@
    <receiver>minsLbl2</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>51</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>267</x>
      <y>53</y>
     </hint>
@@ -490,11 +501,11 @@
    <receiver>secsLbl2</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>469</x>
      <y>51</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>382</x>
      <y>53</y>
     </hint>

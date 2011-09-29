@@ -346,6 +346,22 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>filenameLE</tabstop>
+  <tabstop>browseBut</tabstop>
+  <tabstop>binRadio</tabstop>
+  <tabstop>csvRadio</tabstop>
+  <tabstop>allRadio</tabstop>
+  <tabstop>allShownRadio</tabstop>
+  <tabstop>customRadio</tabstop>
+  <tabstop>exportChansLE</tabstop>
+  <tabstop>allScansRadio</tabstop>
+  <tabstop>selectionRadio</tabstop>
+  <tabstop>customRangeRadio</tabstop>
+  <tabstop>fromSB</tabstop>
+  <tabstop>toSB</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

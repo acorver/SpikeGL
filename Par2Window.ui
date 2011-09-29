@@ -1,7 +1,8 @@
-<ui version="4.0" >
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
  <class>Par2Window</class>
- <widget class="QWidget" name="Par2Window" >
-  <property name="geometry" >
+ <widget class="QWidget" name="Par2Window">
+  <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
@@ -9,11 +10,11 @@
     <height>461</height>
    </rect>
   </property>
-  <property name="windowTitle" >
+  <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QGroupBox" name="outputGB" >
-   <property name="geometry" >
+  <widget class="QGroupBox" name="outputGB">
+   <property name="geometry">
     <rect>
      <x>10</x>
      <y>165</y>
@@ -21,11 +22,11 @@
      <height>277</height>
     </rect>
    </property>
-   <property name="title" >
+   <property name="title">
     <string>PAR2 Tool Output</string>
    </property>
-   <widget class="QTextEdit" name="outputTE" >
-    <property name="geometry" >
+   <widget class="QTextEdit" name="outputTE">
+    <property name="geometry">
      <rect>
       <x>10</x>
       <y>19</y>
@@ -33,21 +34,21 @@
       <height>213</height>
      </rect>
     </property>
-    <property name="undoRedoEnabled" >
+    <property name="undoRedoEnabled">
      <bool>false</bool>
     </property>
-    <property name="lineWrapMode" >
+    <property name="lineWrapMode">
      <enum>QTextEdit::NoWrap</enum>
     </property>
-    <property name="readOnly" >
+    <property name="readOnly">
      <bool>true</bool>
     </property>
-    <property name="acceptRichText" >
+    <property name="acceptRichText">
      <bool>false</bool>
     </property>
    </widget>
-   <widget class="QPushButton" name="forceCancelBut" >
-    <property name="geometry" >
+   <widget class="QPushButton" name="forceCancelBut">
+    <property name="geometry">
      <rect>
       <x>210</x>
       <y>237</y>
@@ -55,16 +56,16 @@
       <height>26</height>
      </rect>
     </property>
-    <property name="text" >
+    <property name="text">
      <string>Force Cancel Operation</string>
     </property>
    </widget>
   </widget>
-  <widget class="QGroupBox" name="specifyGB" >
-   <property name="enabled" >
+  <widget class="QGroupBox" name="specifyGB">
+   <property name="enabled">
     <bool>true</bool>
    </property>
-   <property name="geometry" >
+   <property name="geometry">
     <rect>
      <x>10</x>
      <y>7</y>
@@ -72,11 +73,11 @@
      <height>143</height>
     </rect>
    </property>
-   <property name="title" >
+   <property name="title">
     <string>Specify Operation</string>
    </property>
-   <widget class="QLineEdit" name="fileLE" >
-    <property name="geometry" >
+   <widget class="QLineEdit" name="fileLE">
+    <property name="geometry">
      <rect>
       <x>50</x>
       <y>22</y>
@@ -85,8 +86,8 @@
      </rect>
     </property>
    </widget>
-   <widget class="QPushButton" name="browseBut" >
-    <property name="geometry" >
+   <widget class="QPushButton" name="browseBut">
+    <property name="geometry">
      <rect>
       <x>280</x>
       <y>19</y>
@@ -94,12 +95,12 @@
       <height>26</height>
      </rect>
     </property>
-    <property name="text" >
+    <property name="text">
      <string>Browse...</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label" >
-    <property name="geometry" >
+   <widget class="QLabel" name="label">
+    <property name="geometry">
      <rect>
       <x>10</x>
       <y>26</y>
@@ -107,12 +108,12 @@
       <height>16</height>
      </rect>
     </property>
-    <property name="text" >
+    <property name="text">
      <string>File:</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="goBut" >
-    <property name="geometry" >
+   <widget class="QPushButton" name="goBut">
+    <property name="geometry">
      <rect>
       <x>280</x>
       <y>90</y>
@@ -120,15 +121,15 @@
       <height>26</height>
      </rect>
     </property>
-    <property name="text" >
+    <property name="text">
      <string>GO!</string>
     </property>
    </widget>
-   <widget class="QLabel" name="redundancyLbl" >
-    <property name="enabled" >
+   <widget class="QLabel" name="redundancyLbl">
+    <property name="enabled">
      <bool>false</bool>
     </property>
-    <property name="geometry" >
+    <property name="geometry">
      <rect>
       <x>10</x>
       <y>98</y>
@@ -136,15 +137,15 @@
       <height>16</height>
      </rect>
     </property>
-    <property name="text" >
+    <property name="text">
      <string>Redundancy %:</string>
     </property>
    </widget>
-   <widget class="QSpinBox" name="redundancySB" >
-    <property name="enabled" >
+   <widget class="QSpinBox" name="redundancySB">
+    <property name="enabled">
      <bool>false</bool>
     </property>
-    <property name="geometry" >
+    <property name="geometry">
      <rect>
       <x>120</x>
       <y>95</y>
@@ -152,18 +153,18 @@
       <height>22</height>
      </rect>
     </property>
-    <property name="minimum" >
+    <property name="minimum">
      <number>1</number>
     </property>
-    <property name="maximum" >
+    <property name="maximum">
      <number>100</number>
     </property>
-    <property name="value" >
+    <property name="value">
      <number>5</number>
     </property>
    </widget>
-   <widget class="QWidget" name="layoutWidget" >
-    <property name="geometry" >
+   <widget class="QWidget" name="layoutWidget">
+    <property name="geometry">
      <rect>
       <x>10</x>
       <y>55</y>
@@ -171,27 +172,27 @@
       <height>25</height>
      </rect>
     </property>
-    <layout class="QHBoxLayout" name="loWidget111" >
+    <layout class="QHBoxLayout" name="loWidget111">
      <item>
-      <widget class="QRadioButton" name="createRB" >
-       <property name="text" >
+      <widget class="QRadioButton" name="createRB">
+       <property name="text">
         <string>Create</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QRadioButton" name="verifyRB" >
-       <property name="text" >
+      <widget class="QRadioButton" name="verifyRB">
+       <property name="text">
         <string>Verify</string>
        </property>
-       <property name="checked" >
+       <property name="checked">
         <bool>true</bool>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QRadioButton" name="repairRB" >
-       <property name="text" >
+      <widget class="QRadioButton" name="repairRB">
+       <property name="text">
         <string>Repair</string>
        </property>
       </widget>
@@ -200,6 +201,17 @@
    </widget>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>fileLE</tabstop>
+  <tabstop>browseBut</tabstop>
+  <tabstop>createRB</tabstop>
+  <tabstop>verifyRB</tabstop>
+  <tabstop>repairRB</tabstop>
+  <tabstop>redundancySB</tabstop>
+  <tabstop>goBut</tabstop>
+  <tabstop>outputTE</tabstop>
+  <tabstop>forceCancelBut</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

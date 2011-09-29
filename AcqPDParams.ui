@@ -24,7 +24,7 @@
     <rect>
      <x>11</x>
      <y>44</y>
-     <width>393</width>
+     <width>435</width>
      <height>32</height>
     </rect>
    </property>
@@ -315,6 +315,15 @@ generated. This parameter ensures data files have a regular amount of leading wh
    </layout>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>pdAISB</tabstop>
+  <tabstop>pdAIThreshSB</tabstop>
+  <tabstop>pdPre</tabstop>
+  <tabstop>pdPassthruAOChk</tabstop>
+  <tabstop>pdPassthruAOSB</tabstop>
+  <tabstop>pdStopTimeSB</tabstop>
+  <tabstop>pdWSB</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

@@ -91,6 +91,11 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>arrowSB</tabstop>
+  <tabstop>pgSB</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

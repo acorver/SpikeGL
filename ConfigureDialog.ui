@@ -391,10 +391,6 @@ p, li { white-space: pre-wrap; }
      <string>Re-Open New Save File on StimGL Experiment (Re)Start</string>
     </property>
    </widget>
-   <zorder>acqStartEndCB</zorder>
-   <zorder>acqFrame</zorder>
-   <zorder>stimGLReopenCB</zorder>
-   <zorder>acqStartEndDescrLbl</zorder>
   </widget>
   <widget class="QLabel" name="aiRangeMinLbl">
    <property name="geometry">
@@ -826,6 +822,29 @@ p, li { white-space: pre-wrap; }
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>outputFileLE</tabstop>
+  <tabstop>browseBut</tabstop>
+  <tabstop>acqModeCB</tabstop>
+  <tabstop>doCtlCB</tabstop>
+  <tabstop>channelSubsetLE</tabstop>
+  <tabstop>deviceCB</tabstop>
+  <tabstop>aiRangeCB</tabstop>
+  <tabstop>srateSB</tabstop>
+  <tabstop>clockCB</tabstop>
+  <tabstop>aiTerminationCB</tabstop>
+  <tabstop>fastSettleSB</tabstop>
+  <tabstop>auxGainSB</tabstop>
+  <tabstop>muxMapBut</tabstop>
+  <tabstop>channelListLE</tabstop>
+  <tabstop>lowLatencyChk</tabstop>
+  <tabstop>preJuly2011DemuxCB</tabstop>
+  <tabstop>bufferSizeSlider</tabstop>
+  <tabstop>acqStartEndCB</tabstop>
+  <tabstop>stimGLReopenCB</tabstop>
+  <tabstop>disableGraphsChk</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

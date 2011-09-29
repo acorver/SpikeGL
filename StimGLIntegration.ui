@@ -163,6 +163,12 @@
    </widget>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>interfaceLE</tabstop>
+  <tabstop>portSB</tabstop>
+  <tabstop>timeoutSB</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
