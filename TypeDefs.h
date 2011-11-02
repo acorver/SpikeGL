@@ -10,7 +10,9 @@ typedef quint64 u64;
 typedef s64 i64;
 typedef quint32 uint32;
 #ifndef HAVE_NIDAQmx
+#ifndef Q_OS_WIN32
 typedef qint32 int32;
+#endif
 #endif
 typedef qint32 i32;
 typedef qint32 s32;

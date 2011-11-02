@@ -6,6 +6,7 @@
  *  Copyright 2010 Calin Culianu <calin.culianu@gmail.com>. All rights reserved.
  *
  */
+#ifdef HAVE_NIDAQmx
 #ifndef AOWriteThread_H
 #define AOWriteThread_H
 #include "DAQ.h"
@@ -38,4 +39,5 @@ private:
 };
 	
 }
+#endif
 #endif

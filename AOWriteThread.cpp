@@ -6,7 +6,7 @@
  *  Copyright 2010 Calin Culianu <calin.culianu@gmail.com>. All rights reserved.
  *
  */
-
+#ifdef HAVE_NIDAQmx
 #include "AOWriteThread.h"
 #include "SpikeGL.h"
 #include "NI/NIDAQmx.h"
@@ -39,3 +39,5 @@ void AOWriteThread::stop()
 
 }
 
+
+#endif
