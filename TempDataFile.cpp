@@ -120,6 +120,7 @@ bool TempDataFile::readScans(QVector<int16> & out, qint64 nfrom, qint64 nread, c
 
 	const int nChansOn = channelSubset.count(true), subsetSize = channelSubset.size();
 	out.clear();
+	qint64 osize = 0;
     out.reserve((readCount/downsample) * nChansOn);
 
     qint64 readSoFar = 0;
@@ -138,14 +139,17 @@ bool TempDataFile::readScans(QVector<int16> & out, qint64 nfrom, qint64 nread, c
 			readFile.seek(pos=0);
 		
 		
-        qint64 read = readFile.read((char*)&scan[0], scanSz);
+        qint64 read = readFile.read(reinterpret_cast<char *>(&scan[0]), scanSz);
 				
         if (scanSz == read)
         {
-			if (((int)nChans) == nChansOn)
+			if (((int)nChans) == nChansOn) {
 				// happens to have all chans on, so just append the entire scan
-				out += scan;
-			else { 
+				//out += scan;   ///< is this slow?? use memcpy instead?
+				osize += nChansOn;
+				out.resize(osize);
+				memcpy(&out[osize-nChansOn], &scan[0], scanSz);
+			} else { 
 				// do a channel subset
 				for (int i = 0; i < nChansOn; ++i)
 					out.append(scan[chansOn[i]]);
