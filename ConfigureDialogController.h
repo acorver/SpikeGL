@@ -60,6 +60,7 @@ protected slots:
     void aoPDPassthruUpdateLE();
     void applyAOPass();
 	void bufferSizeSliderChanged();
+	void dualDevModeChkd();
 
 private:
     void resetFromParams(DAQ::Params *p = 0);

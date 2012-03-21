@@ -54,6 +54,7 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     Connect(acqPdParams->pdPassthruAOSB, SIGNAL(valueChanged(int)), this, SLOT(aoPDPassthruUpdateLE()));
 	Connect(dialog->bufferSizeSlider, SIGNAL(valueChanged(int)), this, SLOT(bufferSizeSliderChanged()));
 	Connect(dialog->lowLatencyChk, SIGNAL(clicked()), this, SLOT(bufferSizeSliderChanged()));
+	Connect(dialog->dualDevModeChk, SIGNAL(clicked()), this, SLOT(dualDevModeChkd()));
 	// hide fast settle stuff as it's no longer supported
 	dialog->fastSettleSB->hide();
 	dialog->fastSettleLbl->hide();
@@ -119,6 +120,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     if (int(p.doCtlChan) < dialog->doCtlCB->count())
         dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
     dialog->channelListLE->setText(p.aiString);
+    dialog->channelListLE_2->setText(p.aiString2);
     dialog->acqStartEndCB->setCurrentIndex((int)p.acqStartEndMode);
 	dialog->lowLatencyChk->setChecked(p.lowLatency);
 	dialog->preJuly2011DemuxCB->setChecked(p.doPreJuly2011IntanDemux);
@@ -134,15 +136,29 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
 
     QList<QString> devs = aiChanLists.uniqueKeys();
     devNames.clear();
-    int sel = 0, i = 0;
+    int sel = 0, sel2 = 0, i = 0;
     for (QList<QString>::const_iterator it = devs.begin(); it != devs.end(); ++it, ++i) {
         if (p.dev == *it) sel = i;
+        if (p.dev2 == *it) sel2 = i;
         dialog->deviceCB->addItem(QString("%1 (%2)").arg(*it).arg(DAQ::GetProductName(*it)));
+        dialog->deviceCB_2->addItem(QString("%1 (%2)").arg(*it).arg(DAQ::GetProductName(*it)));
         devNames.push_back(*it);
     }    
     if ( dialog->deviceCB->count() ) // empty CB sometimes on missing AI??
         dialog->deviceCB->setCurrentIndex(sel);
+    if ( dialog->deviceCB_2->count() ) // empty CB sometimes on missing AI??
+        dialog->deviceCB_2->setCurrentIndex(sel2);
 
+	const bool canHaveDualDevMode (dialog->deviceCB_2->count() > 1);
+	
+	if (!canHaveDualDevMode) {
+		dialog->dualDevModeChk->setChecked(false);
+		dialog->dualDevModeChk->setEnabled(false);
+		p.dualDevMode = false;
+	} else {
+		dialog->dualDevModeChk->setChecked(p.dualDevMode);
+		dialog->dualDevModeChk->setEnabled(true);		
+	}
 
     resetAOPassFromParams(aoPassthru);
     
@@ -168,6 +184,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     aoPDChanChkd();
     aiRangeChanged();
 	bufferSizeSliderChanged();
+	dualDevModeChkd();
 }
 
 void ConfigureDialogController::aiRangeChanged()
@@ -374,6 +391,14 @@ void ConfigureDialogController::aoPDChanChkd()
     aoPDPassthruUpdateLE();
 }
 
+void ConfigureDialogController::dualDevModeChkd()
+{
+    const bool chk (dialog->dualDevModeChk->isChecked());
+	dialog->deviceCB_2->setEnabled(chk);
+	dialog->secondDevLbl->setEnabled(chk);
+	dialog->channelListLE_2->setEnabled(chk);
+}
+
 
 void ConfigureDialogController::aoPDPassthruUpdateLE()
 {
@@ -401,13 +426,16 @@ void ConfigureDialogController::aoPDPassthruUpdateLE()
 ConfigureDialogController::ValidationResult ConfigureDialogController::validateForm(QString & errTitle, QString & errMsg, bool isGUI) 
 {
     const QString dev = dialog->deviceCB->count() ? devNames[dialog->deviceCB->currentIndex()] : "";
+    const QString dev2 = dialog->deviceCB_2->count() ? devNames[dialog->deviceCB_2->currentIndex()] : "";
     const QString aoDev = aoPassthru->aoDeviceCB->count() ? aoDevNames[aoPassthru->aoDeviceCB->currentIndex()] : "";
     
     bool err = false;
     errTitle = errMsg = "";
-    QVector<unsigned> chanVect;
+	const bool dualDevMode = dialog->dualDevModeChk->isChecked();
+    QVector<unsigned> chanVect, chanVect2;
     QString chans = parseAIChanString(dialog->channelListLE->text(), chanVect, &err);
-    for (int i = 0; i < (int)chanVect.size(); ++i) {
+    QString chans2 = parseAIChanString(dialog->channelListLE_2->text(), chanVect2, &err);
+    for (int i = 0; dev.length() && i < (int)chanVect.size(); ++i) {
         if (chanVect[i] >= static_cast<unsigned>(aiChanLists[dev].size())) {
             err = true; 
             break;
@@ -418,6 +446,30 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
         errMsg = "Error parsing AI channel list!\nSpecify a string of the form 0,1,2,3 or 0-3,5,6 of valid channel id's!";
         return AGAIN;
     }
+	if (dualDevMode && (!dev2.length() || !dev2.compare(dev,Qt::CaseInsensitive))) {
+        errTitle = "Second AI Dev Error";
+        errMsg = "Dual-device mode enabled, but the second AI device specified is invalid.\nPlease select a distinct AI device for the second AI device.";
+        return AGAIN;
+		
+	}
+	if (dualDevMode && DAQ::GetProductName(dev2).compare(DAQ::GetProductName(dev), Qt::CaseInsensitive)) {
+        errTitle = "Dual Device Mode Error";
+        errMsg = "Dual-device mode enabled, but both AI devices are not the same model.\nFor dual-device mode to work correctly, the second AI device must be the same exact model as the first.";
+        return AGAIN;
+		
+	}
+    for (int i = 0; dualDevMode && i < (int)chanVect2.size(); ++i) {
+        if (chanVect2[i] >= static_cast<unsigned>(aiChanLists[dev2].size())) {
+            err = true; 
+            break;
+        }
+    }
+    if (err) {
+        errTitle = "AI Chan List Error";
+        errMsg = "Error parsing 2nd AI channel list!\nSpecify a string of the form 0,1,2,3 or 0-3,5,6 of valid channel id's!";
+        return AGAIN;
+    }
+	
     const DAQ::Mode acqMode = (DAQ::Mode)dialog->acqModeCB->currentIndex();
     
     int nExtraChans = 0;
@@ -573,6 +625,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
 	}
 	
     p.dev = dev;
+	p.dev2 = dev2;
     QStringList rngs = dialog->aiRangeCB->currentText().split(" - ");
     if (rngs.count() != 2) {
         errTitle = "AI Range ComboBox invalid!";
@@ -586,9 +639,12 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     p.srate = srate;
     p.extClock = dialog->clockCB->currentIndex() == 0;
     p.aiChannels = chanVect;
+	p.dualDevMode = dualDevMode;
+	p.aiChannels2 = chanVect2;
     p.nVAIChans = nVAI;
     p.nExtraChans = nExtraChans;
     p.aiString = chans;
+	p.aiString2 = chans2;
     p.doCtlChan = dialog->doCtlCB->currentIndex();
     p.doCtlChanString = QString("%1/%2").arg(p.dev).arg(dialog->doCtlCB->currentText());
     p.usePD = usePD;
@@ -878,7 +934,9 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.doPreJuly2011IntanDemux = settings.value("doPreJuly2011IntanDemux", false).toBool();
 
 	p.aiBufferSizeCS = settings.value("aiBufferSizeCentiSeconds", DEF_AI_BUFFER_SIZE_CENTISECONDS).toUInt();
-	    
+	p.dualDevMode = settings.value("dualDevMode", false).toBool();
+	p.dev2 = settings.value("dev2", "").toString();
+	p.aiString2 = settings.value("aiString2", "0:3").toString();
 }
 
 void ConfigureDialogController::loadSettings()
@@ -944,7 +1002,10 @@ void ConfigureDialogController::saveSettings() const
 	settings.setValue("lowLatency", p.lowLatency);
 	settings.setValue("doPreJuly2011IntanDemux", p.doPreJuly2011IntanDemux);
 	settings.setValue("aiBufferSizeCentiSeconds", p.aiBufferSizeCS);
-
+	settings.setValue("dualDevMode", p.dualDevMode);
+	settings.setValue("dev2", p.dev2);
+	settings.setValue("aiString2", p.aiString2);
+	
 
     settings.endGroup();
 }
@@ -1046,7 +1107,7 @@ void ConfigureDialogController::applyAOPass()
     }
     const QString aoDev = aop.aoDeviceCB->count() ? aoDevNames[aop.aoDeviceCB->currentIndex()] : "";
     QMap<unsigned, unsigned> aopass;            
-    const QVector<unsigned> & chanVect = p.aiChannels;            
+    const QVector<unsigned> & chanVect = p.aiChannels, & chansVect2 = p.aiChannels2;            
     int nExtraChans = 0;
     bool mux = false;
 	int num_chans_per_intan = 1;
@@ -1056,7 +1117,7 @@ void ConfigureDialogController::applyAOPass()
         nExtraChans = chanVect.size() - minChanSize;
     }
         
-    const unsigned nVAI = (chanVect.size()-nExtraChans) * (mux ? num_chans_per_intan : 1) + nExtraChans;
+    const unsigned nVAI = ((chanVect.size()+chansVect2.size())-nExtraChans) * (mux ? num_chans_per_intan : 1) + nExtraChans;
 
     if (aoDevNames.count()) {
         QString le = aop.aoPassthruLE->text();

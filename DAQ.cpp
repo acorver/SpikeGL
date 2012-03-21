@@ -489,26 +489,35 @@ namespace DAQ
     {
         // Task parameters
         int32       error = 0;
-        TaskHandle  taskHandle = 0, aoTaskHandle = 0;
+        TaskHandle  taskHandle = 0, taskHandle2 = 0, aoTaskHandle = 0;
         char        errBuff[2048]={'\0'};
         const char *callStr = "";
         double      startTime;
         const Params & p (params);
-        // Channel spec string for NI driver
-        QString chan = "", aoChan = "";
-      
 
+        // Channel spec string for NI driver
+        QString chan = "", chan2 = "", aoChan = "";
+      	
         {
             const QVector<QString> aiChanStrings ((ProbeAllAIChannels()[p.dev]).toVector());
             //build chanspec string for aiChanStrings..
-            for (QVector<unsigned>::const_iterator it = p.aiChannels.begin();
-                 it != p.aiChannels.end(); ++it) {
+            for (QVector<unsigned>::const_iterator it = p.aiChannels.begin(); it != p.aiChannels.end(); ++it) 
+			{
                 chan.append(QString("%1%2").arg(chan.length() ? ", " : "").arg(aiChanStrings[*it]));
             }
             
         }
+        if (p.dualDevMode) {
+            const QVector<QString> aiChanStrings2 ((ProbeAllAIChannels()[p.dev2]).toVector());
+            //build chanspec string for aiChanStrings..
+            for (QVector<unsigned>::const_iterator it = p.aiChannels2.begin(); it != p.aiChannels2.end(); ++it) 
+			{
+                chan2.append(QString("%1%2").arg(chan2.length() ? ", " : "").arg(aiChanStrings2[*it]));
+            }
+            
+        }
         
-        const int nChans = p.aiChannels.size();
+        const int nChans = p.aiChannels.size(), nChans2 = p.aiChannels2.size();
         const float64     min = p.range.min;
         const float64     max = p.range.max;
         const int nExtraChans = p.nExtraChans;
@@ -520,7 +529,7 @@ namespace DAQ
         float64 sampleRate = p.srate;
         const float64 aoSampleRate = p.srate;
         const float64     timeout = DAQ_TIMEOUT;
-        const int NCHANS = p.nVAIChans;
+        const int NCHANS = p.nVAIChans; 
         muxMode =  (p.mode != AIRegular);
         int nscans_per_mux_scan = 1;
         AOWriteThread * aoWriteThr = 0;
@@ -561,25 +570,31 @@ namespace DAQ
             bufferSize += nChans - (bufferSize%nChans);
 		
         //const u64 dmaBufSize = p.lowLatency ? u64(100000) : u64(1000000); /// 1000000 sample DMA buffer per chan?
-        const u64 samplesPerChan = bufferSize/nChans;
+        const u64 samplesPerChan = bufferSize/nChans, samplesPerChan2 = (nChans2 ? bufferSize/nChans2 : 0);
         u64 aoBufferSize = 0; /* needs to be set below!!! */
 
         // Timing parameters
-        int32       pointsRead;
+        int32       pointsRead, pointsRead2;
         const int32 pointsToRead = bufferSize;
-        std::vector<int16> data, leftOver, aoData;       
+        std::vector<int16> data, data2, leftOver, leftOver2, aoData;       
 
         QMap<unsigned, unsigned> saved_aoPassthruMap = p.aoPassthruMap;
 		QString saved_aoDev = p.aoDev;
 		Range saved_aoRange = p.aoRange;
 
 
-        DAQmxErrChk (DAQmxCreateTask("",&taskHandle)); 
+        DAQmxErrChk (DAQmxCreateTask((QString("task1_")+QString::number(qrand())).toUtf8(),&taskHandle)); 
         DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
         DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)); 
         //DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize));  //use a 1,000,000 sample DMA buffer per channel
         //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this)); 
-        
+        if (p.dualDevMode) {
+            DAQmxErrChk (DAQmxCreateTask((QString("task2_")+QString::number(qrand())).toUtf8(),&taskHandle2)); 
+			DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle2,chan2.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
+			DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle2,/* FIXME -- set this to PFI2 *always* right? "PFI2"*/clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)); 
+			
+		}
+		
 		//const int task_write_freq_hz = p.lowLatency ? TASK_WRITE_FREQ_HZ*3 : TASK_WRITE_FREQ_HZ;
 
         if (p.aoPassthru && aoAITab.size()) {
@@ -604,17 +619,28 @@ namespace DAQ
 		}
 
         DAQmxErrChk (DAQmxStartTask(taskHandle)); 
-
+		if (p.dualDevMode) { DAQmxErrChk (DAQmxStartTask(taskHandle2)); }
+		
         startTime = getTime();
         u64 aoSampCount = 0;
         while( !pleaseStop ) {
             data.clear(); // should already be cleared, but enforce...
+			data2.clear();
             if (leftOver.size()) data.swap(leftOver);            
-            unsigned long oldS = data.size();
+			if (leftOver2.size()) data2.swap(leftOver2);
+            unsigned long oldS = data.size(), oldS2 = data2.size();
             data.reserve(pointsToRead+oldS);
             data.resize(pointsToRead+oldS);
-        
+
             DAQmxErrChk (DAQmxReadBinaryI16(taskHandle,samplesPerChan,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL));
+			if (p.dualDevMode) {
+				data2.reserve(pointsToRead+oldS2);
+				data2.resize(pointsToRead+oldS2);				
+				DAQmxErrChk (DAQmxReadBinaryI16(taskHandle2,samplesPerChan2,timeout,DAQmx_Val_GroupByScanNumber,&data2[oldS2],pointsToRead,&pointsRead2,NULL));
+				// TODO FIXME XXX -- *use* this data.. for now we are just testing
+				//Debug() << "Read " << pointsRead2 << " samples from second dev.\n";
+			}
+			
             u64 sampCount = totalRead;
             if (!sampCount) emit(gotFirstScan());
             int32 nRead = pointsRead * nChans + oldS;                  

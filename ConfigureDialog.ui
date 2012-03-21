@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>473</width>
-    <height>748</height>
+    <width>477</width>
+    <height>808</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,8 +29,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>294</x>
-     <y>701</y>
+     <x>291</x>
+     <y>768</y>
      <width>173</width>
      <height>32</height>
     </rect>
@@ -144,8 +144,8 @@
   <widget class="QLineEdit" name="channelListLE">
    <property name="geometry">
     <rect>
-     <x>26</x>
-     <y>276</y>
+     <x>27</x>
+     <y>321</y>
      <width>431</width>
      <height>22</height>
     </rect>
@@ -160,8 +160,8 @@
   <widget class="QLabel" name="channelListLabel">
    <property name="geometry">
     <rect>
-     <x>26</x>
-     <y>250</y>
+     <x>27</x>
+     <y>295</y>
      <width>421</width>
      <height>16</height>
     </rect>
@@ -180,7 +180,7 @@
    <property name="geometry">
     <rect>
      <x>22</x>
-     <y>156</y>
+     <y>194</y>
      <width>183</width>
      <height>21</height>
     </rect>
@@ -199,7 +199,7 @@
    <property name="geometry">
     <rect>
      <x>214</x>
-     <y>156</y>
+     <y>194</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -224,7 +224,7 @@
    <property name="geometry">
     <rect>
      <x>344</x>
-     <y>156</y>
+     <y>194</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -247,8 +247,8 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
   <widget class="QCheckBox" name="disableGraphsChk">
    <property name="geometry">
     <rect>
-     <x>24</x>
-     <y>704</y>
+     <x>21</x>
+     <y>771</y>
      <width>273</width>
      <height>21</height>
     </rect>
@@ -263,8 +263,8 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
   <widget class="QGroupBox" name="acqStartEndGB">
    <property name="geometry">
     <rect>
-     <x>22</x>
-     <y>500</y>
+     <x>19</x>
+     <y>567</y>
      <width>431</width>
      <height>193</height>
     </rect>
@@ -492,7 +492,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>123</x>
-     <y>188</y>
+     <y>226</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -530,7 +530,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>19</x>
-     <y>188</y>
+     <y>226</y>
      <width>100</width>
      <height>22</height>
     </rect>
@@ -552,7 +552,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>373</x>
-     <y>186</y>
+     <y>224</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -577,7 +577,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>273</x>
-     <y>188</y>
+     <y>226</y>
      <width>91</width>
      <height>20</height>
     </rect>
@@ -596,7 +596,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>19</x>
-     <y>219</y>
+     <y>257</y>
      <width>97</width>
      <height>22</height>
     </rect>
@@ -615,7 +615,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>123</x>
-     <y>220</y>
+     <y>258</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -637,7 +637,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>269</x>
-     <y>214</y>
+     <y>252</y>
      <width>166</width>
      <height>32</height>
     </rect>
@@ -649,8 +649,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QWidget" name="aoPassthruWidget" native="true">
    <property name="geometry">
     <rect>
-     <x>22</x>
-     <y>369</y>
+     <x>19</x>
+     <y>436</y>
      <width>431</width>
      <height>121</height>
     </rect>
@@ -700,8 +700,8 @@ channels will be saved.  </string>
   <widget class="QCheckBox" name="lowLatencyChk">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>306</y>
+     <x>17</x>
+     <y>373</y>
      <width>192</width>
      <height>24</height>
     </rect>
@@ -713,8 +713,8 @@ channels will be saved.  </string>
   <widget class="QCheckBox" name="preJuly2011DemuxCB">
    <property name="geometry">
     <rect>
-     <x>213</x>
-     <y>305</y>
+     <x>210</x>
+     <y>372</y>
      <width>245</width>
      <height>28</height>
     </rect>
@@ -740,8 +740,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QSlider" name="bufferSizeSlider">
    <property name="geometry">
     <rect>
-     <x>224</x>
-     <y>337</y>
+     <x>221</x>
+     <y>404</y>
      <width>228</width>
      <height>22</height>
     </rect>
@@ -771,8 +771,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="aiBufferSizeLbl">
    <property name="geometry">
     <rect>
-     <x>24</x>
-     <y>340</y>
+     <x>21</x>
+     <y>407</y>
      <width>97</width>
      <height>16</height>
     </rect>
@@ -793,8 +793,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="aiBufSzLbl">
    <property name="geometry">
     <rect>
-     <x>119</x>
-     <y>340</y>
+     <x>116</x>
+     <y>407</y>
      <width>98</width>
      <height>20</height>
     </rect>
@@ -819,6 +819,73 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="alignment">
     <set>Qt::AlignCenter</set>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="deviceCB_2">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>202</x>
+     <y>160</y>
+     <width>114</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>The NI Device to use for the acquisition</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="dualDevModeChk">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>23</x>
+     <y>162</y>
+     <width>179</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Use Second AI Device:</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="channelListLE_2">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>191</x>
+     <y>349</y>
+     <width>267</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>Enter a list of _real_ AI channels to acquire.  Ranges such as 0-3 or comma-separated-lists such as 1,2,3,4 are ok.</string>
+   </property>
+   <property name="text">
+    <string>0:3</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="secondDevLbl">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>28</x>
+     <y>351</y>
+     <width>158</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>AI Channel List, Dev 2:</string>
    </property>
   </widget>
  </widget>

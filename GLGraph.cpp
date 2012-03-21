@@ -302,6 +302,7 @@ void GLGraph::mouseReleaseEvent(QMouseEvent *evt)
 	emit(clickReleasedWindowCoords(evt->x(), evt->y()));
     Vec2 v(pos2Vec(evt->pos()));
     emit(clickReleased(v.x,v.y));
+	
 }
 
 void GLGraph::mouseDoubleClickEvent(QMouseEvent *evt)

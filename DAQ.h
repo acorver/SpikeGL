@@ -64,7 +64,8 @@ namespace DAQ
     const QString & AcqStartEndModeToString(AcqStartEndMode m);
 
     struct Params {
-        QString outputFile, outputFileOrig, dev;
+        QString outputFile, outputFileOrig, dev, dev2;
+		bool dualDevMode;
         bool stimGlTrigResave;
         Range range;
         unsigned doCtlChan;
@@ -72,8 +73,8 @@ namespace DAQ
         Mode mode;
         double srate;
         bool extClock;
-        QString aiString;
-        QVector<unsigned> aiChannels;
+        QString aiString, aiString2;
+        QVector<unsigned> aiChannels, aiChannels2;
         QString subsetString; ///< subset of demuxed AI chans to actually save/graph.
         QBitArray demuxedBitMap; ///< bitmap of the demuxed AI chans to actually save/graph.  Derived from subsetString above.
         unsigned nVAIChans; ///< number of virtual (demuxed) AI chans
