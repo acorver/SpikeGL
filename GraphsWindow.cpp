@@ -154,9 +154,9 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     
     pdChan = -1;
     if (p.usePD) {
-        pdChan = p.nVAIChans-1;
+        pdChan = p.idxOfPdChan;
     }
-    firstExtraChan = p.nVAIChans - p.nExtraChans;
+    firstExtraChan = p.nVAIChans - (p.nExtraChans1 + p.nExtraChans2);
     graphs.resize(p.nVAIChans);
 	chks.resize(graphs.size());
     graphFrames.resize(graphs.size());
@@ -479,7 +479,7 @@ void GraphsWindow::selectGraph(int num)
         chanLbl->setText(QString("AI%1").arg(num));        
     } else { // MUX mode
         if (isAuxChan(num)) {
-            chanLbl->setText(QString("AUX%1").arg(int(num-(params.nVAIChans-params.nExtraChans)+1)));
+            chanLbl->setText(QString("AUX%1").arg(int(num-(params.nVAIChans-(params.nExtraChans1+params.nExtraChans2))+1)));
         }/* else if (params.mode == DAQ::JFRCIntan32) {
             // JFRC Intan 32 mode has a hard-coded mapping.. sorry, not elegant but expedient!
             chanLbl->setText(QString("I%1_C%2").arg(num/16 + 1).arg(num % 16 + 1));            
@@ -535,7 +535,7 @@ void GraphsWindow::updateGraphCtls()
 
 bool GraphsWindow::isAuxChan(unsigned num) const
 {
-    return num >= (params.nVAIChans-params.nExtraChans);
+    return num >= (params.nVAIChans-(params.nExtraChans1+params.nExtraChans2));
 }
 
 void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
@@ -609,7 +609,7 @@ void GraphsWindow::updateMouseOver()
         chStr.sprintf("AI%d", num);
     } else { // MUX mode
         if (isAuxChan(num)) {
-            chStr.sprintf("AUX%d",int(num-(params.nVAIChans-params.nExtraChans)+1));
+            chStr.sprintf("AUX%d",int(num-(params.nVAIChans-(params.nExtraChans1+params.nExtraChans2))+1));
         } else {
 			const ChanMapDesc & desc = params.chanMap[num];
             chStr.sprintf("%d [I%u_C%u elec:%u]",num,desc.intan,desc.intanCh,desc.electrodeId);        

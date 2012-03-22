@@ -480,9 +480,9 @@ namespace DAQ
         }
     }
 	
-	static inline int mapNewChanIdToPreJuly2011ChanId(int c, DAQ::Mode m) {
+	static inline int mapNewChanIdToPreJuly2011ChanId(int c, DAQ::Mode m, bool dualDevMode) {
 		const int intan = c/DAQ::ModeNumChansPerIntan[m], chan = c % DAQ::ModeNumChansPerIntan[m];
-		return chan*DAQ::ModeNumIntans[m] + intan;
+		return chan*(DAQ::ModeNumIntans[m] * (dualDevMode ? 2 : 1)) + intan;
 	}
     
     void Task::daqThr()
@@ -517,10 +517,10 @@ namespace DAQ
             
         }
         
-        const int nChans = p.aiChannels.size(), nChans2 = p.aiChannels2.size();
+        const int nChans = p.aiChannels.size(), nChans2 = p.dualDevMode ? p.aiChannels2.size() : 0;
         const float64     min = p.range.min;
         const float64     max = p.range.max;
-        const int nExtraChans = p.nExtraChans;
+        const int nExtraChans1 = p.nExtraChans1, nExtraChans2 = p.dualDevMode ? p.nExtraChans2 : 0;
         
 
         // Params dependent on mode and DAQ::Params, etc
@@ -529,7 +529,7 @@ namespace DAQ
         float64 sampleRate = p.srate;
         const float64 aoSampleRate = p.srate;
         const float64     timeout = DAQ_TIMEOUT;
-        const int NCHANS = p.nVAIChans; 
+        const int NCHANS1 = p.nVAIChans1, NCHANS2 = p.dualDevMode ? p.nVAIChans2 : 0; 
         muxMode =  (p.mode != AIRegular);
         int nscans_per_mux_scan = 1;
         AOWriteThread * aoWriteThr = 0;
@@ -557,25 +557,34 @@ namespace DAQ
         int fudged_srate = ceil(sampleRate);
 		while ((fudged_srate/task_read_freq_hz) % 2) // samples per chan needs to be a multiple of 2
 			++fudged_srate;
-        u64 bufferSize = u64(fudged_srate*nChans);
+        u64 bufferSize = u64(fudged_srate*nChans), bufferSize2 = u64(fudged_srate*nChans2);
 		if (p.lowLatency)
 			bufferSize /= (task_read_freq_hz); ///< 1/10th sec per read
 		else 
 			bufferSize *= double(p.aiBufferSizeCS) / 100.0; ///< otherwise just use user spec..
+		if (p.dualDevMode) {
+			if (p.lowLatency)
+				bufferSize2 /= (task_read_freq_hz); ///< 1/10th sec per read
+			else 
+				bufferSize2 *= double(p.aiBufferSizeCS) / 100.0; ///< otherwise just use user spec..			
+		}
 		
-        if (bufferSize < NCHANS) bufferSize = NCHANS;
+        if (bufferSize < NCHANS1) bufferSize = NCHANS1;
+		if (bufferSize2 < NCHANS2) bufferSize2 = NCHANS2;
 /*        if (bufferSize * task_read_freq_hz != u64(fudged_srate*nChans)) // make sure buffersize is on scan boundary?
             bufferSize += task_read_freq_hz - u64(fudged_srate*nChans)%task_read_freq_hz; */
         if (bufferSize % nChans) // make sure buffer is on a scan boundary!
             bufferSize += nChans - (bufferSize%nChans);
+        if (p.dualDevMode && bufferSize2 % nChans2) // make sure buffer is on a scan boundary!
+            bufferSize2 += nChans2 - (bufferSize2%nChans2);
 		
         //const u64 dmaBufSize = p.lowLatency ? u64(100000) : u64(1000000); /// 1000000 sample DMA buffer per chan?
-        const u64 samplesPerChan = bufferSize/nChans, samplesPerChan2 = (nChans2 ? bufferSize/nChans2 : 0);
+        const u64 samplesPerChan = bufferSize/nChans, samplesPerChan2 = (nChans2 ? bufferSize2/nChans2 : 0);
         u64 aoBufferSize = 0; /* needs to be set below!!! */
 
         // Timing parameters
-        int32       pointsRead, pointsRead2;
-        const int32 pointsToRead = bufferSize;
+        int32       pointsRead=0, pointsRead2=0;
+        const int32 pointsToRead = bufferSize, pointsToRead2 = bufferSize2;
         std::vector<int16> data, data2, leftOver, leftOver2, aoData;       
 
         QMap<unsigned, unsigned> saved_aoPassthruMap = p.aoPassthruMap;
@@ -591,7 +600,11 @@ namespace DAQ
         if (p.dualDevMode) {
             DAQmxErrChk (DAQmxCreateTask((QString("task2_")+QString::number(qrand())).toUtf8(),&taskHandle2)); 
 			DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle2,chan2.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
-			DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle2,/* FIXME -- set this to PFI2 *always* right? "PFI2"*/clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)); 
+			const char * clockSource2 = /*clockSource;//*/"PFI2";
+//#ifdef DEBUG
+//			clockSource2 = clockSource;
+//#endif
+			DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle2,clockSource2,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize2)); 
 			
 		}
 		
@@ -634,32 +647,59 @@ namespace DAQ
 
             DAQmxErrChk (DAQmxReadBinaryI16(taskHandle,samplesPerChan,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL));
 			if (p.dualDevMode) {
-				data2.reserve(pointsToRead+oldS2);
-				data2.resize(pointsToRead+oldS2);				
-				DAQmxErrChk (DAQmxReadBinaryI16(taskHandle2,samplesPerChan2,timeout,DAQmx_Val_GroupByScanNumber,&data2[oldS2],pointsToRead,&pointsRead2,NULL));
+				data2.reserve(pointsToRead2+oldS2);
+				data2.resize(pointsToRead2+oldS2);				
+				DAQmxErrChk (DAQmxReadBinaryI16(taskHandle2,samplesPerChan2,timeout,DAQmx_Val_GroupByScanNumber,&data2[oldS2],pointsToRead2,&pointsRead2,NULL));
 				// TODO FIXME XXX -- *use* this data.. for now we are just testing
 				//Debug() << "Read " << pointsRead2 << " samples from second dev.\n";
 			}
 			
             u64 sampCount = totalRead;
             if (!sampCount) emit(gotFirstScan());
-            int32 nRead = pointsRead * nChans + oldS;                  
-            int nDemuxScans = nRead/nChans/nscans_per_mux_scan;
+            int32 nRead = pointsRead * nChans + oldS, nRead2 = pointsRead2 * nChans2 + oldS2;                  
+            int nDemuxScans = nRead/nChans/nscans_per_mux_scan, nDemuxScans2 = 1;
             if ( nDemuxScans*nscans_per_mux_scan*nChans != nRead ) {// not on 60 (or 75 if have interwoven PD and in PD mode) channel boundary, so save extra channels and enqueue them next time around..
                 nRead = nDemuxScans*nscans_per_mux_scan*nChans;
                 leftOver.insert(leftOver.end(), data.begin()+nRead, data.end());
                 data.erase(data.begin()+nRead, data.end());
             }
+			if (p.dualDevMode && nChans2) {
+				nDemuxScans2 = nRead2 / nChans2 / nscans_per_mux_scan;
+				if (nDemuxScans2 * nscans_per_mux_scan * nChans2 != nRead2) {
+					nRead2 = nDemuxScans2*nscans_per_mux_scan*nChans2;
+					leftOver2.insert(leftOver2.end(), data2.begin()+nRead2, data2.end());
+					data2.erase(data2.begin()+nRead2, data2.end());					
+				}
+			} else
+				nRead2 = 0;
+			
+			if (p.dualDevMode && nDemuxScans != nDemuxScans2) { // ensure same exact number of scans
+				if (nDemuxScans > nDemuxScans2) {
+					const int diff = nDemuxScans-nDemuxScans2;
+					nRead = (nDemuxScans-diff)*nscans_per_mux_scan*nChans;
+					leftOver.insert(leftOver.end(), data.begin()+nRead, data.end());
+					data.erase(data.begin()+nRead, data.end());					
+					nDemuxScans -= diff;					
+				} else if (nDemuxScans2 > nDemuxScans) {
+					const int diff = nDemuxScans2-nDemuxScans;
+					nRead2 = (nDemuxScans2-diff)*nscans_per_mux_scan*nChans2;
+					leftOver2.insert(leftOver2.end(), data2.begin()+nRead2, data2.end());
+					data2.erase(data2.begin()+nRead2, data2.end());					
+					nDemuxScans2 -= diff;
+				}
+			}
+			
             // at this point we have scans of size 60 (or 75) channels (or 32 in JFRCIntan32)
             // in the 75-channel case we need to throw away 14 of those channels since they are interwoven PD-channels!
             data.resize(nRead);
+			data2.resize(nRead2);
             if (!nRead) {
                 Warning() << "Read less than a full scan from DAQ hardware!  FIXME on line:" << __LINE__ << " in " << __FILE__ << "!";
                 continue; 
             }
 
             //Debug() << "Acquired " << nRead << " samples. Total " << totalRead;
-            if (muxMode && nExtraChans) {
+            if (muxMode && (nExtraChans1 || nExtraChans2)) {
                 /*
                   NB: at this point data contains scans of the form:
 
@@ -698,28 +738,46 @@ namespace DAQ
                   NCHANS = Number of virtual channels per virtual scan
 
                 */
-                std::vector<int16> tmp;
-                const int datasz = data.size();
+                std::vector<int16> tmp, tmp2;
+                const int datasz = data.size(), datasz2 = data2.size();
                 tmp.reserve(datasz);
-                const int nMx = nChans-nExtraChans;
-                for (int i = nMx; i <= datasz; i += nChans) {
+				tmp2.reserve(datasz2);
+                const int nMx = nChans-nExtraChans1, nMx2 = nChans2-nExtraChans2;
+                for (int i = nMx; nExtraChans1 && i <= datasz; i += nChans) {
                     std::vector<int16>::const_iterator begi = data.begin()+(i-nMx), endi = data.begin()+i;
                     tmp.insert(tmp.end(), begi, endi); // copy non-aux channels for this MUXed sub-scan
-                    if ((!((tmp.size()+nExtraChans) % NCHANS)) && i+nExtraChans <= datasz) {// if we are on a virtual scan-boundary, then ...
-                        begi = data.begin()+i;  endi = begi+nExtraChans;
+                    if ((!((tmp.size()+nExtraChans1) % NCHANS1)) && i+nExtraChans1 <= datasz) {// if we are on a virtual scan-boundary, then ...
+                        begi = data.begin()+i;  endi = begi+nExtraChans1;
                         tmp.insert(tmp.end(), begi, endi); // .. we keep the extra channels
                     }
                 }
-                data.swap(tmp);
-                nRead = data.size();
-                if (data.size() % NCHANS) {
+                for (int i = nMx2; p.dualDevMode && nExtraChans2 && i <= datasz2; i += nChans2) {
+                    std::vector<int16>::const_iterator begi = data2.begin()+(i-nMx2), endi = data2.begin()+i;
+                    tmp2.insert(tmp2.end(), begi, endi); // copy non-aux channels for this MUXed sub-scan
+                    if ((!((tmp2.size()+nExtraChans2) % NCHANS2)) && i+nExtraChans2 <= datasz2) {// if we are on a virtual scan-boundary, then ...
+                        begi = data2.begin()+i;  endi = begi+nExtraChans2;
+                        tmp2.insert(tmp2.end(), begi, endi); // .. we keep the extra channels
+                    }
+                }
+                if (nExtraChans1) { data.swap(tmp); nRead = data.size(); }
+				if (p.dualDevMode && nExtraChans2) { data2.swap(tmp2); nRead2 = data2.size(); }
+                if ((data.size()+data2.size()) % (NCHANS1+NCHANS2)) {
                     // data didn't end on scan-boundary -- we have leftover scans!
                     Error() << "INTERNAL ERROR SCAN DIDN'T END ON A SCAN BOUNDARY FIXME!!! in " << __FILE__ << ":" << __LINE__;                 
                 }
             }
-            totalRead += nRead;
             
-            
+			if (p.dualDevMode) {
+				std::vector<int16> out;
+				mergeDualDevData(out, data, data2, NCHANS1, NCHANS2, nExtraChans1, nExtraChans2);
+				data.swap(out);
+			}
+
+			totalRead += nRead + nRead2;
+
+			// note that from this point forward, the 'data' buffer is the only valid buffer
+			// and it contains the MERGED data from both devices if in dual dev mode.
+			
             // now, do optional AO output .. done in another thread to save on latency...
             if (aoWriteThr) {  
                 {   // detect AO passthru changes and re-setup the AO task if ao passthru spec changed
@@ -750,9 +808,9 @@ namespace DAQ
                 }
                 const int dsize = data.size();
                 aoData.reserve(aoData.size()+dsize);
-                for (int i = 0; i < dsize; i += NCHANS) { // for each scan..
+                for (int i = 0; i < dsize; i += NCHANS1+NCHANS2) { // for each scan..
                     for (QVector<QPair<int,int> >::const_iterator it = aoAITab.begin(); it != aoAITab.end(); ++it) { // take ao channels
-                        const int aiChIdx = p.doPreJuly2011IntanDemux || !muxMode ? (*it).second : mapNewChanIdToPreJuly2011ChanId((*it).second, p.mode);
+                        const int aiChIdx = p.doPreJuly2011IntanDemux || !muxMode ? (*it).second : mapNewChanIdToPreJuly2011ChanId((*it).second, p.mode, p.dualDevMode);
 						const int dix = i+aiChIdx;
 						if (dix < dsize)
 							aoData.push_back(data[dix]);
@@ -774,11 +832,12 @@ namespace DAQ
             enqueueBuffer(data, sampCount);
 
             // fast settle...
-            if (muxMode && fast_settle && !leftOver.size()) {
+            if (muxMode && fast_settle && !leftOver.size() && !leftOver2.size()) {
                 double t0 = getTime();
                 /// now possibly do a 'fast settle' request by stopping the task, setting the DO line low, then restarting the task after fast_settle ms have elapsed, and setting the line high
                 Debug() << "Fast settle of " << fast_settle << " ms begin";
                 DAQmxErrChk(DAQmxStopTask(taskHandle));
+				if (p.dualDevMode) DAQmxErrChk(DAQmxStopTask(taskHandle2));
                 if (aoTaskHandle) {
                     delete aoWriteThr, aoWriteThr = 0; 
                     DAQmxErrChk(DAQmxStopTask(aoTaskHandle));
@@ -787,6 +846,7 @@ namespace DAQ
                 msleep(fast_settle);
                 fast_settle = 0;
                 DAQmxErrChk(DAQmxStartTask(taskHandle));                
+                if (p.dualDevMode) DAQmxErrChk(DAQmxStartTask(taskHandle2));    
                 aoWriteThr = new AOWriteThread(0, aoTaskHandle, aoBufferSize, p);
                 Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
                 aoWriteThr->start();
@@ -806,6 +866,10 @@ namespace DAQ
             DAQmxStopTask (taskHandle);
             DAQmxClearTask (taskHandle);
         }
+        if ( taskHandle2 != 0) {
+            DAQmxStopTask (taskHandle2);
+            DAQmxClearTask (taskHandle2);
+        }
         if (aoWriteThr != 0) {
             delete aoWriteThr, aoWriteThr = 0;
         }
@@ -823,6 +887,27 @@ namespace DAQ
         }
         
     }
+	
+	/*static*/
+	void Task::mergeDualDevData(std::vector<int16> & out,
+								const std::vector<int16> & data, const std::vector<int16> & data2, 
+								int NCHANS1, int NCHANS2, 
+								int nExtraChans1, int nExtraChans2)
+	{
+		const int nMx = NCHANS1-nExtraChans1, nMx2 = NCHANS2-nExtraChans2, s1 = data.size(), s2 = data2.size();
+		out.clear();
+		out.reserve(s1+s2);
+		int i,j;
+		for (i = 0, j = 0; i < s1 && j < s2; i+=NCHANS1, j+=NCHANS2) {
+			out.insert(out.end(), data.begin()+i, data.begin()+i+nMx);
+			out.insert(out.end(), data2.begin()+j, data2.begin()+j+nMx2);
+			out.insert(out.end(), data.begin()+i+nMx, data.begin()+i+NCHANS1);
+			out.insert(out.end(), data2.begin()+j+nMx2, data2.begin()+j+NCHANS2);
+		}
+		if (i < s1 || j < s2) 
+			Error() << "INTERNAL ERROR IN FUNCTION `mergeDualDevData()'!  The two device buffers data and data2 have differing numbers of scans! FIXME!  Aieeeee!!\n";
+	}
+
 
     void Task::setDO(bool onoff)
     {

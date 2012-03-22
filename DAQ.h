@@ -77,8 +77,9 @@ namespace DAQ
         QVector<unsigned> aiChannels, aiChannels2;
         QString subsetString; ///< subset of demuxed AI chans to actually save/graph.
         QBitArray demuxedBitMap; ///< bitmap of the demuxed AI chans to actually save/graph.  Derived from subsetString above.
-        unsigned nVAIChans; ///< number of virtual (demuxed) AI chans
-        unsigned nExtraChans; ///< the number of extra channels (PD, etc) that aren't part of the demux.. if not in MUX mode, this is always 0
+        unsigned nVAIChans, ///< number of virtual (demuxed) AI chans
+		         nVAIChans1, nVAIChans2;  ///< same, but per dev
+        unsigned nExtraChans1, nExtraChans2; ///< the number of extra channels (PD, etc) that aren't part of the demux.. if not in MUX mode, this is always 0
         bool aoPassthru;
         QString aoDev;
         Range aoRange;
@@ -222,6 +223,8 @@ namespace DAQ
                                      const Params & p);
 
         static int computeTaskReadFreq(double srate);
+		
+		static void mergeDualDevData(std::vector<int16> & output, const std::vector<int16> & data, const std::vector<int16> & data2, int NCHANS1, int NCHANS2, int nExtraChans, int nExtraChans2);
         
     };
 

@@ -199,6 +199,10 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     if (!nWritesAvgMax) nWritesAvgMax = 1;
     params["outputFile"] = outputFile;
     params["dev"] = dp.dev;
+	if (dp.dualDevMode) {
+		params["dev2"] = dp.dev2;
+		params["dualDevMode"] = true;
+	}
     params["devProductName"] = DAQ::GetProductName(dp.dev);
     params["nChans"] = nChans;
     params["sRateHz"] = sRate;
@@ -436,7 +440,16 @@ ChanMap DataFile::chanMap() const
 		// saved file lacks a chan map -- sneakily pull it from the "current" chan map settings
 		ChanMappingController ctl;
 		ctl.loadSettings();
-		chanMap = ctl.mappingForMode(daqMode());
+		chanMap = ctl.mappingForMode(daqMode(), isDualDevMode());
+		if (nChans * 2 < chanMap.size()) // guess we were in dual dev mode?
+			chanMap = ctl.mappingForMode(daqMode(), true);
 	}
 	return chanMap;
+}
+
+bool DataFile::isDualDevMode() const 
+{
+	if (params.contains("dualDevMode")) 
+		return params["dualDevMode"].toBool();
+	return false;
 }

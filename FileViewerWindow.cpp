@@ -851,7 +851,7 @@ QString FileViewerWindow::generateGraphNameString(unsigned num, bool verbose) co
         chStr.sprintf("AI%d", chanId);
     } else { // MUX mode
 		const int m = dataFile.daqMode();
-		const int first_non_mux_id = (DAQ::ModeNumIntans[m] * DAQ::ModeNumChansPerIntan[m]);
+		const int first_non_mux_id = dataFile.isDualDevMode() ? (DAQ::ModeNumIntans[m]*2 * DAQ::ModeNumChansPerIntan[m]) : (DAQ::ModeNumIntans[m] * DAQ::ModeNumChansPerIntan[m]);
 		if (num < unsigned(chanMap.size()) && chanId < first_non_mux_id) {
 			const ChanMapDesc & desc = chanMap[num];
 			if (verbose) 

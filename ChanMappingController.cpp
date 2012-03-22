@@ -7,7 +7,8 @@
 static bool setupDefaults = false;
 
 /* static */
-ChanMap ChanMappingController::defaultMapping[DAQ::N_Modes];
+ChanMap ChanMappingController::defaultMapping[DAQ::N_Modes],
+        ChanMappingController::defaultMapping2[DAQ::N_Modes];
 
 ChanMappingController::ChanMappingController(QObject *parent)
 :  QObject(parent), currentMode(DAQ::AI60Demux)
@@ -23,6 +24,12 @@ ChanMappingController::ChanMappingController(QObject *parent)
 			for (int j = 0; j < (int)numIntans; ++j)
 				for (int k = 0; k < (int)numChansPerIntan; ++k)
 					cm.push_back(defaultMappingForIntan(j, k, numChansPerIntan));
+			ChanMap & cm2 (defaultMapping2[i]);
+			const unsigned numIntans2 = DAQ::ModeNumIntans[i]*2;
+			cm2.reserve(numIntans2*numChansPerIntan);
+			for (int j = 0; j < (int)numIntans2; ++j)
+				for (int k = 0; k < (int)numChansPerIntan; ++k)
+					cm2.push_back(defaultMappingForIntan(j, k, numChansPerIntan));
 		}
 	}
 	
@@ -137,6 +144,11 @@ void ChanMappingController::loadSettings()
 			mapping[i] = defaultMapping[i];	
 		} else
 			mapping[i] = ChanMap::fromTerseString(ts);
+		ts = settings.value(QString("terseString2_%1").arg(i), QString("")).toString();
+		if (!ts.length()) {
+			mapping2[i] = defaultMapping2[i];	
+		} else
+			mapping2[i] = ChanMap::fromTerseString(ts);
 	}						
 }
 
@@ -148,6 +160,7 @@ void ChanMappingController::saveSettings()
 	
 	for (int i = 0; i < (int)DAQ::N_Modes; ++i) {
 		settings.setValue(QString("terseString_%1").arg(i), mapping[i].toTerseString(QBitArray(mapping[i].size(),true)));
+		settings.setValue(QString("terseString2_%1").arg(i), mapping2[i].toTerseString(QBitArray(mapping2[i].size(),true)));
 	}
 }
 
