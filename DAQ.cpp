@@ -889,7 +889,7 @@ namespace DAQ
     }
 	
 	/*static*/
-	void Task::mergeDualDevData(std::vector<int16> & out,
+	inline void Task::mergeDualDevData(std::vector<int16> & out,
 								const std::vector<int16> & data, const std::vector<int16> & data2, 
 								int NCHANS1, int NCHANS2, 
 								int nExtraChans1, int nExtraChans2)

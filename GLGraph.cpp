@@ -97,6 +97,7 @@ void GLGraph::resizeGL(int w, int h)
 
 void GLGraph::paintGL()
 {
+	if (!isVisible()) return;
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 

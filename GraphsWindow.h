@@ -20,6 +20,7 @@ class QCheckBox;
 class HPFilter;
 class QLed;
 class QPushButton;
+class QTabWidget;
 
 class GraphsWindow : public QMainWindow
 {
@@ -82,10 +83,11 @@ private:
     bool isAuxChan(unsigned num) const;    
     void sharedCtor(DAQ::Params & p, bool isSaving);
 
-	void retileGraphsAccordingToSorting(const QVector<int> & sorting);
+	void retileGraphsAccordingToSorting(const QVector<int> & sorting, const QVector<int> & naming);
 
     DAQ::Params & params;
-    QWidget *graphsWidget;
+	QTabWidget *tabWidget;
+    QVector<QWidget *> graphTabs;
     QToolBar *graphCtls;
     QPushButton *chanBut;
 	QLabel *chanLbl;

@@ -26,5 +26,5 @@
 #define DEFAULT_PD_SILENCE .010 /* 10 ms silence default */
 #define SETTINGS_DOMAIN "janelia.hhmi.org"
 #define SETTINGS_APP APPNAME
-
+#define NUM_GRAPHS_PER_GRAPH_TAB 36
 #endif
