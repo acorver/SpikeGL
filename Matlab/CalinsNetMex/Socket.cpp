@@ -144,7 +144,7 @@ bool Socket::connect(const std::string & host, unsigned short port)
     resolveHostAddr();
     if ( ::connect(m_sock, reinterpret_cast<struct sockaddr *>(m_addr), sizeof(*m_addr)) ) {
       m_error = LASTERROR_STR();
-      ::close(m_sock);
+      CLOSE(m_sock);
       m_sock = -1;
       return false;
     }
