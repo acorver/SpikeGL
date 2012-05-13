@@ -14,6 +14,11 @@ typedef std::map<int, NetClient *> NetClientMap;
 #define strcmpi strcasecmp
 #endif
 
+
+static void AttachToFilenameShm();
+static void DetachFromFilenameShm();
+static std::string GetFilenameFromShm();
+
 static NetClientMap clientMap;
 static int handleId = 0; // keeps getting incremented..
 
@@ -269,6 +274,16 @@ void destroyClient(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
   RETURN(1);
 }
 
+void getSpikeGLFileNameFromShm(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
+{
+	if(nlhs < 1) mexErrMsgTxt("One output argument required.");
+	
+	AttachToFilenameShm();
+	
+	std::string theString ( GetFilenameFromShm() );
+	plhs[0] = mxCreateString(theString.c_str());
+}
+
 struct CommandFunction
 {
 	const char *name;
@@ -287,6 +302,7 @@ static struct CommandFunction functions[] =
     { "readLines",  readLines},
     { "readLine",  readLine},
     { "readMatrix", readMatrix },
+	{ "getSpikeGLFileNameFromShm", getSpikeGLFileNameFromShm },
 };
 
 static const int n_functions = sizeof(functions)/sizeof(struct CommandFunction);
@@ -333,3 +349,61 @@ void mexFunction( int nlhs, mxArray *plhs[],
       mexErrMsgTxt(errString.c_str());
   }
 }
+
+#ifdef WIN32
+#include <windows.h>
+namespace FNShm {
+	HANDLE hMapFile = NULL;
+	LPVOID pBuf = NULL;
+	const char szName[1024] = "Global\\SpikeGLFileNameShm";
+	const unsigned BUF_SIZE = 1024;
+}
+
+void AttachToFilenameShm()
+{
+	if (FNShm::hMapFile) return; // already attached!
+	FNShm::hMapFile = OpenFileMappingA(
+							   FILE_MAP_ALL_ACCESS,   // read/write access
+							   FALSE,                 // do not inherit the name
+							   FNShm::szName);               // name of mapping object
+	if (!FNShm::hMapFile) {
+		mexWarnMsgTxt("Could not attach to SpikeGLFileNameShm -- OpenFileMappingA() call failed!");
+		return;
+	}
+	FNShm::pBuf = (LPVOID) MapViewOfFile(FNShm::hMapFile, // handle to map object
+								  FILE_MAP_ALL_ACCESS,  // read/write permission
+								  0,
+								  0,
+								  FNShm::BUF_SIZE);
+	
+	if (!FNShm::pBuf)
+	{
+		CloseHandle(FNShm::hMapFile);
+		FNShm::hMapFile = NULL;
+		mexWarnMsgTxt("Could not attach to SpikeGLFileNameShm -- MapViewOfFile() call failed!");
+		return;		
+	}
+}
+void DetachFromFilenameShm() 
+{
+	if (!FNShm::hMapFile) return;
+	UnmapViewOfFile(FNShm::pBuf); FNShm::pBuf = NULL;	
+	CloseHandle(FNShm::hMapFile); FNShm::hMapFile = NULL;	
+}
+
+std::string GetFilenameFromShm() 
+{ 
+	if (FNShm::hMapFile && FNShm::pBuf) {
+		char buf[FNShm::BUF_SIZE+1];
+		strncpy(buf, (const char *)FNShm::pBuf, FNShm::BUF_SIZE);
+		buf[FNShm::BUF_SIZE] = 0;
+		return buf;
+	}
+	return "NOT ATTACHED TO SHM!"; 
+}
+#else
+void AttachToFilenameShm() {}
+void DetachFromFilenameShm() {}
+std::string GetFilenameFromShm() { return "NOT SUPPORTED ON THIS PLATFORM"; }
+#endif
+

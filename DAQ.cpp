@@ -600,7 +600,7 @@ namespace DAQ
         if (p.dualDevMode) {
             DAQmxErrChk (DAQmxCreateTask((QString("task2_")+QString::number(qrand())).toUtf8(),&taskHandle2)); 
 			DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle2,chan2.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
-			const char * clockSource2 = /*clockSource;//*/"PFI2";
+			const char * clockSource2 = clockSource;//*/"PFI2";
 //#ifdef DEBUG
 //			clockSource2 = clockSource;
 //#endif

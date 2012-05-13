@@ -46,6 +46,29 @@ class PostJuly2011Remuxer;
 #include "StimGL_SpikeGL_Integration.h"
 #include "CommandServer.h"
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+
+class DataFile_Fn_Shm : public DataFile
+{
+public:
+	DataFile_Fn_Shm();
+	~DataFile_Fn_Shm();
+	/// overrides parent, adds stuff to write to shm for fast access to filename
+    bool openForWrite(const DAQ::Params & params, const QString & filename_override = "");
+	/// overrides parent, adds stuff to write to shm for fast access to filename
+    bool closeAndFinalize();
+
+private:
+	HANDLE hMapFile;
+	void *pBuf;
+	static const unsigned BUF_SIZE;
+	static const char szName[1024];
+};
+#else
+#  define DataFile_Fn_Shm DataFile
+#endif
+
 /**
    \brief The central class to the program that more-or-less encapsulates most objects and data in the program.
 
@@ -89,8 +112,10 @@ public:
 
     /// Set the save file
     void setOutputFile(const QString &);
-    /// Query the save file
+    /// Query the save file -- note this is the save file as set in the config control params -- not necessarily an indicator that a save is happening.  for that, see getCurrentSaveFile()
     QString outputFile() const;
+	/// Query the absolute path of the current save file.  Returns QString::null if not saving.  This is the actual file we are currently saving to. Note this is reentrant and threadsafe, unlike the above functions
+	QString getCurrentSaveFile() const;
     
     /// Returns the directory under which all plugin data files are to be saved.
     QString outputDirectory() const { QMutexLocker l(&mut); return outDir; }
@@ -300,7 +325,7 @@ private:
     bool taskWaitingForTrigger, taskWaitingForStop, 
         taskShouldStop; ///< used for StimGL trigger to stop the task when the queue empties
     i64 scan0Fudge, scanCt, startScanCt, stopScanCt, lastScanSz, stopRecordAtSamp;
-    DataFile dataFile; ///< the OUTPUT save file (this member var never used for input)
+    DataFile_Fn_Shm dataFile; ///< the OUTPUT save file (this member var never used for input)
     std::vector<int16> lastNPDSamples;
     QTimer *taskReadTimer;
     GraphsWindow *graphsWindow;

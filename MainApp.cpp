@@ -98,7 +98,7 @@ private:
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(128), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0)
+	: QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(128), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -643,6 +643,8 @@ void MainApp::initActions()
 
 bool MainApp::startAcq(QString & errTitle, QString & errMsg) 
 {
+	QMutexLocker ml (&mut);
+	
     // NOTE: acq cannot be running here!
     if (isAcquiring()) {
         errTitle = "Already running!";
@@ -803,6 +805,8 @@ void MainApp::maybeQuit()
 
 void MainApp::stopTask()
 {
+	QMutexLocker ml (&mut);
+	
     if (!task) return;
 	if (addtlDemuxTask) delete addtlDemuxTask, addtlDemuxTask = 0;
     delete task, task = 0;	
@@ -1567,6 +1571,7 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
     bool ignored = true;
     DAQ::Params & p (configCtl->acceptedParams);
     if (task && p.stimGlTrigResave) {
+		QMutexLocker ml (&mut);
         if (dataFile.isOpen()) {
 			if (stopRecordAtSamp > -1) {
 				Error() << "Got 'plugin started' message from StimGL, but we were in the post-untrigger window state!  Make sure that the time between loops of StimGL is >= " << p.pdStopTime+p.silenceBeforePD << "s! Forcibly closing the datafile...";
@@ -1692,6 +1697,7 @@ void MainApp::gotFirstScan()
 }
 
 bool MainApp::isSaving() const {
+	QMutexLocker ml (&mut);
     return dataFile.isOpen();
 }
 
@@ -1725,6 +1731,15 @@ void MainApp::setOutputFile(const QString & fn) {
     configCtl->acceptedParams.outputFile = fn;
     configCtl->saveSettings();
     if (graphsWindow) graphsWindow->setToggleSaveLE(fn);
+}
+
+QString MainApp::getCurrentSaveFile() const 
+{
+	QMutexLocker ml(&mut);
+	if (!isSaving()) return QString::null;
+	QString ret = dataFile.fileName();
+	if (!ret.length()) return QString::null;
+	return ret;
 }
 
 void MainApp::respecAOPassthru()
@@ -2021,3 +2036,73 @@ void MainApp::optionsSortGraphsByElectrode()
 	}
 	saveSettings();
 }
+
+#ifdef Q_OS_WIN
+/*static*/ const unsigned DataFile_Fn_Shm::BUF_SIZE = 1024;
+/*static*/ const char DataFile_Fn_Shm::szName[1024] = "Global\\SpikeGLFileNameShm";
+
+DataFile_Fn_Shm::DataFile_Fn_Shm() 
+: DataFile(), hMapFile(NULL), pBuf(0)
+{
+	
+	hMapFile = CreateFileMappingA(
+								 INVALID_HANDLE_VALUE,    // use paging file
+								 NULL,                    // default security
+								 PAGE_READWRITE,          // read/write access
+								 0,                       // maximum object size (high-order DWORD)
+								 BUF_SIZE,                // maximum object size (low-order DWORD)
+								 szName);                 // name of mapping object
+	
+	if (hMapFile == NULL)
+	{
+		Error() << "Could not create file mapping object (" << GetLastError() << ").";
+		return;
+	}
+	pBuf = (void *) MapViewOfFile(hMapFile,   // handle to map object
+								  FILE_MAP_ALL_ACCESS, // read/write permission
+								  0,
+								  0,
+								  BUF_SIZE);
+	
+	if (pBuf == NULL)
+	{
+		Error() << "Could not map view of file (" << GetLastError() << ").";
+		CloseHandle(hMapFile);		
+		return;
+	}
+	/// now clear the shm...
+	{
+		char dummybuf[BUF_SIZE];
+		memset(dummybuf, 0, BUF_SIZE); // clear the memory!
+		CopyMemory((PVOID)pBuf, (PVOID)dummybuf, BUF_SIZE); // post cleared memory..
+	}
+}
+
+DataFile_Fn_Shm::~DataFile_Fn_Shm() 
+{
+	UnmapViewOfFile(pBuf); pBuf = NULL;
+	CloseHandle(hMapFile); hMapFile = NULL;
+}
+
+bool DataFile_Fn_Shm::openForWrite(const DAQ::Params & params, const QString & filename_override)
+{
+	bool ret = DataFile::openForWrite(params, filename_override);
+	if (hMapFile && pBuf) {
+		QString fn = fileName();
+		QByteArray bytes = fn.toUtf8();
+		CopyMemory((PVOID)pBuf, (PVOID)(bytes.constData()), bytes.length()+1);
+	}
+	return ret;
+}
+
+
+bool DataFile_Fn_Shm::closeAndFinalize()
+{
+	bool ret = DataFile::closeAndFinalize();
+	if (hMapFile && pBuf) {
+		CopyMemory((PVOID)pBuf, (PVOID)"", 1); // null string..
+	}
+	return ret;
+}
+
+#endif

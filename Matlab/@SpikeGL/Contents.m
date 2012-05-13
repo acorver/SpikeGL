@@ -101,7 +101,15 @@
 %    filename = GetSaveFile(myobj)
 %
 %                Retrieve the save file name for the next time a save file is
-%                opened.
+%                opened.  Don't use this function.  Instead, use the
+%                GetCurrentSaveFile.m function which is much faster
+%                (<10ms response time)!
+%
+%    filename = GetCurrentSaveFile(myobj)
+%
+%                Retrieve the save file name for the currently running
+%                acquisiton.  Returns an empty string if there is no
+%                acquisition running.
 %
 %    time = GetTime(myobj)
 %

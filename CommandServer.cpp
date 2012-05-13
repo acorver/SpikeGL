@@ -363,7 +363,11 @@ bool CommandConnection::processLine(const QString & line)
     } else if (cmd == "SETSAVEFILE") {
         CustomEvt *e = new CustomEvt(E_SetSaveFile,this);
         e->param = toks.join(" ").trimmed();
-        postEventToAppAndWaitForReply(e); 
+        postEventToAppAndWaitForReply(e);
+	} else if (cmd == "GETCURRENTSAVEFILE") {
+		resp = mainApp()->getCurrentSaveFile();
+		if (resp.isNull()) resp = "";
+		resp = resp + "\n";
     } else if (cmd == "FASTSETTLE") {
         CustomEvt *e = new CustomEvt(E_FastSettle,this);
         postEventToAppAndWaitForReply(e);
