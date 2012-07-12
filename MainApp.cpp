@@ -705,6 +705,11 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
             szSamps += params.nVAIChans - szSamps%params.nVAIChans;
         preBuf.reserve(szSamps*sizeof(int16));
         preBuf2.reserve(szSamps*sizeof(int16));
+		char *mem = new char[preBuf.capacity()];
+		memset(mem, 0, preBuf.capacity());
+		preBuf.putData(mem, preBuf.capacity());
+		preBuf2.putData(mem, preBuf2.capacity());
+		delete [] mem;
     }
     
     graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen());
@@ -858,26 +863,29 @@ void MainApp::gotDaqError(const QString & e)
 }
 
 /* static */
-void MainApp::xferWBToScans(WrapBuffer & preBuf, std::vector<int16> & scans,
-                            u64 & firstSamp, i64 & scan0Fudge)
+void MainApp::xferWBToScans(WrapBuffer & preBuf, std::vector<int16> & scans, int & num, int skip)
 {
     void *ptr=0;
-    unsigned lenBytes=0;
+    unsigned lenBytes=0, lenElems = 0;
     preBuf.dataPtr2(ptr, lenBytes);
-    int added = 0,num;
-    if (ptr) {
-        scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr), reinterpret_cast<int16 *>(ptr)+(num=lenBytes/sizeof(int16)));
-        added += num;
+	lenElems = lenBytes / sizeof(int16);
+	num = 0;
+    if (ptr && skip < (int)lenElems) {
+        scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr) + skip, reinterpret_cast<int16 *>(ptr)+skip+(lenElems-skip));
+		num += lenElems - skip;
     }
+	skip -= lenElems;
+	if (skip < 0) skip = 0;
     preBuf.dataPtr1(ptr, lenBytes);
-    if (ptr) {
-        scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr), reinterpret_cast<int16 *>(ptr)+(num=lenBytes/sizeof(int16)));
-        added += num;
+	lenElems = lenBytes / sizeof(int16);
+    if (ptr && skip < (int)lenElems) {
+        scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr) + skip, reinterpret_cast<int16 *>(ptr)+skip+(lenElems-skip));
+		num += lenElems - skip;
     }
-    firstSamp -= u64(added);
-    scan0Fudge -= added;
-    preBuf.clear();    
+	skip -= lenElems;
+    preBuf.clear();  
 }
+
 
 inline void ApplyNewIntanDemuxToScan(int16 *begin, const unsigned nchans_per_intan, const unsigned num_intans) {
 	int narr = nchans_per_intan*num_intans;
@@ -959,10 +967,10 @@ void MainApp::taskReadFunc()
         tNow = getTime();
         lastScanSz = scans.size();
         scanCt = firstSamp/p.nVAIChans;
-		
+		i32 triggerOffset = 0;
 		
         if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
-            if (!detectTriggerEvent(scans, firstSamp))
+            if (!detectTriggerEvent(scans, firstSamp, triggerOffset))
                 preBuf.putData(&scans[0], scans.size()*sizeof(scans[0])); // save data to pre-buffer ringbuffer if not triggered yet
             if (tNow-lastSBUpd > 0.25) { // every 1/4th of a second
                 if (p.acqStartEndMode == DAQ::Timed) {
@@ -983,12 +991,13 @@ void MainApp::taskReadFunc()
         // normally always pre-buffer the scans in case we get a re-trigger event
         preBuf2.putData(&scans[0], scans.size()*sizeof(scans[0]));
 
-		// not an 'else' because both 'if' clauses are true on first trigger
-        
+		// not an 'else' because both 'if' clauses are true on first trigger		
         if (!taskWaitingForTrigger) { // task not waiting from trigger, normal acq..
-            if (preBuf.size()) {
-                xferWBToScans(preBuf, scans, firstSamp, scan0Fudge);
-            } 
+            //if (preBuf.size()) {
+				//int added;
+                //xferWBToScans(preBuf, scans, firstSamp, scan0Fudge, added);
+				//prebufScansAdded = 0; // HACK TODO FIXME XXX
+            //} 
  
             const u64 fudgedFirstSamp = firstSamp - scan0Fudge;            
             const u64 scanSz = scans.size();
@@ -1011,27 +1020,38 @@ void MainApp::taskReadFunc()
 			
             if (dataFile.isOpen()) {
                 if (!warnedDropped && fudgedFirstSamp != dataFile.scanCount()*u64(p.nVAIChans)) {
-                    QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree!").arg(dataFile.sampleCount()).arg(firstSamp);
-                    Warning() << e;
+                    QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree! (fudge=%3) (%4)").arg(dataFile.sampleCount()).arg(firstSamp).arg(scan0Fudge).arg(dataFile.fileName());
+                    Debug() << e;
                     warnedDropped = true;
                     //stopTask();
                     //QMessageBox::critical(0, "DAQ Error", e);
                     //return;
                 }
-				std::vector<int16> scans_full;
+				std::vector<int16> scans_orig;
 				bool doStopRecord = false;
+				i64 n = scanSz;
 				if (stopRecordAtSamp > -1 && (doStopRecord = (i64(firstSamp + scanSz) >= stopRecordAtSamp))) {
 					// ok, scheduled a stop, make scans be the subset of scans we want to keep for the datafile, and save the full scan to scans_full
-					scans_full.swap(scans);
-					i64 n = stopRecordAtSamp - firstSamp;
+					scans_orig.swap(scans);
+					n = stopRecordAtSamp - firstSamp;
 					if (n < 0) n = 0;
 					else if (n > i64(scanSz)) n = scanSz;
-					scans.insert(scans.begin(), scans_full.begin(), scans_full.begin() + n);
+				}
+				if (triggerOffset > 0 && !scans_orig.size()) {
+					scans_orig.swap(scans);
+				}
+				if (triggerOffset && preBuf.size()) {
+					int num;
+					xferWBToScans(preBuf, scans, num, triggerOffset);
+				}
+				if (scans_orig.size()) {
+					scans.reserve(scanSz);
+					scans.insert(scans.end(), scans_orig.begin(), scans_orig.begin() + n);
 				}
 				if (dataFile.numChans() != p.nVAIChans) {
 					const double ratio = dataFile.numChans() / double(p.nVAIChans ? p.nVAIChans : 1.);
 					scans_subsetted.resize(0);
-					scans_subsetted.reserve(scans.size() * ratio + 32);
+					scans_subsetted.reserve(scans.size() * ratio + 256);
 					const int n = scans.size();
 					for (int i = 0; i < n; ++i) {
 						const int rel = i % p.nVAIChans;
@@ -1043,7 +1063,7 @@ void MainApp::taskReadFunc()
 				} else
 					dataFile.writeScans(scans);
 				// and.. swap back if we have anything in scans_full
-				if (scans_full.size()) scans.swap(scans_full);
+				if (scans_orig.size()) scans.swap(scans_orig);
 				if (doStopRecord) {
 					if (!p.stimGlTrigResave && p.acqStartEndMode != DAQ::AITriggered) needToStop = true;
                     Debug() << "Post-untrigger window detection: Closing datafile because passed samp# stopRecordAtSamp=" << stopRecordAtSamp;
@@ -1097,8 +1117,9 @@ void MainApp::taskReadFunc()
 }
 		   
 
-bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp)
+bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp, i32 & triggerOffset)
 {
+	triggerOffset = 0;
     bool triggered = false;
     DAQ::Params & p (configCtl->acceptedParams);
     switch (p.acqStartEndMode) {
@@ -1124,14 +1145,8 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp)
                     triggered = true, lastNPDSamples.clear();
                     pdOffTimeSamps = p.srate * p.pdStopTime * p.nVAIChans;
                     lastSeenPD = firstSamp + u64(i);
-                    // we triggered, so save samples up to this one
-                    int len = i-int(p.idxOfPdChan);
-                    if (len > 0) {
-                        preBuf.putData(&scans[0], len*sizeof(scans[0]));
-                        scans.erase(scans.begin(), scans.begin()+len);
-                        firstSamp += len;
-                        scanCt = firstSamp/p.nVAIChans;
-                    }
+                    // we triggered, so save offset of where we triggered
+                    triggerOffset = static_cast<i32>(i-int(p.idxOfPdChan));
                     i = sz; // break out of loop
                 } else 
                     lastNPDSamples.push_back(samp);

@@ -74,7 +74,8 @@ bool DataFile::writeScans(const std::vector<int16> & scans)
     double tWrite = getTime();
 
     if (!isOpen()) return false;
-    if (!scans.size() || (scans.size() % nChans)) {
+    if (!scans.size()) return true; // for now, we allow empty writes!
+    if (scans.size() % nChans) {
         Error() << "writeScan: Scan needs to be of size a multiple of " << nChans << " chans long (dataFile: " << QFileInfo(dataFile.fileName()).baseName() << ")";
         return false;
     }

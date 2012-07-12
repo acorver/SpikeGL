@@ -368,8 +368,8 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
         const int16 * const DPTR = &data[0];
         const bool * const pgraphs = &pausedGraphs[0];
         Vec2WrapBuffer * const pts = &points[0];
-        int startpt = int(DSIZE) - int(nPtsAllGs*DOWNSAMPLE_RATIO);
-        i64 sidx = i64(firstSamp + u64(DSIZE)) - nPtsAllGs*i64(DOWNSAMPLE_RATIO);
+        int startpt = (int(DSIZE) - int(nPtsAllGs*DOWNSAMPLE_RATIO));
+        i64 sidx = i64((firstSamp) + u64(DSIZE)) - nPtsAllGs*i64(DOWNSAMPLE_RATIO);
         if (startpt < 0) {
             //qDebug("Startpt < 0 = %d", startpt);
             sidx += -startpt;
