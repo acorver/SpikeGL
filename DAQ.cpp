@@ -592,13 +592,13 @@ namespace DAQ
 		Range saved_aoRange = p.aoRange;
 
 
-        DAQmxErrChk (DAQmxCreateTask((QString("task1_")+QString::number(qrand())).toUtf8(),&taskHandle)); 
+        DAQmxErrChk (DAQmxCreateTask("",&taskHandle)); 
         DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
         DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)); 
         //DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize));  //use a 1,000,000 sample DMA buffer per channel
         //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this)); 
         if (p.dualDevMode) {
-            DAQmxErrChk (DAQmxCreateTask((QString("task2_")+QString::number(qrand())).toUtf8(),&taskHandle2)); 
+            DAQmxErrChk (DAQmxCreateTask((QString("")+QString::number(qrand())).toUtf8(),&taskHandle2)); 
 			DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle2,chan2.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
 			const char * clockSource2 = clockSource;//*/"PFI2";
 //#ifdef DEBUG
@@ -613,7 +613,7 @@ namespace DAQ
         if (p.aoPassthru && aoAITab.size()) {
             const float64     aoMin = p.aoRange.min;
             const float64     aoMax = p.aoRange.max;
-            const int32 aoSamplesPerChan = aoSampleRate * (double(p.aiBufferSizeCS) / 100.0);//(aoSampleRate/task_write_freq_hz > 0) ? int(aoSampleRate/task_write_freq_hz) : 1;
+            const int32 aoSamplesPerChan = /*aoSampleRate * (double(p.aiBufferSizeCS) / 100.0);//*/(aoSampleRate/task_write_freq_hz > 0) ? int(aoSampleRate/TASK_WRITE_FREQ_HZ) : 1;
             aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size() * sizeof(int16);
             DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
             DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));

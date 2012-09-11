@@ -175,7 +175,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     Connect(graphSecs, SIGNAL(valueChanged(double)), this, SLOT(graphSecsChanged(double)));
     Connect(graphYScale, SIGNAL(valueChanged(double)), this, SLOT(graphYScaleChanged(double)));
 	
-	for (int i = 0; i < nGraphTabs; ++i) {
+	int num = 0;
+	for (int i = 0; i < nGraphTabs && num < (int)graphs.size(); ++i) {
 		QWidget *graphsWidget = new QWidget(0);
 		graphTabs[i] = graphsWidget;
 		QGridLayout *l = new QGridLayout(graphsWidget);
@@ -191,8 +192,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 		};
 		int first_graph_num = -1, last_graph_num = -1;
 		for (int r = 0; r < nrows; ++r) {
-			for (int c = 0; c < ncols; ++c) {
-				const int num = (i*NUM_GRAPHS_PER_GRAPH_TAB) + r*ncols+c;
+			for (int c = 0; c < ncols; ++c, ++num) {
+				//const int num = (i*NUM_GRAPHS_PER_GRAPH_TAB) + r*ncols+c;
 				if (num >= (int)graphs.size() || r*ncols+c >= NUM_GRAPHS_PER_GRAPH_TAB) { r=nrows,c=ncols; break; } // break out of loop
 				QFrame * & f = (graphFrames[num] = mainApp()->getGLGraphWithFrame());
 				QList<GLGraph *>  chlds = f->findChildren<GLGraph *>();			
@@ -243,7 +244,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 					// this is the photodiode channel
 					graphs[num]->bgColor() = AuxGraphBGColor;
 				} else {
-					graphs[num]->bgColor() = NormalGraphBGColor;
+				graphs[num]->bgColor() = NormalGraphBGColor;
 				}
 			}
 		}

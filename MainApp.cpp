@@ -1794,7 +1794,7 @@ void MainApp::helpWindowClosed()
 void MainApp::precreateOneGraph()
 {
     const double t0 = getTime();
-    // keep creating GLContexts until the creation count hits 64
+    // keep creating GLContexts until the creation count hits 128
     if (!pregraphDummyParent) pregraphDummyParent = new QWidget(0);
     QFrame *f = new QFrame(pregraphDummyParent);
     QVBoxLayout *bl = new QVBoxLayout(f);
