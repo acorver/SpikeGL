@@ -613,7 +613,7 @@ namespace DAQ
         if (p.aoPassthru && aoAITab.size()) {
             const float64     aoMin = p.aoRange.min;
             const float64     aoMax = p.aoRange.max;
-            const int32 aoSamplesPerChan = /*aoSampleRate * (double(p.aiBufferSizeCS) / 100.0);//*/(aoSampleRate/task_write_freq_hz > 0) ? int(aoSampleRate/TASK_WRITE_FREQ_HZ) : 1;
+            const int32 aoSamplesPerChan = /*aoSampleRate * (double(p.aiBufferSizeCS) / 100.0);//*/(aoSampleRate/TASK_WRITE_FREQ_HZ > 0) ? int(aoSampleRate/TASK_WRITE_FREQ_HZ) : 1;
             aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size() * sizeof(int16);
             DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
             DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
