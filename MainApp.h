@@ -154,7 +154,7 @@ public:
     /** Attempts to pop a QFrame containing a pre-created GLGraph off the 
         internal precreate list.  If the internal list is empty, simply
         creates a new graph with frame and returns it.  */
-    QFrame *getGLGraphWithFrame();
+    QFrame *getGLGraphWithFrame(bool noGLGraph = false);
 
     /** Puts a QFrame with GLGraph * child back into the internal list, 
         returns the current count of QFrames */
@@ -272,7 +272,7 @@ private:
     void triggerTask();
     bool detectStopTask(const std::vector<int16> & scans, u64 firstSamp);
     static void xferWBToScans(WrapBuffer & wb, std::vector<int16> & scans, int & numAdded, int skip);
-    void precreateOneGraph();
+    void precreateOneGraph(bool noGLGraph = false);
     bool startAcq(QString & errTitle, QString & errMsg);
 	void showPrecreateDialog();
 	void precreateDone();

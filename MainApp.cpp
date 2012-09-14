@@ -98,7 +98,7 @@ private:
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-	: QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(/*64*/128), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0)
+	: QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -1791,7 +1791,7 @@ void MainApp::helpWindowClosed()
 	windowMenuRemove(helpWindow);
 }
 
-void MainApp::precreateOneGraph()
+void MainApp::precreateOneGraph(bool nograph)
 {
     const double t0 = getTime();
     // keep creating GLContexts until the creation count hits 128
@@ -1803,9 +1803,9 @@ void MainApp::precreateOneGraph()
 	chk->setToolTip("Enable/disable save of this channel's data to data file.  Note: can only edit this property when not saving.");
 	bl->addWidget(chk);
 
-	GLGraph *g = new GLGraph(f);
+	GLGraph *g = nograph ? 0 : new GLGraph(f);
 	
-	bl->addWidget(g,1);
+	if (g) bl->addWidget(g,1);
     bl->setSpacing(0);
     bl->setContentsMargins(0,0,0,0);
 
@@ -1861,11 +1861,11 @@ void MainApp::startAcqWithPossibleErrDialog()
 	QMessageBox::critical(0, errTitle, errMsg);
 }
 
-QFrame * MainApp::getGLGraphWithFrame()
+QFrame * MainApp::getGLGraphWithFrame(bool nograph)
 {
     QFrame *f = 0;
     if (!pregraphs.count()) 
-        precreateOneGraph(); // creates at least one GLGraph before returning
+        precreateOneGraph(nograph); // creates at least one GLGraph before returning
     f = pregraphs.front();
     pregraphs.pop_front();
     if (!f) Error() << "INTERNAL ERROR: Expected a valid QFrame from pregraphs list! Aiiieee...";
@@ -1876,7 +1876,7 @@ void MainApp::putGLGraphWithFrame(QFrame *f)
 {
 	QList<GLGraph *> cl = f->findChildren<GLGraph *>();
 	if (!cl.size()) {
-        Error() << "INTERNAL ERROR: QFrame passed in to putGLGraphWithFrame does not contain a GLGraph child!";
+        //Error() << "INTERNAL ERROR: QFrame passed in to putGLGraphWithFrame does not contain a GLGraph child!";
         delete f;
         return;
     }

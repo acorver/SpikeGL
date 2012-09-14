@@ -343,3 +343,46 @@ bool GLGraph::isSelectionVisible() const
 {
 	return hasSelection && selectionEnd >= min_x && selectionBegin <= max_x;	
 }
+
+GLGraphState GLGraph::getState() const
+{
+	GLGraphState s;
+	
+	s.ptsMut = ptsMut;
+	s.bg_Color = bg_Color;
+	s.graph_Color = graph_Color;
+	s.grid_Color = grid_Color;
+	s.min_x = min_x;
+	s.max_x = max_x;
+	s.yscale = yscale;
+	s.gridLineStipplePattern = gridLineStipplePattern;
+	s.pointsWB = pointsWB;
+	s.tagData = tagData;
+	s.selectionBegin = selectionBegin;
+	s.selectionEnd = selectionEnd;
+	s.hasSelection = hasSelection;
+	s.objectName = objectName();
+	
+	return s;
+}
+
+void GLGraph::setState(const GLGraphState & s)
+{
+	ptsMut = s.ptsMut;
+	bg_Color = s.bg_Color;
+	graph_Color = s.graph_Color;
+	grid_Color = s.grid_Color;
+	min_x = s.min_x;
+	max_x = s.max_x;
+	yscale = s.yscale;
+	gridLineStipplePattern = s.gridLineStipplePattern;
+	pointsWB = s.pointsWB;
+	tagData = s.tagData;
+	selectionBegin = s.selectionBegin;
+	selectionEnd = s.selectionEnd;
+	hasSelection = s.hasSelection;
+	setObjectName(s.objectName);
+	if (auto_update) updateGL();
+	else need_update = true;
+}
+

@@ -9,6 +9,7 @@
 #include <QVector>
 #include <vector>
 #include "ChanMappingController.h"
+#include <QSet>
 
 class QToolBar;
 class QLabel;
@@ -70,6 +71,8 @@ private slots:
 
 	void saveGraphChecked(bool b);
 
+	void tabChange(int);
+	
 private:
     void setGraphTimeSecs(int graphnum, double t); // note you should call update_nPtsAllGs after this!  (Not auto-called in this function just in case of batch setGraphTimeSecs() in which case 1 call at end to update_nPtsAllGs() suffices.)
     void update_nPtsAllGs();
@@ -83,7 +86,8 @@ private:
     bool isAuxChan(unsigned num) const;    
     void sharedCtor(DAQ::Params & p, bool isSaving);
 
-	void retileGraphsAccordingToSorting(const QVector<int> & sorting, const QVector<int> & naming);
+	void retileGraphsAccordingToSorting();
+	void setupGraph(int num, int firstExtraChan);
 
     DAQ::Params & params;
 	QTabWidget *tabWidget;
@@ -113,6 +117,7 @@ private:
         double stdDev() const;
     };
     QVector<GraphStats> graphStats; ///< mean/stddev stuff
+	QVector<GLGraphState> graphStates; ///< used to maintain internal glgraph state for graph re-use...
     QVector<i64> nptsAll;
     i64 nPtsAllGs; ///< sum of each element of nptsAll array above..
     double downsampleRatio, tNow, tLast, tAvg, tNum;
@@ -125,6 +130,8 @@ private:
     int selectedGraph;
 	QLed *stimTrigLed, *pdTrigLed;
 	bool suppressRecursive;
+	QVector <int> sorting, naming;
+	QSet<GLGraph *> extraGraphs;
 };
 
 

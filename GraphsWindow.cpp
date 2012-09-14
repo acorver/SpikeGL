@@ -67,6 +67,36 @@ GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
     sharedCtor(p, isSaving);
 }
 
+void GraphsWindow::setupGraph(int num, int firstExtraChan) 
+{
+	GLGraph *g = graphs[num];
+	if (g) {
+		graphs[num]->setObjectName(QString("GLGraph %1").arg(num));
+		Connect(graphs[num], SIGNAL(cursorOver(double,double)), this, SLOT(mouseOverGraph(double,double)));
+		Connect(graphs[num], SIGNAL(clicked(double,double)), this, SLOT(mouseClickGraph(double,double)));
+		Connect(graphs[num], SIGNAL(doubleClicked(double,double)), this, SLOT(mouseDoubleClickGraph(double,double)));
+		graphs[num]->setAutoUpdate(false);
+		graphs[num]->setMouseTracking(true);
+		graphs[num]->setCursor(Qt::CrossCursor);
+		graphs[num]->setTag(QVariant(num));
+		if (num >= firstExtraChan) {
+			// this is the photodiode channel
+			graphs[num]->bgColor() = AuxGraphBGColor;
+		} else {
+			graphs[num]->bgColor() = NormalGraphBGColor;
+		}
+		graphStates[num] = g->getState();
+	} else {
+		GLGraphState s (graphs[0]->getState()); // inherit state from first graph..
+		
+		s.objectName = QString("GLGraph %1").arg(num);
+		s.tagData = QVariant(num);
+		s.bg_Color = (num >= firstExtraChan) ? AuxGraphBGColor : NormalGraphBGColor;
+		graphStates[num] = s;
+	}
+}
+
+
 void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 {    
     initIcons();
@@ -76,6 +106,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	setCentralWidget(tabWidget);
     statusBar();
     resize(1024,768);
+	Connect(tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabChange(int)));
     graphCtls = addToolBar("Graph Controls");
     graphCtls->addWidget(chanBut = new QPushButton("Sorting by Channel:", graphCtls));
 	chanBut->setToolTip("Click to toggle between sorting graphs by either electrode id or INTAN channel.");
@@ -169,6 +200,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     nptsAll.resize(graphs.size());
     points.resize(graphs.size());
     graphStats.resize(graphs.size());
+	graphStates.resize(graphs.size());
     
     maximized = 0;
 
@@ -195,12 +227,12 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 			for (int c = 0; c < ncols; ++c, ++num) {
 				//const int num = (i*NUM_GRAPHS_PER_GRAPH_TAB) + r*ncols+c;
 				if (num >= (int)graphs.size() || r*ncols+c >= NUM_GRAPHS_PER_GRAPH_TAB) { r=nrows,c=ncols; break; } // break out of loop
-				QFrame * & f = (graphFrames[num] = mainApp()->getGLGraphWithFrame());
+				QFrame * & f = (graphFrames[num] = mainApp()->getGLGraphWithFrame(num >= NUM_GRAPHS_PER_GRAPH_TAB));
 				QList<GLGraph *>  chlds = f->findChildren<GLGraph *>();			
 				graphs[num] = chlds.size() ? chlds.front() : 0;
 				QList<QCheckBox *> chkchlds = f->findChildren<QCheckBox *>();
 				chks[num] = chkchlds.size() ? chkchlds.front() : 0;
-				if (!graphs[num] || !chks[num]) {
+				if (!chks[num]) {
 					Error() << "INTERNAL ERROR: GLGraph " << num << " is invalid!";
 					QMessageBox::critical(0,"INTERNAL ERROR", QString("GLGraph ") + QString::number(num) + " is invalid!");
 					QApplication::exit(1);
@@ -220,18 +252,12 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 				chks[num]->setHidden(!mainApp()->isSaveCBEnabled() || p.mode == DAQ::AIRegular);
 				f->setParent(graphsWidget);
 				// do this for all the graphs.. disable vsync!
-				graphs[num]->makeCurrent();
+				if (graphs[num]) graphs[num]->makeCurrent();
 				Util::setVSyncMode(false, num == 0);
 				f->setLineWidth(2);
-				f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain); // only enable frame when it's selected!
-				graphs[num]->setObjectName(QString("GLGraph %1").arg(num));
-				Connect(graphs[num], SIGNAL(cursorOver(double,double)), this, SLOT(mouseOverGraph(double,double)));
-				Connect(graphs[num], SIGNAL(clicked(double,double)), this, SLOT(mouseClickGraph(double,double)));
-				Connect(graphs[num], SIGNAL(doubleClicked(double,double)), this, SLOT(mouseDoubleClickGraph(double,double)));
+				f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain); // only enable frame when it's selected!								
+				setupGraph(num, firstExtraChan);
 				Connect(chks[num], SIGNAL(toggled(bool)), this, SLOT(saveGraphChecked(bool)));
-				graphs[num]->setAutoUpdate(false);
-				graphs[num]->setMouseTracking(true);
-				graphs[num]->setCursor(Qt::CrossCursor);
 				l->addWidget(f, r, c);
 				///
 				//QCheckBox *chk = new QCheckBox(graphsWidget);
@@ -239,13 +265,6 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 				//chk->raise();
 				///
 				setGraphTimeSecs(num, DEFAULT_GRAPH_TIME_SECS);
-				graphs[num]->setTag(QVariant(num));
-				if (num >= firstExtraChan) {
-					// this is the photodiode channel
-					graphs[num]->bgColor() = AuxGraphBGColor;
-				} else {
-				graphs[num]->bgColor() = NormalGraphBGColor;
-				}
 			}
 		}
 		tabWidget->addTab(graphsWidget, QString("Elec. %1-%2").arg(first_graph_num).arg(last_graph_num));
@@ -310,6 +329,15 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	downsampleChk(setting_ds);
 	hpfChk(setting_filt);
 	
+	// setup sorting/naming
+	const int gs = graphs.size(), cs = p.chanMap.size();
+	sorting.clear(); sorting.reserve(gs);
+	naming.clear(); naming.reserve(cs);
+	for (int i = 0; i < gs; ++i) sorting.push_back(i);
+	for (int i = 0; i < cs; ++i) naming.push_back(p.chanMap[i].electrodeId);
+
+	tabChange(0); // force correct graphs on screen!
+	
 	if (mainApp()->sortGraphsByElectrodeId) {
 		// re-sort the graphs on-screen by electrode Id to restore previous state..
 		sortGraphsByElectrodeId();
@@ -347,8 +375,14 @@ void GraphsWindow::setGraphTimeSecs(int num, double t)
     int nlines = 1;
     // try to figure out how many lines to draw based on nsecs..
     while (s>0. && !(nlines = int(s))) s*=10.;
-    graphs[num]->setNumVGridLines(nlines);
-    graphs[num]->setPoints(0);
+	if (graphs[num]) {
+		graphs[num]->setNumVGridLines(nlines);
+		graphs[num]->setPoints(0);
+		graphStates[num] = graphs[num]->getState();
+	} else {
+		graphStates[num].nVGridLines = nlines;
+		graphStates[num].pointsWB = 0;
+	}
     graphStats[num].clear();
     // NOTE: someone should call update_nPtsAllGs() after this!
 }
@@ -392,7 +426,7 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
             }
             v.x = t;
             v.y = DPTR[i] / 32768.0; // hardcoded range of data
-            if (!pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx)) {
+            if (graphs[idx] && !pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx)) {
                 Vec2WrapBuffer & pbuf = pts[idx];
                 GraphStats & gs = graphStats[idx];
                 if (!pbuf.unusedCapacity()) {
@@ -415,12 +449,14 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
             }
         }
         for (int i = 0; i < NGRAPHS; ++i) {
-            if (pgraphs[i]) continue;
+            if (pgraphs[i] || !graphs[i]) continue;
             // now, copy in temp data
-            if (pts[i].size() >= 2) {
+            if (graphs[i] && pts[i].size() >= 2) {
                 // now, readjust x axis begin,end
-                graphs[i]->minx() = pts[i].first().x;
-                graphs[i]->maxx() = graphs[i]->minx() + graphTimesSecs[i];
+                graphStates[i].min_x = pts[i].first().x;
+				if (graphs[i]) graphs[i]->minx() = graphStates[i].min_x;
+				graphStates[i].max_x = graphStates[i].min_x + graphTimesSecs[i];
+                if (graphs[i]) graphs[i]->maxx() = graphStates[i].max_x;
                 // uncomment below 2 line if the empty gap at the end of the downsampled graph annoys you, or comment them out to remove this 'feature'
                 //if (!points[i].unusedCapacity())
                 //    graphs[i]->maxx() = points[i].last().x;
@@ -445,7 +481,7 @@ void GraphsWindow::updateGraphs()
 {
     // repaint all graphs..
     for (int i = 0; i < (int)graphs.size(); ++i)
-        if (graphs[i]->needsUpdateGL())
+        if (graphs[i] && graphs[i]->needsUpdateGL())
             graphs[i]->updateGL();
 }
 
@@ -520,9 +556,10 @@ void GraphsWindow::doGraphColorDialog()
     int num = selectedGraph;
     QColorDialog::setCustomColor(0,NormalGraphBGColor.rgb());
     QColorDialog::setCustomColor(1,AuxGraphBGColor.rgb());
-    QColor c = QColorDialog::getColor(graphs[num]->graphColor(), this);
+    QColor c = QColorDialog::getColor(graphs[num] ? graphs[num]->graphColor() : graphStates[num].graph_Color, this);
     if (c.isValid()) {
-        graphs[num]->graphColor() = c;
+        if (graphs[num]) graphs[num]->graphColor() = c;
+		graphStates[num].graph_Color = c;
         updateGraphCtls();
     }
 }
@@ -540,13 +577,13 @@ void GraphsWindow::updateGraphCtls()
         maxAct->setChecked(false);
         maxAct->setIcon(*windowFullScreenIcon);
     }
-    graphYScale->setValue(graphs[num]->yScale());
+    graphYScale->setValue(graphStates[num].yscale);
     graphSecs->setValue(graphTimesSecs[num]);
     { // update color button
         QPixmap pm(22,22);
         QPainter p;
         p.begin(&pm);
-        p.fillRect(0,0,22,22,QBrush(graphs[num]->graphColor()));
+        p.fillRect(0,0,22,22,QBrush(graphStates[num].graph_Color));
         p.end();
         graphColorBut->setIcon(QIcon(pm));
     }
@@ -682,12 +719,14 @@ void GraphsWindow::clearGraph(int which)
         // clear all..
         for (int i = 0; i < (int)points.size(); ++i) {
             points[i].clear();
-            graphs[i]->setPoints(&points[i]);
+            if (graphs[i]) graphs[i]->setPoints(&points[i]);
+			graphStates[i].pointsWB = &points[i];
             graphStats[i].clear();
         }
     } else {
         points[which].clear();
-        graphs[which]->setPoints(&points[which]);
+        if (graphs[which]) graphs[which]->setPoints(&points[which]);
+		graphStates[which].pointsWB = &points[which];		
         graphStats[which].clear();
     }
 }
@@ -702,18 +741,23 @@ void GraphsWindow::graphSecsChanged(double secs)
 void GraphsWindow::graphYScaleChanged(double scale)
 {
     int num = selectedGraph;
-    graphs[num]->setYScale(scale);
+    if (graphs[num]) graphs[num]->setYScale(scale);
+	graphStates[num].yscale = scale;
 }
 
 void GraphsWindow::applyAll()
 {
     if (!graphSecs->hasAcceptableInput() || !graphYScale->hasAcceptableInput()) return;
     double secs = graphSecs->text().toDouble(), scale = graphYScale->text().toDouble();
-    QColor c = graphs[selectedGraph]->graphColor();
+    QColor c = graphs[selectedGraph] ? graphs[selectedGraph]->graphColor() : graphStates[selectedGraph].graph_Color;
     for (int i = 0; i < graphs.size(); ++i) {
         setGraphTimeSecs(i, secs);
-        graphs[i]->setYScale(scale);
-        graphs[i]->graphColor() = c;
+		if (graphs[i]) {
+			graphs[i]->setYScale(scale);
+			graphs[i]->graphColor() = c;
+		}
+		graphStates[i].yscale = scale;
+		graphStates[i].graph_Color = c;
     }
     update_nPtsAllGs();    
 }
@@ -807,7 +851,7 @@ void GraphsWindow::saveGraphChecked(bool b) {
 	}
 }
 
-void GraphsWindow::retileGraphsAccordingToSorting(const QVector<int> & sorting, const QVector<int> & naming) {
+void GraphsWindow::retileGraphsAccordingToSorting() {
 	const int nGraphTabs (graphTabs.size());
 	QWidget * dummy = new QWidget(0);
 	dummy->setHidden(true);
@@ -850,6 +894,7 @@ void GraphsWindow::retileGraphsAccordingToSorting(const QVector<int> & sorting, 
 		}
 		tabWidget->setTabText(i, QString("Elec. %1-%2").arg(first_graph_num).arg(last_graph_num));
 	}
+	tabChange(tabWidget->currentIndex());
 	delete dummy;
 }
 
@@ -862,7 +907,8 @@ void GraphsWindow::sortGraphsByElectrodeId() {
 	for (i = 0; i < cms; ++i) {
 		eid2graph[p.chanMap[i].electrodeId] = i;
 	}
-	QVector<int> sorting, naming;
+	sorting.clear();
+	naming.clear();
 	sorting.reserve(gs);
 	naming.reserve(gs);
 	for (QMap<int,int>::iterator it = eid2graph.begin(); it != eid2graph.end(); ++it) {
@@ -874,14 +920,15 @@ void GraphsWindow::sortGraphsByElectrodeId() {
 		naming.push_back(i);
 	}
 	
-	retileGraphsAccordingToSorting(sorting, naming);
+	retileGraphsAccordingToSorting();
 	selectGraph(selectedGraph); ///< redoes the top toolbar labeling
 }
 
 void GraphsWindow::sortGraphsByIntan() {
 	chanBut->setText("Sorting by Channel:");
 	const int gs = graphs.size(), cs = params.chanMap.size();
-	QVector<int> sorting, naming;
+	sorting.clear();
+	naming.clear();
 	sorting.reserve(gs);
 	naming.reserve(gs);
 	int i;
@@ -889,7 +936,41 @@ void GraphsWindow::sortGraphsByIntan() {
 	for (i = 0; i < gs; ++i) sorting.push_back(i);
 	for (i = 0; i < cs; ++i) naming.push_back(params.chanMap[i].electrodeId);
 	for ( ; i < gs; ++i) naming.push_back(i);
-	retileGraphsAccordingToSorting(sorting, naming);
+	retileGraphsAccordingToSorting();
 	selectGraph(selectedGraph); ///< redoes the top toolbar labeling
+}
+
+void GraphsWindow::tabChange(int t)
+{
+	for (int i = 0; i < (int)graphs.size(); ++i) {
+		// first, save all existing graph states...
+		if (graphs[i]) {
+			graphStates[i] = graphs[i]->getState();
+			extraGraphs.insert(graphs[i]);
+			graphs[i]->setPoints(0); // clear points buf!
+			graphs[i] = 0;
+		}
+	}
+	// next, swap the graph widgets to their new frames and set their states..
+	for (int i = t*NUM_GRAPHS_PER_GRAPH_TAB; !extraGraphs.isEmpty() && i < (int)graphs.size(); ++i) {
+		GLGraph *g = *(extraGraphs.begin());
+		extraGraphs.remove(g);
+		int graphId = sorting[i];
+		graphs[graphId] = g;
+		points[graphId].clear();
+		QFrame *f = graphFrames[graphId];
+		g->setState(graphStates[graphId]);
+		g->setPoints(&points[graphId]);
+		QVBoxLayout *l = dynamic_cast<QVBoxLayout *>(f->layout());
+		if (g->parent() != f) {
+			g->setParent(f);
+			if (l) {
+				l->addWidget(g, 1);
+			} else {
+				f->layout()->addWidget(g);
+			}
+		}
+	}
+	//retileGraphsAccordingToSorting();
 }
 

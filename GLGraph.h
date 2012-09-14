@@ -9,6 +9,21 @@ class QMutex;
 
 #include "Vec2WrapBuffer.h"
 
+
+struct GLGraphState
+{
+	QMutex *ptsMut;
+    QColor bg_Color, graph_Color, grid_Color;
+    unsigned nHGridLines, nVGridLines;
+    double min_x, max_x, yscale;
+    unsigned short gridLineStipplePattern;
+    const Vec2WrapBuffer *pointsWB;
+    QVariant tagData;
+	double selectionBegin, selectionEnd;
+	bool hasSelection;	
+	QString objectName;
+};
+
 class GLGraph : public QGLWidget
 {
     Q_OBJECT
@@ -57,6 +72,9 @@ public:
 	bool isSelectionEnabled() const { return hasSelection; }
 	bool isSelectionVisible() const;
 
+	GLGraphState getState() const;
+	void setState(const GLGraphState & state);
+	
 signals:    
 	/// like cursorOver(), except emitted x,y units are in window coordinates, not graph coordinates
 	void cursorOverWindowCoords(int x, int y);
