@@ -592,6 +592,10 @@ namespace DAQ
 		Range saved_aoRange = p.aoRange;
 
 
+		if (muxMode) {
+			setDO(false);// set DO line low to reset external MUX
+		}
+
         DAQmxErrChk (DAQmxCreateTask("",&taskHandle)); 
         DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
         DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)); 
@@ -608,12 +612,12 @@ namespace DAQ
 			
 		}
 		
-		//const int task_write_freq_hz = p.lowLatency ? TASK_WRITE_FREQ_HZ*3 : TASK_WRITE_FREQ_HZ;
+		const int task_write_freq_hz = p.lowLatency ? TASK_WRITE_FREQ_HZ*3 : TASK_WRITE_FREQ_HZ;
 
         if (p.aoPassthru && aoAITab.size()) {
             const float64     aoMin = p.aoRange.min;
             const float64     aoMax = p.aoRange.max;
-            const int32 aoSamplesPerChan = /*aoSampleRate * (double(p.aiBufferSizeCS) / 100.0);//*/(aoSampleRate/TASK_WRITE_FREQ_HZ > 0) ? int(aoSampleRate/TASK_WRITE_FREQ_HZ) : 1;
+            const int32 aoSamplesPerChan = /*aoSampleRate * (double(p.aiBufferSizeCS) / 100.0);//*/(aoSampleRate/TASK_WRITE_FREQ_HZ > 0) ? int(aoSampleRate/task_write_freq_hz) : 1;
             aoBufferSize = u64(aoSamplesPerChan) * aoAITab.size() * sizeof(int16);
             DAQmxErrChk (DAQmxCreateTask("",&aoTaskHandle));
             DAQmxErrChk (DAQmxCreateAOVoltageChan(aoTaskHandle,aoChan.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
@@ -625,15 +629,15 @@ namespace DAQ
             aoWriteThr->start();                
         }
 
+        DAQmxErrChk (DAQmxStartTask(taskHandle)); 
+		if (p.dualDevMode) { DAQmxErrChk (DAQmxStartTask(taskHandle2)); }
+
 		if (muxMode) {
-			setDO(false);// set DO line low to reset external MUX
+		//	setDO(false);// set DO line low to reset external MUX
 			msleep(1000); // keep it low for 1 second
             setDO(true); // now set DO line high to start external MUX and clock on PFI2
 		}
 
-        DAQmxErrChk (DAQmxStartTask(taskHandle)); 
-		if (p.dualDevMode) { DAQmxErrChk (DAQmxStartTask(taskHandle2)); }
-		
         startTime = getTime();
         u64 aoSampCount = 0;
         while( !pleaseStop ) {

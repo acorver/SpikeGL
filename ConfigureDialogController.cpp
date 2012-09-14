@@ -396,6 +396,9 @@ void ConfigureDialogController::dualDevModeChkd()
     const bool chk (dialog->dualDevModeChk->isChecked());
 	dialog->deviceCB_2->setEnabled(chk);
 	dialog->secondDevLbl->setEnabled(chk);
+	if (chk && dialog->channelListLE_2->text().length() == 0) {
+		dialog->channelListLE_2->setText(dialog->channelListLE->text());
+	}
 	dialog->channelListLE_2->setEnabled(chk);
 }
 
