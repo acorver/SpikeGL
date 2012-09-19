@@ -88,6 +88,8 @@ private:
 
 	void retileGraphsAccordingToSorting();
 	void setupGraph(int num, int firstExtraChan);
+	
+	static int NumGraphsPerGraphTab[DAQ::N_Modes];
 
     DAQ::Params & params;
 	QTabWidget *tabWidget;

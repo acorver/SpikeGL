@@ -30,11 +30,11 @@ namespace DAQ
     static bool noDaqErrPrint = false;
 
 	const unsigned ModeNumChansPerIntan[N_Modes] = {
-		15, 0, 15, 16, 16,
+		15, 0, 15, 16, 16, 32
 	};
 	
 	const unsigned ModeNumIntans[N_Modes] = {
-		4, 0, 8, 2, 8,
+		4, 0, 8, 2, 8, 8
 	};
 	
     /// if empty map returned, no devices with AI!
@@ -1001,7 +1001,7 @@ namespace DAQ
 
 
     /// some helper funcs from SpikeGL.h
-    static const QString acqModes[] = { "AI60Demux", "AIRegular", "AI120Demux", "JFRCIntan32", "AI128Demux", QString::null };
+    static const QString acqModes[] = { "AI60Demux", "AIRegular", "AI120Demux", "JFRCIntan32", "AI128Demux", "AI256Demux", QString::null };
     
     const QString & ModeToString(Mode m)
     {

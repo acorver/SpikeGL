@@ -97,9 +97,20 @@ void GraphsWindow::setupGraph(int num, int firstExtraChan)
 }
 
 
+/*static*/ int GraphsWindow::NumGraphsPerGraphTab[DAQ::N_Modes] = 
+{
+	30,   //AI60
+	36,   //AIRegular
+	30,   //AI120
+	32,   //JFRC32
+	32,   //AI128
+	32,   //AI256
+};
+
 void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 {    
     initIcons();
+#define NUM_GRAPHS_PER_GRAPH_TAB (NumGraphsPerGraphTab[p.mode])
 	const int nGraphTabs ( (p.nVAIChans / NUM_GRAPHS_PER_GRAPH_TAB) + ((p.nVAIChans % NUM_GRAPHS_PER_GRAPH_TAB) ? 1 : 0));
 	graphTabs.resize(nGraphTabs);
 	tabWidget = new QTabWidget(this);
@@ -168,7 +179,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	
 	/*
     QPushButton *fset = new QPushButton(QIcon(QPixmap(fastsettle_xpm)), "Fast Settle", graphCtls);
-    if (p.mode == DAQ::AI60Demux || p.mode == DAQ::AI120Demux || p.mode == DAQ::AI128Demux) {
+    if (p.mode != DAQ::AIRegular && p.mode != DAQ::JFRCIntan32) {
         fset->setToolTip("Toggle the DIO control line low/high for 2 seconds to 'fast settle' the input channels.");        
     } else {
         fset->setDisabled(true);
@@ -217,7 +228,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 
 		int numThisPage = (nGraphTabs - i > 1) ? NUM_GRAPHS_PER_GRAPH_TAB : (graphs.size() % NUM_GRAPHS_PER_GRAPH_TAB);
 		if (!numThisPage) numThisPage = NUM_GRAPHS_PER_GRAPH_TAB;
-		int nrows = int(sqrtf(numThisPage)), ncols = nrows;
+		int nrows = int(sqrtf(numThisPage)), ncols = 0;
 		while (nrows*ncols < (int)numThisPage) {
 			if (nrows > ncols) ++ncols;
 			else ++nrows;
@@ -860,6 +871,7 @@ void GraphsWindow::retileGraphsAccordingToSorting() {
 		QFrame * f = graphFrames[i];
 		f->setParent(dummy);
 	}
+	const DAQ::Params & p(params);
 	for (int i = 0; i < nGraphTabs; ++i) {
 		
 		int numThisPage = (nGraphTabs - i > 1) ? NUM_GRAPHS_PER_GRAPH_TAB : (graphs.size() % NUM_GRAPHS_PER_GRAPH_TAB);
@@ -951,6 +963,7 @@ void GraphsWindow::tabChange(int t)
 			graphs[i] = 0;
 		}
 	}
+	const DAQ::Params & p(params);
 	// next, swap the graph widgets to their new frames and set their states..
 	for (int i = t*NUM_GRAPHS_PER_GRAPH_TAB; !extraGraphs.isEmpty() && i < (int)graphs.size(); ++i) {
 		GLGraph *g = *(extraGraphs.begin());
