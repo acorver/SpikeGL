@@ -889,7 +889,7 @@ void MainApp::xferWBToScans(WrapBuffer & preBuf, std::vector<int16> & scans, int
 
 inline void ApplyNewIntanDemuxToScan(int16 *begin, const unsigned nchans_per_intan, const unsigned num_intans) {
 	int narr = nchans_per_intan*num_intans;
-	int16 tmparr[NUM_MUX_CHANS_MAX]; // hopefully 128 channels is freakin' enough.. 
+	int16 tmparr[NUM_MUX_CHANS_MAX]; // hopefully 512 channels is freakin' enough.. 
 	if (narr > NUM_MUX_CHANS_MAX) {
 		Error() << "INTERNAL ERROR: Scan size too large for compiled-in limits (too many INTANs?!).  Please fix the sourcecode at DAQ::ApplyJFRCIntanXXDemuxToScan!";
 		narr = NUM_MUX_CHANS_MAX;

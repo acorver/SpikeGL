@@ -22,7 +22,7 @@
 #define DEFAULT_GRAPH_TIME_SECS 3.0
 #define MOUSE_OVER_UPDATE_INTERVAL_MS 1000
 #define NUM_INTANS_MAX 8
-#define NUM_MUX_CHANS_MAX (256)
+#define NUM_MUX_CHANS_MAX (512)
 #define DEFAULT_PD_SILENCE .010 /* 10 ms silence default */
 #define SETTINGS_DOMAIN "janelia.hhmi.org"
 #define SETTINGS_APP APPNAME

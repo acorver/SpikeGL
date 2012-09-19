@@ -110,6 +110,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     dialog->channelSubsetLabel->setEnabled(p.mode != DAQ::AIRegular);
     dialog->channelSubsetLE->setEnabled(p.mode != DAQ::AIRegular);
     dialog->deviceCB->clear();
+	dialog->deviceCB_2->clear();
     dialog->clockCB->setCurrentIndex(p.extClock ? 0 : 1);
     dialog->srateSB->setValue(p.srate);
     dialog->fastSettleSB->setValue(p.fastSettleTimeMS);
