@@ -140,6 +140,11 @@
      <string>AI 128 Demux (8 INTANS)</string>
     </property>
    </item>
+   <item>
+    <property name="text">
+     <string>AI 256 Demux (8 INTAN)</string>
+    </property>
+   </item>
   </widget>
   <widget class="QLineEdit" name="channelListLE">
    <property name="geometry">
