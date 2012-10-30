@@ -1804,11 +1804,15 @@ void MainApp::precreateOneGraph(bool nograph)
 	bl->addWidget(chk);
 
 	QWidget *dummy = nograph ? 0 : new QWidget(f);
-	/* Note: the 'dummy' intermediate parent widget above is a workaround for windows which is SLOW when
-	   reparenting QGLWidgets.  This is because under windows, if reparenting a QGLWidget directly, a new GL
-	   context must be created each time.  Instead, reparenting the parent of the QGLWidget is a workaround to this.
-	   Since when we switch tabs we are reparenting the graphs to new graph frames, we need this intermediate
-	   QWidget.  We reparent this, rather than the GLGraph directly.  See GraphsWindow.cpp tabChanged() function. */
+	/* Note: the 'dummy' intermediate parent widget above is a workaround for 
+	   Windows which is SLOW when reparenting QGLWidgets.  This is because under 
+	   Windows, if reparenting a QGLWidget directly, a new GL context must be 
+	   created each time.  Instead, reparenting the parent of the QGLWidget is a 
+	   workaround to this.
+	 
+	   Since when we switch tabs we are reparenting the graphs to new graph 
+	   frames, we need this intermediate QWidget.  We reparent this, rather than 
+	   the GLGraph directly.  See GraphsWindow.cpp tabChanged() function. */
 	GLGraph *g = nograph ? 0 : new GLGraph(dummy);
 	QVBoxLayout *bl2 = dummy ? new QVBoxLayout(dummy) : 0;
 	if (bl2) {
