@@ -16,9 +16,10 @@
 #include "Util.h"
 #include <QVarLengthArray.h>
 
-void GLGraph::reset(QWidget *prnt, QMutex *mut)
+void GLGraph::reset(QMutex *mut)
 {
-    if (prnt != parent())  setParent(prnt);
+	bool wasupden = updatesEnabled();
+	setUpdatesEnabled(false);
     ptsMut = mut;
     bg_Color = QColor(0x2f, 0x4f, 0x4f);
     graph_Color = QColor(0xee, 0xdd, 0x82);
@@ -38,6 +39,7 @@ void GLGraph::reset(QWidget *prnt, QMutex *mut)
     auto_update = true;
 
     setAutoBufferSwap(true);	
+	setUpdatesEnabled(wasupden);
 }
 
 /*GLGraph::GLGraph(const QGLFormat & f, QWidget *p, QMutex *mut)
@@ -71,7 +73,7 @@ void GLGraph::reset(QWidget *prnt, QMutex *mut)
 GLGraph::GLGraph(QWidget *parent, QMutex *mut)
     : QGLWidget(parent), ptsMut(mut)    
 {
-    reset(parent, mut);
+    reset(mut);
 }
 
 GLGraph::~GLGraph() {}

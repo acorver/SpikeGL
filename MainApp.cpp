@@ -1803,9 +1803,21 @@ void MainApp::precreateOneGraph(bool nograph)
 	chk->setToolTip("Enable/disable save of this channel's data to data file.  Note: can only edit this property when not saving.");
 	bl->addWidget(chk);
 
-	GLGraph *g = nograph ? 0 : new GLGraph(f);
-	
-	if (g) bl->addWidget(g,1);
+	QWidget *dummy = nograph ? 0 : new QWidget(f);
+	/* Note: the 'dummy' intermediate parent widget above is a workaround for windows which is SLOW when
+	   reparenting QGLWidgets.  This is because under windows, if reparenting a QGLWidget directly, a new GL
+	   context must be created each time.  Instead, reparenting the parent of the QGLWidget is a workaround to this.
+	   Since when we switch tabs we are reparenting the graphs to new graph frames, we need this intermediate
+	   QWidget.  We reparent this, rather than the GLGraph directly.  See GraphsWindow.cpp tabChanged() function. */
+	GLGraph *g = nograph ? 0 : new GLGraph(dummy);
+	QVBoxLayout *bl2 = dummy ? new QVBoxLayout(dummy) : 0;
+	if (bl2) {
+	    bl2->setSpacing(0);
+		bl2->setContentsMargins(0,0,0,0);
+		bl2->addWidget(g);
+	}
+
+	if (dummy) bl->addWidget(dummy,1);
     bl->setSpacing(0);
     bl->setContentsMargins(0,0,0,0);
 
@@ -1881,9 +1893,11 @@ void MainApp::putGLGraphWithFrame(QFrame *f)
         return;
     }
     GLGraph *g = cl.front();
+	f->setUpdatesEnabled(false);
     f->setParent(pregraphDummyParent);
-    g->reset(f);
+    g->reset();
     pregraphs.push_back(f);    
+	f->setUpdatesEnabled(true);
 }
 
 void MainApp::appInitialized()

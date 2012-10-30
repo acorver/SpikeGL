@@ -36,7 +36,7 @@ public:
     virtual ~GLGraph();
 
     /// Reset the graph to default params, as if it were freshly constructed
-    void reset(QWidget *parent = 0, QMutex *ptsMutex = 0);
+    void reset(QMutex *ptsMutex = 0);
 
     // associate whatever to this graph
     QVariant tag() const { return tagData; }

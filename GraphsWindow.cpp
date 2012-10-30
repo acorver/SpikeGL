@@ -357,10 +357,12 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 
 GraphsWindow::~GraphsWindow()
 {
+	setUpdatesEnabled(false);
 	if (maximized) toggleMaximize(); // resets graphs to original state..
     const int gfs = graphFrames.size();
     for (int i = 0; i < gfs; ++i) mainApp()->putGLGraphWithFrame(graphFrames[i]);
     if (filter) delete filter, filter = 0;
+	setUpdatesEnabled(true);
 }
 
 void GraphsWindow::hideUnhideSaveChannelCBs() 
@@ -954,9 +956,13 @@ void GraphsWindow::sortGraphsByIntan() {
 
 void GraphsWindow::tabChange(int t)
 {
-	for (int i = 0; i < (int)graphs.size(); ++i) {
+	setUpdatesEnabled(false);
+
+	const int N_G = graphs.size();
+	for (int i = 0; i < N_G; ++i) {
 		// first, save all existing graph states...
 		if (graphs[i]) {
+			graphs[i]->setUpdatesEnabled(false);
 			graphStates[i] = graphs[i]->getState();
 			extraGraphs.insert(graphs[i]);
 			graphs[i]->setPoints(0); // clear points buf!
@@ -965,7 +971,7 @@ void GraphsWindow::tabChange(int t)
 	}
 	const DAQ::Params & p(params);
 	// next, swap the graph widgets to their new frames and set their states..
-	for (int i = t*NUM_GRAPHS_PER_GRAPH_TAB; !extraGraphs.isEmpty() && i < (int)graphs.size(); ++i) {
+	for (int i = t*NUM_GRAPHS_PER_GRAPH_TAB; !extraGraphs.isEmpty() && i < N_G; ++i) {
 		GLGraph *g = *(extraGraphs.begin());
 		extraGraphs.remove(g);
 		int graphId = sorting[i];
@@ -975,15 +981,17 @@ void GraphsWindow::tabChange(int t)
 		g->setState(graphStates[graphId]);
 		g->setPoints(&points[graphId]);
 		QVBoxLayout *l = dynamic_cast<QVBoxLayout *>(f->layout());
-		if (g->parent() != f) {
-			g->setParent(f);
+		if (g->parentWidget()->parentWidget() != f) {
+			g->parentWidget()->setParent(f);
 			if (l) {
-				l->addWidget(g, 1);
+				l->addWidget(g->parentWidget(), 1);
 			} else {
-				f->layout()->addWidget(g);
+				f->layout()->addWidget(g->parentWidget());
 			}
 		}
 	}
+	for (int i = 0; i < N_G; ++i) if (graphs[i]) graphs[i]->setUpdatesEnabled(true);
+	setUpdatesEnabled(true);
 	//retileGraphsAccordingToSorting();
 }
 
