@@ -594,6 +594,7 @@ namespace DAQ
 
 		if (muxMode) {
 			setDO(false);// set DO line low to reset external MUX
+			msleep(1000); // keep it low for 1 second
 		}
 
         DAQmxErrChk (DAQmxCreateTask("",&taskHandle)); 
@@ -633,8 +634,6 @@ namespace DAQ
 		if (p.dualDevMode) { DAQmxErrChk (DAQmxStartTask(taskHandle2)); }
 
 		if (muxMode) {
-		//	setDO(false);// set DO line low to reset external MUX
-			msleep(1000); // keep it low for 1 second
             setDO(true); // now set DO line high to start external MUX and clock on PFI2
 		}
 
