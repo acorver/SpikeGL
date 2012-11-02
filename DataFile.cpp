@@ -71,8 +71,6 @@ bool DataFile::closeAndFinalize()
 
 bool DataFile::writeScans(const std::vector<int16> & scans)
 {
-    double tWrite = getTime();
-
     if (!isOpen()) return false;
     if (!scans.size()) return true; // for now, we allow empty writes!
     if (scans.size() % nChans) {
@@ -93,8 +91,10 @@ bool DataFile::writeScans(const std::vector<int16> & scans)
 		}
 	}
     const int n2Write = scans.size()*sizeof(int16);
-
+	
+    double tWrite = getTime();
     int nWrit = dataFile.write((const char *)&scans[0], n2Write);
+    tWrite = getTime() - tWrite;
 
     if (nWrit != n2Write) {
         Error() << "writeScan  Error returned from write call: " << nWrit;
@@ -102,8 +102,6 @@ bool DataFile::writeScans(const std::vector<int16> & scans)
     }
     sha.UpdateHash((const uint8_t *)&scans[0], n2Write);
     scanCt += scans.size()/nChans;
-
-    tWrite = getTime() - tWrite;
 
     // update write speed..
     writeRateAvg = (writeRateAvg*nWritesAvg+(n2Write/tWrite))/double(nWritesAvg+1);
