@@ -906,7 +906,7 @@ inline void ApplyNewIntanDemuxToScan(int16 *begin, const unsigned nchans_per_int
 
 
 PostJuly2011Remuxer::PostJuly2011Remuxer(const DAQ::Params & p, DAQ::Task *task, QObject *parent)
-: QThread(parent), SampleBufQ(128), pleaseStop(false), p(p), task(task) {}
+: QThread(parent), SampleBufQ("PostJuly2011Remuxer", SAMPLE_BUF_Q_SIZE), pleaseStop(false), p(p), task(task) {}
 
 PostJuly2011Remuxer::~PostJuly2011Remuxer() { stop(); }
 
@@ -1059,9 +1059,9 @@ void MainApp::taskReadFunc()
 							scans_subsetted.push_back(scans[i]);
 						}
 					}
-					dataFile.writeScans(scans_subsetted);
+					dataFile.writeScans(scans_subsetted, true);
 				} else
-					dataFile.writeScans(scans);
+					dataFile.writeScans(scans, true);
 				// and.. swap back if we have anything in scans_full
 				if (scans_orig.size()) scans.swap(scans_orig);
 				if (doStopRecord) {
@@ -1081,9 +1081,9 @@ void MainApp::taskReadFunc()
             if (isDSFacilityEnabled())
                 tmpDataFile.writeScans(scans); // write all scans
 			
-            qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
+            qFillPct = (SampleBufQ::allDataQueueSizes()/double(SampleBufQ::allDataQueueMaxSizes())) * 100.0;
 /*            if (graphsWindow && !graphsWindow->isHidden()) {            
-                if (qFillPct > 70.0) {
+                if (qFillPct > 49.9) {
                     Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
                 } else { 
                     graphsWindow->putScans(scans, firstSamp);
@@ -1100,10 +1100,22 @@ void MainApp::taskReadFunc()
             }
         }
         
-        // regardless of waiting or running mode, put scans to graphs
-        qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
+        // regardless of waiting or running mode, put scans to graphs...
+		
+		qFillPct = (SampleBufQ::allDataQueueSizes()/double(SampleBufQ::allDataQueueMaxSizes())) * 100.0;
+		// some housekeeping related how full our sample buf queues are getting...
+		QList<SampleBufQ *> overThresh = SampleBufQ::allQueuesAbove(70.0);
+		bool daqIsOver = false;
+		for (QList<SampleBufQ *>::iterator it = overThresh.begin(); it != overThresh.end(); ++it) {
+			if ( (*it)->name == "DAQ Task" ) daqIsOver = true;
+		}
+		overThresh = SampleBufQ::allQueuesAbove(90.0);
+		for (QList<SampleBufQ *>::iterator it = overThresh.begin(); it != overThresh.end(); ++it) {		
+			Warning() << "The buffer: `" << (*it)->name << "' is over 90 percent full! System too slow for the specified acquisition?";
+		}
+		
         if (graphsWindow && !graphsWindow->isHidden()) {            
-            if (qFillPct > 70.0) {
+            if (daqIsOver || qFillPct > 70.0) {
                 Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
              } else { 
                  graphsWindow->putScans(scans, firstSamp);
