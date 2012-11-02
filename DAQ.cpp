@@ -348,7 +348,7 @@ namespace DAQ
 
 namespace DAQ 
 {
-    void Task::daqThr()
+	void Task::daqThr()
     {
         static QString fname("fakedaqdata.bin");
         char *e;
@@ -376,13 +376,14 @@ namespace DAQ
                 data.resize(nread);
                 if (!totalRead) emit(gotFirstScan());
                 enqueueBuffer(data, totalRead);
-      
+				
                 totalRead += nread;
             }
             usleep(int((1e6/params.srate)*onePd));
         }
     }
-
+	
+	
     void Task::setDO(bool onoff)
     {
         Warning() << "setDO(" << (onoff ? "on" : "off") << ") called (unimplemented in FAKEDAQ mode)";

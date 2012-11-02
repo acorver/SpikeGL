@@ -510,7 +510,6 @@ DFWriteThread::DFWriteThread(DataFile *df) : QThread(0), SampleBufQ("Data Write 
 DFWriteThread::~DFWriteThread()
 {
 	stopflg = true;
-	dataQCond.wakeAll();
 	if (isRunning()) {
 		//Error() << "INTERNAL ERROR: Waiting for data file writer thread to finish!";
 		//qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
@@ -524,8 +523,8 @@ DFWriteThread::~DFWriteThread()
 			mb->setText("Waiting for data file writer thread, please be patient... ");
 			mb->show();
 			qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
-			waitForEmpty();
-			dataQCond.wakeAll();
+//			waitForEmpty();
+//			dataQCond.wakeAll();
 			if (isRunning()) wait();
 			delete mb;
 		}
@@ -541,11 +540,12 @@ void DFWriteThread::run()
 	std::vector<int16> buf;
 	u64 scount = 0;
 	while (!stopflg) {
-		while (dequeueBuffer(buf, scount, true, false)) {
+		while (dequeueBuffer(buf, scount, false, false)) {
 			++bufct;
 			bytect += buf.size() * sizeof(int16);
 			write(buf);
 		}
+		msleep(10);
 	}
 	Debug() << "DFWriteThread stopped after writing " << bufct << " buffers (" << bytect << " bytes in " << d->scanCount() << " scans).";
 }
