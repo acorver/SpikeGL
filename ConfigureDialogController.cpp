@@ -27,12 +27,9 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     aoPassthru = new Ui::AoPassThru;
     acqPdParams = new Ui::AcqPDParams;
     acqTimedParams = new Ui::AcqTimedParams;
-    aiDevRanges = DAQ::ProbeAllAIRanges();
-    aoDevRanges = DAQ::ProbeAllAORanges();
-    
-    aiChanLists = DAQ::ProbeAllAIChannels();
-    aoChanLists = DAQ::ProbeAllAOChannels();
-
+	
+	probeDAQHardware();
+	
     dialog->setupUi((QDialog *)dialogW);
     acqPdParamsW = new QWidget(dialog->acqFrame);
     acqTimedParamsW = new QWidget(dialog->acqFrame);
@@ -72,6 +69,15 @@ ConfigureDialogController::~ConfigureDialogController()
     delete aoPassW;
 }
 
+void ConfigureDialogController::probeDAQHardware()
+{
+    aiDevRanges = DAQ::ProbeAllAIRanges();
+    aoDevRanges = DAQ::ProbeAllAORanges();
+    
+    aiChanLists = DAQ::ProbeAllAIChannels();
+    aoChanLists = DAQ::ProbeAllAOChannels();	
+}
+
 void ConfigureDialogController::resetAOPassFromParams(Ui::AoPassThru *aoPassthru)
 {
     DAQ::Params & p (acceptedParams); // this just got populated from settings
@@ -98,7 +104,9 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
         loadSettings();
         p_in = &acceptedParams;
     }
-    
+
+	probeDAQHardware();
+
     DAQ::Params & p (*p_in); // this just got populated from settings
 
     // initialize the dialogs with some values from settings

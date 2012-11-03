@@ -66,6 +66,7 @@ private:
     void resetFromParams(DAQ::Params *p = 0);
     void resetAOPassFromParams(Ui::AoPassThru *);
     static void paramsFromSettingsObject(DAQ::Params & p, const QSettings & settings);
+	void probeDAQHardware();
     
     enum ValidationResult {
         AGAIN = -1,
