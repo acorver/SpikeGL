@@ -2,10 +2,21 @@
 #include "Util.h"
 #include "SpikeGL.h"
 
-SampleBufQ::SampleBufQ(unsigned dataQueueMaxSizeInBufs)
-    : dataQueueMaxSize(dataQueueMaxSizeInBufs) {}
+/*static*/ QList<SampleBufQ *> SampleBufQ::allQs;
+/*static*/ QMutex SampleBufQ::allQsMut;
 
-SampleBufQ::~SampleBufQ() {}
+SampleBufQ::SampleBufQ(const QString & name, unsigned dataQueueMaxSizeInBufs)
+    : name(name), dataQueueMaxSize(dataQueueMaxSizeInBufs) 
+{
+	QMutexLocker l(&allQsMut);
+	allQs.push_back(this);	
+}
+
+SampleBufQ::~SampleBufQ() 
+{
+	QMutexLocker l(&allQsMut);
+	allQs.removeAll(this);
+}
 
 void SampleBufQ::clear()
 {
@@ -29,8 +40,19 @@ void SampleBufQ::enqueueBuffer(std::vector<int16> &src, u64 sampCount)
         dataQCond.wakeOne();
 }
 
+bool SampleBufQ::waitForEmpty(int ms)
+{
+	bool ok = dataQMut.tryLock(ms);
+	if (ok) {
+		if (dataQ.size()) 
+			ok = dataQEmptyCond.wait(&dataQMut, ms < 0 ? ULONG_MAX : ms);
+	}	
+	if (ok) dataQMut.unlock();
+	return ok;
+}
+
     /// returns true if actual data was available -- in which case dest is swapped for a data buffer in the deque
-bool SampleBufQ::dequeueBuffer(std::vector<int16> & dest, u64 & sampCount, bool wait)
+bool SampleBufQ::dequeueBuffer(std::vector<int16> & dest, u64 & sampCount, bool wait, bool err_prt)
 {
         bool ret = false, ok = false;
         dest.clear();
@@ -51,15 +73,51 @@ bool SampleBufQ::dequeueBuffer(std::vector<int16> & dest, u64 & sampCount, bool 
                 dataQ.pop_front();
                 ret = true;
             }
+			if (!dataQ.size()) dataQEmptyCond.wakeAll();
             dataQMut.unlock();
         } else {
-            QString e = "SampleBufQ::dequeueBuffer lock timeout on buffer mutex!"; 
-            Error() << e;
+			if (err_prt) {
+				QString e = "SampleBufQ::dequeueBuffer lock timeout on buffer mutex!"; 
+				Error() << e;
+			}
         }
         return ret;
 }
 
 void SampleBufQ::overflowWarning() 
 {
-    Warning() << "SampleBufQ overflow! Buffer queue full (capacity: " <<  dataQueueMaxSize << " buffers)!  Dropping a buffer!";
+    Warning() << name << " overflow! Buffer queue full (capacity: " <<  dataQueueMaxSize << " buffers)!  Dropping a buffer!";
+}
+
+
+/// Iterates through all sample buf q's, returns sum of all their sizes
+/*static*/ unsigned SampleBufQ::allDataQueueSizes()
+{
+	unsigned sum = 0;
+	QMutexLocker l(&allQsMut);
+	for (QList<SampleBufQ *>::iterator it = allQs.begin(); it != allQs.end(); ++it) {
+		sum += (*it)->dataQueueSize();
+	}
+	return sum;
+}
+/// Iterates through all sample buf q's, returns sum of all their max sizes
+/*static*/ unsigned SampleBufQ::allDataQueueMaxSizes()
+{
+	unsigned sum = 0;
+	QMutexLocker l(&allQsMut);
+	for (QList<SampleBufQ *>::iterator it = allQs.begin(); it != allQs.end(); ++it) {
+		sum += (*it)->dataQueueMaxSize;
+	}
+	return sum;	
+}
+/// Returns a list of all queues above a certain threshold fill percentage
+/*static*/ QList<SampleBufQ *> SampleBufQ::allQueuesAbove(double pct)
+{
+	QList<SampleBufQ *> ret;
+	QMutexLocker l(&allQsMut);
+	for (QList<SampleBufQ *>::iterator it = allQs.begin(); it != allQs.end(); ++it) {
+		if ( (double((*it)->dataQueueSize())*100.0) / double((*it)->dataQueueMaxSize) >= pct )
+			ret.push_back(*it);
+	}
+	return ret;
 }

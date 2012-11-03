@@ -6,6 +6,25 @@
 #include <memory>
 #include "ConfigureDialogController.h"
 #include "ChanMappingController.h"
+#include <QThread>
+#include "SampleBufQ.h"
+#include <QMessageBox>
+
+
+class DFWriteThread : public QThread, public SampleBufQ
+{
+	DataFile *d;
+	volatile bool stopflg;
+
+public:
+	DFWriteThread(DataFile *df);
+	~DFWriteThread();
+protected:
+	void run(); ///< from QThread
+	
+	bool write(const std::vector<int16> & scans);
+};
+
 
 static QString metaFileForFileName(const QString &fname)
 {
@@ -37,11 +56,13 @@ static QString metaFileForFileName(const QString &fname)
  }
  
 DataFile::DataFile()
-    : mode(Undefined), scanCt(0), nChans(0), sRate(0), writeRateAvg(0.), nWritesAvg(0), nWritesAvgMax(1)
+    : mode(Undefined), scanCt(0), nChans(0), sRate(0), writeRateAvg(0.), nWritesAvg(0), nWritesAvgMax(1), dfwt(0)
 {
 }
 
-DataFile::~DataFile() {}
+DataFile::~DataFile() {
+	if (dfwt) delete dfwt, dfwt = 0;
+}
 
 bool DataFile::closeAndFinalize() 
 {
@@ -53,6 +74,7 @@ bool DataFile::closeAndFinalize()
 		mode = Undefined;
 		return true;
 	} else if (mode == Output) {
+		if (dfwt) delete dfwt, dfwt = 0;
 		// Output mode...
 		sha.Final();
 		params["sha1"] = sha.ReportHash().c_str();
@@ -69,7 +91,7 @@ bool DataFile::closeAndFinalize()
 	return false; // not normally reached...
 }
 
-bool DataFile::writeScans(const std::vector<int16> & scans)
+bool DataFile::writeScans(const std::vector<int16> & scans, bool asynch)
 {
     if (!isOpen()) return false;
     if (!scans.size()) return true; // for now, we allow empty writes!
@@ -90,24 +112,53 @@ bool DataFile::writeScans(const std::vector<int16> & scans)
 			return false;				
 		}
 	}
-    const int n2Write = scans.size()*sizeof(int16);
 	
-    double tWrite = getTime();
-    int nWrit = dataFile.write((const char *)&scans[0], n2Write);
-    tWrite = getTime() - tWrite;
+	scanCt += scans.size()/nChans;
 
-    if (nWrit != n2Write) {
-        Error() << "writeScan  Error returned from write call: " << nWrit;
-        return false;
-    }
-    sha.UpdateHash((const uint8_t *)&scans[0], n2Write);
-    scanCt += scans.size()/nChans;
+	if (asynch) {
+		if (!dfwt) {
+			dfwt = new DFWriteThread(this);
+			dfwt->start();
+		}
+		std::vector<int16> scansCopy;
+		scansCopy.reserve(scans.size());
+		scansCopy.insert(scansCopy.begin(), scans.begin(), scans.end());
+		dfwt->enqueueBuffer(scansCopy, 0);
+		return dfwt->dataQueueSize() < dfwt->dataQueueMaxSize;
+	} else if (dfwt) { // !asynch but we have a dfwt!! wtf?!
+		Error() << "INTERNAL: Previous call to DataFile::writeScans() was asynch, now we are synch! This is unsupported! FIXME!";
+		delete dfwt;
+		dfwt = 0;
+	}
+	// else .. synch..
+	return doFileWrite(scans);
+}
 
-    // update write speed..
-    writeRateAvg = (writeRateAvg*nWritesAvg+(n2Write/tWrite))/double(nWritesAvg+1);
-    if (++nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;
 
-    return true;
+bool DataFile::doFileWrite(const std::vector<int16> & scans)
+{
+	const int n2Write = scans.size()*sizeof(int16);
+	
+	double tWrite = getTime();
+	
+	int nWrit = dataFile.write((const char *)&scans[0], n2Write);
+	
+	if (nWrit != n2Write) {
+		Error() << "DataFile::doFileWrite: Error returned from write call: " << nWrit;
+		return false;
+	}
+	tWrite = getTime() - tWrite;
+	
+	statsMut.lock();
+	
+	sha.UpdateHash((const uint8_t *)&scans[0], n2Write);
+		
+	// update write speed..
+	writeRateAvg = (writeRateAvg*nWritesAvg+(n2Write/tWrite))/double(nWritesAvg+1);
+	if (++nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;
+	
+	statsMut.unlock();
+	return true;
 }
 
 bool DataFile::openForReWrite(const DataFile & other, const QString & filename, const QVector<unsigned> & chanNumSubset)
@@ -452,3 +503,79 @@ bool DataFile::isDualDevMode() const
 		return params["dualDevMode"].toBool();
 	return false;
 }
+
+
+DFWriteThread::DFWriteThread(DataFile *df) : QThread(0), SampleBufQ("Data Write Queue", SAMPLE_BUF_Q_SIZE), d(df), stopflg(false)
+{}
+
+DFWriteThread::~DFWriteThread()
+{
+	stopflg = true;
+	if (isRunning()) {
+		//Error() << "INTERNAL ERROR: Waiting for data file writer thread to finish!";
+		//qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+	//	wait();
+	//}
+///*
+		if (!wait(100) && isRunning()) {
+			QMessageBox *mb = new QMessageBox(0);
+			mb->setWindowModality(Qt::ApplicationModal);
+			mb->setStandardButtons(QMessageBox::NoButton);
+			mb->setText("Waiting for data file writer thread, please be patient... ");
+			mb->show();
+			qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+//			waitForEmpty();
+//			dataQCond.wakeAll();
+			if (isRunning()) wait();
+			delete mb;
+		}
+	}
+//*/
+}
+
+void DFWriteThread::run()
+{
+	unsigned bufct = 0;
+	u64 bytect = 0;
+	Debug() << "DFWriteThread started for " << d->fileName() << " ...";
+	std::vector<int16> buf;
+	u64 scount = 0;
+	while (!stopflg) {
+		while (dequeueBuffer(buf, scount, false, false)) {
+			++bufct;
+			bytect += buf.size() * sizeof(int16);
+			write(buf);
+		}
+		msleep(10);
+	}
+	Debug() << "DFWriteThread stopped after writing " << bufct << " buffers (" << bytect << " bytes in " << d->scanCount() << " scans).";
+}
+
+bool DFWriteThread::write(const std::vector<int16> & scans)
+{
+	if (!d || ! d->dataFile.isWritable() ) return false;
+	return d->doFileWrite(scans);
+}
+
+/// Returns true iff we did an asynch write and we have writes that still haven't finished.  False otherwise.
+bool DataFile::hasPendingWrites() const
+{
+	if (mode == Output && dfwt) {
+		return dfwt->dataQueueSize() > 0;
+	}
+	return false;
+}
+
+/// Waits timeout_ms milliseconds for pending writes to complete.  Returns true if writes finishd within allotted time (or not pending writes exist), false otherwise. If timeout_ms is negative, waits indefinitely.
+bool DataFile::waitForPendingWrites(int timeout_ms) const
+{
+	if (hasPendingWrites()) return dfwt->waitForEmpty(timeout_ms);
+	return true;
+}
+
+double DataFile::pendingWriteQFillPct() const
+{
+	if (dfwt) return (dfwt->dataQueueSize() / double(dfwt->dataQueueMaxSize)) * 100.;
+	return 0.;
+}
+

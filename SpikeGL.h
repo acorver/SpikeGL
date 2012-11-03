@@ -27,4 +27,5 @@
 #define SETTINGS_DOMAIN "janelia.hhmi.org"
 #define SETTINGS_APP APPNAME
 #define MAX_NUM_GRAPHS_PER_GRAPH_TAB 36
+#define SAMPLE_BUF_Q_SIZE 128
 #endif
