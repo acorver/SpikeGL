@@ -950,7 +950,7 @@ void MainApp::taskReadFunc()
     u64 firstSamp;
     int ct = 0;
     const int ctMax = 10;
-    double qFillPct;
+    double qFillPct, qFillPct2 = 0.;
     bool needToStop = false;
     static double lastSBUpd = 0;
     const DAQ::Params & p (configCtl->acceptedParams);
@@ -1082,6 +1082,8 @@ void MainApp::taskReadFunc()
                 tmpDataFile.writeScans(scans); // write all scans
 			
             qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
+			if (addtlDemuxTask)	qFillPct2 = (addtlDemuxTask->dataQueueSize()/double(addtlDemuxTask->dataQueueMaxSize)) * 100.0; else qFillPct2 = 0.;
+			qFillPct = MAX(qFillPct,qFillPct2);
 /*            if (graphsWindow && !graphsWindow->isHidden()) {            
                 if (qFillPct > 70.0) {
                     Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
@@ -1101,7 +1103,9 @@ void MainApp::taskReadFunc()
         }
         
         // regardless of waiting or running mode, put scans to graphs
-        qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
+		qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
+		if (addtlDemuxTask)	qFillPct2 = (addtlDemuxTask->dataQueueSize()/double(addtlDemuxTask->dataQueueMaxSize)) * 100.0; else qFillPct2 = 0.;
+		qFillPct = MAX(qFillPct,qFillPct2);
         if (graphsWindow && !graphsWindow->isHidden()) {            
             if (qFillPct > 70.0) {
                 Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";

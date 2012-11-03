@@ -284,6 +284,7 @@ namespace DAQ
         : QThread(p), SampleBufQ(128), pleaseStop(false), params(acqParams), 
           fast_settle(0), muxMode(false), totalRead(0LL)
     {
+		setDO(false); // assert DO is low when stopped...
     }
 
     Task::~Task()
@@ -299,6 +300,7 @@ namespace DAQ
             wait();
             pleaseStop = false;
         }
+		setDO(false); // assert DO low when stopped...
     }
 
     void Task::run()
@@ -831,8 +833,9 @@ namespace DAQ
                     aoSampCount += sz;
                 }
             }
-                       
-            enqueueBuffer(data, sampCount);
+             
+			
+			breakupDataIntoChunksAndEnqueue(data, sampCount);
 
             // fast settle...
             if (muxMode && fast_settle && !leftOver.size() && !leftOver2.size()) {
@@ -909,8 +912,33 @@ namespace DAQ
 		}
 		if (i < s1 || j < s2) 
 			Error() << "INTERNAL ERROR IN FUNCTION `mergeDualDevData()'!  The two device buffers data and data2 have differing numbers of scans! FIXME!  Aieeeee!!\n";
-	}
+	}	
 
+	void Task::breakupDataIntoChunksAndEnqueue(std::vector<int16> & data, u64 sampCount)
+	{
+		int chunkSize = int(params.srate / computeTaskReadFreq(params.srate)) * params.nVAIChans, nchunk = 0, ct = 0;
+		if (chunkSize < (int)params.nVAIChans) chunkSize = params.nVAIChans;
+        static const int limit = (1024*786)/sizeof(int16); /* 768KB max chunk size? */
+        if (chunkSize > limit) { 
+            chunkSize = limit - (limit % params.nVAIChans);
+        }
+		const int nSamps = data.size();
+		if (chunkSize >= nSamps) {
+			enqueueBuffer(data, sampCount);
+			return;
+		}
+		std::vector<int16> chunk;
+		for (int i = 0; i < nSamps; i += nchunk, ++ct) {
+			chunk.reserve(chunkSize);
+			nchunk = nSamps - i;
+			if (nchunk > chunkSize) nchunk = chunkSize;
+			chunk.insert(chunk.begin(), data.begin()+i, data.begin()+i+nchunk);
+			enqueueBuffer(chunk, sampCount+u64(i));
+			chunk.clear();
+		}
+		//Debug() << "broke up data of size " << data.size() << " into " << ct << " chunks of size " << chunkSize;
+		data.clear();
+	}
 
     void Task::setDO(bool onoff)
     {
