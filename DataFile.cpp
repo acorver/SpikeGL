@@ -571,3 +571,10 @@ bool DataFile::waitForPendingWrites(int timeout_ms) const
 	if (hasPendingWrites()) return dfwt->waitForEmpty(timeout_ms);
 	return true;
 }
+
+double DataFile::pendingWriteQFillPct() const
+{
+	if (dfwt) return (dfwt->dataQueueSize() / double(dfwt->dataQueueMaxSize)) * 100.;
+	return 0.;
+}
+

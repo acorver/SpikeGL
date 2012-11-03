@@ -225,7 +225,9 @@ namespace DAQ
         static int computeTaskReadFreq(double srate);
 		
 		static void mergeDualDevData(std::vector<int16> & output, const std::vector<int16> & data, const std::vector<int16> & data2, int NCHANS1, int NCHANS2, int nExtraChans, int nExtraChans2);
-        
+		/// only used in Windows / Real (non fake) mode to break up the incoming data into manageable chunks
+		void breakupDataIntoChunksAndEnqueue(std::vector<int16> & data, u64 sampCount);
+
     };
 
 #ifdef HAVE_NIDAQmx

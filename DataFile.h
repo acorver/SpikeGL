@@ -67,6 +67,9 @@ public:
 	/// Waits timeout_ms milliseconds for pending writes to complete.  Returns true if writes finishd within allotted time, false otherwise. If timeout_ms is negative, waits indefinitely.
 	bool waitForPendingWrites(int timeout_ms) const;
 	
+	/// If using asynch writes, returns the pending write queue fill percent, otherwise 0.
+	double pendingWriteQFillPct() const;
+	
 	/** Read scans from the file.  File must have been opened for read
 	    using openForRead().  Returns number of scans actually read or -1 on failure.  
 		NB: Note that return value is normally num2read / downSampleFactor. 

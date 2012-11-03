@@ -950,7 +950,7 @@ void MainApp::taskReadFunc()
     u64 firstSamp;
     int ct = 0;
     const int ctMax = 10;
-    double qFillPct;
+    double qFillPct, qFillPct2 = 0., qFillPct3 = 0.;
     bool needToStop = false;
     static double lastSBUpd = 0;
     const DAQ::Params & p (configCtl->acceptedParams);
@@ -1081,7 +1081,12 @@ void MainApp::taskReadFunc()
             if (isDSFacilityEnabled())
                 tmpDataFile.writeScans(scans); // write all scans
 			
-            qFillPct = (SampleBufQ::allDataQueueSizes()/double(SampleBufQ::allDataQueueMaxSizes())) * 100.0;
+            qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
+            qFillPct2 = addtlDemuxTask ? (addtlDemuxTask->dataQueueSize()/double(addtlDemuxTask->dataQueueMaxSize)) * 100.0 : 0.;
+			qFillPct3 = dataFile.isOpen() ? dataFile.pendingWriteQFillPct() : 0.;			
+			qFillPct = MAX(qFillPct,qFillPct2);
+			qFillPct = MAX(qFillPct,qFillPct3);
+			
 /*            if (graphsWindow && !graphsWindow->isHidden()) {            
                 if (qFillPct > 49.9) {
                     Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
@@ -1100,9 +1105,12 @@ void MainApp::taskReadFunc()
             }
         }
         
-        // regardless of waiting or running mode, put scans to graphs...
-		
-		qFillPct = (SampleBufQ::allDataQueueSizes()/double(SampleBufQ::allDataQueueMaxSizes())) * 100.0;
+        // regardless of waiting or running mode, put scans to graphs...		
+		qFillPct = (task->dataQueueSize()/double(task->dataQueueMaxSize)) * 100.0;
+		qFillPct2 = addtlDemuxTask ? (addtlDemuxTask->dataQueueSize()/double(addtlDemuxTask->dataQueueMaxSize)) * 100.0 : 0.;
+		qFillPct3 = dataFile.isOpen() ? dataFile.pendingWriteQFillPct() : 0.;			
+		qFillPct = MAX(qFillPct,qFillPct2);
+		qFillPct = MAX(qFillPct,qFillPct3);
 		// some housekeeping related how full our sample buf queues are getting...
 		QList<SampleBufQ *> overThresh = SampleBufQ::allQueuesAbove(70.0);
 		bool daqIsOver = false;
@@ -1116,7 +1124,7 @@ void MainApp::taskReadFunc()
 		
         if (graphsWindow && !graphsWindow->isHidden()) {            
             if (daqIsOver || qFillPct > 70.0) {
-                Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
+                Warning() << "Some scans were dropped from graphing due to queue limits being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
              } else { 
                  graphsWindow->putScans(scans, firstSamp);
              }
