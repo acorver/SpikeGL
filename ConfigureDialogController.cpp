@@ -269,14 +269,8 @@ void ConfigureDialogController::acqModeCBChanged()
     /// HACK to auto-repopulate the lineedit based on acquisition mode!
     if ( (notStraightAI = (idx != DAQ::AIRegular)) ) { // if it's not straight AI, 
         QString txt = dialog->channelListLE->text();
-        if (txt.startsWith("0:1") || txt.startsWith("0:3") || txt.startsWith("0:7"))  {
-            switch (idx) {
-                case DAQ::AI60Demux: txt = QString("0:3") + txt.mid(3); break;			
-                case DAQ::AI120Demux: 
-				case DAQ::AI256Demux:
-				case DAQ::AI128Demux: txt = QString("0:7") + txt.mid(3); break;
-                case DAQ::JFRCIntan32: txt = QString("0:1") + txt.mid(3); break;
-            }
+        if (txt.startsWith("0:") && txt.length() == 3)  {
+			txt = QString("0:%1").arg(DAQ::ModeNumIntans[idx] - 1);
             dialog->channelListLE->setText(txt);
         }
     }
@@ -490,25 +484,25 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     if ( acqMode != DAQ::AIRegular) {
         if (!DAQ::SupportsAISimultaneousSampling(dev)) {
             QString title = "INTAN Requires Simultaneous Sampling",
-                    msg = QString("INTAN (60/120/128/256/JFRC32 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev);
+                    msg = QString("INTAN (60/64/96/120/128/256/JFRC32 demux) mode requires a board that supports simultaneous sampling, and %1 does not!").arg(dev);
 			if (QMessageBox::Cancel == QMessageBox::warning(dialogW, title, msg, QMessageBox::Ignore, QMessageBox::Cancel)) 
 				return AGAIN;
 			// else continue and ignore the error...
         }
 		if (dialog->clockCB->currentIndex() != 0) {
             QString title = "INTAN Requires External Clock",
-			msg = QString("INTAN (60/120/128/256/JFRC32 demux) mode requires an external clock source for correct operation, yet you specified the use of the internal clock.  Ignore and use the internal clock anyway?");
+			msg = QString("INTAN (60/64/96/120/128/256/JFRC32 demux) mode requires an external clock source for correct operation, yet you specified the use of the internal clock.  Ignore and use the internal clock anyway?");
 			if (QMessageBox::Cancel == QMessageBox::warning(dialogW, title, msg, QMessageBox::Ignore, QMessageBox::Cancel)) 
 				return AGAIN;
 			// else continue and ignore the error...			
 		}
         const int minChanSize = ( (acqMode == DAQ::AIRegular) ? 1 : DAQ::ModeNumIntans[acqMode]);
         if ( int(chanVect.size()) < minChanSize ) {
-            errTitle = "AI Chan List Error", errMsg = "INTAN (60/120/128/256/JFRC32 demux) mode requires precisely 4, 8 or 2 channels!";
+            errTitle = "AI Chan List Error", errMsg = QString("First AI dev chan list too short.\nSelected mode requires %1 channels!").arg(minChanSize);
             return AGAIN;
         }
         if ( dualDevMode && int(chanVect2.size()) < minChanSize ) {
-            errTitle = "AI Chan List Error", errMsg = "INTAN (60/120/128/256/JFRC32 demux) mode requires precisely 4, 8 or 2 channels!";
+            errTitle = "AI Chan List Error", errMsg = QString("Second AI dev chan list too short.\nSelected mode requires %1 channels!").arg(minChanSize);
             return AGAIN;
         }
         nExtraChans1 = chanVect.size() - minChanSize;

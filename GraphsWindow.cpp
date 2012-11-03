@@ -97,19 +97,27 @@ void GraphsWindow::setupGraph(int num, int firstExtraChan)
 }
 
 
-/*static*/ int GraphsWindow::NumGraphsPerGraphTab[DAQ::N_Modes] = 
+/*static*/ int GraphsWindow::NumGraphsPerGraphTab[DAQ::N_Modes] = { 0, };
+
+/*static*/ void GraphsWindow::SetupNumGraphsPerGraphTab()
 {
-	30,   //AI60
-	36,   //AIRegular
-	30,   //AI120
-	32,   //JFRC32
-	32,   //AI128
-	32,   //AI256
-};
+	if (NumGraphsPerGraphTab[0]) return;
+	// defensively program against adding modes that lack a spec for number of graphs per tab
+	for (int i = 0; i < (int)DAQ::N_Modes; ++i) {
+		if (!DAQ::ModeNumIntans[i]) NumGraphsPerGraphTab[i] = MAX_NUM_GRAPHS_PER_GRAPH_TAB;
+		else {
+			const int nchans = DAQ::ModeNumChansPerIntan[i];
+			int n = 0;
+			for (int j = 1; (n=(j * nchans)) <= MAX_NUM_GRAPHS_PER_GRAPH_TAB; ++j)
+				NumGraphsPerGraphTab[i] = n;
+		}
+	}
+}
 
 void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 {    
     initIcons();
+	SetupNumGraphsPerGraphTab();
 #define NUM_GRAPHS_PER_GRAPH_TAB (NumGraphsPerGraphTab[p.mode])
 	const int nGraphTabs ( (p.nVAIChans / NUM_GRAPHS_PER_GRAPH_TAB) + ((p.nVAIChans % NUM_GRAPHS_PER_GRAPH_TAB) ? 1 : 0));
 	graphTabs.resize(nGraphTabs);

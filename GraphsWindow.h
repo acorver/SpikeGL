@@ -90,7 +90,8 @@ private:
 	void setupGraph(int num, int firstExtraChan);
 	
 	static int NumGraphsPerGraphTab[DAQ::N_Modes];
-
+	static void SetupNumGraphsPerGraphTab();
+	
     DAQ::Params & params;
 	QTabWidget *tabWidget;
     QVector<QWidget *> graphTabs;

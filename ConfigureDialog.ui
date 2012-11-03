@@ -117,7 +117,7 @@
    </property>
    <item>
     <property name="text">
-     <string>AI 60 Demux (4 INTANs)</string>
+     <string>AI 60 Demux (4 x 15:1)</string>
     </property>
    </item>
    <item>
@@ -127,22 +127,32 @@
    </item>
    <item>
     <property name="text">
-     <string>AI 120 Demux (8 INTANs)</string>
+     <string>AI 120 Demux (8 x 15:1)</string>
     </property>
    </item>
    <item>
     <property name="text">
-     <string>JFRC/Intan Headstage 32ch</string>
+     <string>JFRC/Intan 32 (2 x 16:1)</string>
     </property>
    </item>
    <item>
     <property name="text">
-     <string>AI 128 Demux (8 INTANS)</string>
+     <string>AI 128 Demux (8 x 16:1)</string>
     </property>
    </item>
    <item>
     <property name="text">
-     <string>AI 256 Demux (8 INTAN)</string>
+     <string>AI 256 Demux (8 x 32:1)</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>AI 64 Demux (4 x 16:1)</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>AI 96 Demux (6 x 16:1)</string>
     </property>
    </item>
   </widget>

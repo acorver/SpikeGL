@@ -33,7 +33,7 @@ namespace DAQ
     };
 
     enum Mode {
-        AI60Demux=0, AIRegular, AI120Demux, JFRCIntan32, AI128Demux, AI256Demux, N_Modes, AIUnknown = N_Modes
+        AI60Demux=0, AIRegular, AI120Demux, JFRCIntan32, AI128Demux, AI256Demux, AI64Demux, AI96Demux, N_Modes, AIUnknown = N_Modes
     };
 
 	extern const unsigned ModeNumChansPerIntan[N_Modes];
