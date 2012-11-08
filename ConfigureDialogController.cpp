@@ -360,7 +360,9 @@ void ConfigureDialogController::browseButClicked()
     QString fn = QFileDialog::getSaveFileName(dialogW, "Select output file", dialog->outputFileLE->text());
     if (fn.length()) {
 		QFileInfo fi(fn);
-		if (fi.completeSuffix().toLower() != ".bin") fn += ".bin";
+		QString suff = fi.suffix();
+		if (!suff.startsWith(".")) suff = QString(".") + suff;
+		if (suff.toLower() != ".bin") fn += ".bin";
 		dialog->outputFileLE->setText(fn);
 	}
 }

@@ -1117,8 +1117,9 @@ void MainApp::taskReadFunc()
 			if ( (*it)->name == "DAQ Task" ) daqIsOver = true;
 		}
 		overThresh = SampleBufQ::allQueuesAbove(90.0);
-		for (QList<SampleBufQ *>::iterator it = overThresh.begin(); it != overThresh.end(); ++it) {		
-			Warning() << "The buffer: `" << (*it)->name << "' is over 90 percent full! System too slow for the specified acquisition?";
+		for (QList<SampleBufQ *>::iterator it = overThresh.begin(); it != overThresh.end(); ++it) {	
+			SampleBufQ *buf = *it; 
+			Warning() << "The buffer: `" << (*it)->name << "' is " << double((buf->dataQueueSize()/double(buf->dataQueueMaxSize))*100.) << "% full! System too slow for the specified acquisition?";
 		}
         if (graphsWindow && !graphsWindow->isHidden()) {            
             if (daqIsOver || qFillPct > 70.0) {

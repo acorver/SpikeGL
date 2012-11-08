@@ -980,12 +980,20 @@ void GraphsWindow::tabChange(int t)
 	const DAQ::Params & p(params);
 	// next, swap the graph widgets to their new frames and set their states..
 	for (int i = t*NUM_GRAPHS_PER_GRAPH_TAB; !extraGraphs.isEmpty() && i < N_G; ++i) {
-		GLGraph *g = *(extraGraphs.begin());
-		extraGraphs.remove(g);
 		int graphId = sorting[i];
+		QFrame *f = graphFrames[graphId];
+		QList<GLGraph *> gl = f->findChildren<GLGraph *>();
+		// here, sometimes, the destination graph frames had a graph already.  
+		// this happens because last tab has fewer graphs on it, and this may 
+		// lead to situations where some GLGraphs aren't on-screen and are living
+		// inside of a hidden frame on a different tab... so when we switch back to that
+		// tab, we have a situation where the frame may already have a stale graph
+		// child.  that's ok, just re-use it.  all graph children will eventually
+		// be destroyed or returned to the precreate graph queue..
+		GLGraph *g = gl.empty() ? *(extraGraphs.begin()) : *gl.begin();
+		extraGraphs.remove(g);
 		graphs[graphId] = g;
 		points[graphId].clear();
-		QFrame *f = graphFrames[graphId];
 		g->setState(graphStates[graphId]);
 		g->setPoints(&points[graphId]);
 		QVBoxLayout *l = dynamic_cast<QVBoxLayout *>(f->layout());

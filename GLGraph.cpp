@@ -354,6 +354,8 @@ GLGraphState GLGraph::getState() const
 	s.bg_Color = bg_Color;
 	s.graph_Color = graph_Color;
 	s.grid_Color = grid_Color;
+	s.nHGridLines = nHGridLines;
+	s.nVGridLines = nVGridLines;
 	s.min_x = min_x;
 	s.max_x = max_x;
 	s.yscale = yscale;
@@ -374,6 +376,8 @@ void GLGraph::setState(const GLGraphState & s)
 	bg_Color = s.bg_Color;
 	graph_Color = s.graph_Color;
 	grid_Color = s.grid_Color;
+	setNumHGridLines(s.nHGridLines);
+	setNumVGridLines(s.nVGridLines);
 	min_x = s.min_x;
 	max_x = s.max_x;
 	yscale = s.yscale;
