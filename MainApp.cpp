@@ -147,7 +147,8 @@ MainApp::MainApp(int & argc, char ** argv)
     par2Win->setWindowIcon(QPixmap(ParWindowIcon_xpm));
 	Connect(par2Win, SIGNAL(closed()), this, SLOT(par2WinClosed()));
 
-    Log() << "Application started";
+    Log() << VERSION_STR;
+	Log() << "Application started";
 
     if (getNProcessors() > 1)
         setProcessAffinityMask(0x1); // set it to core 1

@@ -72,6 +72,8 @@ private slots:
 	void saveGraphChecked(bool b);
 
 	void tabChange(int);
+
+	void saveFileLineEditChanged(const QString & newtext);
 	
 private:
     void setGraphTimeSecs(int graphnum, double t); // note you should call update_nPtsAllGs after this!  (Not auto-called in this function just in case of batch setGraphTimeSecs() in which case 1 call at end to update_nPtsAllGs() suffices.)

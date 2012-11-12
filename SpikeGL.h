@@ -15,6 +15,7 @@
 #define LOCK_TIMEOUT_MS 2000
 #define DEF_TASK_READ_FREQ_HZ_ 10
 #define DEF_AI_BUFFER_SIZE_CENTISECONDS 9
+#define DEF_AO_BUFFER_SIZE_CENTISECONDS 9
 #define DEF_TASK_READ_FREQ_HZ Util::getTaskReadFreqHz()
 #define TASK_WRITE_FREQ_HZ 10
 #define APPNAME "SpikeGL"
@@ -28,4 +29,6 @@
 #define SETTINGS_APP APPNAME
 #define MAX_NUM_GRAPHS_PER_GRAPH_TAB 36
 #define SAMPLE_BUF_Q_SIZE 128
+
+extern const bool excessiveDebug; ///< If true, print lots of debug output.. mainly daq related
 #endif

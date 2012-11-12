@@ -71,8 +71,9 @@ namespace DAQ
         unsigned doCtlChan;
         QString doCtlChanString;
         Mode mode;
-        double srate;
+        double srate, aoSrate;
         bool extClock;
+		QString aoClock;
         QString aiString, aiString2;
         QVector<unsigned> aiChannels, aiChannels2;
         QString subsetString; ///< subset of demuxed AI chans to actually save/graph.
@@ -126,6 +127,7 @@ namespace DAQ
 									   */
 		
 		unsigned aiBufferSizeCS; ///< a value from 1 -> 100, which represents the centiseconds (.01 sec or 10 ms) worth of time to make the analog input buffer
+		unsigned aoBufferSizeCS; ///< same as above, but for the AO buffer size
 				
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }

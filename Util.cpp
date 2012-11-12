@@ -21,6 +21,7 @@
 #endif
 #include "MainApp.h"
 #include "ConfigureDialogController.h"
+#include "samplerate/samplerate.h"
 
 namespace Util {
 
@@ -219,5 +220,97 @@ Systray::~Systray()
     }
     str = ""; // clear it for superclass c'tor
 }
+
+
+// --- resampler stuff... ---
+/* static */ QString Resampler::resample(const std::vector<int16> & input, std::vector<int16> & output, double ratio, int numChannelsPerFrame, Algorithm alg, bool isEndOfInput)
+ {
+	 if (ratio < 1e-6 || numChannelsPerFrame < 1 || !input.size() || ((int)alg) < 0 || ((int)alg) > 4) 
+	 { output.clear(); return "Invalid parameter(s)."; }
+	 std::vector<float> inf(input.size()), outf(input.size()*ratio + numChannelsPerFrame + 32);
+	 SRC_DATA d;
+	 memset(&d, 0, sizeof(d));
+	 src_short_to_float_array(&input[0], (d.data_in=&inf[0]), input.size());
+	 d.data_out = &outf[0];
+	 d.input_frames = input.size()/numChannelsPerFrame;
+	 d.output_frames = outf.size()/numChannelsPerFrame;
+	 d.end_of_input = isEndOfInput ? 1 : 0;
+	 d.src_ratio = ratio;
+	 int errcode = src_simple(&d, (int)alg, numChannelsPerFrame);
+	 if (errcode) { output.clear(); return src_strerror(errcode); }
+	 output.resize(d.output_frames_gen*numChannelsPerFrame);
+	 output.reserve(output.size());
+	 src_float_to_short_array(&outf[0], &output[0], output.size());
+	 return "";
+ }
+
+struct Resampler::Impl {
+	double ratio;
+	int numChannelsPerFrame;
+	SRC_STATE *s;
+};
+
+Resampler::Resampler(double ratio, int numChannelsPerFrame, Algorithm alg)
+{
+	int err = 0;
+	p = new Impl;
+	p->ratio = ratio;
+	p->s = src_new((int)alg, numChannelsPerFrame, &err);
+	p->numChannelsPerFrame = numChannelsPerFrame;
+	if (err) {
+		QString error = src_strerror(err);	
+		Error() << "INTERNAL ERROR: Resampler::Resampler() got an error from src_new() call!  Error was: " << error; 
+		if (p->s) src_delete(p->s), p->s = 0;
+	} 
+}
+
+
+Resampler::~Resampler()
+{
+	if (p->s) src_delete(p->s), p->s = 0;
+	delete p, p = 0;
+}
+
+bool Resampler::chk() const
+{
+	if (!p->s) {
+		Error() << "INTERNAL ERROR: Resampler instance is invalid!";
+		return false;
+	}
+	return true;
+}
+
+void Resampler::changeRatio(double newRatio)
+{
+	if (!chk()) return;
+	src_set_ratio(p->s, p->ratio=newRatio);
+}
+
+double Resampler::ratio() const
+{
+	if (!chk()) return 0.0;
+	return p->ratio;
+}
+
+QString Resampler::resample(const std::vector<int16> & input, std::vector<int16> & output, bool isEndOfInput)
+{
+	 if (!chk() || p->ratio < 1e-6 || !input.size() || p->numChannelsPerFrame < 1) { output.clear(); return "Invalid parameter(s)."; }
+	 std::vector<float> inf(input.size()), outf(input.size()*p->ratio + p->numChannelsPerFrame + 32);
+	 SRC_DATA d;
+	 memset(&d, 0, sizeof(d));
+	 src_short_to_float_array(&input[0], (d.data_in=&inf[0]), input.size());
+	 d.data_out = &outf[0];
+	 d.input_frames = input.size()/p->numChannelsPerFrame;
+	 d.output_frames = outf.size()/p->numChannelsPerFrame;
+	 d.end_of_input = isEndOfInput ? 1 : 0;
+	 d.src_ratio = p->ratio;
+	 int errcode = src_process(p->s, &d);
+	 if (errcode) { output.clear(); return src_strerror(errcode); }
+	 output.resize(d.output_frames_gen*p->numChannelsPerFrame);
+	 output.reserve(output.size());
+	 src_float_to_short_array(&outf[0], &output[0], output.size());
+	 return "";
+}
+
 
 } // end namespace Util

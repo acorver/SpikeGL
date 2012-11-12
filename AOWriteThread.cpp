@@ -13,11 +13,8 @@
 
 namespace DAQ {
 
-AOWriteThread::AOWriteThread(QObject *parent, 
-							 TaskHandle & taskHandle,
-							 int32 aoBufferSize,
-							 const Params & params)
-: QThread(parent), SampleBufQ("AOWriteThread", 128), taskHandle(taskHandle), aoBufferSize(aoBufferSize), params(params)
+AOWriteThread::AOWriteThread(QObject *parent, const QString & aoChanString, const Params & params)
+: QThread(parent), SampleBufQ("AOWriteThread", 128), aoChanString(aoChanString), params(params)
 {
 	pleaseStop = false;
 }

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>431</width>
-    <height>121</height>
+    <height>215</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,7 +19,7 @@
      <x>0</x>
      <y>0</y>
      <width>431</width>
-     <height>121</height>
+     <height>215</height>
     </rect>
    </property>
    <property name="toolTip">
@@ -37,8 +37,8 @@
    <widget class="QLineEdit" name="aoPassthruLE">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>78</y>
+      <x>11</x>
+      <y>174</y>
       <width>401</width>
       <height>22</height>
      </rect>
@@ -53,8 +53,8 @@
    <widget class="QLabel" name="aoPassthruLabel">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>54</y>
+      <x>11</x>
+      <y>150</y>
       <width>411</width>
       <height>16</height>
      </rect>
@@ -71,7 +71,7 @@
      <rect>
       <x>70</x>
       <y>21</y>
-      <width>118</width>
+      <width>131</width>
       <height>22</height>
      </rect>
     </property>
@@ -125,6 +125,267 @@
     </property>
     <property name="alignment">
      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="aoClockLbl">
+    <property name="geometry">
+     <rect>
+      <x>233</x>
+      <y>60</y>
+      <width>71</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;The clock to use for AO output.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="text">
+     <string>Clock Source:</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="aoClockCB">
+    <property name="geometry">
+     <rect>
+      <x>313</x>
+      <y>60</y>
+      <width>99</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;The clock to use for AO output.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <item>
+     <property name="text">
+      <string>OnboardClock</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI0</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI1</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI2</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI3</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI4</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI5</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI6</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI7</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI8</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI9</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI10</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI11</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI12</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI13</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI14</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>PFI15</string>
+     </property>
+    </item>
+   </widget>
+   <widget class="QLabel" name="aoSampleRateLbl">
+    <property name="geometry">
+     <rect>
+      <x>11</x>
+      <y>60</y>
+      <width>91</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;Sampling rate per analog output channel. If externally clocked, make sure it's the rate of the external clock.  This field is important as it determines the rate to possibly resample incoming data and can affect the correctness of the output signal.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="text">
+     <string>Sample Rate (Hz):</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="srateSB">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>110</x>
+      <y>60</y>
+      <width>91</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;Sampling rate per analog output channel. If externally clocked, make sure it's the rate of the external clock.  This field is important as it determines the rate to possibly resample incoming data and can affect the correctness of the output signal.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="minimum">
+     <double>10.000000000000000</double>
+    </property>
+    <property name="maximum">
+     <double>1000000.000000000000000</double>
+    </property>
+    <property name="value">
+     <double>29630.000000000000000</double>
+    </property>
+   </widget>
+   <widget class="QLabel" name="bufferSizeLbl">
+    <property name="geometry">
+     <rect>
+      <x>11</x>
+      <y>113</y>
+      <width>91</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Lucida Grande'; font-size:13pt;&quot;&gt;The AO buffer size directly affects the write buffer size used with the NI driver.  Smaller values should lead to lower-latency AO generation, whereas larger values are safer for even the most taxed systems, but may lead to laggy AO passthru.  The default value, 90ms is a good sized buffer for fast systems.  &lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'Lucida Grande'; font-size:13pt;&quot;&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Lucida Grande'; font-size:13pt; font-weight:600; font-style:italic;&quot;&gt;Increase this value if you find you are getting buffer underrun errors when using AO.  &lt;/span&gt;&lt;span style=&quot; font-family:'Lucida Grande'; font-size:13pt;&quot;&gt;(Increase it to the minimum size that is stable on your system under load.)&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="text">
+     <string>AO BufferSize:</string>
+    </property>
+   </widget>
+   <widget class="QSlider" name="bufferSizeSlider">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>110</y>
+      <width>201</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Lucida Grande'; font-size:13pt;&quot;&gt;The AO buffer size directly affects the write buffer size used with the NI driver.  Smaller values should lead to lower-latency AO generation, whereas larger values are safer for even the most taxed systems, but may lead to laggy AO passthru.  The default value, 90ms is a good sized buffer for fast systems.  &lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'Lucida Grande'; font-size:13pt;&quot;&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Lucida Grande'; font-size:13pt; font-weight:600; font-style:italic;&quot;&gt;Increase this value if you find you are getting buffer underrun errors when using AO.  &lt;/span&gt;&lt;span style=&quot; font-family:'Lucida Grande'; font-size:13pt;&quot;&gt;(Increase it to the minimum size that is stable on your system under load.)&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="minimum">
+     <number>1</number>
+    </property>
+    <property name="maximum">
+     <number>100</number>
+    </property>
+    <property name="value">
+     <number>9</number>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
+    </property>
+   </widget>
+   <widget class="QLabel" name="bufSzLbl">
+    <property name="geometry">
+     <rect>
+      <x>105</x>
+      <y>113</y>
+      <width>98</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Lucida Console</family>
+      <italic>true</italic>
+     </font>
+    </property>
+    <property name="toolTip">
+     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Lucida Grande'; font-size:13pt;&quot;&gt;The AO buffer size directly affects the write buffer size used with the NI driver.  Smaller values should lead to lower-latency AO generation, whereas larger values are safer for even the most taxed systems, but may lead to laggy AO passthru.  The default value, 90ms is a good sized buffer for fast systems.  &lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'Lucida Grande'; font-size:13pt;&quot;&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Lucida Grande'; font-size:13pt; font-weight:600; font-style:italic;&quot;&gt;Increase this value if you find you are getting buffer underrun errors when using AO.  &lt;/span&gt;&lt;span style=&quot; font-family:'Lucida Grande'; font-size:13pt;&quot;&gt;(Increase it to the minimum size that is stable on your system under load.)&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="text">
+     <string>90 ms</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
     </property>
    </widget>
   </widget>

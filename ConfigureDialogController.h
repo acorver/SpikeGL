@@ -60,6 +60,7 @@ protected slots:
     void aoPDPassthruUpdateLE();
     void applyAOPass();
 	void bufferSizeSliderChanged();
+	void aoBufferSizeSliderChanged();
 	void dualDevModeChkd();
 
 private:

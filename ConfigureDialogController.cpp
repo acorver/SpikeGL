@@ -50,6 +50,7 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     Connect(dialog->aiRangeCB, SIGNAL(currentIndexChanged(int)), this, SLOT(aiRangeChanged()));
     Connect(acqPdParams->pdPassthruAOSB, SIGNAL(valueChanged(int)), this, SLOT(aoPDPassthruUpdateLE()));
 	Connect(dialog->bufferSizeSlider, SIGNAL(valueChanged(int)), this, SLOT(bufferSizeSliderChanged()));
+	Connect(aoPassthru->bufferSizeSlider, SIGNAL(valueChanged(int)), this, SLOT(aoBufferSizeSliderChanged()));
 	Connect(dialog->lowLatencyChk, SIGNAL(clicked()), this, SLOT(bufferSizeSliderChanged()));
 	Connect(dialog->dualDevModeChk, SIGNAL(clicked()), this, SLOT(dualDevModeChkd()));
 	// hide fast settle stuff as it's no longer supported
@@ -95,7 +96,17 @@ void ConfigureDialogController::resetAOPassFromParams(Ui::AoPassThru *aoPassthru
     }
     if ( aoPassthru->aoDeviceCB->count() ) // empty CB sometimes on missing AO??
         aoPassthru->aoDeviceCB->setCurrentIndex(sel);
-    
+	
+	aoPassthru->bufferSizeSlider->setValue(p.aoBufferSizeCS);
+	aoPassthru->aoClockCB->setCurrentIndex(0);
+	for (i = 0; i < aoPassthru->aoClockCB->count(); ++i) {
+		if (aoPassthru->aoClockCB->itemText(i) == p.aoClock) {
+			aoPassthru->aoClockCB->setCurrentIndex(i);
+			break;
+		}
+	}
+	aoPassthru->srateSB->setValue(p.aoSrate);
+    aoBufferSizeSliderChanged();
 }
 
 void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
@@ -653,6 +664,9 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     p.range.max = rngs.last().toDouble();
     p.mode = acqMode;
     p.srate = srate;
+	p.aoSrate = aoPassthru->srateSB->value();
+	p.aoClock = aoPassthru->aoClockCB->currentText();
+	p.aoBufferSizeCS = aoPassthru->bufferSizeSlider->value();
     p.extClock = dialog->clockCB->currentIndex() == 0;
     p.aiChannels = chanVect;
 	p.dualDevMode = dualDevMode;
@@ -956,6 +970,10 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.dualDevMode = settings.value("dualDevMode", false).toBool();
 	p.dev2 = settings.value("dev2", "").toString();
 	p.aiString2 = settings.value("aiString2", "0:3").toString();
+
+	p.aoSrate = settings.value("aoSrate", p.srate).toDouble();
+	p.aoClock = settings.value("aoClock", "OnboardClock").toString();
+	p.aoBufferSizeCS = settings.value("aoBufferSizeCentiSeconds", DEF_AO_BUFFER_SIZE_CENTISECONDS).toUInt();
 }
 
 void ConfigureDialogController::loadSettings()
@@ -1025,6 +1043,9 @@ void ConfigureDialogController::saveSettings() const
 	settings.setValue("dev2", p.dev2);
 	settings.setValue("aiString2", p.aiString2);
 	
+	settings.setValue("aoSrate", p.aoSrate);
+	settings.setValue("aoClock", p.aoClock);
+	settings.setValue("aoBufferSizeCentiSeconds", p.aoBufferSizeCS);
 
     settings.endGroup();
 }
@@ -1237,4 +1258,9 @@ void ConfigureDialogController::bufferSizeSliderChanged()
 	dialog->aiBufSzLbl->setEnabled(en);
 	dialog->bufferSizeSlider->setEnabled(en);
 	dialog->aiBufferSizeLbl->setEnabled(en);
+}
+
+void ConfigureDialogController::aoBufferSizeSliderChanged()
+{
+	aoPassthru->bufSzLbl->setText(QString("%1 ms").arg(aoPassthru->bufferSizeSlider->value()*10));
 }

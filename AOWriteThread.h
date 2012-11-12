@@ -21,10 +21,7 @@ namespace DAQ {
 class AOWriteThread : public QThread, public SampleBufQ {
 	Q_OBJECT
 public:
-	AOWriteThread(QObject * parent, 
-				  TaskHandle & taskHandle,
-				  int32 aoBufferSize,
-				  const Params & params);
+	AOWriteThread(QObject * parent, const QString & aoChanString, const Params & params);
 	~AOWriteThread();
 	void stop();
 signals:
@@ -33,8 +30,7 @@ protected:
 	void run();
 private:
 	volatile bool pleaseStop;
-	TaskHandle & taskHandle;
-	int32 aoBufferSize;
+	QString aoChanString;
 	const Params & params;
 };
 	

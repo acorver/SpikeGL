@@ -205,6 +205,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     graphCtls->addWidget(saveFileLE = new QLineEdit(p.outputFile,graphCtls));
     saveFileLE->setEnabled(false);
     saveFileLE->setMinimumWidth(100);
+	Connect(saveFileLE, SIGNAL(textEdited(const QString &)), this, SLOT(saveFileLineEditChanged(const QString &)));
     
     pdChan = -1;
     if (p.usePD) {
@@ -1011,3 +1012,9 @@ void GraphsWindow::tabChange(int t)
 	//retileGraphsAccordingToSorting();
 }
 
+void GraphsWindow::saveFileLineEditChanged(const QString &t)
+{
+	// NOOP for now, possibly have it be that if they edit it manually, change the "p.origFileName" ...?
+	// See Diego's email...
+	//Debug() << "txt chg: " << t;
+}

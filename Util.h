@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QColor>
 #include <QTextStream>
+#include <vector>
 class MainApp;
 
 #ifndef MIN
@@ -95,6 +96,29 @@ namespace Util
 
  /// Removes all data temporary files (SpikeGL_DSTemp_*.bin) fromn the TEMP directory
  void removeTempDataFiles();
+
+ /// Resample (internally uses Secret Rabbit Code samplerate lib)
+ class Resampler {
+public:
+	 enum Algorithm { SincBest = 0, SincMedium, SincFastest, ZeroOrderHold, Linear, };
+
+	 /// Do resampling using selected algorithm.  Note that ratio is outputrate / inputputrate. Ratio of 1.0 returns the same data, < 1.0 downsamples, > 1.0 upsamples
+	 /// returns empty string on success, or an error message from SRC sample lib on failure (and output is set to 0 size in that case)
+	 static QString resample(const std::vector<int16> & input, std::vector<int16> & output, double ratio, int numChannelsPerFrame = 1, Algorithm = SincFastest, bool isEndOfInput = false); 
+
+	 Resampler(double ratio, int numChannelsPerFrame=1, Algorithm=SincFastest);
+	 ~Resampler();
+
+	 void changeRatio(double newRatio);
+	 double ratio() const;
+	 QString resample(const std::vector<int16> & input, std::vector<int16> & output, bool isEndOfInput = false);
+
+ private:
+	 bool chk() const;
+	 struct Impl;
+	 Impl *p; ///< pimpl idiom.. :)
+ };
+
 
 /// Super class of Debug, Warning, Error classes.  
 class Log 
