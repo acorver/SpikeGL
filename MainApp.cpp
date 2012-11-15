@@ -1593,7 +1593,7 @@ QString MainApp::getNewDataFileName(const QString & suf) const
 	QString ext = fi.completeSuffix();
 	prefix.chop(ext.length()+1);
 	
-	for (int i = 1; i > 0; ++i) {		
+	for (int i = p.cludgyFilenameCounterOverride; i > 0; ++i) {		
 		QString fn = prefix + "_" + ( !suffix.isNull() ? suffix + "_" + QString::number(i) : QString::number(i)) + "." + ext;
 		if (!QFile::exists(fn)) return fn;
 	}

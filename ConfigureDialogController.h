@@ -68,7 +68,8 @@ private:
     void resetAOPassFromParams(Ui::AoPassThru *);
     static void paramsFromSettingsObject(DAQ::Params & p, const QSettings & settings);
 	void probeDAQHardware();
-    
+    static bool chopNumberFromFilename(const QString & filename, QString & numberless, int & number);
+
     enum ValidationResult {
         AGAIN = -1,
         ABORT =  0,

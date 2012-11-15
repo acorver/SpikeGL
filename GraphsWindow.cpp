@@ -1014,7 +1014,8 @@ void GraphsWindow::tabChange(int t)
 
 void GraphsWindow::saveFileLineEditChanged(const QString &t)
 {
-	// NOOP for now, possibly have it be that if they edit it manually, change the "p.origFileName" ...?
+	(void)t;
+	// in case we want to change something like..possibly have it be that if they edit it manually, change the "p.origFileName" ...?
 	// See Diego's email...
 	//Debug() << "txt chg: " << t;
 }

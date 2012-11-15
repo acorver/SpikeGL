@@ -128,6 +128,8 @@ namespace DAQ
 		
 		unsigned aiBufferSizeCS; ///< a value from 1 -> 100, which represents the centiseconds (.01 sec or 10 ms) worth of time to make the analog input buffer
 		unsigned aoBufferSizeCS; ///< same as above, but for the AO buffer size
+		
+		int cludgyFilenameCounterOverride; ///< Here it is. Yet more insane complexity and non-obvious behavior to the UI! Hurray for scientists!
 				
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }

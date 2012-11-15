@@ -432,6 +432,7 @@ namespace DAQ
         //DAQmxErrChk (DAQmxCfgOutputBuffer(taskHandle,aoSamplesPerChan));
 		DAQmxSetWriteRegenMode(taskHandle, DAQmx_Val_DoNotAllowRegen);
 
+		Debug() << "AOWrite thread started.";
 
         while (!pleaseStop) {
             u64 sampCount;
@@ -524,7 +525,9 @@ namespace DAQ
                 Error() << e;
             }
             emit daqError(e);
-        }        
+        }   
+
+		Debug() << "AOWrite thread ended after " << aoWriteCt << " chunks written.";
     }
 
     /* static */
@@ -657,6 +660,9 @@ namespace DAQ
         QMap<unsigned, unsigned> saved_aoPassthruMap = p.aoPassthruMap;
 		QString saved_aoDev = p.aoDev;
 		Range saved_aoRange = p.aoRange;
+		QString saved_aoClock = p.aoClock;
+		double saved_aoSrate = p.aoSrate;
+		unsigned saved_aoBufferSizeCS = p.aoBufferSizeCS; 
 
 
 		if (muxMode) {
@@ -852,13 +858,19 @@ namespace DAQ
                     QMutexLocker l(&p.mutex);
                     if (saved_aoPassthruMap != p.aoPassthruMap
                         || saved_aoRange != p.aoRange
-                        || saved_aoDev != p.aoDev) {
+                        || saved_aoDev != p.aoDev
+						|| saved_aoClock != p.aoClock
+						|| saved_aoSrate != p.aoSrate
+						|| saved_aoBufferSizeCS != p.aoBufferSizeCS) {
                         aoData.clear();
                         delete aoWriteThr, aoWriteThr = 0;
                         recomputeAOAITab(aoAITab, aoChan, p);
                         saved_aoPassthruMap = p.aoPassthruMap;
                         saved_aoRange = p.aoRange;
                         saved_aoDev = p.aoDev;
+						saved_aoClock = p.aoClock;
+						saved_aoSrate = p.aoSrate;
+						saved_aoBufferSizeCS = p.aoBufferSizeCS;
                         aoWriteThr = new AOWriteThread(0, aoChan, p);
                         Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
                         aoWriteThr->start();

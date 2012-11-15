@@ -622,7 +622,25 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     DAQ::Params & p (acceptedParams);
     p.stimGlTrigResave = dialog->stimGLReopenCB->isChecked();
     p.outputFile = p.outputFileOrig = dialog->outputFileLE->text().trimmed();
+	p.cludgyFilenameCounterOverride = 1;
 	
+	
+	QString numberless;
+	int number;
+	if ( (acqStartEndMode != DAQ::Immediate && acqStartEndMode != DAQ::Timed) 
+		&& chopNumberFromFilename(p.outputFile, numberless, number) ) {
+			int q = QMessageBox::question(dialogW, 
+				QString("Resume filename counting?"), 
+				QString("The specified output file:\n\n") + p.outputFile + "\n\nis of the form FILE_XX.bin, and you also specified a triggered recording setup.\nResume filename increment?\n\nIf you say yes, `" + numberless + "' is the file count basename and filenames will auto-append a number from _" + QString::number(number) + " onward, on trigger.\n\nIf you say no, the entire filename `" + p.outputFile + "' will be taken as the basename (and triggering will append a further _1, _2, etc to filenames!).",
+				QMessageBox::Yes|QMessageBox::No,QMessageBox::Yes);
+			if (q == QMessageBox::Yes) {
+				p.outputFileOrig = numberless;
+				//if (p.stimGlTrigResave)
+				//	p.outputFile = numberless;
+				p.cludgyFilenameCounterOverride = number;
+			}
+	}
+
 	if (!p.stimGlTrigResave && isGUI) {
 		// verify output file and if it exists, act appropriately
 		QString outFile = p.outputFile;
@@ -1219,6 +1237,9 @@ void ConfigureDialogController::applyAOPass()
     p.aoPassthruMap = aopass;
     p.aoChannels = aoChanVect;
     p.aoPassthruString = aop.aoPassthruLE->text();
+	p.aoClock = aop.aoClockCB->currentText();
+	p.aoBufferSizeCS = aop.bufferSizeSlider->value();
+	p.aoSrate = aop.srateSB->value();
     p.unlock();
     saveSettings();
     Log() << "Applied new AO Passthru settings";
@@ -1263,4 +1284,16 @@ void ConfigureDialogController::bufferSizeSliderChanged()
 void ConfigureDialogController::aoBufferSizeSliderChanged()
 {
 	aoPassthru->bufSzLbl->setText(QString("%1 ms").arg(aoPassthru->bufferSizeSlider->value()*10));
+}
+
+/* static */
+bool ConfigureDialogController::chopNumberFromFilename(const QString & filename, QString & numberless, int & number)
+{
+	QRegExp re("^(.*)_([0-9]+)[.]([bB][iI][nN])$");
+	if (re.indexIn(filename) == 0) {
+		numberless = re.cap(1) + "." + re.cap(3);
+		number = re.cap(2).toInt();
+		return true;
+	}
+	return false;
 }
