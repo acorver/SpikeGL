@@ -13,8 +13,8 @@
 
 namespace DAQ {
 
-AOWriteThread::AOWriteThread(QObject *parent, const QString & aoChanString, const Params & params)
-: QThread(parent), SampleBufQ("AOWriteThread", 128), aoChanString(aoChanString), params(params)
+AOWriteThread::AOWriteThread(QObject *parent, const QString & aoChanString, const Params & params, AOWriteThread *oldToDelete)
+: QThread(parent), SampleBufQ("AOWriteThread", 128), aoChanString(aoChanString), params(params), old2Delete(oldToDelete)
 {
 	pleaseStop = false;
 }
@@ -22,6 +22,7 @@ AOWriteThread::AOWriteThread(QObject *parent, const QString & aoChanString, cons
 AOWriteThread::~AOWriteThread()
 {
 	stop();
+	if (old2Delete)	delete old2Delete, old2Delete = 0;
 }
 
 void AOWriteThread::stop() 

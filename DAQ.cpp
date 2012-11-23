@@ -403,6 +403,10 @@ namespace DAQ
 
     void AOWriteThread::run()
     {
+		if (old2Delete) {
+			delete old2Delete;
+			old2Delete = 0;
+		}
         const Params & p(params);
 		TaskHandle taskHandle(0);
         int32       error = 0;
@@ -862,8 +866,8 @@ namespace DAQ
 						|| saved_aoClock != p.aoClock
 						|| saved_aoSrate != p.aoSrate
 						|| saved_aoBufferSizeCS != p.aoBufferSizeCS) {
+						// delete aoWriteThr, aoWriteThr = 0;   <--- SLOW SLOW SLOW EXPENSIVE OPERATION!  So we don't do it here, instead we defer deletion to the new AOWriteThread that replaces this one!
                         aoData.clear();
-                        delete aoWriteThr, aoWriteThr = 0;
                         recomputeAOAITab(aoAITab, aoChan, p);
                         saved_aoPassthruMap = p.aoPassthruMap;
                         saved_aoRange = p.aoRange;
@@ -871,7 +875,9 @@ namespace DAQ
 						saved_aoClock = p.aoClock;
 						saved_aoSrate = p.aoSrate;
 						saved_aoBufferSizeCS = p.aoBufferSizeCS;
-                        aoWriteThr = new AOWriteThread(0, aoChan, p);
+						/* Note: deleting the old AOWrite thread is potentially slow due to expensive/slow wait for DAQmxWriteBinary to finish when joining threads
+						         so.. we tell the newly created aowrite thread to delete the old thread for us!  Clever! :) */
+                        aoWriteThr = new AOWriteThread(0, aoChan, p, aoWriteThr /* old thread to delete when start() is called... */);
                         Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
                         aoWriteThr->start();
                     }
