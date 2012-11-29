@@ -177,8 +177,10 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
 		p.dualDevMode = false;
 	} else {
 		dialog->dualDevModeChk->setChecked(p.dualDevMode);
-		dialog->dualDevModeChk->setEnabled(true);		
+		dialog->dualDevModeChk->setEnabled(true);
 	}
+
+	chanMapCtl.setDualDevMode(p.dualDevMode);
 
     resetAOPassFromParams(aoPassthru);
     
@@ -417,6 +419,7 @@ void ConfigureDialogController::dualDevModeChkd()
 		dialog->channelListLE_2->setText(dialog->channelListLE->text());
 	}
 	dialog->channelListLE_2->setEnabled(chk);
+	chanMapCtl.setDualDevMode(chk);
 }
 
 

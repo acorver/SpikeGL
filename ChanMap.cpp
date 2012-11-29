@@ -19,6 +19,12 @@ QString ChanMapDesc::toString() const
 			+ ", electrodeId:" + QString::number(electrodeId);
 }
 
+QString ChanMapDesc::toWSDelimString() const
+{
+	return QString("%1 %2 %3").arg(intan).arg(intanCh).arg(electrodeId); 
+}
+
+
 //#include "Util.h"
 
 /*static*/ ChanMapDesc ChanMapDesc::fromString(const QString & s_in)
@@ -62,6 +68,23 @@ QString ChanMapDesc::toString() const
 }
 
 
+/*static*/ ChanMapDesc ChanMapDesc::fromWSDelimString(const QString & s_in) 
+{
+	ChanMapDesc ret;
+
+	const QStringList sl = s_in.split(QRegExp("\\s+"), QString::SkipEmptyParts);
+	if (sl.size() >= 3) {
+		bool ok;
+		unsigned v = sl.at(0).toUInt(&ok);
+		if (ok) ret.intan = v;
+		v = sl.at(1).toUInt(&ok);
+		if (ok) ret.intanCh = v;
+		v = sl.at(2).toUInt(&ok);
+		if (ok) ret.electrodeId = v;
+	}
+	return ret;
+}
+
 QString ChanMap::toString() const
 {
 	QString ret;
@@ -84,6 +107,18 @@ QString ChanMap::toTerseString(const QBitArray & bm) const
 	for (int i = 0; i < n && i < n2; ++i) {
 		if (!bm.testBit(i)) continue;
 		ts << ",(" << (*this)[i].toTerseString() << ")";
+	}
+	ts.flush();
+	return ret;
+}
+
+QString ChanMap::toWSDelimFlatFileString() const 
+{
+	QString ret;
+	QTextStream ts(&ret, QIODevice::WriteOnly|QIODevice::Truncate);
+	const int n = size();
+	for (int i = 0; i < n; ++i) {
+		ts << ((*this)[i].toWSDelimString()) << "\n";
 	}
 	ts.flush();
 	return ret;
@@ -127,6 +162,22 @@ QString ChanMap::toTerseString(const QBitArray & bm) const
 		//Debug() << "s: " << s;
 		QString inParens = s.length() > 2 ? s.mid(sp, s.length()-(sp+ep)) : "";
 		ret.push_back(ChanMapDesc::fromString(inParens));
+	}
+	return ret;
+}
+
+/*static*/ ChanMap ChanMap::fromWSDelimFlatFileString(const QString & s_in)
+{
+	const QStringList sl = s_in.split("\n", QString::SkipEmptyParts);
+	ChanMap ret;
+	ret.reserve(sl.size());
+
+	foreach(QString s, sl) {
+		QStringList sl2 = s.split(QRegExp("\\s+"), QString::SkipEmptyParts);
+		if (sl2.size() >= 3) {
+			ChanMapDesc desc = ChanMapDesc::fromWSDelimString(s);
+			ret.push_back(desc);
+		}
 	}
 	return ret;
 }

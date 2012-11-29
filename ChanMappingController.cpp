@@ -3,6 +3,9 @@
 #include <QSettings>
 #include <QMessageBox>
 #include <QSet>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QFile>
 
 static bool setupDefaults = false;
 
@@ -11,7 +14,7 @@ ChanMap ChanMappingController::defaultMapping[DAQ::N_Modes],
         ChanMappingController::defaultMapping2[DAQ::N_Modes];
 
 ChanMappingController::ChanMappingController(QObject *parent)
-:  QObject(parent), currentMode(DAQ::AI60Demux)
+:  QObject(parent), currentMode(DAQ::AI60Demux), is_dual(false)
 {
 	
 	if (!setupDefaults) {
@@ -36,14 +39,13 @@ ChanMappingController::ChanMappingController(QObject *parent)
     dialogParent = new QDialog(0);    
     dialog = new Ui::ChanMapping;
     dialog->setupUi(dialogParent);
+	Connect(dialog->loadBut, SIGNAL(clicked()), this, SLOT(loadButPushed()));
+	Connect(dialog->saveBut, SIGNAL(clicked()), this, SLOT(saveButPushed()));
     resetFromSettings();
 }
 
-void ChanMappingController::resetFromSettings()
+void ChanMappingController::resetFromMapping(const ChanMap & cm)
 {
-    loadSettings();
-	const ChanMap & cm (mapping[currentMode]);
-	
     const int rowct = cm.size(); 
     dialog->tableWidget->setRowCount(rowct);
     for (int i = 0; i < rowct; ++i) {
@@ -84,6 +86,13 @@ void ChanMappingController::resetFromSettings()
     dialog->tableWidget->setColumnWidth(2,150);
 }
 
+void ChanMappingController::resetFromSettings()
+{
+    loadSettings();
+	const ChanMap & cm (is_dual ? mapping2[currentMode] : mapping[currentMode]);
+	resetFromMapping(cm);
+}
+
 ChanMappingController::~ChanMappingController()
 {
     delete dialog, dialog = 0;
@@ -92,7 +101,7 @@ ChanMappingController::~ChanMappingController()
 
 bool ChanMappingController::mappingFromForm()
 {
-	ChanMap cm (mapping[currentMode]);
+	ChanMap cm (is_dual ? mapping2[currentMode] : mapping[currentMode]);
     const int rowct = dialog->tableWidget->rowCount();
 	QSet<int> seen;
     for (int i = 0; i < rowct; ++i) {
@@ -108,13 +117,19 @@ bool ChanMappingController::mappingFromForm()
 		}
 	}
 	// now that everything's ok, save mapping to class state...
-	mapping[currentMode] = cm;
+	if (is_dual) 
+		mapping2[currentMode] = cm;
+	else
+		mapping[currentMode] = cm;
 	return true;
 }
 
 bool ChanMappingController::exec()
 {
     resetFromSettings();
+	dialog->label->setText(QString (is_dual ? "Below mapping is for DUAL dev mode" :"Below mapping for SINGLE dev mode") + " " + DAQ::ModeToString(currentMode) );
+	dialog->statusLbl->setText("");
+
 	bool again;
 	do {
 		again = false;
@@ -150,6 +165,7 @@ void ChanMappingController::loadSettings()
 		} else
 			mapping2[i] = ChanMap::fromTerseString(ts);
 	}						
+	lastDir = settings.value("lastCMDlgDir", QString()).toString();
 }
 
 void ChanMappingController::saveSettings()
@@ -162,6 +178,7 @@ void ChanMappingController::saveSettings()
 		settings.setValue(QString("terseString_%1").arg(i), mapping[i].toTerseString(QBitArray(mapping[i].size(),true)));
 		settings.setValue(QString("terseString2_%1").arg(i), mapping2[i].toTerseString(QBitArray(mapping2[i].size(),true)));
 	}
+	settings.setValue("lastCMDlgDir", lastDir);
 }
 
 ChanMapDesc ChanMappingController::defaultMappingForIntan(unsigned intan, unsigned intan_ch,
@@ -173,6 +190,67 @@ ChanMapDesc ChanMappingController::defaultMappingForIntan(unsigned intan, unsign
 	ret.intanCh = intan_ch;
     return ret;
 }
+
+
+void ChanMappingController::setDualDevMode(bool d)
+{
+	is_dual = d;
+}
+
+
+void ChanMappingController::loadButPushed()
+{
+	QString fn = QFileDialog::getOpenFileName(dialogParent, "Load a channel mapping", lastDir);
+	if (fn.length()) {
+		QFile f(fn);
+		QFileInfo fi(fn);
+		lastDir = fi.absolutePath();
+
+		if (f.exists() && f.open(QIODevice::ReadOnly|QIODevice::Text)) {
+			ChanMap cm(ChanMap::fromWSDelimFlatFileString(QString(f.readAll())));
+			const int origsize = cm.size();
+			const ChanMap &cur = currentMapping();
+			if (cm.size() > cur.size()) {
+				cm.resize(cur.size());
+			} else if (cm.size() < cur.size()) {
+				dialog->statusLbl->setText(QString("Error reading and/or mapping wrong size (from file %1)").arg(fn));
+				return;
+			}
+			dialog->statusLbl->setText(QString("Loaded ") + QString::number(cm.size()) + "-channel mapping " + (origsize != cm.size() ? QString("(truncated from %1 chans) ").arg(origsize) : QString(""))  + "from " + fn);
+			resetFromMapping(cm);
+		} else {
+			dialog->statusLbl->setText(QString("Failed to open ") + fn);
+		}
+	}
+}
+
+void ChanMappingController::saveButPushed()
+{
+	QString fn = QFileDialog::getSaveFileName(dialogParent, "Save channel mapping", lastDir);
+	if (fn.length()) {
+		QFile f(fn);
+		QFileInfo fi(fn);
+		lastDir = fi.absolutePath();
+		/*if (f.exists()) {
+			int q = QMessageBox::question(dialogParent, "Confirm Overwrite", QString(fn) + " exists.  Overwrite?", QMessageBox::Ok|QMessageBox::Cancel, QMessageBox::Cancel);
+			if (q == QMessageBox::Cancel) {
+				return;
+			}
+		}*/
+		f.open(QIODevice::WriteOnly|QIODevice::Text|QIODevice::Truncate);
+		if (!f.isOpen()) {
+			dialog->statusLbl->setText(QString("Error opening %1 for writing").arg(fn));
+			return;
+		}
+		int bc = f.write(currentMapping().toWSDelimFlatFileString().toUtf8());
+		if (bc < 0) {
+			dialog->statusLbl->setText(QString("Error writing to %1").arg(fn));
+			return;
+		}
+		dialog->statusLbl->setText(QString("Wrote mapping to file %1").arg(fn));
+	}
+}
+
 
 #ifdef TEST_CH_MAP_CNTRL
 
