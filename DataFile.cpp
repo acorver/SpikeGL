@@ -252,6 +252,7 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
 	if (dp.dualDevMode) {
 		params["dev2"] = dp.dev2;
 		params["dualDevMode"] = true;
+		params["secondDevIsAuxOnly"] = dp.secondDevIsAuxOnly;
 	}
     params["devProductName"] = DAQ::GetProductName(dp.dev);
     params["nChans"] = nChans;
@@ -489,10 +490,14 @@ ChanMap DataFile::chanMap() const
 	if (!chanMap.size()) {
 		// saved file lacks a chan map -- sneakily pull it from the "current" chan map settings
 		ChanMappingController ctl;
+		ctl.currentMode = daqMode();
+		ctl.setDualDevMode(isDualDevMode() && !secondDevIsAuxOnly());
 		ctl.loadSettings();
-		chanMap = ctl.mappingForMode(daqMode(), isDualDevMode());
-		if (nChans * 2 < chanMap.size()) // guess we were in dual dev mode?
-			chanMap = ctl.mappingForMode(daqMode(), true);
+		chanMap = ctl.currentMapping();
+		if (nChans * 2 < chanMap.size()) { // guess we were in dual dev mode?
+			ctl.setDualDevMode(true);
+			chanMap = ctl.currentMapping();
+		}
 	}
 	return chanMap;
 }
@@ -504,6 +509,12 @@ bool DataFile::isDualDevMode() const
 	return false;
 }
 
+bool DataFile::secondDevIsAuxOnly() const
+{
+	if (params.contains("secondDevIsAuxOnly"))
+		return params["secondDevIsAuxOnly"].toBool();
+	return false;
+}
 
 DFWriteThread::DFWriteThread(DataFile *df) : QThread(0), SampleBufQ("Data Write Queue", SAMPLE_BUF_Q_SIZE), d(df), stopflg(false)
 {}

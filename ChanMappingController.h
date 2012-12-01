@@ -26,12 +26,10 @@ public:
     static ChanMapDesc defaultMappingForIntan(unsigned intan, unsigned intan_chan,
 											  unsigned chans_per_intan);
 
-	const ChanMap & mappingForMode(DAQ::Mode m, bool isDualDevMode) const { 
-		if (isDualDevMode) return mapping2[m];
-		return mapping[m]; 
+	const ChanMap & currentMapping() const { 
+		if (is_dual) return mapping2[currentMode];
+		return mapping[currentMode]; 
 	}
-	const ChanMap & mappingForMode(DAQ::Mode m) const { return mappingForMode(m,is_dual); }
-	const ChanMap & currentMapping() const { return mappingForMode(currentMode); }
 	
 public slots:
     bool exec();

@@ -62,6 +62,7 @@ protected slots:
 	void bufferSizeSliderChanged();
 	void aoBufferSizeSliderChanged();
 	void dualDevModeChkd();
+	void secondIsAuxChkd();
 
 private:
     void resetFromParams(DAQ::Params *p = 0);

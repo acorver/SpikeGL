@@ -352,9 +352,14 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	// setup sorting/naming
 	const int gs = graphs.size(), cs = p.chanMap.size();
 	sorting.clear(); sorting.reserve(gs);
-	naming.clear(); naming.reserve(cs);
-	for (int i = 0; i < gs; ++i) sorting.push_back(i);
-	for (int i = 0; i < cs; ++i) naming.push_back(p.chanMap[i].electrodeId);
+	naming.clear(); naming.reserve(gs);
+	for (int i = 0; i < gs; ++i) {
+		sorting.push_back(i);
+		if (i < cs) 
+			naming.push_back(p.chanMap[i].electrodeId);
+		else
+			naming.push_back(i);
+	}
 
 	tabChange(0); // force correct graphs on screen!
 	

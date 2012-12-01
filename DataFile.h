@@ -91,6 +91,7 @@ public:
 	/// aux gain value from .meta file or 1.0 if "auxGain" field not found in meta file
 	double auxGain() const;
 	bool isDualDevMode() const;
+	bool secondDevIsAuxOnly() const;
 	DAQ::Mode daqMode() const;
 	ChanMap chanMap() const;
 

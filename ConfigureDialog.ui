@@ -842,7 +842,7 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="geometry">
     <rect>
-     <x>202</x>
+     <x>182</x>
      <y>160</y>
      <width>114</width>
      <height>22</height>
@@ -860,7 +860,7 @@ p, li { white-space: pre-wrap; }
     <rect>
      <x>23</x>
      <y>162</y>
-     <width>179</width>
+     <width>149</width>
      <height>20</height>
     </rect>
    </property>
@@ -901,6 +901,22 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="text">
     <string>AI Channel List, Dev 2:</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="secondIsAuxChk">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>308</x>
+     <y>162</y>
+     <width>147</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>2nd Dev is AUX *ONLY*</string>
    </property>
   </widget>
  </widget>

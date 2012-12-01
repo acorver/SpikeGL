@@ -65,7 +65,7 @@ namespace DAQ
 
     struct Params {
         QString outputFile, outputFileOrig, dev, dev2;
-		bool dualDevMode;
+		bool dualDevMode, secondDevIsAuxOnly;
         bool stimGlTrigResave;
         Range range;
         unsigned doCtlChan;

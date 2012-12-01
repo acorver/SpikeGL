@@ -821,24 +821,36 @@ namespace DAQ
                 tmp.reserve(datasz);
 				tmp2.reserve(datasz2);
                 const int nMx = nChans-nExtraChans1, nMx2 = nChans2-nExtraChans2;
-                for (int i = nMx; nExtraChans1 && i <= datasz; i += nChans) {
-                    std::vector<int16>::const_iterator begi = data.begin()+(i-nMx), endi = data.begin()+i;
-                    tmp.insert(tmp.end(), begi, endi); // copy non-aux channels for this MUXed sub-scan
-                    if ((!((tmp.size()+nExtraChans1) % NCHANS1)) && i+nExtraChans1 <= datasz) {// if we are on a virtual scan-boundary, then ...
-						begi = data.begin()+i;  endi = begi+nExtraChans1;
-						tmp.insert(tmp.end(), begi, endi); // insert the scan into the destination data
-                    }
-                }
-                for (int i = nMx2; p.dualDevMode && nExtraChans2 && i <= datasz2; i += nChans2) {
-                    std::vector<int16>::const_iterator begi = data2.begin()+(i-nMx2), endi = data2.begin()+i;
-                    tmp2.insert(tmp2.end(), begi, endi); // copy non-aux channels for this MUXed sub-scan
-                    if ((!((tmp2.size()+nExtraChans2) % NCHANS2)) && i+nExtraChans2 <= datasz2) {// if we are on a virtual scan-boundary, then ...
-						begi = data2.begin()+i;  endi = begi+nExtraChans2;
-						tmp2.insert(tmp2.end(), begi, endi); // insert the scan into the destination data
-                    }
-                }
-                if (nExtraChans1) { data.swap(tmp); nRead = data.size(); }
-				if (p.dualDevMode && nExtraChans2) { data2.swap(tmp2); nRead2 = data2.size(); }
+				if (nMx > 0) {
+					for (int i = nMx; nExtraChans1 && i <= datasz; i += nChans) {
+						std::vector<int16>::const_iterator begi = data.begin()+(i-nMx), endi = data.begin()+i;
+						tmp.insert(tmp.end(), begi, endi); // copy non-aux channels for this MUXed sub-scan
+						if ((!((tmp.size()+nExtraChans1) % NCHANS1)) && i+nExtraChans1 <= datasz) {// if we are on a virtual scan-boundary, then ...
+							begi = data.begin()+i;  endi = begi+nExtraChans1;
+							tmp.insert(tmp.end(), begi, endi); // insert the scan into the destination data
+						}
+					}
+				} else { // not normally reached currently, but just in case we are MUX mode and 1st dev is *ALL* AUX, we take every Nth scan
+					for (int i = 0; nExtraChans1 && i+nChans <= datasz; i += nChans * nscans_per_mux_scan) {
+						tmp.insert(tmp.end(), data.begin()+i, data.begin()+i+nChans);
+					}
+				}
+				if (nMx2 > 0) { // if we _aren't_ in "secondDevIsAuxOnly" mode
+					for (int i = nMx2; p.dualDevMode && nExtraChans2 && i <= datasz2; i += nChans2) {
+						std::vector<int16>::const_iterator begi = data2.begin()+(i-nMx2), endi = data2.begin()+i;
+						tmp2.insert(tmp2.end(), begi, endi); // copy non-aux channels for this MUXed sub-scan
+						if ((!((tmp2.size()+nExtraChans2) % NCHANS2)) && i+nExtraChans2 <= datasz2) {// if we are on a virtual scan-boundary, then ...
+							begi = data2.begin()+i;  endi = begi+nExtraChans2;
+							tmp2.insert(tmp2.end(), begi, endi); // insert the scan into the destination data
+						}
+					}
+				} else { // we are in "secondDevIsAuxOnly" mode, so take every Nth scan to match first dev sampling rate..
+					for (int i = 0; nExtraChans2 && i+nChans2 <= datasz2; i += nChans2 * nscans_per_mux_scan) {
+						tmp2.insert(tmp2.end(), data2.begin()+i, data2.begin()+i+nChans2);
+					}
+				}
+                if (tmp.size()) { data.swap(tmp); nRead = data.size(); }
+				if (tmp2.size()) { data2.swap(tmp2); nRead2 = data2.size(); }
                 if ((data.size()+data2.size()) % (NCHANS1+NCHANS2)) {
                     // data didn't end on scan-boundary -- we have leftover scans!
                     Error() << "INTERNAL ERROR SCAN DIDN'T END ON A SCAN BOUNDARY FIXME!!! in " << __FILE__ << ":" << __LINE__;                 
@@ -886,7 +898,7 @@ namespace DAQ
                 aoData.reserve(aoData.size()+dsize);
                 for (int i = 0; i < dsize; i += NCHANS1+NCHANS2) { // for each scan..
                     for (QVector<QPair<int,int> >::const_iterator it = aoAITab.begin(); it != aoAITab.end(); ++it) { // take ao channels
-                        const int aiChIdx = p.doPreJuly2011IntanDemux || !muxMode ? (*it).second : mapNewChanIdToPreJuly2011ChanId((*it).second, p.mode, p.dualDevMode);
+						const int aiChIdx = p.doPreJuly2011IntanDemux || !muxMode ? (*it).second : mapNewChanIdToPreJuly2011ChanId((*it).second, p.mode, p.dualDevMode && !p.secondDevIsAuxOnly);
 						const int dix = i+aiChIdx;
 						if (dix < dsize)
 							aoData.push_back(data[dix]);
@@ -969,8 +981,8 @@ namespace DAQ
 		out.reserve(s1+s2);
 		int i,j;
 		for (i = 0, j = 0; i < s1 && j < s2; i+=NCHANS1, j+=NCHANS2) {
-			out.insert(out.end(), data.begin()+i, data.begin()+i+nMx);
-			out.insert(out.end(), data2.begin()+j, data2.begin()+j+nMx2);
+			if (nMx > 0) out.insert(out.end(), data.begin()+i, data.begin()+i+nMx);
+			if (nMx2 > 0) out.insert(out.end(), data2.begin()+j, data2.begin()+j+nMx2);
 			out.insert(out.end(), data.begin()+i+nMx, data.begin()+i+NCHANS1);
 			out.insert(out.end(), data2.begin()+j+nMx2, data2.begin()+j+NCHANS2);
 		}

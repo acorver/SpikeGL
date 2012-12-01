@@ -932,7 +932,7 @@ void PostJuly2011Remuxer::run()
 			const int lastScanSz = scans.size();
 			for (int i = nVAIChans; i <= lastScanSz; i += nVAIChans) {
 				int16 *scanBegin = &scans[i-nVAIChans];
-				ApplyNewIntanDemuxToScan(scanBegin, DAQ::ModeNumChansPerIntan[p.mode], DAQ::ModeNumIntans[p.mode]*(p.dualDevMode ? 2 : 1));
+				ApplyNewIntanDemuxToScan(scanBegin, DAQ::ModeNumChansPerIntan[p.mode], DAQ::ModeNumIntans[p.mode]*(p.dualDevMode && !p.secondDevIsAuxOnly ? 2 : 1));
 			}
 			// END post July 2011 demux
 			
