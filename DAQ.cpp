@@ -432,7 +432,7 @@ namespace DAQ
 		int nodatact = 0;
 		int daqerrct = 0;
 
-		while (daqerrct < 3) {
+		while (daqerrct < 3 && !pleaseStop) {
 			bool break2 = false;
 			DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
 			DAQmxErrChk (DAQmxCreateAOVoltageChan(taskHandle,aoChanString.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
