@@ -283,16 +283,16 @@ void ConfigureDialogController::acqModeCBChanged()
     const int idx = dialog->acqModeCB->currentIndex();
     const bool jfrc32 = idx == 3;
     const bool intan = idx != 1;    
-    bool notStraightAI;
+	bool notStraightAI = (idx != DAQ::AIRegular);
     
     /// HACK to auto-repopulate the lineedit based on acquisition mode!
-    if ( (notStraightAI = (idx != DAQ::AIRegular)) ) { // if it's not straight AI, 
+    /*if ( (notStraightAI = (idx != DAQ::AIRegular)) ) { // if it's not straight AI, 
         QString txt = dialog->channelListLE->text();
         if (txt.startsWith("0:") && txt.length() == 3)  {
 			txt = QString("0:%1").arg(DAQ::ModeNumIntans[idx] - 1);
             dialog->channelListLE->setText(txt);
         }
-    }
+    }*/
 	dialog->secondIsAuxChk->setEnabled(notStraightAI && dialog->dualDevModeChk->isChecked());
     dialog->channelSubsetLE->setEnabled(notStraightAI);
     dialog->channelSubsetLabel->setEnabled(notStraightAI);

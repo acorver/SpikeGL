@@ -24,6 +24,7 @@
 #include "SampleBufQ.h"
 
 #define DAQmxErrChk(functionCall) do { if( DAQmxFailed(error=(functionCall)) ) { callStr = STR(functionCall); goto Error_Out; } } while (0)
+#define DAQmxErrChkNoJump(functionCall) ( DAQmxFailed(error=(functionCall)) && (callStr = STR(functionCall)) )
 
 const bool excessiveDebug = false; /* from SpikeGL.h */
 
@@ -429,90 +430,106 @@ namespace DAQ
 		Util::Resampler resampler(double(p.aoSrate) / double(p.srate) /* HACK FIXME * 2.0*/, aoChansSize);
 		int16 lastSamp = 0;
 		int nodatact = 0;
+		int daqerrct = 0;
 
-        DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
-        DAQmxErrChk (DAQmxCreateAOVoltageChan(taskHandle,aoChanString.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
-        DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,p.aoClock.toUtf8().constData(),p.aoSrate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*//*aoSamplesPerChan*/0));
-        //DAQmxErrChk (DAQmxCfgOutputBuffer(taskHandle,aoSamplesPerChan));
-		DAQmxSetWriteRegenMode(taskHandle, DAQmx_Val_DoNotAllowRegen);
+		while (daqerrct < 3) {
+			bool break2 = false;
+			DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
+			DAQmxErrChk (DAQmxCreateAOVoltageChan(taskHandle,aoChanString.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
+			DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,p.aoClock.toUtf8().constData(),p.aoSrate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*//*aoSamplesPerChan*/0));
+			//DAQmxErrChk (DAQmxCfgOutputBuffer(taskHandle,aoSamplesPerChan));
+			DAQmxSetWriteRegenMode(taskHandle, DAQmx_Val_DoNotAllowRegen);
 
-		Debug() << "AOWrite thread started.";
+			Debug() << "AOWrite thread started.";
 
-        while (!pleaseStop) {
-            u64 sampCount;
-			if (!dequeueBuffer(sampsOrig, sampCount) || !sampsOrig.size()) {
-				if (++nodatact > 2) {
-					nodatact = 0;
-					// failed to dequeue data, insert silence to keep ao writer going otherwise we get underruns!
-					sampsOrig.clear();
-					samps.clear();
-					samps.resize(p.aoSrate * 0.002 * aoChansSize, lastSamp); // insert 2ms of silence?
-				} else {
-					msleep(2);
-					continue;
+			while (!pleaseStop && !break2) {
+				u64 sampCount;
+				if (!dequeueBuffer(sampsOrig, sampCount) || !sampsOrig.size()) {
+					if (++nodatact > 2) {
+						nodatact = 0;
+						// failed to dequeue data, insert silence to keep ao writer going otherwise we get underruns!
+						sampsOrig.clear();
+						samps.clear();
+						samps.resize(p.aoSrate * 0.002 * aoChansSize, lastSamp); // insert 2ms of silence?
+					} else {
+						msleep(2);
+						continue;
+					}
+				} else { // normal operation..
+					double now = getTime();
+					if (tLastData > 0.0) 
+						inpDataRate = (double(sampsOrig.size())/aoChansSize)/(now-tLastData);
+					tLastData = now;
+					QString err = resampler.resample(sampsOrig, samps);
+					if (err.length()) {
+						Error() << "AOWrite thread resampler error: " << err;
+						continue;
+					}
 				}
-			} else { // normal operation..
-				double now = getTime();
-				if (tLastData > 0.0) 
-					inpDataRate = (double(sampsOrig.size())/aoChansSize)/(now-tLastData);
-				tLastData = now;
-				QString err = resampler.resample(sampsOrig, samps);
-				if (err.length()) {
-					Error() << "AOWrite thread resampler error: " << err;
-					continue;
+				if (leftOver.size()) samps.insert(samps.begin(), leftOver.begin(), leftOver.end());
+				leftOver.clear();
+				unsigned sampsSize = samps.size(), rem = sampsSize % aoChansSize;
+				if (rem) {
+					Debug() << "AOWrite left over partial scan of size of size " << rem << " for writect " << aoWriteCt;
+					sampsSize -= rem;
+					leftOver.reserve(rem);
+					leftOver.insert(leftOver.begin(), samps.begin()+sampsSize, samps.end());
 				}
-			}
-            if (leftOver.size()) samps.insert(samps.begin(), leftOver.begin(), leftOver.end());
-            leftOver.clear();
-			unsigned sampsSize = samps.size(), rem = sampsSize % aoChansSize;
-			if (rem) {
-				Debug() << "AOWrite left over partial scan of size of size " << rem << " for writect " << aoWriteCt;
-				sampsSize -= rem;
-				leftOver.reserve(rem);
-				leftOver.insert(leftOver.begin(), samps.begin()+sampsSize, samps.end());
-			}
-            unsigned sampIdx = 0;
-            while (sampIdx < sampsSize && !pleaseStop) {
-                int32 nScansToWrite = (sampsSize-sampIdx)/aoChansSize;
-                int32 nScansWritten = 0;				
+				unsigned sampIdx = 0;
+				while (sampIdx < sampsSize && !pleaseStop) {
+					int32 nScansToWrite = (sampsSize-sampIdx)/aoChansSize;
+					int32 nScansWritten = 0;				
 
-                /*if (nScansToWrite > aoSamplesPerChan)
-                    nScansToWrite = aoSamplesPerChan;
-                else*/ if (!aoWriteCt && nScansToWrite < aoSamplesPerChan) {
-                    leftOver.insert(leftOver.end(), samps.begin()+sampIdx, samps.end());
-                    break;
-                }
-
-	            double t0 = getTime();
-                DAQmxErrChk(DAQmxWriteBinaryI16(taskHandle, nScansToWrite, 1, aoTimeout, DAQmx_Val_GroupByScanNumber, &samps[sampIdx], &nScansWritten, NULL));
-                const double tWrite(getTime()-t0);
-	
-				if (nScansWritten >= 0 && nScansWritten < nScansToWrite) {
-					rem = (nScansToWrite - nScansWritten) * aoChansSize;
-					Debug() << "Partial write: nScansWritten=" << nScansWritten << " nScansToWrite=" << nScansToWrite << ", queueing for next write..";
-					leftOver.insert(leftOver.end(), samps.begin()+sampIdx+nScansWritten, samps.end());
+					/*if (nScansToWrite > aoSamplesPerChan)
+					nScansToWrite = aoSamplesPerChan;
+					else*/ if (!aoWriteCt && nScansToWrite < aoSamplesPerChan) {                    leftOver.insert(leftOver.end(), samps.begin()+sampIdx, samps.end());
 					break;
-				} else if (nScansWritten != nScansToWrite) {
-                    Error() << "nScansWritten (" << nScansWritten << ") != nScansToWrite (" << nScansToWrite << ")";
-                    break;
-                }
-				lastSamp = samps[sampIdx+nScansWritten-1]; // save last sample for 'silence' generation hack..
+					}
 
-				if (++nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;
-				writeSpeedAvg -= writeSpeedAvg/nWritesAvg;
-				double spd;
-				writeSpeedAvg += (spd = double(nScansWritten)/tWrite ) / double(nWritesAvg);
+					double t0 = getTime();
+					if ( DAQmxErrChkNoJump(DAQmxWriteBinaryI16(taskHandle, nScansToWrite, 1, aoTimeout, DAQmx_Val_GroupByScanNumber, &samps[sampIdx], &nScansWritten, NULL)) )
+					{
+						break2 = true;
+						if (++daqerrct < 3) {
+							DAQmxGetExtendedErrorInfo(errBuff,2048);
+							Debug() << "AOWrite thread error on write: \"" << errBuff << "\". AOWrite retrying since errct < 3.";
+							DAQmxStopTask(taskHandle);
+							DAQmxClearTask(taskHandle);
+							taskHandle = 0;
+						} else {
+							Debug() << "AOWrite error on write and not retrying since errct >= 3!";
+						}
+						break;
+					} else if (daqerrct) daqerrct--; 
 
-                if (tWrite > 0.250) {
-					Debug() << "AOWrite #" << aoWriteCt << " " << nScansWritten << " scans " << aoChansSize << " chans" << " (bufsize=" << aoBufferSize << ") took: " << tWrite << " secs";
-                }
-				if (excessiveDebug) Debug() << "AOWrite speed " << spd << " Hz avg speed " << writeSpeedAvg << " Hz" << " (" << nScansWritten << " scans) buffer fill " << ((dataQueueSize()/double(dataQueueMaxSize))*100.0) << "% inprate:" << inpDataRate << "(?) Hz";
+					const double tWrite(getTime()-t0);
 
-                ++aoWriteCt;
-                sampIdx += nScansWritten*aoChansSize;
-            }
-        }
+					if (nScansWritten >= 0 && nScansWritten < nScansToWrite) {
+						rem = (nScansToWrite - nScansWritten) * aoChansSize;
+						Debug() << "Partial write: nScansWritten=" << nScansWritten << " nScansToWrite=" << nScansToWrite << ", queueing for next write..";
+						leftOver.insert(leftOver.end(), samps.begin()+sampIdx+nScansWritten, samps.end());
+						break;
+					} else if (nScansWritten != nScansToWrite) {
+						Error() << "nScansWritten (" << nScansWritten << ") != nScansToWrite (" << nScansToWrite << ")";
+						break;
+					}
+					lastSamp = samps[sampIdx+nScansWritten-1]; // save last sample for 'silence' generation hack..
 
+					if (++nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;
+					writeSpeedAvg -= writeSpeedAvg/nWritesAvg;
+					double spd;
+					writeSpeedAvg += (spd = double(nScansWritten)/tWrite ) / double(nWritesAvg);
+
+					if (tWrite > 0.250) {
+						Debug() << "AOWrite #" << aoWriteCt << " " << nScansWritten << " scans " << aoChansSize << " chans" << " (bufsize=" << aoBufferSize << ") took: " << tWrite << " secs";
+					}
+					if (excessiveDebug) Debug() << "AOWrite speed " << spd << " Hz avg speed " << writeSpeedAvg << " Hz" << " (" << nScansWritten << " scans) buffer fill " << ((dataQueueSize()/double(dataQueueMaxSize))*100.0) << "% inprate:" << inpDataRate << "(?) Hz";
+
+					++aoWriteCt;
+					sampIdx += nScansWritten*aoChansSize;
+				}
+			}
+		}
     Error_Out:
         if ( DAQmxFailed(error) )
             DAQmxGetExtendedErrorInfo(errBuff,2048);
