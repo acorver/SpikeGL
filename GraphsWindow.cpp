@@ -1049,12 +1049,12 @@ void GraphsWindow::saveFileLineEditChanged(const QString &t)
 
 QString GraphsWindow::getGraphSettingsKey() const
 {
-	static const size_t bufsz = 8192;
-	char *buf = (char *)calloc(bufsz,sizeof(char));
 	const DAQ::Params & p(params);
+	const size_t bufsz = 512+p.demuxedBitMap.size();
+	char *buf = (char *)calloc(bufsz,sizeof(char));
 
 	char *subsetstring = (char *)calloc(p.demuxedBitMap.size()+1, sizeof(char));
-	for (int i = 0; i < p.demuxedBitMap.size(); ++i) {
+	for (int i = 0, z = p.demuxedBitMap.size(); i < z; ++i) {
 		subsetstring[i] = p.demuxedBitMap[i] ? '1' : '0';
 	}
 
