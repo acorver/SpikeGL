@@ -563,7 +563,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     if ( (havePD=(acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::AITriggered))
         && (chanVect.contains(pdChan) || pdChan < 0 || pdChan >= aiChanLists[dev].count())
         ) {
-		pdChanAdjusted = pdChan-chanVect.size();
+		pdChanAdjusted = pdChan-aiChanLists[dev].count();
 
 		if (dualDevMode && pdChanAdjusted >= 0 && !chanVect.contains(pdChan) && !chanVect2.contains(pdChanAdjusted) && pdChanAdjusted < aiChanLists[dev2].size()) {
 			pdOnSecondDev = true;
