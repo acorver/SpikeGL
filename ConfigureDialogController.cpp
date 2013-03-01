@@ -190,7 +190,9 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
 
     resetAOPassFromParams(aoPassthru);
     
+	dialog->resumeGraphSettingsChk->setChecked(p.resumeGraphSettings);
     dialog->disableGraphsChk->setChecked(p.suppressGraphs);
+	dialog->resumeGraphSettingsChk->setDisabled(dialog->disableGraphsChk->isChecked());
     
     // now the timed params stuff
     acqTimedParams->startHrsSB->setValue(int(p.startIn/(60.*60.)));
@@ -469,6 +471,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     bool err = false;
     errTitle = errMsg = "";
 	const bool dualDevMode = dialog->dualDevModeChk->isChecked(), secondDevIsAuxOnly = dialog->secondIsAuxChk->isChecked();
+	const bool resumeGraphSettings = dialog->resumeGraphSettingsChk->isChecked();
     QVector<unsigned> chanVect, chanVect2;
     QString chans = parseAIChanString(dialog->channelListLE->text(), chanVect, &err);
     QString chans2 = dualDevMode ? parseAIChanString(dialog->channelListLE_2->text(), chanVect2, &err) : "";
@@ -836,6 +839,8 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
         //if (i && !(i % 9)) debugStr += "\n";
     }
     Debug() << "Channel subset bitmap: " << debugStr;
+
+	p.resumeGraphSettings = resumeGraphSettings;
         
     saveSettings();       
     
@@ -1038,6 +1043,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.aoClock = settings.value("aoClock", "OnboardClock").toString();
 	p.aoBufferSizeCS = settings.value("aoBufferSizeCentiSeconds", DEF_AO_BUFFER_SIZE_CENTISECONDS).toUInt();
 	p.secondDevIsAuxOnly = settings.value("secondDevIsAuxOnly", false).toBool();
+	p.resumeGraphSettings = settings.value("resumeGraphSettings", true).toBool();
 }
 
 void ConfigureDialogController::loadSettings()
@@ -1113,6 +1119,8 @@ void ConfigureDialogController::saveSettings() const
 
 	settings.setValue("secondDevIsAuxOnly", p.secondDevIsAuxOnly);
 	settings.setValue("pdOnSecondDev", p.pdOnSecondDev);
+	settings.setValue("resumeGraphSettings", p.resumeGraphSettings);
+
 
     settings.endGroup();
 }

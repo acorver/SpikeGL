@@ -91,6 +91,11 @@ private:
 	void retileGraphsAccordingToSorting();
 	void setupGraph(int num, int firstExtraChan);
 	
+	QString getGraphSettingsKey() const;
+	void loadGraphSettings();
+	void saveGraphSettings();
+
+
 	static int NumGraphsPerGraphTab[DAQ::N_Modes];
 	static void SetupNumGraphsPerGraphTab();
 	

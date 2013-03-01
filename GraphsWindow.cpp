@@ -294,6 +294,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     selectedGraph = 0;
     lastMouseOverGraph = -1;;
 
+	loadGraphSettings();
+
     update_nPtsAllGs();
 
     QTimer *t = new QTimer(this);
@@ -410,6 +412,7 @@ void GraphsWindow::setGraphTimeSecs(int num, double t)
 		graphStates[num].nVGridLines = nlines;
 		graphStates[num].pointsWB = 0;
 	}
+	graphStates[num].max_x = graphStates[num].min_x+t;
     graphStats[num].clear();
     // NOTE: someone should call update_nPtsAllGs() after this!
 }
@@ -575,6 +578,7 @@ void GraphsWindow::selectGraph(int num)
         }
     }
     graphFrames[num]->setFrameStyle(QFrame::Box|QFrame::Plain);
+
     updateGraphCtls();
 }
 
@@ -588,22 +592,34 @@ void GraphsWindow::doGraphColorDialog()
         if (graphs[num]) graphs[num]->graphColor() = c;
 		graphStates[num].graph_Color = c;
         updateGraphCtls();
+		saveGraphSettings();
     }
 }
 
+struct SignalBlocker {
+	QObject *obj;
+	bool wasBlocked;
+
+	SignalBlocker(QObject *obj):obj(obj) { wasBlocked = obj->signalsBlocked(); obj->blockSignals(true); }
+	~SignalBlocker() { obj->blockSignals(wasBlocked); }
+};
+
 void GraphsWindow::updateGraphCtls()
 {
+	SignalBlocker b(graphYScale), b2(graphSecs), b3(graphColorBut), b4(pauseAct), b5(maxAct);
     int num = selectedGraph;
     bool p = pausedGraphs[num];
-    pauseAct->setChecked(p);
-    pauseAct->setIcon(p ? *playIcon : *pauseIcon);
-    if (maximized) {
-        maxAct->setChecked(true);
-        maxAct->setIcon(*windowNoFullScreenIcon);
-    } else {
-        maxAct->setChecked(false);
-        maxAct->setIcon(*windowFullScreenIcon);
-    }
+
+
+	pauseAct->setChecked(p);
+	pauseAct->setIcon(p ? *playIcon : *pauseIcon);
+	if (maximized) {
+		maxAct->setChecked(true);
+		maxAct->setIcon(*windowNoFullScreenIcon);
+	} else {
+		maxAct->setChecked(false);
+		maxAct->setIcon(*windowFullScreenIcon);
+	}
     graphYScale->setValue(graphStates[num].yscale);
     graphSecs->setValue(graphTimesSecs[num]);
     { // update color button
@@ -650,7 +666,7 @@ void GraphsWindow::mouseClickGraph(double x, double y)
     selectGraph(num);
     lastMouseOverGraph = num;
     lastMousePos = Vec2(x,y);
-    updateMouseOver();
+    updateMouseOver();	
 }
 
 void GraphsWindow::mouseOverGraph(double x, double y)
@@ -763,6 +779,8 @@ void GraphsWindow::graphSecsChanged(double secs)
     int num = selectedGraph;
     setGraphTimeSecs(num, secs);
     update_nPtsAllGs();    
+
+	saveGraphSettings();
 }
 
 void GraphsWindow::graphYScaleChanged(double scale)
@@ -770,6 +788,8 @@ void GraphsWindow::graphYScaleChanged(double scale)
     int num = selectedGraph;
     if (graphs[num]) graphs[num]->setYScale(scale);
 	graphStates[num].yscale = scale;
+
+	saveGraphSettings();
 }
 
 void GraphsWindow::applyAll()
@@ -786,7 +806,9 @@ void GraphsWindow::applyAll()
 		graphStates[i].yscale = scale;
 		graphStates[i].graph_Color = c;
     }
-    update_nPtsAllGs();    
+    update_nPtsAllGs(); 
+
+	saveGraphSettings();
 }
 
 void GraphsWindow::hpfChk(bool b)
@@ -1023,4 +1045,119 @@ void GraphsWindow::saveFileLineEditChanged(const QString &t)
 	// in case we want to change something like..possibly have it be that if they edit it manually, change the "p.origFileName" ...?
 	// See Diego's email...
 	//Debug() << "txt chg: " << t;
+}
+
+QString GraphsWindow::getGraphSettingsKey() const
+{
+	static const size_t bufsz = 8192;
+	char *buf = (char *)calloc(bufsz,sizeof(char));
+	const DAQ::Params & p(params);
+
+	char *subsetstring = (char *)calloc(p.demuxedBitMap.size()+1, sizeof(char));
+	for (int i = 0; i < p.demuxedBitMap.size(); ++i) {
+		subsetstring[i] = p.demuxedBitMap[i] ? '1' : '0';
+	}
+
+	qsnprintf(buf, bufsz-1, 
+				"GraphsWindowSettings_"
+				"saux_%u_"
+				"mode_%u_"
+				"nai1_%u_"
+				"nai2_%u_"
+				"nex1_%u_"
+				"nex2_%u_"
+				"rmin_%f_"
+				"rmax_%f_"
+				"subset_%s",
+				(unsigned)(p.secondDevIsAuxOnly?1:0),
+				(unsigned)p.mode,
+				(unsigned)p.nVAIChans1,
+				(unsigned)p.nVAIChans2,
+				(unsigned)p.nExtraChans1,
+				(unsigned)p.nExtraChans2,
+				(double)p.range.min,
+				(double)p.range.max,
+				subsetstring);
+
+	QString ret(QString::fromLatin1(buf));
+
+	free(subsetstring);
+	free(buf);
+
+	return ret;
+}
+
+#define SETTINGS_GROUP "GraphsWindowSettings"
+
+void GraphsWindow::loadGraphSettings()
+{	
+	if (!params.resumeGraphSettings) return;
+
+	QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
+	settings.beginGroup(SETTINGS_GROUP);
+
+	QString mykey = getGraphSettingsKey();
+
+	if (settings.contains(mykey)) {
+		QString gstring = settings.value(mykey).toString();
+		QStringList gs = gstring.split(";",QString::SkipEmptyParts);
+		for (QStringList::const_iterator it = gs.begin(); it != gs.end(); ++it) {
+			QStringList nvp = (*it).split(":",QString::SkipEmptyParts);
+			if (nvp.count() == 2) {
+				QString n = nvp.first(), v = nvp.last();
+				bool ok;
+				int num = n.toInt(&ok);
+				if (ok && num >= 0 && num < graphStates.size()) {
+					GLGraphState & state = graphStates[num];
+					bool wasEnabled;
+					if (graphs[num]) {
+						wasEnabled = graphs[num]->updatesEnabled();
+						graphs[num]->setUpdatesEnabled(false);
+						state = graphs[num]->getState();
+					}
+					state.fromString(v);
+					if (graphs[num]) {
+						graphs[num]->setState(state);
+						graphs[num]->setUpdatesEnabled(wasEnabled);
+					}
+					setGraphTimeSecs(num, state.max_x-state.min_x);
+				}
+			}
+		}
+	}
+	settings.endGroup();
+
+	update_nPtsAllGs();
+}
+
+void GraphsWindow::saveGraphSettings()
+{
+	QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
+	settings.beginGroup(SETTINGS_GROUP);
+
+	QString mykey = getGraphSettingsKey();
+
+	QString settingsString;
+	{
+		QTextStream ts(&settingsString, QIODevice::WriteOnly|QIODevice::Truncate|QIODevice::Text);
+
+		for (int i = 0; i < graphStates.size(); ++i) {
+			GLGraphState & state(graphStates[i]);
+			bool wasEnabled;
+			if (graphs[i]) {
+				wasEnabled = graphs[i]->updatesEnabled();
+				graphs[i]->setUpdatesEnabled(false);
+				state = graphs[i]->getState();
+			}
+			QString statestring = state.toString();
+			if (i) ts << ";";
+			ts << i << ":" << statestring;
+			if (graphs[i]) {
+				graphs[i]->setUpdatesEnabled(wasEnabled);
+			}
+		}
+		ts.flush();	
+	}
+	settings.setValue(mykey,settingsString);
+	settings.endGroup();
 }

@@ -392,3 +392,43 @@ void GLGraph::setState(const GLGraphState & s)
 	else need_update = true;
 }
 
+QString GLGraphState::toString() const
+{
+	static const size_t bufsz = 256;
+	char buf[bufsz];
+	
+	qsnprintf
+		( buf, bufsz-1,
+		  "fg=#%x,xsecs=%g,yscale=%g",
+		  (unsigned)graph_Color.rgb(),
+		  (double)max_x-min_x,
+		  (double)yscale
+		 );	
+	buf[bufsz-1] = 0;
+	return QString::fromLatin1(buf);
+}
+
+void GLGraphState::fromString(const QString &s) 
+{
+	QStringList lst = s.split(",",QString::SkipEmptyParts);
+	for (QStringList::const_iterator it = lst.begin(); it != lst.end(); ++it) {
+		QStringList nvp = (*it).split("=",QString::SkipEmptyParts);
+		if (nvp.count() == 2) {
+			QString n(nvp.first()), v(nvp.last());
+			n=n.toLower();
+			QByteArray ba = v.toUtf8();
+			const char *vbuf = ba.constData();
+			if (n == "fg") {
+				unsigned c;
+				if (sscanf(vbuf,"#%x",&c)==1) graph_Color = QColor::fromRgba((QRgb)c);				
+			} else if (n == "yscale") {
+				sscanf(vbuf,"%lf",&yscale);				
+			} else if (n == "xsecs") {
+				double xw = -1.0;
+				if ( sscanf(vbuf,"%lf",&xw) == 1 && xw > 0. ) {
+					max_x = min_x+xw;
+				}
+			}
+		}		
+	}
+}

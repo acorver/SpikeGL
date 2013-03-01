@@ -919,6 +919,36 @@ p, li { white-space: pre-wrap; }
     <string>2nd Dev is AUX *ONLY*</string>
    </property>
   </widget>
+  <widget class="QCheckBox" name="resumeGraphSettingsChk">
+   <property name="geometry">
+    <rect>
+     <x>224</x>
+     <y>445</y>
+     <width>236</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;If checked, apply the graph settings (X-Scale, Y-Scale, color, etc) from the previous run.  &lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;This only really works if the same channel lists, AI devices, and acquisition mode is used.  &lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;If unchecked, default values are used.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="whatsThis">
+    <string>If checked, apply the graph settings (X-Scale, Y-Scale, color, etc) from the previous run.  This only really works if the same channel lists, AI devices, and acquisition mode is used.  If unchecked, default values are used.</string>
+   </property>
+   <property name="text">
+    <string>Restore Graphs Scale &amp;&amp; Color Settings</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+  </widget>
  </widget>
  <tabstops>
   <tabstop>outputFileLE</tabstop>
@@ -974,6 +1004,22 @@ p, li { white-space: pre-wrap; }
     <hint type="destinationlabel">
      <x>286</x>
      <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>disableGraphsChk</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>resumeGraphSettingsChk</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>547</x>
+     <y>454</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>394</x>
+     <y>451</y>
     </hint>
    </hints>
   </connection>

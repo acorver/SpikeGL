@@ -131,7 +131,9 @@ namespace DAQ
 		unsigned aoBufferSizeCS; ///< same as above, but for the AO buffer size
 		
 		int cludgyFilenameCounterOverride; ///< Here it is. Yet more insane complexity and non-obvious behavior to the UI! Hurray for scientists!
-				
+		
+		bool resumeGraphSettings;
+
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }
         void unlock() const { mutex.unlock(); }

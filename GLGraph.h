@@ -22,6 +22,9 @@ struct GLGraphState
 	double selectionBegin, selectionEnd;
 	bool hasSelection;	
 	QString objectName;
+
+	QString toString() const;
+	void fromString(const QString &);
 };
 
 class GLGraph : public QGLWidget
