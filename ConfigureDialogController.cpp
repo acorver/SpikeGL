@@ -466,7 +466,6 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     const QString dev2 = dialog->deviceCB_2->count() ? devNames[dialog->deviceCB_2->currentIndex()] : "";
     const QString aoDev = aoPassthru->aoDeviceCB->count() ? aoDevNames[aoPassthru->aoDeviceCB->currentIndex()] : "";
     const DAQ::Mode acqMode = (DAQ::Mode)dialog->acqModeCB->currentIndex();
-
     bool err = false;
     errTitle = errMsg = "";
 	const bool dualDevMode = dialog->dualDevModeChk->isChecked(), secondDevIsAuxOnly = dialog->secondIsAuxChk->isChecked();
@@ -551,17 +550,26 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     }
     
     const DAQ::AcqStartEndMode acqStartEndMode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
-    
+
+    unsigned nVAI = chanVect.size() + chanVect2.size(), nVAI1 = chanVect.size(), nVAI2 = chanVect2.size();
+
+	bool pdOnSecondDev = false;
     int pdChan = acqPdParams->pdAISB->value();
+	int pdChanAdjusted = -1;
     bool havePD = false;
     if ( (havePD=(acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::AITriggered))
         && (chanVect.contains(pdChan) || pdChan < 0 || pdChan >= aiChanLists[dev].count())
         ) {
-        errTitle = "Trigger Channel Invalid", errMsg = QString().sprintf("Specified trigger channel (%d) is invalid or clashes with another AI channel!", pdChan);
-        return AGAIN;
+		pdChanAdjusted = pdChan-chanVect.size();
+
+		if (dualDevMode && pdChanAdjusted >= 0 && !chanVect.contains(pdChan) && !chanVect2.contains(pdChanAdjusted) && pdChanAdjusted < aiChanLists[dev2].size()) {
+			pdOnSecondDev = true;
+		} else {
+	        errTitle = "Trigger Channel Invalid", errMsg = QString().sprintf("Specified trigger channel (%d) is invalid or clashes with another AI channel!", pdChan);
+		    return AGAIN;
+		}
     }
     
-    unsigned nVAI = chanVect.size() + chanVect2.size(), nVAI1 = chanVect.size(), nVAI2 = chanVect2.size();
     
 	if (acqMode != DAQ::AIRegular) {
 		nVAI1 = (nVAI1-nExtraChans1) * DAQ::ModeNumChansPerIntan[acqMode] + nExtraChans1; 
@@ -571,17 +579,30 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     
     bool usePD = false;
     if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::AITriggered) {
-        chanVect.push_back(pdChan);
-        ++nVAI;
-		++nVAI1;
-        ++nExtraChans1;
+		if (pdOnSecondDev) {
+			chanVect2.push_back(pdChanAdjusted);
+			++nVAI;
+			++nVAI2;
+			++nExtraChans2;
+		} else {
+			chanVect.push_back(pdChan);
+			++nVAI;
+			++nVAI1;
+			++nExtraChans1;
+		}
         usePD = true;
     }
     
     QMap<unsigned, unsigned> aopass;            
     if (aoPassthru->aoPassthruGB->isChecked() && aoDevNames.count()) {
         QString le = aoPassthru->aoPassthruLE->text();
-        if (havePD) le=le.replace("PDCHAN", QString::number(nVAI1-1)); // PD channel index is always the last index
+		if (havePD) {
+			if (pdOnSecondDev) {
+				le=le.replace("PDCHAN", QString::number(nVAI-1));
+			} else {
+				le=le.replace("PDCHAN", QString::number(nVAI1-1)); // PD channel index is always the last index
+			}
+		}
         aopass = parseAOPassthruString(le, &err);
         if (err) {
             errTitle =  "AO Passthru Error", errMsg = "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=CHANNEL_INDEX_POS!";
@@ -755,7 +776,12 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     +acqTimedParams->durSecsSB->value();
     
     p.pdChan = pdChan;
-    p.idxOfPdChan = p.nVAIChans1-1 /* always the last index in first dev */;
+	p.pdOnSecondDev = pdOnSecondDev;
+	if (pdOnSecondDev) {
+		p.idxOfPdChan = p.nVAIChans-1;
+	} else {
+		p.idxOfPdChan = p.nVAIChans1-1 /* always the last index in first dev */;
+	}
     p.pdThresh = static_cast<signed short>((acqPdParams->pdAIThreshSB->value()-p.range.min)/(p.range.max-p.range.min) * 65535. - 32768.);
 	p.pdThreshW = static_cast<unsigned>(acqPdParams->pdWSB->value());
     p.pdPassThruToAO = pdAOChan;
@@ -1006,6 +1032,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.dualDevMode = settings.value("dualDevMode", false).toBool();
 	p.dev2 = settings.value("dev2", "").toString();
 	p.aiString2 = settings.value("aiString2", "0:3").toString();
+	p.pdOnSecondDev = settings.value("pdOnSecondDev", false).toBool();
 
 	p.aoSrate = settings.value("aoSrate", p.srate).toDouble();
 	p.aoClock = settings.value("aoClock", "OnboardClock").toString();
@@ -1085,6 +1112,7 @@ void ConfigureDialogController::saveSettings() const
 	settings.setValue("aoBufferSizeCentiSeconds", p.aoBufferSizeCS);
 
 	settings.setValue("secondDevIsAuxOnly", p.secondDevIsAuxOnly);
+	settings.setValue("pdOnSecondDev", p.pdOnSecondDev);
 
     settings.endGroup();
 }
@@ -1195,7 +1223,13 @@ void ConfigureDialogController::applyAOPass()
         
     if (aoDevNames.count()) {
         QString le = aop.aoPassthruLE->text();
-        if (p.usePD) le=le.replace("PDCHAN", /*QString::number(pdChan)*/QString::number(nVAI-(nExtraChans2+1))); // PD channel index is always the last index in first device
+		if (p.usePD) {
+			if (p.pdOnSecondDev) {
+				le=le.replace("PDCHAN", /*QString::number(pdChan)*/QString::number(nVAI-1)); // PD channel index is always the last index in this case
+			} else {
+				le=le.replace("PDCHAN", /*QString::number(pdChan)*/QString::number(nVAI-(nExtraChans2+1))); // PD channel index is always the last index in first device, in this case
+			}
+		}
         aopass = parseAOPassthruString(le, &err);
         if (err) {
             QMessageBox::critical(0, "AO Passthru Error", "Error parsing AO Passthru list, specify a string of the form UNIQUE_AOCHAN=CHANNEL_INDEX_POS!");
