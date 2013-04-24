@@ -155,6 +155,11 @@
      <string>AI 96 Demux (6 x 16:1)</string>
     </property>
    </item>
+   <item>
+    <property name="text">
+     <string>AI 128 Demux (4 x 32:1)</string>
+    </property>
+   </item>
   </widget>
   <widget class="QLineEdit" name="channelListLE">
    <property name="geometry">

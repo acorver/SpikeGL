@@ -41,7 +41,7 @@ win32 {
 #        LIBS += WS2_32.lib
         LIBS += NI/NIDAQmx.lib WS2_32.lib
 #        DEFINES += _CRT_SECURE_NO_WARNINGS
-        DEFINES += HAVE_NIDAQmx _CRT_SECURE_NO_WARNINGS
+        DEFINES += HAVE_NIDAQmx _CRT_SECURE_NO_WARNINGS WIN32
 		RESOURCES += Resources.qrc
         RC_FILE += WinResources.rc
 		HEADERS += AOWriteThread.h
@@ -60,6 +60,7 @@ unix {
 
 macx {
 	LIBS += -framework CoreServices
+	DEFINES += MACX
 }
 
 RESOURCES += CommonResources.qrc
