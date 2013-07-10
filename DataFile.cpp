@@ -9,7 +9,7 @@
 #include <QThread>
 #include "SampleBufQ.h"
 #include <QMessageBox>
-
+#include <QTextStream>
 
 class DFWriteThread : public QThread, public SampleBufQ
 {
@@ -80,6 +80,17 @@ bool DataFile::closeAndFinalize()
 		params["sha1"] = sha.ReportHash().c_str();
 		params["fileTimeSecs"] = fileTimeSecs();
 		params["fileSizeBytes"] = dataFile.size();
+        if (badData.count()) {
+            QString bdString;
+            QTextStream ts(&bdString);
+            int i = 0;
+            for (BadData::iterator it = badData.begin(); it != badData.end(); ++it, ++i) {
+                if (i) { ts << "; "; }
+                ts << (*it).first << "," << (*it).second;
+            }
+            ts.flush();
+            params["badData"] = bdString;
+        }
 		dataFile.close();
 		QString mf = metaFile.fileName();
 		metaFile.close(); // close it.. we never really wrote to it.. we just reserved it on the FS    
@@ -142,13 +153,14 @@ bool DataFile::doFileWrite(const std::vector<int16> & scans)
 	double tWrite = getTime();
 	
 	int nWrit = dataFile.write((const char *)&scans[0], n2Write);
-	
+
 	if (nWrit != n2Write) {
 		Error() << "DataFile::doFileWrite: Error returned from write call: " << nWrit;
 		return false;
 	}
+
 	tWrite = getTime() - tWrite;
-	
+//	Debug() << "Wrote " << n2Write << " bytes in " << tWrite << " secs";
 	statsMut.lock();
 	
 	sha.UpdateHash((const uint8_t *)&scans[0], n2Write);
@@ -185,10 +197,13 @@ bool DataFile::openForReWrite(const DataFile & other, const QString & filename, 
         return false;
     }
 	
+//    badData = other.badData;
+    badData.clear();
 	mode = Output;
 	const int nOnChans = chanNumSubset.size();
 	params = other.params;
 	params["outputFile"] = outputFile;
+    params.remove("badData"); // rebuild this as we write!
 	scanCt = 0;
 	nChans = nOnChans;
 	sha.Reset();
@@ -240,6 +255,7 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     }
     sha.Reset();
     params = Params();
+    badData.clear();
     scanCt = 0;
     nChans = nOnChans;
     sRate = dp.srate;
@@ -388,7 +404,20 @@ bool DataFile::openForRead(const QString & file_in)
 	}
 	pd_chanId = -1;
 	if (params.contains("pdChan")) pd_chanId = chanIds.size() ? chanIds[chanIds.size()-1] : -1;
-		
+	badData.clear();
+    if (params.contains("badData")) {
+        QStringList bdl = params["badData"].toString().split("; ", QString::SkipEmptyParts);
+        for (QStringList::iterator it = bdl.begin(); it != bdl.end(); ++it) {
+            QStringList l = (*it).split(",", QString::SkipEmptyParts);
+            if (l.count() == 2) {
+                u64 scan, ct;
+                bool ok1,ok2;
+                scan = l.at(0).toULongLong(&ok1);
+                ct = l.at(1).toULongLong(&ok2);
+                if (ok1 && ok2) pushBadData(scan,ct);
+            }
+        }
+    }
 	Debug() << "Opened " << QFileInfo(file).fileName() << " " << nChans << " chans @" << sRate << " Hz, " << scanCt << " scans total.";
 	mode = Input;
 	return true;

@@ -25,10 +25,10 @@ public:
 	
     /// put data in buffer.  calls overflowWarning() if buffer overflows
     /// swaps in src with an empty buffer if successful, calls overflowWarning() on overflow
-    void enqueueBuffer(std::vector<int16> & src, u64 sampleCount);
+    void enqueueBuffer(std::vector<int16> & src, u64 sampleCount, bool putFakeDataOnOverrun = false, int fakeDataOverride = 0);
 
     /// returns true if actual data was available -- in which case dest is swapped for a data buffer in the deque
-    bool dequeueBuffer(std::vector<int16> & dest, u64 & sampleCountOfFirstPoint, bool wait = false, bool printError = true);
+    bool dequeueBuffer(std::vector<int16> & dest, u64 & sampleCountOfFirstPoint, bool wait = false, bool printError = true, int *fakeDataSz = 0, bool expandFakeData = true);
 
 	/** returns true if queue is empty and/or if we waited and it was empty before timeout
 	    returns false otherwise.  Negative timeout is infinite wait. */
@@ -49,6 +49,9 @@ protected:
     struct SampleBuf {
         std::vector<int16> data;
         u64 sampleCountOfFirstPoint;
+		uint32 fakeSize;
+
+		SampleBuf() : sampleCountOfFirstPoint(0), fakeSize(0) {}
     };
     std::deque<SampleBuf> dataQ;
     mutable QMutex dataQMut;

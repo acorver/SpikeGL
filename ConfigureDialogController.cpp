@@ -215,6 +215,8 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     aiRangeChanged();
 	bufferSizeSliderChanged();
 	dualDevModeChkd();
+
+	dialog->autoRetryOnAIOverrunsChk->setChecked(p.autoRetryOnAIOverrun);
 }
 
 void ConfigureDialogController::aiRangeChanged()
@@ -841,7 +843,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     Debug() << "Channel subset bitmap: " << debugStr;
 
 	p.resumeGraphSettings = resumeGraphSettings;
-        
+	p.autoRetryOnAIOverrun = dialog->autoRetryOnAIOverrunsChk->isChecked();
     saveSettings();       
     
     return OK;
@@ -1044,6 +1046,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.aoBufferSizeCS = settings.value("aoBufferSizeCentiSeconds", DEF_AO_BUFFER_SIZE_CENTISECONDS).toUInt();
 	p.secondDevIsAuxOnly = settings.value("secondDevIsAuxOnly", false).toBool();
 	p.resumeGraphSettings = settings.value("resumeGraphSettings", true).toBool();
+	p.autoRetryOnAIOverrun = settings.value("autoRetryOnAIOverrun", true).toBool();
 }
 
 void ConfigureDialogController::loadSettings()
@@ -1120,7 +1123,7 @@ void ConfigureDialogController::saveSettings() const
 	settings.setValue("secondDevIsAuxOnly", p.secondDevIsAuxOnly);
 	settings.setValue("pdOnSecondDev", p.pdOnSecondDev);
 	settings.setValue("resumeGraphSettings", p.resumeGraphSettings);
-
+	settings.setValue("autoRetryOnAIOverrun", p.autoRetryOnAIOverrun);
 
     settings.endGroup();
 }

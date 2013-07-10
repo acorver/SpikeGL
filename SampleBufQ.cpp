@@ -26,17 +26,30 @@ void SampleBufQ::clear()
 }
 
 /// put data in buffer.  calls overflowWarning() if buffer overflows
-void SampleBufQ::enqueueBuffer(std::vector<int16> &src, u64 sampCount)
+void SampleBufQ::enqueueBuffer(std::vector<int16> &src, u64 sampCount, bool putFakeDataOnOverrun, int fakeDataOverride)
 {
         QMutexLocker l(&dataQMut);
+		SampleBuf buf;
         if (dataQ.size() >= dataQueueMaxSize) {
-            overflowWarning();
-            dataQ.pop_front();        
+
+			overflowWarning();
+
+			if (putFakeDataOnOverrun) {
+				// overrun, indicate buffer is empty but should contain 'fake' data on dequeue
+				buf.fakeSize = fakeDataOverride ? fakeDataOverride : src.size();
+			} else {
+		        dataQ.pop_front();        
+			}
         }
-        SampleBuf buf;
         buf.sampleCountOfFirstPoint = sampCount;
+		if (!buf.fakeSize) {
+			if (fakeDataOverride) {
+				buf.fakeSize = fakeDataOverride;
+			} else 
+				src.swap(buf.data);
+		} 
         dataQ.push_back(buf);
-        src.swap(dataQ.back().data);
+		src.clear();
         dataQCond.wakeOne();
 }
 
@@ -52,10 +65,11 @@ bool SampleBufQ::waitForEmpty(int ms)
 }
 
     /// returns true if actual data was available -- in which case dest is swapped for a data buffer in the deque
-bool SampleBufQ::dequeueBuffer(std::vector<int16> & dest, u64 & sampCount, bool wait, bool err_prt)
+bool SampleBufQ::dequeueBuffer(std::vector<int16> & dest, u64 & sampCount, bool wait, bool err_prt, int *fakeDataSz, bool expandFakeData)
 {
         bool ret = false, ok = false;
         dest.clear();
+		if (fakeDataSz) *fakeDataSz = -1;
         if (wait) {
             ok = dataQMut.tryLock(LOCK_TIMEOUT_MS);
             if (ok) {
@@ -69,7 +83,16 @@ bool SampleBufQ::dequeueBuffer(std::vector<int16> & dest, u64 & sampCount, bool 
             if (dataQ.size()) {
                 SampleBuf & buf = dataQ.front();
                 sampCount = buf.sampleCountOfFirstPoint;
-                dest.swap(buf.data);
+				if (!buf.fakeSize) {
+					// real buffer, put data
+	                dest.swap(buf.data);
+				} else {
+					// fake buffer, put fake 0x7fff data!
+					dest.clear();
+                    if (expandFakeData)
+					    dest.resize(buf.fakeSize,0x7fff);
+					if (fakeDataSz) *fakeDataSz = buf.fakeSize;
+				}
                 dataQ.pop_front();
                 ret = true;
             }

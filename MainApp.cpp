@@ -924,20 +924,22 @@ void PostJuly2011Remuxer::run()
 {
 	std::vector<int16>scans;
 	u64 firstSamp;
+    int fakeDataSz = -1;
 	while ( !pleaseStop ) {
-		while ( task && task->dequeueBuffer(scans, firstSamp) ) {
+		while ( task && task->dequeueBuffer(scans, firstSamp, false, true, &fakeDataSz, false) ) {
+            if (fakeDataSz < 0) {
 
-			// BEGIN the new post July 2011 demux... it's important we do this HERE before going any further..
-			const int nVAIChans = p.nVAIChans;
-			const int lastScanSz = scans.size();
-			for (int i = nVAIChans; i <= lastScanSz; i += nVAIChans) {
-				int16 *scanBegin = &scans[i-nVAIChans];
-				ApplyNewIntanDemuxToScan(scanBegin, DAQ::ModeNumChansPerIntan[p.mode], DAQ::ModeNumIntans[p.mode]*(p.dualDevMode && !p.secondDevIsAuxOnly ? 2 : 1));
-			}
-			// END post July 2011 demux
-			
+			    // BEGIN the new post July 2011 demux... it's important we do this HERE before going any further..
+			    const int nVAIChans = p.nVAIChans;
+			    const int lastScanSz = scans.size();
+			    for (int i = nVAIChans; i <= lastScanSz; i += nVAIChans) {
+				    int16 *scanBegin = &scans[i-nVAIChans];
+				    ApplyNewIntanDemuxToScan(scanBegin, DAQ::ModeNumChansPerIntan[p.mode], DAQ::ModeNumIntans[p.mode]*(p.dualDevMode && !p.secondDevIsAuxOnly ? 2 : 1));
+			    }
+			    // END post July 2011 demux
+            }
 			// now, re-enque!
-			enqueueBuffer(scans, firstSamp);
+            enqueueBuffer(scans, firstSamp,p.autoRetryOnAIOverrun,fakeDataSz > -1 ? fakeDataSz : 0);
 		}
 		msleep(1000/DEF_TASK_READ_FREQ_HZ); // sleep 33 ms and try again since task wasn't ready?
 	}
@@ -955,15 +957,23 @@ void MainApp::taskReadFunc()
     bool needToStop = false;
     static double lastSBUpd = 0;
     const DAQ::Params & p (configCtl->acceptedParams);
+    int fakeDataSz = -1;
     while ((ct++ < ctMax || taskShouldStop) ///< on taskShouldStop, keep trying to empty queue!
            && !needToStop ) {
 		bool gotSomething = false;
 		if (addtlDemuxTask) {
-			gotSomething = addtlDemuxTask->dequeueBuffer(scans, firstSamp);
+			gotSomething = addtlDemuxTask->dequeueBuffer(scans, firstSamp,false,true,&fakeDataSz);
 		} else if (task) {
-			gotSomething = task->dequeueBuffer(scans, firstSamp);
+			gotSomething = task->dequeueBuffer(scans, firstSamp, false,true, &fakeDataSz);
 		}
 		if (!gotSomething) break;
+
+        const bool wasFakeData = fakeDataSz > -1;
+        // TODO XXX FIXME -- implement detection of fake data (DAQ restart!) properly
+        if (wasFakeData) {
+            u64 dfScanNr = dataFile.isOpen() ? dataFile.scanCount() : 0;
+            Warning() << "Buffer overflow - scan: " << (firstSamp/p.nVAIChans) << ", datafile scan: " << dfScanNr << " (size: " << (fakeDataSz/p.nVAIChans) << " scans). Scans for missing time are fudged with MAX_VOLTS!";
+        }
 
         tNow = getTime();
         lastScanSz = scans.size();
@@ -1049,6 +1059,10 @@ void MainApp::taskReadFunc()
 					scans.reserve(scanSz);
 					scans.insert(scans.end(), scans_orig.begin(), scans_orig.begin() + n);
 				}
+                if (wasFakeData) {
+                    // indicate bad data in output file..
+                    dataFile.pushBadData(dataFile.scanCount(), fakeDataSz/p.nVAIChans);
+                }
 				if (dataFile.numChans() != p.nVAIChans) {
 					const double ratio = dataFile.numChans() / double(p.nVAIChans ? p.nVAIChans : 1.);
 					scans_subsetted.resize(0);

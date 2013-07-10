@@ -2,6 +2,8 @@
 #include <QFile>
 #include <QPair>
 #include <QMutex>
+#include <QList>
+#include <QVector>
 #include <QMutexLocker>
 #include "TypeDefs.h"
 #include "Params.h"
@@ -51,6 +53,11 @@ public:
     void setParam(const QString & name, const QVariant & value);
     /// param management
     const QVariant & getParam(const QString & name) const;
+
+    /// call this to indicate certain regions of the file are "bad", that is, they contained dropped/fake scans
+    void pushBadData(u64 scan, u64 length) { badData.push_back(QPair<u64,u64>(scan,length)); }
+    typedef QList<QPair<u64,u64> > BadData;
+    const BadData & badDataList() const { return badData; }
 
     /// closes the file, and saves the SHA1 hash to the metafile 
     bool closeAndFinalize();
@@ -116,7 +123,10 @@ private:
     u64 scanCt;
     int nChans;
     double sRate;
-	
+
+    // list of scan_number,number_of_scans for locations of bad/faked data for buffer overrun situations
+    BadData badData;
+
 	/// member vars used for Input mode
 	QPair<double,double> rangeMinMax;
 	QVector<unsigned> chanIds;

@@ -32,14 +32,14 @@ namespace DAQ
 {
     static bool noDaqErrPrint = false;
 
-	const unsigned ModeNumChansPerIntan[N_Modes] = {
-		15, 0, 15, 16, 16, 32, 16, 16, 32
-	};
-	
-	const unsigned ModeNumIntans[N_Modes] = {
-		4, 0, 8, 2, 8, 8, 4, 6, 4
-	};
-	
+    const unsigned ModeNumChansPerIntan[N_Modes] = {
+        15, 0, 15, 16, 16, 32, 16, 16, 32
+    };
+    
+    const unsigned ModeNumIntans[N_Modes] = {
+        4, 0, 8, 2, 8, 8, 4, 6, 4
+    };
+    
     /// if empty map returned, no devices with AI!
     DeviceRangeMap ProbeAllAIRanges() 
     {
@@ -282,12 +282,13 @@ namespace DAQ
         return "FakeDAQ";
 #endif
     }
-	
+    
     Task::Task(const Params & acqParams, QObject *p) 
         : QThread(p), SampleBufQ("DAQ Task", SAMPLE_BUF_Q_SIZE), pleaseStop(false), params(acqParams), 
-          fast_settle(0), muxMode(false), totalRead(0LL)
+          fast_settle(0), muxMode(false), totalRead(0ULL), taskHandle(0), taskHandle2(0), clockSource(0), error(0), callStr(0)
     {
-		setDO(false); // assert DO is low when stopped...
+        errBuff[0] = 0;
+        setDO(false); // assert DO is low when stopped...
     }
 
     Task::~Task()
@@ -303,7 +304,7 @@ namespace DAQ
             wait();
             pleaseStop = false;
         }
-		setDO(false); // assert DO low when stopped...
+        setDO(false); // assert DO low when stopped...
     }
 
     void Task::run()
@@ -404,139 +405,139 @@ namespace DAQ
 
     void AOWriteThread::run()
     {
-		if (old2Delete) {
-			delete old2Delete;
-			old2Delete = 0;
-		}
+        if (old2Delete) {
+            delete old2Delete;
+            old2Delete = 0;
+        }
         const Params & p(params);
-		TaskHandle taskHandle(0);
+        TaskHandle taskHandle(0);
         int32       error = 0;
         char        errBuff[2048]={'\0'};
         const char *callStr = "";
         const int32 aoSamplesPerChan(p.aoSrate * (p.aoBufferSizeCS/100.0));
         const int32 aoChansSize = p.aoChannels.size();
-		unsigned aoBufferSize(aoSamplesPerChan * aoChansSize);
-		const float64     aoMin = p.aoRange.min;
+        unsigned aoBufferSize(aoSamplesPerChan * aoChansSize);
+        const float64     aoMin = p.aoRange.min;
         const float64     aoMax = p.aoRange.max;
-		const float64     aoTimeout = DAQ_TIMEOUT*2.;
+        const float64     aoTimeout = DAQ_TIMEOUT*2.;
         unsigned aoWriteCt = 0;
         pleaseStop = false;
         std::vector<int16> leftOver;
-		// XXX diags..
-		int nWritesAvg = 0, nWritesAvgMax = 10;
-		double writeSpeedAvg = 0.;
-		double tLastData = -1.0, inpDataRate=0.;
+        // XXX diags..
+        int nWritesAvg = 0, nWritesAvgMax = 10;
+        double writeSpeedAvg = 0.;
+        double tLastData = -1.0, inpDataRate=0.;
         std::vector<int16> sampsOrig, samps;
-		Util::Resampler resampler(double(p.aoSrate) / double(p.srate) /* HACK FIXME * 2.0*/, aoChansSize);
-		int16 lastSamp = 0;
-		int nodatact = 0;
-		int daqerrct = 0;
+        Util::Resampler resampler(double(p.aoSrate) / double(p.srate) /* HACK FIXME * 2.0*/, aoChansSize);
+        int16 lastSamp = 0;
+        int nodatact = 0;
+        int daqerrct = 0;
 
-		while (daqerrct < 3 && !pleaseStop) {
-			bool break2 = false;
-			DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
-			DAQmxErrChk (DAQmxCreateAOVoltageChan(taskHandle,aoChanString.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
-			DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,p.aoClock.toUtf8().constData(),p.aoSrate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*//*aoSamplesPerChan*/0));
-			//DAQmxErrChk (DAQmxCfgOutputBuffer(taskHandle,aoSamplesPerChan));
-			DAQmxSetWriteRegenMode(taskHandle, DAQmx_Val_DoNotAllowRegen);
+        while (daqerrct < 3 && !pleaseStop) {
+            bool break2 = false;
+            DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
+            DAQmxErrChk (DAQmxCreateAOVoltageChan(taskHandle,aoChanString.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
+            DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,p.aoClock.toUtf8().constData(),p.aoSrate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*//*aoSamplesPerChan*/0));
+            //DAQmxErrChk (DAQmxCfgOutputBuffer(taskHandle,aoSamplesPerChan));
+            DAQmxSetWriteRegenMode(taskHandle, DAQmx_Val_DoNotAllowRegen);
 
-			Debug() << "AOWrite thread started.";
+            Debug() << "AOWrite thread started.";
 
-			while (!pleaseStop && !break2) {
-				u64 sampCount;
-				if (!dequeueBuffer(sampsOrig, sampCount) || !sampsOrig.size()) {
-					if (++nodatact > 2) {
-						nodatact = 0;
-						// failed to dequeue data, insert silence to keep ao writer going otherwise we get underruns!
-						sampsOrig.clear();
-						samps.clear();
-						samps.resize(p.aoSrate * 0.002 * aoChansSize, lastSamp); // insert 2ms of silence?
-					} else {
-						msleep(2);
-						continue;
-					}
-				} else { // normal operation..
-					double now = getTime();
-					if (tLastData > 0.0) 
-						inpDataRate = (double(sampsOrig.size())/aoChansSize)/(now-tLastData);
-					tLastData = now;
-					QString err = resampler.resample(sampsOrig, samps);
-					if (err.length()) {
-						Error() << "AOWrite thread resampler error: " << err;
-						continue;
-					}
-				}
-				if (leftOver.size()) samps.insert(samps.begin(), leftOver.begin(), leftOver.end());
-				leftOver.clear();
-				unsigned sampsSize = samps.size(), rem = sampsSize % aoChansSize;
-				if (rem) {
-					Debug() << "AOWrite left over partial scan of size of size " << rem << " for writect " << aoWriteCt;
-					sampsSize -= rem;
-					leftOver.reserve(rem);
-					leftOver.insert(leftOver.begin(), samps.begin()+sampsSize, samps.end());
-				}
-				unsigned sampIdx = 0;
-				while (sampIdx < sampsSize && !pleaseStop) {
-					int32 nScansToWrite = (sampsSize-sampIdx)/aoChansSize;
-					int32 nScansWritten = 0;				
+            while (!pleaseStop && !break2) {
+                u64 sampCount;
+                if (!dequeueBuffer(sampsOrig, sampCount) || !sampsOrig.size()) {
+                    if (++nodatact > 2) {
+                        nodatact = 0;
+                        // failed to dequeue data, insert silence to keep ao writer going otherwise we get underruns!
+                        sampsOrig.clear();
+                        samps.clear();
+                        samps.resize(p.aoSrate * 0.002 * aoChansSize, lastSamp); // insert 2ms of silence?
+                    } else {
+                        msleep(2);
+                        continue;
+                    }
+                } else { // normal operation..
+                    double now = getTime();
+                    if (tLastData > 0.0) 
+                        inpDataRate = (double(sampsOrig.size())/aoChansSize)/(now-tLastData);
+                    tLastData = now;
+                    QString err = resampler.resample(sampsOrig, samps);
+                    if (err.length()) {
+                        Error() << "AOWrite thread resampler error: " << err;
+                        continue;
+                    }
+                }
+                if (leftOver.size()) samps.insert(samps.begin(), leftOver.begin(), leftOver.end());
+                leftOver.clear();
+                unsigned sampsSize = samps.size(), rem = sampsSize % aoChansSize;
+                if (rem) {
+                    Debug() << "AOWrite left over partial scan of size of size " << rem << " for writect " << aoWriteCt;
+                    sampsSize -= rem;
+                    leftOver.reserve(rem);
+                    leftOver.insert(leftOver.begin(), samps.begin()+sampsSize, samps.end());
+                }
+                unsigned sampIdx = 0;
+                while (sampIdx < sampsSize && !pleaseStop) {
+                    int32 nScansToWrite = (sampsSize-sampIdx)/aoChansSize;
+                    int32 nScansWritten = 0;                
 
-					/*if (nScansToWrite > aoSamplesPerChan)
-					nScansToWrite = aoSamplesPerChan;
-					else*/ if (!aoWriteCt && nScansToWrite < aoSamplesPerChan) {                    leftOver.insert(leftOver.end(), samps.begin()+sampIdx, samps.end());
-					break;
-					}
+                    /*if (nScansToWrite > aoSamplesPerChan)
+                    nScansToWrite = aoSamplesPerChan;
+                    else*/ if (!aoWriteCt && nScansToWrite < aoSamplesPerChan) {                    leftOver.insert(leftOver.end(), samps.begin()+sampIdx, samps.end());
+                    break;
+                    }
 
-					double t0 = getTime();
-					if ( DAQmxErrChkNoJump(DAQmxWriteBinaryI16(taskHandle, nScansToWrite, 1, aoTimeout, DAQmx_Val_GroupByScanNumber, &samps[sampIdx], &nScansWritten, NULL)) )
-					{
-						break2 = true;
-						if (++daqerrct < 3) {
-							DAQmxGetExtendedErrorInfo(errBuff,2048);
-							Debug() << "AOWrite thread error on write: \"" << errBuff << "\". AOWrite retrying since errct < 3.";
-							DAQmxStopTask(taskHandle);
-							DAQmxClearTask(taskHandle);
-							taskHandle = 0;
-						} else {
-							Debug() << "AOWrite error on write and not retrying since errct >= 3!";
-						}
-						break;
-					} else if (daqerrct) daqerrct--; 
+                    double t0 = getTime();
+                    if ( DAQmxErrChkNoJump(DAQmxWriteBinaryI16(taskHandle, nScansToWrite, 1, aoTimeout, DAQmx_Val_GroupByScanNumber, &samps[sampIdx], &nScansWritten, NULL)) )
+                    {
+                        break2 = true;
+                        if (++daqerrct < 3) {
+                            DAQmxGetExtendedErrorInfo(errBuff,2048);
+                            Debug() << "AOWrite thread error on write: \"" << errBuff << "\". AOWrite retrying since errct < 3.";
+                            DAQmxStopTask(taskHandle);
+                            DAQmxClearTask(taskHandle);
+                            taskHandle = 0;
+                        } else {
+                            Debug() << "AOWrite error on write and not retrying since errct >= 3!";
+                        }
+                        break;
+                    } else if (daqerrct) daqerrct--; 
 
-					const double tWrite(getTime()-t0);
+                    const double tWrite(getTime()-t0);
 
-					if (nScansWritten >= 0 && nScansWritten < nScansToWrite) {
-						rem = (nScansToWrite - nScansWritten) * aoChansSize;
-						Debug() << "Partial write: nScansWritten=" << nScansWritten << " nScansToWrite=" << nScansToWrite << ", queueing for next write..";
-						leftOver.insert(leftOver.end(), samps.begin()+sampIdx+nScansWritten, samps.end());
-						break;
-					} else if (nScansWritten != nScansToWrite) {
-						Error() << "nScansWritten (" << nScansWritten << ") != nScansToWrite (" << nScansToWrite << ")";
-						break;
-					}
-					lastSamp = samps[sampIdx+nScansWritten-1]; // save last sample for 'silence' generation hack..
+                    if (nScansWritten >= 0 && nScansWritten < nScansToWrite) {
+                        rem = (nScansToWrite - nScansWritten) * aoChansSize;
+                        Debug() << "Partial write: nScansWritten=" << nScansWritten << " nScansToWrite=" << nScansToWrite << ", queueing for next write..";
+                        leftOver.insert(leftOver.end(), samps.begin()+sampIdx+nScansWritten, samps.end());
+                        break;
+                    } else if (nScansWritten != nScansToWrite) {
+                        Error() << "nScansWritten (" << nScansWritten << ") != nScansToWrite (" << nScansToWrite << ")";
+                        break;
+                    }
+                    lastSamp = samps[sampIdx+nScansWritten-1]; // save last sample for 'silence' generation hack..
 
-					if (++nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;
-					writeSpeedAvg -= writeSpeedAvg/nWritesAvg;
-					double spd;
-					writeSpeedAvg += (spd = double(nScansWritten)/tWrite ) / double(nWritesAvg);
+                    if (++nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;
+                    writeSpeedAvg -= writeSpeedAvg/nWritesAvg;
+                    double spd;
+                    writeSpeedAvg += (spd = double(nScansWritten)/tWrite ) / double(nWritesAvg);
 
-					if (tWrite > 0.250) {
-						Debug() << "AOWrite #" << aoWriteCt << " " << nScansWritten << " scans " << aoChansSize << " chans" << " (bufsize=" << aoBufferSize << ") took: " << tWrite << " secs";
-					}
-					if (excessiveDebug) Debug() << "AOWrite speed " << spd << " Hz avg speed " << writeSpeedAvg << " Hz" << " (" << nScansWritten << " scans) buffer fill " << ((dataQueueSize()/double(dataQueueMaxSize))*100.0) << "% inprate:" << inpDataRate << "(?) Hz";
+                    if (tWrite > 0.250) {
+                        Debug() << "AOWrite #" << aoWriteCt << " " << nScansWritten << " scans " << aoChansSize << " chans" << " (bufsize=" << aoBufferSize << ") took: " << tWrite << " secs";
+                    }
+                    if (excessiveDebug) Debug() << "AOWrite speed " << spd << " Hz avg speed " << writeSpeedAvg << " Hz" << " (" << nScansWritten << " scans) buffer fill " << ((dataQueueSize()/double(dataQueueMaxSize))*100.0) << "% inprate:" << inpDataRate << "(?) Hz";
 
-					++aoWriteCt;
-					sampIdx += nScansWritten*aoChansSize;
-				}
-			}
-		}
+                    ++aoWriteCt;
+                    sampIdx += nScansWritten*aoChansSize;
+                }
+            }
+        }
     Error_Out:
         if ( DAQmxFailed(error) )
             DAQmxGetExtendedErrorInfo(errBuff,2048);
         if ( taskHandle != 0) {
             DAQmxStopTask(taskHandle);
-			DAQmxClearTask(taskHandle);
-			taskHandle = 0;
+            DAQmxClearTask(taskHandle);
+            taskHandle = 0;
         }
 
         if( DAQmxFailed(error) ) {
@@ -548,7 +549,7 @@ namespace DAQ
             emit daqError(e);
         }   
 
-		Debug() << "AOWrite thread ended after " << aoWriteCt << " chunks written.";
+        Debug() << "AOWrite thread ended after " << aoWriteCt << " chunks written.";
     }
 
     /* static */
@@ -573,30 +574,132 @@ namespace DAQ
             }
         }
     }
-	
-	static inline int mapNewChanIdToPreJuly2011ChanId(int c, DAQ::Mode m, bool dualDevMode) {
-		const int intan = c/DAQ::ModeNumChansPerIntan[m], chan = c % DAQ::ModeNumChansPerIntan[m];
-		return chan*(DAQ::ModeNumIntans[m] * (dualDevMode ? 2 : 1)) + intan;
-	}
     
+    static inline int mapNewChanIdToPreJuly2011ChanId(int c, DAQ::Mode m, bool dualDevMode) {
+        const int intan = c/DAQ::ModeNumChansPerIntan[m], chan = c % DAQ::ModeNumChansPerIntan[m];
+        return chan*(DAQ::ModeNumIntans[m] * (dualDevMode ? 2 : 1)) + intan;
+    }
+    
+    bool Task::createAITasks() 
+    {
+        const DAQ::Params & p(params);
+
+        if (    DAQmxErrChkNoJump (DAQmxCreateTask("",&taskHandle)) 
+             || DAQmxErrChkNoJump (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL))
+             || DAQmxErrChkNoJump (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)) 
+             || DAQmxErrChkNoJump (DAQmxTaskControl(taskHandle, DAQmx_Val_Task_Commit)) )
+            return false; 
+        //DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize));  //use a 1,000,000 sample DMA buffer per channel
+        //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this)); 
+        if (p.dualDevMode) {
+            const char * clockSource2 = clockSource;//*/"PFI2";
+//#ifdef DEBUG
+//            clockSource2 = clockSource;
+//#endif
+            if (    DAQmxErrChkNoJump (DAQmxCreateTask((QString("")+QString::number(qrand())).toUtf8(),&taskHandle2))
+                 || DAQmxErrChkNoJump (DAQmxCreateAIVoltageChan(taskHandle2,chan2.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)) 
+                 || DAQmxErrChkNoJump (DAQmxCfgSampClkTiming(taskHandle2,clockSource2,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize2)) 
+                 || DAQmxErrChkNoJump (DAQmxTaskControl(taskHandle2, DAQmx_Val_Task_Commit)) )
+                 return false;
+        }
+        return true;
+    }
+
+    bool Task::startAITasks() 
+    {
+        const DAQ::Params & p(params);
+        if ( DAQmxErrChkNoJump(DAQmxStartTask(taskHandle)) )
+            return false; 
+        if (p.dualDevMode) { 
+            if ( DAQmxErrChkNoJump(DAQmxStartTask(taskHandle2)) )
+                return false; 
+        }
+        return true;
+    }
+
+    void Task::destroyAITasks()
+    {
+        if ( taskHandle != 0) {
+            DAQmxStopTask (taskHandle);
+            DAQmxClearTask (taskHandle);
+            taskHandle = 0;
+        }
+        if ( taskHandle2 != 0) {
+            DAQmxStopTask (taskHandle2);
+            DAQmxClearTask (taskHandle2);
+            taskHandle2 = 0;
+        }
+    }
+
+    // returns 0 if all ok, -1 if unrecoverable error, 1 if had "buffer overflow error" and tried did acq restart..
+    int Task::doAIRead(TaskHandle th, u64 samplesPerChan, std::vector<int16> & data, unsigned long oldS, int32 pointsToRead, int32 & pointsRead)
+    {
+        const DAQ::Params & p(params);
+        if (DAQmxErrChkNoJump (DAQmxReadBinaryI16(th,samplesPerChan,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL))) {
+            Debug() << "Got error number on AI read: " << error;
+            if (p.autoRetryOnAIOverrun && acceptableRetryErrors.contains(error)) {
+                if (nReadRetries > 2) {
+                    Error() << "Auto-Retry of AI read failed due to too many consecutive overrun errors!";
+                    return -1;
+                }
+                Debug() << "Error ok? Ignoring/Retrying read.. ";
+                double t0 = Util::getTime();
+                static const double fixedRestartTime = 0.050;
+                destroyAITasks();
+                // XXX TODO FIXME -- figure out if we need to settle here for some time to restart the task
+                if (muxMode) { setDO(false); /*QThread::msleep(100);*/ }
+                if ( !createAITasks() || !startAITasks() )
+                    return -1;
+                const double tleft = fixedRestartTime - (Util::getTime()-t0);
+                if (tleft > 0.0) QThread::usleep(tleft*1e6);
+                if (muxMode) setDO(true);
+                Debug() << "Restart elapsed time: " << ((Util::getTime()-t0)*1000.0) << "ms";
+                ++nReadRetries;
+                fudgeDataDueToReadRetry();
+                return 1;
+            } else
+                return -1;
+        }
+        nReadRetries = 0;
+        return 0;
+    }
+
+    void Task::fudgeDataDueToReadRetry()
+    {
+        const DAQ::Params & p (params);
+        const double tNow = Util::getTime();
+        const double tFudge = tNow - lastEnq;
+        u64 samps2Fudge = static_cast<u64>(p.srate * tFudge) * static_cast<u64>(p.nVAIChans);
+        Debug() << "Fudging " << (tFudge*1e3) << "ms worth of data (" << samps2Fudge << " samples)..";
+        std::vector<int16> dummy;
+        enqueueBuffer(dummy, totalRead, true, samps2Fudge);
+        totalRead += (u64)samps2Fudge;
+        lastEnq = tNow;
+    }
+
     void Task::daqThr()
     {
         // Task parameters
-        int32       error = 0;
-        TaskHandle  taskHandle = 0, taskHandle2 = 0;
-        char        errBuff[2048]={'\0'};
-        const char *callStr = "";
-        double      startTime;
+        error = 0;
+        taskHandle = 0, taskHandle2 = 0;
+        errBuff[0]='\0';
+        callStr = "";
+        double startTime, lastReadTime;
         const Params & p (params);
 
+        // used for auto-retry code .. the following status codes are accepted for auto-retry, if p.autoRetryOnAIOverrun is true
+        acceptableRetryErrors.clear(); acceptableRetryErrors << -200279;
+        nReadRetries = 0;
+
         // Channel spec string for NI driver
-        QString chan = "", chan2 = "", aoChan = "";
-      	
+        chan = "", chan2 = "";
+        QString aoChan = "";
+          
         {
             const QVector<QString> aiChanStrings ((ProbeAllAIChannels()[p.dev]).toVector());
             //build chanspec string for aiChanStrings..
             for (QVector<unsigned>::const_iterator it = p.aiChannels.begin(); it != p.aiChannels.end(); ++it) 
-			{
+            {
                 chan.append(QString("%1%2").arg(chan.length() ? ", " : "").arg(aiChanStrings[*it]));
             }
             
@@ -605,22 +708,22 @@ namespace DAQ
             const QVector<QString> aiChanStrings2 ((ProbeAllAIChannels()[p.dev2]).toVector());
             //build chanspec string for aiChanStrings..
             for (QVector<unsigned>::const_iterator it = p.aiChannels2.begin(); it != p.aiChannels2.end(); ++it) 
-			{
+            {
                 chan2.append(QString("%1%2").arg(chan2.length() ? ", " : "").arg(aiChanStrings2[*it]));
             }
             
         }
         
         const int nChans = p.aiChannels.size(), nChans2 = p.dualDevMode ? p.aiChannels2.size() : 0;
-        const float64     min = p.range.min;
-        const float64     max = p.range.max;
+        min = p.range.min;
+        max = p.range.max;
         const int nExtraChans1 = p.nExtraChans1, nExtraChans2 = p.dualDevMode ? p.nExtraChans2 : 0;
         
 
         // Params dependent on mode and DAQ::Params, etc
-        const char *clockSource = p.extClock ? "PFI2" : "OnboardClock"; ///< TODO: make extClock possibly be something other than PFI2
-		float64 sampleRate = p.srate;
-		const float64     timeout = DAQ_TIMEOUT;
+        clockSource = p.extClock ? "PFI2" : "OnboardClock"; ///< TODO: make extClock possibly be something other than PFI2
+        sampleRate = p.srate;
+        timeout = DAQ_TIMEOUT;
         const int NCHANS1 = p.nVAIChans1, NCHANS2 = p.dualDevMode ? p.nVAIChans2 : 0; 
         muxMode =  (p.mode != AIRegular);
         int nscans_per_mux_scan = 1;
@@ -637,7 +740,7 @@ namespace DAQ
                 emit daqError(e);
                 return;
             }
-			 */
+             */
         }
 
         QVector<QPair<int,int> > aoAITab;
@@ -647,29 +750,30 @@ namespace DAQ
         const int task_read_freq_hz = computeTaskReadFreq(p.srate);
         
         int fudged_srate = ceil(sampleRate);
-		while ((fudged_srate/task_read_freq_hz) % 2) // samples per chan needs to be a multiple of 2
-			++fudged_srate;
-        u64 bufferSize = u64(fudged_srate*nChans), bufferSize2 = u64(fudged_srate*nChans2);
-		if (p.lowLatency)
-			bufferSize /= (task_read_freq_hz); ///< 1/10th sec per read
-		else 
-			bufferSize *= double(p.aiBufferSizeCS) / 100.0; ///< otherwise just use user spec..
-		if (p.dualDevMode) {
-			if (p.lowLatency)
-				bufferSize2 /= (task_read_freq_hz); ///< 1/10th sec per read
-			else 
-				bufferSize2 *= double(p.aiBufferSizeCS) / 100.0; ///< otherwise just use user spec..			
-		}
-		
+        while ((fudged_srate/task_read_freq_hz) % 2) // samples per chan needs to be a multiple of 2
+            ++fudged_srate;
+        bufferSize = u64(fudged_srate*nChans);
+        bufferSize2 = u64(fudged_srate*nChans2);
+        if (p.lowLatency)
+            bufferSize /= (task_read_freq_hz); ///< 1/10th sec per read
+        else 
+            bufferSize *= double(p.aiBufferSizeCS) / 100.0; ///< otherwise just use user spec..
+        if (p.dualDevMode) {
+            if (p.lowLatency)
+                bufferSize2 /= (task_read_freq_hz); ///< 1/10th sec per read
+            else 
+                bufferSize2 *= double(p.aiBufferSizeCS) / 100.0; ///< otherwise just use user spec..            
+        }
+        
         if (bufferSize < NCHANS1) bufferSize = NCHANS1;
-		if (bufferSize2 < NCHANS2) bufferSize2 = NCHANS2;
+        if (bufferSize2 < NCHANS2) bufferSize2 = NCHANS2;
 /*        if (bufferSize * task_read_freq_hz != u64(fudged_srate*nChans)) // make sure buffersize is on scan boundary?
             bufferSize += task_read_freq_hz - u64(fudged_srate*nChans)%task_read_freq_hz; */
         if (bufferSize % nChans) // make sure buffer is on a scan boundary!
             bufferSize += nChans - (bufferSize%nChans);
         if (p.dualDevMode && bufferSize2 % nChans2) // make sure buffer is on a scan boundary!
             bufferSize2 += nChans2 - (bufferSize2%nChans2);
-		
+        
         //const u64 dmaBufSize = p.lowLatency ? u64(100000) : u64(1000000); /// 1000000 sample DMA buffer per chan?
         const u64 samplesPerChan = bufferSize/nChans, samplesPerChan2 = (nChans2 ? bufferSize2/nChans2 : 0);
 
@@ -679,76 +783,79 @@ namespace DAQ
         std::vector<int16> data, data2, leftOver, leftOver2, aoData;       
 
         QMap<unsigned, unsigned> saved_aoPassthruMap = p.aoPassthruMap;
-		QString saved_aoDev = p.aoDev;
-		Range saved_aoRange = p.aoRange;
-		QString saved_aoClock = p.aoClock;
-		double saved_aoSrate = p.aoSrate;
-		unsigned saved_aoBufferSizeCS = p.aoBufferSizeCS; 
+        QString saved_aoDev = p.aoDev;
+        Range saved_aoRange = p.aoRange;
+        QString saved_aoClock = p.aoClock;
+        double saved_aoSrate = p.aoSrate;
+        unsigned saved_aoBufferSizeCS = p.aoBufferSizeCS; 
 
 
-		if (muxMode) {
-			setDO(false);// set DO line low to reset external MUX
-			msleep(1000); // keep it low for 1 second
-		}
+        if (muxMode) {
+            setDO(false);// set DO line low to reset external MUX
+            msleep(1000); // keep it low for 1 second
+        }
 
-        DAQmxErrChk (DAQmxCreateTask("",&taskHandle)); 
-        DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
-        DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)); 
-        //DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize));  //use a 1,000,000 sample DMA buffer per channel
-        //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this)); 
-        if (p.dualDevMode) {
-            DAQmxErrChk (DAQmxCreateTask((QString("")+QString::number(qrand())).toUtf8(),&taskHandle2)); 
-			DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle2,chan2.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL)); 
-			const char * clockSource2 = clockSource;//*/"PFI2";
-//#ifdef DEBUG
-//			clockSource2 = clockSource;
-//#endif
-			DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle2,clockSource2,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize2)); 
-			
-		}
-		
+        if ( !createAITasks() ) goto Error_Out;
+
         if (p.aoPassthru && aoAITab.size()) {
             aoWriteThr = new AOWriteThread(0, aoChan, p);
             Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
             aoWriteThr->start();                
         }
 
-        DAQmxErrChk (DAQmxStartTask(taskHandle)); 
-		if (p.dualDevMode) { DAQmxErrChk (DAQmxStartTask(taskHandle2)); }
+        if ( !startAITasks() ) goto Error_Out;
 
-		if (muxMode) {
+        if (muxMode) {
             setDO(true); // now set DO line high to start external MUX and clock on PFI2
-		}
+        }
 
-        startTime = getTime();
+        lastEnq = lastReadTime = startTime = getTime();
         u64 aoSampCount = 0;
-		double hzAvg = 0.;
-		int nHz = 0, nHzMax = 20;
+        double hzAvg = 0.;
+        int nHz = 0, nHzMax = 20;
 
         while( !pleaseStop ) {
             data.clear(); // should already be cleared, but enforce...
-			data2.clear();
+            data2.clear();
             if (leftOver.size()) data.swap(leftOver);            
-			if (leftOver2.size()) data2.swap(leftOver2);
+            if (leftOver2.size()) data2.swap(leftOver2);
             unsigned long oldS = data.size(), oldS2 = data2.size();
             data.reserve(pointsToRead+oldS);
             data.resize(pointsToRead+oldS);
 
-			double tr0 = getTime();
-            DAQmxErrChk (DAQmxReadBinaryI16(taskHandle,samplesPerChan,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL));
-			double hz = pointsRead/(getTime()-tr0);
-			hzAvg = ((hzAvg*nHz) + hz) / (nHz+1);
-			if (++nHz >= nHzMax) nHz = nHzMax-1;
-			if (excessiveDebug) Debug() << "read rate: " << hz << " Hz, avg " << hzAvg << " Hz";
+            double tr0 = getTime();
 
-			if (p.dualDevMode) {
-				data2.reserve(pointsToRead2+oldS2);
-				data2.resize(pointsToRead2+oldS2);				
-				DAQmxErrChk (DAQmxReadBinaryI16(taskHandle2,samplesPerChan2,timeout,DAQmx_Val_GroupByScanNumber,&data2[oldS2],pointsToRead2,&pointsRead2,NULL));
-				// TODO FIXME XXX -- *use* this data.. for now we are just testing
-				//Debug() << "Read " << pointsRead2 << " samples from second dev.\n";
-			}
+            // XXX DEBUG HACK.. test DAQ retry mechanism
+            /*static int ctr = 0;
+            if (++ctr >= 10) {
+                QThread::msleep(1000);
+                ctr = 0;
+            }*/
 
+            //DAQmxErrChk (DAQmxReadBinaryI16(taskHandle,samplesPerChan,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL));
+            int retVal = doAIRead(taskHandle, samplesPerChan, data, oldS, pointsToRead, pointsRead);
+            if (retVal < 0) goto Error_Out; // fatal
+            else if (retVal > 0) continue; // retry
+            // else retval == 0, all ok
+
+            double hz = pointsRead/(getTime()-tr0);
+            hzAvg = ((hzAvg*nHz) + hz) / (nHz+1);
+            if (++nHz >= nHzMax) nHz = nHzMax-1;
+            if (excessiveDebug) Debug() << "read rate: " << hz << " Hz, avg " << hzAvg << " Hz";
+
+            if (p.dualDevMode) {
+                data2.reserve(pointsToRead2+oldS2);
+                data2.resize(pointsToRead2+oldS2);                
+                //DAQmxErrChk (DAQmxReadBinaryI16(taskHandle2,samplesPerChan2,timeout,DAQmx_Val_GroupByScanNumber,&data2[oldS2],pointsToRead2,&pointsRead2,NULL));
+                retVal = doAIRead(taskHandle2, samplesPerChan2, data2, oldS2, pointsToRead2, pointsRead2);
+                if (retVal < 0) goto Error_Out; // fatal
+                else if (retVal > 0) continue; // retry
+                // else retval == 0, all ok
+
+                // TODO FIXME XXX -- *use* this data.. for now we are just testing
+                //Debug() << "Read " << pointsRead2 << " samples from second dev.\n";
+            }
+            lastReadTime = getTime();
             u64 sampCount = totalRead;
             if (!sampCount) emit(gotFirstScan());
             int32 nRead = pointsRead * nChans + oldS, nRead2 = pointsRead2 * nChans2 + oldS2;                  
@@ -758,36 +865,36 @@ namespace DAQ
                 leftOver.insert(leftOver.end(), data.begin()+nRead, data.end());
                 data.erase(data.begin()+nRead, data.end());
             }
-			if (p.dualDevMode && nChans2) {
-				nDemuxScans2 = nRead2 / nChans2 / nscans_per_mux_scan;
-				if (nDemuxScans2 * nscans_per_mux_scan * nChans2 != nRead2) {
-					nRead2 = nDemuxScans2*nscans_per_mux_scan*nChans2;
-					leftOver2.insert(leftOver2.end(), data2.begin()+nRead2, data2.end());
-					data2.erase(data2.begin()+nRead2, data2.end());					
-				}
-			} else
-				nRead2 = 0;
-			
-			if (p.dualDevMode && nDemuxScans != nDemuxScans2) { // ensure same exact number of scans
-				if (nDemuxScans > nDemuxScans2) {
-					const int diff = nDemuxScans-nDemuxScans2;
-					nRead = (nDemuxScans-diff)*nscans_per_mux_scan*nChans;
-					leftOver.insert(leftOver.end(), data.begin()+nRead, data.end());
-					data.erase(data.begin()+nRead, data.end());					
-					nDemuxScans -= diff;					
-				} else if (nDemuxScans2 > nDemuxScans) {
-					const int diff = nDemuxScans2-nDemuxScans;
-					nRead2 = (nDemuxScans2-diff)*nscans_per_mux_scan*nChans2;
-					leftOver2.insert(leftOver2.end(), data2.begin()+nRead2, data2.end());
-					data2.erase(data2.begin()+nRead2, data2.end());					
-					nDemuxScans2 -= diff;
-				}
-			}
-			
+            if (p.dualDevMode && nChans2) {
+                nDemuxScans2 = nRead2 / nChans2 / nscans_per_mux_scan;
+                if (nDemuxScans2 * nscans_per_mux_scan * nChans2 != nRead2) {
+                    nRead2 = nDemuxScans2*nscans_per_mux_scan*nChans2;
+                    leftOver2.insert(leftOver2.end(), data2.begin()+nRead2, data2.end());
+                    data2.erase(data2.begin()+nRead2, data2.end());                    
+                }
+            } else
+                nRead2 = 0;
+            
+            if (p.dualDevMode && nDemuxScans != nDemuxScans2) { // ensure same exact number of scans
+                if (nDemuxScans > nDemuxScans2) {
+                    const int diff = nDemuxScans-nDemuxScans2;
+                    nRead = (nDemuxScans-diff)*nscans_per_mux_scan*nChans;
+                    leftOver.insert(leftOver.end(), data.begin()+nRead, data.end());
+                    data.erase(data.begin()+nRead, data.end());                    
+                    nDemuxScans -= diff;                    
+                } else if (nDemuxScans2 > nDemuxScans) {
+                    const int diff = nDemuxScans2-nDemuxScans;
+                    nRead2 = (nDemuxScans2-diff)*nscans_per_mux_scan*nChans2;
+                    leftOver2.insert(leftOver2.end(), data2.begin()+nRead2, data2.end());
+                    data2.erase(data2.begin()+nRead2, data2.end());                    
+                    nDemuxScans2 -= diff;
+                }
+            }
+            
             // at this point we have scans of size 60 (or 75) channels (or 32 in JFRCIntan32)
             // in the 75-channel case we need to throw away 14 of those channels since they are interwoven PD-channels!
             data.resize(nRead);
-			data2.resize(nRead2);
+            data2.resize(nRead2);
             if (!nRead) {
                 Warning() << "Read less than a full scan from DAQ hardware!  FIXME on line:" << __LINE__ << " in " << __FILE__ << "!";
                 continue; 
@@ -798,7 +905,7 @@ namespace DAQ
                 /*
                   NB: at this point data contains scans of the form:
 
-				
+                
                   | 0 | 1 | 2 | 3 | Extra 1 | Extra 2 | PD | ...
                   | 4 | 5 | 6 | 7 | Extra 1 | Extra 2 | PD | ... 
                   | 56| 57| 58| 59| Extra 1 | Extra 2 | PD |
@@ -811,17 +918,17 @@ namespace DAQ
 
                   We want to turn that into 1 (or more) demuxed VIRTUAL scans
                   of either form:
-				 
+                 
                   Pre-July 2011 ordering, which was INTAN_Channel major:
 
                   | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | ... | 58 | 59 | Extra 1 | Extra 2| PD |
                   -------------------------------------------------------------------------
 
                   Or, the current ordering, which is INTAN major:
-				 
+                 
                   | 0 | 4 | 8 | 12 | 16 | 20 | 24 | 28 | ... | 55 | 59 | Extra 1 | Extra 2| PD |
                   ------------------------------------------------------------------------------
-				 
+                 
                   Where we remove every `nChans' extraChans except for when 
                   we have (NCHANS-extraChans) samples, then we add the extraChans, 
                   effectively downsampling the extra channels from 444kHz to 
@@ -836,55 +943,55 @@ namespace DAQ
                 std::vector<int16> tmp, tmp2;
                 const int datasz = data.size(), datasz2 = data2.size();
                 tmp.reserve(datasz);
-				tmp2.reserve(datasz2);
+                tmp2.reserve(datasz2);
                 const int nMx = nChans-nExtraChans1, nMx2 = nChans2-nExtraChans2;
-				if (nMx > 0) {
-					for (int i = nMx; nExtraChans1 && i <= datasz; i += nChans) {
-						std::vector<int16>::const_iterator begi = data.begin()+(i-nMx), endi = data.begin()+i;
-						tmp.insert(tmp.end(), begi, endi); // copy non-aux channels for this MUXed sub-scan
-						if ((!((tmp.size()+nExtraChans1) % NCHANS1)) && i+nExtraChans1 <= datasz) {// if we are on a virtual scan-boundary, then ...
-							begi = data.begin()+i;  endi = begi+nExtraChans1;
-							tmp.insert(tmp.end(), begi, endi); // insert the scan into the destination data
-						}
-					}
-				} else { // not normally reached currently, but just in case we are MUX mode and 1st dev is *ALL* AUX, we take every Nth scan
-					for (int i = 0; nExtraChans1 && i+nChans <= datasz; i += nChans * nscans_per_mux_scan) {
-						tmp.insert(tmp.end(), data.begin()+i, data.begin()+i+nChans);
-					}
-				}
-				if (nMx2 > 0) { // if we _aren't_ in "secondDevIsAuxOnly" mode
-					for (int i = nMx2; p.dualDevMode && nExtraChans2 && i <= datasz2; i += nChans2) {
-						std::vector<int16>::const_iterator begi = data2.begin()+(i-nMx2), endi = data2.begin()+i;
-						tmp2.insert(tmp2.end(), begi, endi); // copy non-aux channels for this MUXed sub-scan
-						if ((!((tmp2.size()+nExtraChans2) % NCHANS2)) && i+nExtraChans2 <= datasz2) {// if we are on a virtual scan-boundary, then ...
-							begi = data2.begin()+i;  endi = begi+nExtraChans2;
-							tmp2.insert(tmp2.end(), begi, endi); // insert the scan into the destination data
-						}
-					}
-				} else { // we are in "secondDevIsAuxOnly" mode, so take every Nth scan to match first dev sampling rate..
-					for (int i = 0; nExtraChans2 && i+nChans2 <= datasz2; i += nChans2 * nscans_per_mux_scan) {
-						tmp2.insert(tmp2.end(), data2.begin()+i, data2.begin()+i+nChans2);
-					}
-				}
+                if (nMx > 0) {
+                    for (int i = nMx; nExtraChans1 && i <= datasz; i += nChans) {
+                        std::vector<int16>::const_iterator begi = data.begin()+(i-nMx), endi = data.begin()+i;
+                        tmp.insert(tmp.end(), begi, endi); // copy non-aux channels for this MUXed sub-scan
+                        if ((!((tmp.size()+nExtraChans1) % NCHANS1)) && i+nExtraChans1 <= datasz) {// if we are on a virtual scan-boundary, then ...
+                            begi = data.begin()+i;  endi = begi+nExtraChans1;
+                            tmp.insert(tmp.end(), begi, endi); // insert the scan into the destination data
+                        }
+                    }
+                } else { // not normally reached currently, but just in case we are MUX mode and 1st dev is *ALL* AUX, we take every Nth scan
+                    for (int i = 0; nExtraChans1 && i+nChans <= datasz; i += nChans * nscans_per_mux_scan) {
+                        tmp.insert(tmp.end(), data.begin()+i, data.begin()+i+nChans);
+                    }
+                }
+                if (nMx2 > 0) { // if we _aren't_ in "secondDevIsAuxOnly" mode
+                    for (int i = nMx2; p.dualDevMode && nExtraChans2 && i <= datasz2; i += nChans2) {
+                        std::vector<int16>::const_iterator begi = data2.begin()+(i-nMx2), endi = data2.begin()+i;
+                        tmp2.insert(tmp2.end(), begi, endi); // copy non-aux channels for this MUXed sub-scan
+                        if ((!((tmp2.size()+nExtraChans2) % NCHANS2)) && i+nExtraChans2 <= datasz2) {// if we are on a virtual scan-boundary, then ...
+                            begi = data2.begin()+i;  endi = begi+nExtraChans2;
+                            tmp2.insert(tmp2.end(), begi, endi); // insert the scan into the destination data
+                        }
+                    }
+                } else { // we are in "secondDevIsAuxOnly" mode, so take every Nth scan to match first dev sampling rate..
+                    for (int i = 0; nExtraChans2 && i+nChans2 <= datasz2; i += nChans2 * nscans_per_mux_scan) {
+                        tmp2.insert(tmp2.end(), data2.begin()+i, data2.begin()+i+nChans2);
+                    }
+                }
                 if (tmp.size()) { data.swap(tmp); nRead = data.size(); }
-				if (tmp2.size()) { data2.swap(tmp2); nRead2 = data2.size(); }
+                if (tmp2.size()) { data2.swap(tmp2); nRead2 = data2.size(); }
                 if ((data.size()+data2.size()) % (NCHANS1+NCHANS2)) {
                     // data didn't end on scan-boundary -- we have leftover scans!
                     Error() << "INTERNAL ERROR SCAN DIDN'T END ON A SCAN BOUNDARY FIXME!!! in " << __FILE__ << ":" << __LINE__;                 
                 }
             }
             
-			if (p.dualDevMode) {
-				std::vector<int16> out;
-				mergeDualDevData(out, data, data2, NCHANS1, NCHANS2, nExtraChans1, nExtraChans2);
-				data.swap(out);
-			}
+            if (p.dualDevMode) {
+                std::vector<int16> out;
+                mergeDualDevData(out, data, data2, NCHANS1, NCHANS2, nExtraChans1, nExtraChans2);
+                data.swap(out);
+            }
 
-			totalRead += nRead + nRead2;
+            totalRead += static_cast<u64>(nRead) + static_cast<u64>(nRead2);
 
-			// note that from this point forward, the 'data' buffer is the only valid buffer
-			// and it contains the MERGED data from both devices if in dual dev mode.
-			
+            // note that from this point forward, the 'data' buffer is the only valid buffer
+            // and it contains the MERGED data from both devices if in dual dev mode.
+            
             // now, do optional AO output .. done in another thread to save on latency...
             if (aoWriteThr) {  
                 {   // detect AO passthru changes and re-setup the AO task if ao passthru spec changed
@@ -892,20 +999,20 @@ namespace DAQ
                     if (saved_aoPassthruMap != p.aoPassthruMap
                         || saved_aoRange != p.aoRange
                         || saved_aoDev != p.aoDev
-						|| saved_aoClock != p.aoClock
-						|| saved_aoSrate != p.aoSrate
-						|| saved_aoBufferSizeCS != p.aoBufferSizeCS) {
-						// delete aoWriteThr, aoWriteThr = 0;   <--- SLOW SLOW SLOW EXPENSIVE OPERATION!  So we don't do it here, instead we defer deletion to the new AOWriteThread that replaces this one!
+                        || saved_aoClock != p.aoClock
+                        || saved_aoSrate != p.aoSrate
+                        || saved_aoBufferSizeCS != p.aoBufferSizeCS) {
+                        // delete aoWriteThr, aoWriteThr = 0;   <--- SLOW SLOW SLOW EXPENSIVE OPERATION!  So we don't do it here, instead we defer deletion to the new AOWriteThread that replaces this one!
                         aoData.clear();
                         recomputeAOAITab(aoAITab, aoChan, p);
                         saved_aoPassthruMap = p.aoPassthruMap;
                         saved_aoRange = p.aoRange;
                         saved_aoDev = p.aoDev;
-						saved_aoClock = p.aoClock;
-						saved_aoSrate = p.aoSrate;
-						saved_aoBufferSizeCS = p.aoBufferSizeCS;
-						/* Note: deleting the old AOWrite thread is potentially slow due to expensive/slow wait for DAQmxWriteBinary to finish when joining threads
-						         so.. we tell the newly created aowrite thread to delete the old thread for us!  Clever! :) */
+                        saved_aoClock = p.aoClock;
+                        saved_aoSrate = p.aoSrate;
+                        saved_aoBufferSizeCS = p.aoBufferSizeCS;
+                        /* Note: deleting the old AOWrite thread is potentially slow due to expensive/slow wait for DAQmxWriteBinary to finish when joining threads
+                                 so.. we tell the newly created aowrite thread to delete the old thread for us!  Clever! :) */
                         aoWriteThr = new AOWriteThread(0, aoChan, p, aoWriteThr /* old thread to delete when start() is called... */);
                         Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
                         aoWriteThr->start();
@@ -915,16 +1022,16 @@ namespace DAQ
                 aoData.reserve(aoData.size()+dsize);
                 for (int i = 0; i < dsize; i += NCHANS1+NCHANS2) { // for each scan..
                     for (QVector<QPair<int,int> >::const_iterator it = aoAITab.begin(); it != aoAITab.end(); ++it) { // take ao channels
-						const int aiChIdx = p.doPreJuly2011IntanDemux || !muxMode ? (*it).second : mapNewChanIdToPreJuly2011ChanId((*it).second, p.mode, p.dualDevMode && !p.secondDevIsAuxOnly);
-						const int dix = i+aiChIdx;
-						if (dix < dsize)
-							aoData.push_back(data[dix]);
-						else {
-							static int errct = 0;
-							aoData.push_back(0);
-							if (errct++ < 5)
-								Error() << "INTERNAL ERROR: This shouldn't happen.  AO passthru code is buggy. FIX ME!!";
-						}
+                        const int aiChIdx = p.doPreJuly2011IntanDemux || !muxMode ? (*it).second : mapNewChanIdToPreJuly2011ChanId((*it).second, p.mode, p.dualDevMode && !p.secondDevIsAuxOnly);
+                        const int dix = i+aiChIdx;
+                        if (dix < dsize)
+                            aoData.push_back(data[dix]);
+                        else {
+                            static int errct = 0;
+                            aoData.push_back(0);
+                            if (errct++ < 5)
+                                Error() << "INTERNAL ERROR: This shouldn't happen.  AO passthru code is buggy. FIX ME!!";
+                        }
                     }
                 }
                 u64 sz = aoData.size();
@@ -932,8 +1039,9 @@ namespace DAQ
                 aoSampCount += sz;
             }
              
-			
-			breakupDataIntoChunksAndEnqueue(data, sampCount);
+            
+            breakupDataIntoChunksAndEnqueue(data, sampCount, p.autoRetryOnAIOverrun);
+            lastEnq = lastReadTime;
 
             // fast settle...
             if (muxMode && fast_settle && !leftOver.size() && !leftOver2.size()) {
@@ -941,12 +1049,12 @@ namespace DAQ
                 /// now possibly do a 'fast settle' request by stopping the task, setting the DO line low, then restarting the task after fast_settle ms have elapsed, and setting the line high
                 Debug() << "Fast settle of " << fast_settle << " ms begin";
                 DAQmxErrChk(DAQmxStopTask(taskHandle));
-				if (p.dualDevMode) DAQmxErrChk(DAQmxStopTask(taskHandle2));
+                if (p.dualDevMode) DAQmxErrChk(DAQmxStopTask(taskHandle2));
                 if (aoWriteThr) {
                     delete aoWriteThr, aoWriteThr = 0; 
-					aoWriteThr = new AOWriteThread(0, aoChan, p);
-					Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
-					aoWriteThr->start();
+                    aoWriteThr = new AOWriteThread(0, aoChan, p);
+                    Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
+                    aoWriteThr->start();
                 }
                 setDO(false);
                 msleep(fast_settle);
@@ -958,21 +1066,15 @@ namespace DAQ
                 Debug() << "Fast settle completed in " << (getTime()-t0) << " secs";
                 emit(fastSettleCompleted());
             }
+
         }
 
         Debug() << "Acquired " << totalRead << " total samples.";
 
-    Error_Out:
+    Error_Out:    
         if ( DAQmxFailed(error) )
             DAQmxGetExtendedErrorInfo(errBuff,2048);
-        if ( taskHandle != 0) {
-            DAQmxStopTask (taskHandle);
-            DAQmxClearTask (taskHandle);
-        }
-        if ( taskHandle2 != 0) {
-            DAQmxStopTask (taskHandle2);
-            DAQmxClearTask (taskHandle2);
-        }
+        destroyAITasks();
         if (aoWriteThr != 0) {
             delete aoWriteThr, aoWriteThr = 0;
         }
@@ -986,52 +1088,52 @@ namespace DAQ
         }
         
     }
-	
-	/*static*/
-	inline void Task::mergeDualDevData(std::vector<int16> & out,
-								const std::vector<int16> & data, const std::vector<int16> & data2, 
-								int NCHANS1, int NCHANS2, 
-								int nExtraChans1, int nExtraChans2)
-	{
-		const int nMx = NCHANS1-nExtraChans1, nMx2 = NCHANS2-nExtraChans2, s1 = data.size(), s2 = data2.size();
-		out.clear();
-		out.reserve(s1+s2);
-		int i,j;
-		for (i = 0, j = 0; i < s1 && j < s2; i+=NCHANS1, j+=NCHANS2) {
-			if (nMx > 0) out.insert(out.end(), data.begin()+i, data.begin()+i+nMx);
-			if (nMx2 > 0) out.insert(out.end(), data2.begin()+j, data2.begin()+j+nMx2);
-			out.insert(out.end(), data.begin()+i+nMx, data.begin()+i+NCHANS1);
-			out.insert(out.end(), data2.begin()+j+nMx2, data2.begin()+j+NCHANS2);
-		}
-		if (i < s1 || j < s2) 
-			Error() << "INTERNAL ERROR IN FUNCTION `mergeDualDevData()'!  The two device buffers data and data2 have differing numbers of scans! FIXME!  Aieeeee!!\n";
-	}	
+    
+    /*static*/
+    inline void Task::mergeDualDevData(std::vector<int16> & out,
+                                const std::vector<int16> & data, const std::vector<int16> & data2, 
+                                int NCHANS1, int NCHANS2, 
+                                int nExtraChans1, int nExtraChans2)
+    {
+        const int nMx = NCHANS1-nExtraChans1, nMx2 = NCHANS2-nExtraChans2, s1 = data.size(), s2 = data2.size();
+        out.clear();
+        out.reserve(s1+s2);
+        int i,j;
+        for (i = 0, j = 0; i < s1 && j < s2; i+=NCHANS1, j+=NCHANS2) {
+            if (nMx > 0) out.insert(out.end(), data.begin()+i, data.begin()+i+nMx);
+            if (nMx2 > 0) out.insert(out.end(), data2.begin()+j, data2.begin()+j+nMx2);
+            out.insert(out.end(), data.begin()+i+nMx, data.begin()+i+NCHANS1);
+            out.insert(out.end(), data2.begin()+j+nMx2, data2.begin()+j+NCHANS2);
+        }
+        if (i < s1 || j < s2) 
+            Error() << "INTERNAL ERROR IN FUNCTION `mergeDualDevData()'!  The two device buffers data and data2 have differing numbers of scans! FIXME!  Aieeeee!!\n";
+    }    
 
-	void Task::breakupDataIntoChunksAndEnqueue(std::vector<int16> & data, u64 sampCount)
-	{
-		int chunkSize = int(params.srate / computeTaskReadFreq(params.srate)) * params.nVAIChans, nchunk = 0, ct = 0;
-		if (chunkSize < (int)params.nVAIChans) chunkSize = params.nVAIChans;
+    void Task::breakupDataIntoChunksAndEnqueue(std::vector<int16> & data, u64 sampCount, bool putFakeDataOnOverrun)
+    {
+        int chunkSize = int(params.srate / computeTaskReadFreq(params.srate)) * params.nVAIChans, nchunk = 0, ct = 0;
+        if (chunkSize < (int)params.nVAIChans) chunkSize = params.nVAIChans;
         static const int limit = (1024*786)/sizeof(int16); /* 768KB max chunk size? */
         if (chunkSize > limit) { 
             chunkSize = limit - (limit % params.nVAIChans);
         }
-		const int nSamps = data.size();
-		if (chunkSize >= nSamps) {
-			enqueueBuffer(data, sampCount);
-			return;
-		}
-		std::vector<int16> chunk;
-		for (int i = 0; i < nSamps; i += nchunk, ++ct) {
-			chunk.reserve(chunkSize);
-			nchunk = nSamps - i;
-			if (nchunk > chunkSize) nchunk = chunkSize;
-			chunk.insert(chunk.begin(), data.begin()+i, data.begin()+i+nchunk);
-			enqueueBuffer(chunk, sampCount+u64(i));
-			chunk.clear();
-		}
-		//Debug() << "broke up data of size " << data.size() << " into " << ct << " chunks of size " << chunkSize;
-		data.clear();
-	}
+        const int nSamps = data.size();
+        if (chunkSize >= nSamps) {
+            enqueueBuffer(data, sampCount, putFakeDataOnOverrun);
+            return;
+        }
+        std::vector<int16> chunk;
+        for (int i = 0; i < nSamps; i += nchunk, ++ct) {
+            chunk.reserve(chunkSize);
+            nchunk = nSamps - i;
+            if (nchunk > chunkSize) nchunk = chunkSize;
+            chunk.insert(chunk.begin(), data.begin()+i, data.begin()+i+nchunk);
+            enqueueBuffer(chunk, sampCount+u64(i), putFakeDataOnOverrun);
+            chunk.clear();
+        }
+        //Debug() << "broke up data of size " << data.size() << " into " << ct << " chunks of size " << chunkSize;
+        data.clear();
+    }
 
     void Task::setDO(bool onoff)
     {
@@ -1186,289 +1288,289 @@ namespace DAQ
 #include <windows.h>
 
 namespace DAQ {
-	static HMODULE module = 0;
-	
-	bool Available(void) {
-		static bool tried = false;
-		//bool hadNoModule = !module;
-		if (!module && !tried && !(module = LoadLibraryA("nicaiu.dll")) ) {
-			//Log() << "Could not find nicaiu.dll, DAQ features disabled!";
-			tried = true;
-			return false;
-		} else if (tried) return false;
-		//if (hadNoModule)
-		//	Log() << "Found and dynamically loaded NI Driver DLL: nicaiu.dll, DAQ features enabled";
-		return true;
-	}
-	
-	template <typename T> void tryLoadFunc(T * & func, const char *funcname) {
-		if (!func && Available()) {
-			func = reinterpret_cast<T *> (GetProcAddress( module, funcname ));
-			if (!func) {
-				//Warning() << "Could not find the function " << funcname << " in nicaiu.dll, NI functionality may fail!";
-				return;				
-			}
-		}
-	}
+    static HMODULE module = 0;
+    
+    bool Available(void) {
+        static bool tried = false;
+        //bool hadNoModule = !module;
+        if (!module && !tried && !(module = LoadLibraryA("nicaiu.dll")) ) {
+            //Log() << "Could not find nicaiu.dll, DAQ features disabled!";
+            tried = true;
+            return false;
+        } else if (tried) return false;
+        //if (hadNoModule)
+        //    Log() << "Found and dynamically loaded NI Driver DLL: nicaiu.dll, DAQ features enabled";
+        return true;
+    }
+    
+    template <typename T> void tryLoadFunc(T * & func, const char *funcname) {
+        if (!func && Available()) {
+            func = reinterpret_cast<T *> (GetProcAddress( module, funcname ));
+            if (!func) {
+                //Warning() << "Could not find the function " << funcname << " in nicaiu.dll, NI functionality may fail!";
+                return;                
+            }
+        }
+    }
 }
 
-extern "C" {	
-	//*** Set/Get functions for DAQmx_Dev_DO_Lines ***
-	int32 __CFUNC DAQmxGetDevDOLines(const char device[], char *data, uInt32 bufferSize) {
-		static int32 (__CFUNC *func)(const char *, char *, uInt32) = 0;
-		DAQ::tryLoadFunc(func, "DAQmxGetDevDOLines");
-		//Debug() << "DAQmxGetDevDOLines called";
-		if (func) return func(device, data, bufferSize);
-		return DAQmxErrorRequiredDependencyNotFound;
-	}
-	
-	int32 __CFUNC DAQmxWriteDigitalScalarU32   (TaskHandle taskHandle, bool32 autoStart, float64 timeout, uInt32 value, bool32 *reserved) {
-		static int32 (__CFUNC *func) (TaskHandle, bool32, float64, uInt32, bool32 *) = 0;
-		DAQ::tryLoadFunc(func, "DAQmxWriteDigitalScalarU32");
-		//Debug() << "DAQmxWriteDigitalScalarU32 called";
-		if (func) return func(taskHandle, autoStart, timeout, value, reserved);
-		return DAQmxErrorRequiredDependencyNotFound;
-	}
-	
-	int32 __CFUNC  DAQmxStartTask (TaskHandle taskHandle) {
-		static int32 (__CFUNC  *func) (TaskHandle) = 0;
-		DAQ::tryLoadFunc(func, "DAQmxStartTask");
-		Debug() << "DAQmxStartTask called";
-		if (func) return func(taskHandle);
-		return DAQmxErrorRequiredDependencyNotFound;
-	}	
-	
-	int32 __CFUNC  DAQmxStopTask (TaskHandle taskHandle) {
-		static int32 (__CFUNC  *func) (TaskHandle) = 0;
-		DAQ::tryLoadFunc(func, "DAQmxStopTask");
-		Debug() << "DAQmxStopTask called";
-		if (func) return func(taskHandle);
-		return DAQmxErrorRequiredDependencyNotFound;
-	}
-	
-	int32 __CFUNC  DAQmxClearTask (TaskHandle taskHandle) {
-		static int32 (__CFUNC  *func) (TaskHandle) = 0;
-		DAQ::tryLoadFunc(func, "DAQmxClearTask");
-		//Debug() << "DAQmxClearTask called";
-		if (func) return func(taskHandle);
-		return DAQmxErrorRequiredDependencyNotFound;
-	}
-	
-	int32 __CFUNC DAQmxCreateDOChan (TaskHandle taskHandle, const char lines[], const char nameToAssignToLines[], int32 lineGrouping) {
-		static int32 (__CFUNC *func)(TaskHandle, const char *, const char *, int32 lineGrouping) = 0;
-		DAQ::tryLoadFunc(func, "DAQmxCreateDOChan");
-		//Debug() << "DAQmxCreateDOChan called";
-		if (func) return func(taskHandle,lines,nameToAssignToLines,lineGrouping);
-		return DAQmxErrorRequiredDependencyNotFound;
-	}
-	
-	int32 __CFUNC     DAQmxGetExtendedErrorInfo (char errorString[], uInt32 bufferSize) {
-		static int32 (__CFUNC *func) (char *, uInt32) = 0;
-		DAQ::tryLoadFunc(func, "DAQmxGetExtendedErrorInfo");
-		//Debug() << "DAQmxGetExtendedErrorInfo called";
-		if (func) return func(errorString,bufferSize);
-		strncpy(errorString, "DLL Missing", bufferSize);
-		return DAQmxSuccess;		
-	}
-	
-	int32 __CFUNC     DAQmxCreateTask          (const char taskName[], TaskHandle *taskHandle) {
-		static int32 (__CFUNC *func) (const char *, TaskHandle *) = 0;
-		static const char * const fname = "DAQmxCreateTask";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(taskName,taskHandle);
-		return DAQmxErrorRequiredDependencyNotFound;				
-	}
-	
-	int32 __CFUNC DAQmxGetDevAIMaxMultiChanRate(const char device[], float64 *data) {
-		static int32 (__CFUNC *func)(const char *, float64 *) = 0;
-		static const char * const fname = "DAQmxGetDevAIMaxMultiChanRate";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(device,data);
-		return DAQmxErrorRequiredDependencyNotFound;				
-	}
-	
-	int32 __CFUNC DAQmxGetDevAISimultaneousSamplingSupported(const char device[], bool32 *data) {
-		static int32 (__CFUNC *func)(const char *, bool32 *) 	 = 0;
-		const char *fname = "DAQmxGetDevAISimultaneousSamplingSupported";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(device,data);
-		return DAQmxErrorRequiredDependencyNotFound;						
-	}
-	
-	int32 __CFUNC DAQmxGetDevAIMaxSingleChanRate(const char device[], float64 *data) {
-		static int32 (__CFUNC *func)(const char *, float64 *) 	 = 0;
-		const char *fname = "DAQmxGetDevAIMaxSingleChanRate";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(device,data);
-		return DAQmxErrorRequiredDependencyNotFound;						
-	}
-	
-	int32 __CFUNC DAQmxGetDevAIPhysicalChans(const char device[], char *data, uInt32 bufferSize) {
-		static int32 (__CFUNC *func)(const char *, char *, uInt32) 	 = 0;
-		const char *fname = "DAQmxGetDevAIPhysicalChans";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(device,data,bufferSize);
-		return DAQmxErrorRequiredDependencyNotFound;								
-	}
-	
-	int32 __CFUNC DAQmxGetDevAOVoltageRngs(const char device[], float64 *data, uInt32 arraySizeInSamples) {
-		static int32 (__CFUNC *func)(const char *, float64 *, uInt32) 	 = 0;
-		const char *fname = "DAQmxGetDevAOVoltageRngs";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(device,data,arraySizeInSamples);
-		return DAQmxErrorRequiredDependencyNotFound;										
-	}
-	
-	int32 __CFUNC DAQmxGetDevAIVoltageRngs(const char device[], float64 *data, uInt32 arraySizeInSamples) {
-		static int32 (__CFUNC *func)(const char *, float64 *, uInt32) 	 = 0;
-		const char *fname = "DAQmxGetDevAIVoltageRngs";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(device,data,arraySizeInSamples);
-		return DAQmxErrorRequiredDependencyNotFound;												
-	}
-	
-	int32 __CFUNC DAQmxGetDevAIMinRate(const char device[], float64 *data) {
-		static int32 (__CFUNC *func)(const char *, float64 *) 	 = 0;
-		const char *fname = "DAQmxGetDevAIMinRate";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(device,data);
-		return DAQmxErrorRequiredDependencyNotFound;														
-	}
-	
-	int32 __CFUNC DAQmxGetDevAOPhysicalChans(const char device[], char *data, uInt32 bufferSize) {
-		static int32 (__CFUNC *func)(const char *, char  *, uInt32) 	 = 0;
-		const char *fname = "DAQmxGetDevAOPhysicalChans";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(device,data,bufferSize);
-		return DAQmxErrorRequiredDependencyNotFound;																
-	}
-	
-	int32 __CFUNC DAQmxGetDevProductType(const char device[], char *data, uInt32 bufferSize) {
-		static int32 (__CFUNC *func)(const char *, char  *, uInt32) 	 = 0;
-		const char *fname = "DAQmxGetDevProductType";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(device,data,bufferSize);
-		return DAQmxErrorRequiredDependencyNotFound;																		
-	}
-	
-	int32 __CFUNC DAQmxCfgInputBuffer(TaskHandle taskHandle, uInt32 numSampsPerChan) {
-		static int32 (__CFUNC *func)(TaskHandle, uInt32) 	 = 0;
-		const char *fname = "DAQmxCfgInputBuffer";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(taskHandle,numSampsPerChan);
-		return DAQmxErrorRequiredDependencyNotFound;		
-	}
-	
-	int32 __CFUNC DAQmxCfgOutputBuffer(TaskHandle taskHandle, uInt32 numSampsPerChan) {
-	static int32 (__CFUNC *func)(TaskHandle, uInt32) 	 = 0;
-	const char *fname = "DAQmxCfgOutputBuffer";
-	DAQ::tryLoadFunc(func, fname);
-	//Debug() << fname << " called";
-	if (func) return func(taskHandle,numSampsPerChan);
-		return DAQmxErrorRequiredDependencyNotFound;		
-	}
-	
-	int32 __CFUNC DAQmxCfgSampClkTiming(TaskHandle taskHandle, const char source[], float64 rate, int32 activeEdge, int32 sampleMode, uInt64 sampsPerChan) {
-		static int32 (__CFUNC *func)(TaskHandle, const char *, float64, int32, int32, uInt64) 	 = 0;
-		const char *fname = "DAQmxCfgSampClkTiming";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(taskHandle,source,rate,activeEdge,sampleMode,sampsPerChan);
-		return DAQmxErrorRequiredDependencyNotFound;				
-	}
+extern "C" {    
+    //*** Set/Get functions for DAQmx_Dev_DO_Lines ***
+    int32 __CFUNC DAQmxGetDevDOLines(const char device[], char *data, uInt32 bufferSize) {
+        static int32 (__CFUNC *func)(const char *, char *, uInt32) = 0;
+        DAQ::tryLoadFunc(func, "DAQmxGetDevDOLines");
+        //Debug() << "DAQmxGetDevDOLines called";
+        if (func) return func(device, data, bufferSize);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }
+    
+    int32 __CFUNC DAQmxWriteDigitalScalarU32   (TaskHandle taskHandle, bool32 autoStart, float64 timeout, uInt32 value, bool32 *reserved) {
+        static int32 (__CFUNC *func) (TaskHandle, bool32, float64, uInt32, bool32 *) = 0;
+        DAQ::tryLoadFunc(func, "DAQmxWriteDigitalScalarU32");
+        //Debug() << "DAQmxWriteDigitalScalarU32 called";
+        if (func) return func(taskHandle, autoStart, timeout, value, reserved);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }
+    
+    int32 __CFUNC  DAQmxStartTask (TaskHandle taskHandle) {
+        static int32 (__CFUNC  *func) (TaskHandle) = 0;
+        DAQ::tryLoadFunc(func, "DAQmxStartTask");
+        Debug() << "DAQmxStartTask called";
+        if (func) return func(taskHandle);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }    
+    
+    int32 __CFUNC  DAQmxStopTask (TaskHandle taskHandle) {
+        static int32 (__CFUNC  *func) (TaskHandle) = 0;
+        DAQ::tryLoadFunc(func, "DAQmxStopTask");
+        Debug() << "DAQmxStopTask called";
+        if (func) return func(taskHandle);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }
+    
+    int32 __CFUNC  DAQmxClearTask (TaskHandle taskHandle) {
+        static int32 (__CFUNC  *func) (TaskHandle) = 0;
+        DAQ::tryLoadFunc(func, "DAQmxClearTask");
+        //Debug() << "DAQmxClearTask called";
+        if (func) return func(taskHandle);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }
+    
+    int32 __CFUNC DAQmxCreateDOChan (TaskHandle taskHandle, const char lines[], const char nameToAssignToLines[], int32 lineGrouping) {
+        static int32 (__CFUNC *func)(TaskHandle, const char *, const char *, int32 lineGrouping) = 0;
+        DAQ::tryLoadFunc(func, "DAQmxCreateDOChan");
+        //Debug() << "DAQmxCreateDOChan called";
+        if (func) return func(taskHandle,lines,nameToAssignToLines,lineGrouping);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }
+    
+    int32 __CFUNC     DAQmxGetExtendedErrorInfo (char errorString[], uInt32 bufferSize) {
+        static int32 (__CFUNC *func) (char *, uInt32) = 0;
+        DAQ::tryLoadFunc(func, "DAQmxGetExtendedErrorInfo");
+        //Debug() << "DAQmxGetExtendedErrorInfo called";
+        if (func) return func(errorString,bufferSize);
+        strncpy(errorString, "DLL Missing", bufferSize);
+        return DAQmxSuccess;        
+    }
+    
+    int32 __CFUNC     DAQmxCreateTask          (const char taskName[], TaskHandle *taskHandle) {
+        static int32 (__CFUNC *func) (const char *, TaskHandle *) = 0;
+        static const char * const fname = "DAQmxCreateTask";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskName,taskHandle);
+        return DAQmxErrorRequiredDependencyNotFound;                
+    }
+    
+    int32 __CFUNC DAQmxGetDevAIMaxMultiChanRate(const char device[], float64 *data) {
+        static int32 (__CFUNC *func)(const char *, float64 *) = 0;
+        static const char * const fname = "DAQmxGetDevAIMaxMultiChanRate";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(device,data);
+        return DAQmxErrorRequiredDependencyNotFound;                
+    }
+    
+    int32 __CFUNC DAQmxGetDevAISimultaneousSamplingSupported(const char device[], bool32 *data) {
+        static int32 (__CFUNC *func)(const char *, bool32 *)      = 0;
+        const char *fname = "DAQmxGetDevAISimultaneousSamplingSupported";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(device,data);
+        return DAQmxErrorRequiredDependencyNotFound;                        
+    }
+    
+    int32 __CFUNC DAQmxGetDevAIMaxSingleChanRate(const char device[], float64 *data) {
+        static int32 (__CFUNC *func)(const char *, float64 *)      = 0;
+        const char *fname = "DAQmxGetDevAIMaxSingleChanRate";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(device,data);
+        return DAQmxErrorRequiredDependencyNotFound;                        
+    }
+    
+    int32 __CFUNC DAQmxGetDevAIPhysicalChans(const char device[], char *data, uInt32 bufferSize) {
+        static int32 (__CFUNC *func)(const char *, char *, uInt32)      = 0;
+        const char *fname = "DAQmxGetDevAIPhysicalChans";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(device,data,bufferSize);
+        return DAQmxErrorRequiredDependencyNotFound;                                
+    }
+    
+    int32 __CFUNC DAQmxGetDevAOVoltageRngs(const char device[], float64 *data, uInt32 arraySizeInSamples) {
+        static int32 (__CFUNC *func)(const char *, float64 *, uInt32)      = 0;
+        const char *fname = "DAQmxGetDevAOVoltageRngs";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(device,data,arraySizeInSamples);
+        return DAQmxErrorRequiredDependencyNotFound;                                        
+    }
+    
+    int32 __CFUNC DAQmxGetDevAIVoltageRngs(const char device[], float64 *data, uInt32 arraySizeInSamples) {
+        static int32 (__CFUNC *func)(const char *, float64 *, uInt32)      = 0;
+        const char *fname = "DAQmxGetDevAIVoltageRngs";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(device,data,arraySizeInSamples);
+        return DAQmxErrorRequiredDependencyNotFound;                                                
+    }
+    
+    int32 __CFUNC DAQmxGetDevAIMinRate(const char device[], float64 *data) {
+        static int32 (__CFUNC *func)(const char *, float64 *)      = 0;
+        const char *fname = "DAQmxGetDevAIMinRate";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(device,data);
+        return DAQmxErrorRequiredDependencyNotFound;                                                        
+    }
+    
+    int32 __CFUNC DAQmxGetDevAOPhysicalChans(const char device[], char *data, uInt32 bufferSize) {
+        static int32 (__CFUNC *func)(const char *, char  *, uInt32)      = 0;
+        const char *fname = "DAQmxGetDevAOPhysicalChans";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(device,data,bufferSize);
+        return DAQmxErrorRequiredDependencyNotFound;                                                                
+    }
+    
+    int32 __CFUNC DAQmxGetDevProductType(const char device[], char *data, uInt32 bufferSize) {
+        static int32 (__CFUNC *func)(const char *, char  *, uInt32)      = 0;
+        const char *fname = "DAQmxGetDevProductType";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(device,data,bufferSize);
+        return DAQmxErrorRequiredDependencyNotFound;                                                                        
+    }
+    
+    int32 __CFUNC DAQmxCfgInputBuffer(TaskHandle taskHandle, uInt32 numSampsPerChan) {
+        static int32 (__CFUNC *func)(TaskHandle, uInt32)      = 0;
+        const char *fname = "DAQmxCfgInputBuffer";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,numSampsPerChan);
+        return DAQmxErrorRequiredDependencyNotFound;        
+    }
+    
+    int32 __CFUNC DAQmxCfgOutputBuffer(TaskHandle taskHandle, uInt32 numSampsPerChan) {
+    static int32 (__CFUNC *func)(TaskHandle, uInt32)      = 0;
+    const char *fname = "DAQmxCfgOutputBuffer";
+    DAQ::tryLoadFunc(func, fname);
+    //Debug() << fname << " called";
+    if (func) return func(taskHandle,numSampsPerChan);
+        return DAQmxErrorRequiredDependencyNotFound;        
+    }
+    
+    int32 __CFUNC DAQmxCfgSampClkTiming(TaskHandle taskHandle, const char source[], float64 rate, int32 activeEdge, int32 sampleMode, uInt64 sampsPerChan) {
+        static int32 (__CFUNC *func)(TaskHandle, const char *, float64, int32, int32, uInt64)      = 0;
+        const char *fname = "DAQmxCfgSampClkTiming";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,source,rate,activeEdge,sampleMode,sampsPerChan);
+        return DAQmxErrorRequiredDependencyNotFound;                
+    }
 
-	int32 __CFUNC DAQmxCreateAIVoltageChan(TaskHandle taskHandle, const char physicalChannel[], const char nameToAssignToChannel[], int32 terminalConfig, float64 minVal, float64 maxVal, int32 units, const char customScaleName[]) {
-		static int32 (__CFUNC *func)(TaskHandle, const char *, const char *, int32, float64, float64, int32, const char *) 	 = 0;
-		const char *fname = "DAQmxCreateAIVoltageChan";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(taskHandle,physicalChannel,nameToAssignToChannel,terminalConfig,minVal,maxVal,units,customScaleName);
-		return DAQmxErrorRequiredDependencyNotFound;				
-	}		
+    int32 __CFUNC DAQmxCreateAIVoltageChan(TaskHandle taskHandle, const char physicalChannel[], const char nameToAssignToChannel[], int32 terminalConfig, float64 minVal, float64 maxVal, int32 units, const char customScaleName[]) {
+        static int32 (__CFUNC *func)(TaskHandle, const char *, const char *, int32, float64, float64, int32, const char *)      = 0;
+        const char *fname = "DAQmxCreateAIVoltageChan";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,physicalChannel,nameToAssignToChannel,terminalConfig,minVal,maxVal,units,customScaleName);
+        return DAQmxErrorRequiredDependencyNotFound;                
+    }        
 
-	int32 __CFUNC DAQmxCreateAOVoltageChan(TaskHandle taskHandle, const char physicalChannel[], const char nameToAssignToChannel[], float64 minVal, float64 maxVal, int32 units, const char customScaleName[]) {
-		static int32 (__CFUNC *func)(TaskHandle, const char *, const char *, float64, float64, int32, const char *) 	 = 0;
-		const char *fname = "DAQmxCreateAOVoltageChan";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(taskHandle,physicalChannel,nameToAssignToChannel,minVal,maxVal,units,customScaleName);
-		return DAQmxErrorRequiredDependencyNotFound;				
-	}		
+    int32 __CFUNC DAQmxCreateAOVoltageChan(TaskHandle taskHandle, const char physicalChannel[], const char nameToAssignToChannel[], float64 minVal, float64 maxVal, int32 units, const char customScaleName[]) {
+        static int32 (__CFUNC *func)(TaskHandle, const char *, const char *, float64, float64, int32, const char *)      = 0;
+        const char *fname = "DAQmxCreateAOVoltageChan";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,physicalChannel,nameToAssignToChannel,minVal,maxVal,units,customScaleName);
+        return DAQmxErrorRequiredDependencyNotFound;                
+    }        
 
-	int32 __CFUNC DAQmxReadBinaryI16(TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, int16 readArray[], uInt32 arraySizeInSamps, int32 *sampsPerChanRead, bool32 *reserved) {
-		static int32 (__CFUNC *func)(TaskHandle, int32, float64, bool32, int16 *, uInt32, int32 *, bool32 *) 	 = 0;
-		const char *fname = "DAQmxReadBinaryI16";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(taskHandle,numSampsPerChan,timeout,fillMode,readArray,arraySizeInSamps,sampsPerChanRead,reserved);
-		return DAQmxErrorRequiredDependencyNotFound;				
-	}
+    int32 __CFUNC DAQmxReadBinaryI16(TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, int16 readArray[], uInt32 arraySizeInSamps, int32 *sampsPerChanRead, bool32 *reserved) {
+        static int32 (__CFUNC *func)(TaskHandle, int32, float64, bool32, int16 *, uInt32, int32 *, bool32 *)      = 0;
+        const char *fname = "DAQmxReadBinaryI16";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,numSampsPerChan,timeout,fillMode,readArray,arraySizeInSamps,sampsPerChanRead,reserved);
+        return DAQmxErrorRequiredDependencyNotFound;                
+    }
 
-	int32 __CFUNC DAQmxWriteBinaryI16(TaskHandle taskHandle, int32 numSampsPerChan, bool32 autoStart, float64 timeout, bool32 dataLayout, const int16 writeArray[], int32 *sampsPerChanWritten, bool32 *reserved) {
-		static int32 (__CFUNC *func)(TaskHandle, int32, bool32, float64, bool32, const int16 *, int32 *, bool32 *) 	 = 0;
-		const char *fname = "DAQmxWriteBinaryI16";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(taskHandle,numSampsPerChan,autoStart,timeout,dataLayout,writeArray,sampsPerChanWritten,reserved);
-		return DAQmxErrorRequiredDependencyNotFound;				
-	}
-	
-	int32 __CFUNC DAQmxRegisterEveryNSamplesEvent(TaskHandle taskHandle, int32 everyNsamplesEventType, uInt32 nSamples, uInt32 options, DAQmxEveryNSamplesEventCallbackPtr callbackFunction, void *callbackData) {
-		static int32 (__CFUNC *func)(TaskHandle, int32, uInt32, uInt32, DAQmxEveryNSamplesEventCallbackPtr, void *) 	 = 0;
-		const char *fname = "DAQmxRegisterEveryNSamplesEvent";
-		DAQ::tryLoadFunc(func, fname);
-		//Debug() << fname << " called";
-		if (func) return func(taskHandle,everyNsamplesEventType,nSamples,options,callbackFunction,callbackData);
-		return DAQmxErrorRequiredDependencyNotFound;		
-	}
+    int32 __CFUNC DAQmxWriteBinaryI16(TaskHandle taskHandle, int32 numSampsPerChan, bool32 autoStart, float64 timeout, bool32 dataLayout, const int16 writeArray[], int32 *sampsPerChanWritten, bool32 *reserved) {
+        static int32 (__CFUNC *func)(TaskHandle, int32, bool32, float64, bool32, const int16 *, int32 *, bool32 *)      = 0;
+        const char *fname = "DAQmxWriteBinaryI16";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,numSampsPerChan,autoStart,timeout,dataLayout,writeArray,sampsPerChanWritten,reserved);
+        return DAQmxErrorRequiredDependencyNotFound;                
+    }
+    
+    int32 __CFUNC DAQmxRegisterEveryNSamplesEvent(TaskHandle taskHandle, int32 everyNsamplesEventType, uInt32 nSamples, uInt32 options, DAQmxEveryNSamplesEventCallbackPtr callbackFunction, void *callbackData) {
+        static int32 (__CFUNC *func)(TaskHandle, int32, uInt32, uInt32, DAQmxEveryNSamplesEventCallbackPtr, void *)      = 0;
+        const char *fname = "DAQmxRegisterEveryNSamplesEvent";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,everyNsamplesEventType,nSamples,options,callbackFunction,callbackData);
+        return DAQmxErrorRequiredDependencyNotFound;        
+    }
 
 
-	/* Implementation Checklist for DLL decoupling:
-			 √ DAQmxCfgInputBuffer
-			 √ DAQmxCfgOutputBuffer
-			 √ DAQmxCfgSampClkTiming
-			 √ DAQmxClearTask
-			 √ DAQmxCreateAIVoltageChan
-			 √ DAQmxCreateAOVoltageChan
-			 √ DAQmxCreateDOChan
-			 √ DAQmxCreateTask
-			 √ DAQmxErrChk
-			 √ DAQmxErrorRequiredDependencyNotFound
-			 √ DAQmxFailed
-			 √ DAQmxGetDevAIMaxMultiChanRate
-			 √ DAQmxGetDevAIMaxSingleChanRate
-			 √ DAQmxGetDevAIMinRate
-			 √ DAQmxGetDevAIPhysicalChans
-			 √ DAQmxGetDevAISimultaneousSamplingSupported
-			 √ DAQmxGetDevAIVoltageRngs
-			 √ DAQmxGetDevAOPhysicalChans
-			 √ DAQmxGetDevAOVoltageRngs
-			 √ DAQmxGetDevDOLines
-			 √ DAQmxGetDevProductType
-			 √ DAQmxGetExtendedErrorInfo
-			 √ DAQmxReadBinaryI16
-			 √ DAQmxRegisterEveryNSamplesEvent
-			 √ DAQmxStartTask
-			 √ DAQmxStopTask
-			 √ DAQmxSuccess
-			 √ DAQmxWriteBinaryI16
-			 √ DAQmxWriteDigitalScalarU32
-		*/
-	
+    /* Implementation Checklist for DLL decoupling:
+             √ DAQmxCfgInputBuffer
+             √ DAQmxCfgOutputBuffer
+             √ DAQmxCfgSampClkTiming
+             √ DAQmxClearTask
+             √ DAQmxCreateAIVoltageChan
+             √ DAQmxCreateAOVoltageChan
+             √ DAQmxCreateDOChan
+             √ DAQmxCreateTask
+             √ DAQmxErrChk
+             √ DAQmxErrorRequiredDependencyNotFound
+             √ DAQmxFailed
+             √ DAQmxGetDevAIMaxMultiChanRate
+             √ DAQmxGetDevAIMaxSingleChanRate
+             √ DAQmxGetDevAIMinRate
+             √ DAQmxGetDevAIPhysicalChans
+             √ DAQmxGetDevAISimultaneousSamplingSupported
+             √ DAQmxGetDevAIVoltageRngs
+             √ DAQmxGetDevAOPhysicalChans
+             √ DAQmxGetDevAOVoltageRngs
+             √ DAQmxGetDevDOLines
+             √ DAQmxGetDevProductType
+             √ DAQmxGetExtendedErrorInfo
+             √ DAQmxReadBinaryI16
+             √ DAQmxRegisterEveryNSamplesEvent
+             √ DAQmxStartTask
+             √ DAQmxStopTask
+             √ DAQmxSuccess
+             √ DAQmxWriteBinaryI16
+             √ DAQmxWriteDigitalScalarU32
+        */
+    
 }
 #else
 namespace DAQ {
-	bool Available() { return true; /* emulated, but available! */ }
+    bool Available() { return true; /* emulated, but available! */ }
 }
 #endif

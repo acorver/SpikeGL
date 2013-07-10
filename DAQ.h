@@ -134,6 +134,8 @@ namespace DAQ
 		
 		bool resumeGraphSettings;
 
+		bool autoRetryOnAIOverrun; ///< if true, auto-restart the acquisition every time there is a buffer overrun error from the NI DAQ drivers. Note that if we get more than 2 failures in a 1s period, the acquisition is aborted anyway.
+
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }
         void unlock() const { mutex.unlock(); }
@@ -221,7 +223,7 @@ namespace DAQ
 
         void daqThr();
 
-        long long totalRead;
+        u64 totalRead;
 
         friend struct DAQPvt;
 
@@ -233,9 +235,30 @@ namespace DAQ
 		
 		static void mergeDualDevData(std::vector<int16> & output, const std::vector<int16> & data, const std::vector<int16> & data2, int NCHANS1, int NCHANS2, int nExtraChans, int nExtraChans2);
 		/// only used in Windows / Real (non fake) mode to break up the incoming data into manageable chunks
-		void breakupDataIntoChunksAndEnqueue(std::vector<int16> & data, u64 sampCount);
+		void breakupDataIntoChunksAndEnqueue(std::vector<int16> & data, u64 sampCount, bool putFakeDataOnOverrun);
 
-    };
+
+		// used for task create/destroy
+		TaskHandle taskHandle, taskHandle2;
+		QString chan, chan2;
+		const char *clockSource;
+		float64 sampleRate,min,max,timeout;
+		u64 bufferSize, bufferSize2;
+        // DAQMx error macro related.. for task create/destroy/etc
+        int32 error;
+        const char *callStr;
+        char errBuff[2048];
+        QSet<int32> acceptableRetryErrors;
+        int nReadRetries;
+        double lastEnq;
+
+		bool createAITasks();
+		bool startAITasks();
+		void destroyAITasks();
+        // returns 0 if all ok, -1 if unrecoverable error, 1 if had "buffer overflow error" and tried did acq restart..
+        int doAIRead(TaskHandle th, u64 samplesPerChan, std::vector<int16> & data, unsigned long oldS, int32 pointsToRead, int32 & pointsRead);
+        void fudgeDataDueToReadRetry();
+	};
 
 #ifdef HAVE_NIDAQmx
 	struct DAQPvt {
