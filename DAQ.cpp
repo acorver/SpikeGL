@@ -285,7 +285,7 @@ namespace DAQ
     
     Task::Task(const Params & acqParams, QObject *p) 
         : QThread(p), SampleBufQ("DAQ Task", SAMPLE_BUF_Q_SIZE), pleaseStop(false), params(acqParams), 
-          fast_settle(0), muxMode(false), totalRead(0ULL), taskHandle(0), taskHandle2(0), clockSource(0), error(0), callStr(0)
+          fast_settle(0), muxMode(false), totalRead(0ULL), aoWriteThr(0), taskHandle(0), taskHandle2(0), clockSource(0), error(0), callStr(0)
     {
         errBuff[0] = 0;
         setDO(false); // assert DO is low when stopped...
@@ -553,9 +553,7 @@ namespace DAQ
     }
 
     /* static */
-    void Task::recomputeAOAITab(QVector<QPair<int,int> > & aoAITab,
-                                QString & aoChan,
-                                const Params & p)
+    void Task::recomputeAOAITab(QVector<QPair<int, int> > & aoAITab, QString & aoChan, const Params & p)
     {
         aoAITab.clear();
         aoChan.clear();
@@ -673,7 +671,13 @@ namespace DAQ
         Debug() << "Fudging " << (tFudge*1e3) << "ms worth of data (" << samps2Fudge << " samples)..";
         std::vector<int16> dummy;
         enqueueBuffer(dummy, totalRead, true, samps2Fudge);
-        totalRead += (u64)samps2Fudge;
+        if (aoWriteThr) {
+            u64 aosamps2fudge = static_cast<u64>(p.srate * tFudge) * static_cast<u64>(aoAITab.size());
+            Debug() << "Fudging " << (tFudge*1e3) << "ms worth of AO data as well (" << aosamps2fudge << " samples)..";
+            aoWriteThr->enqueueBuffer(dummy, aoSampCount, true, aosamps2fudge);
+            aoSampCount += aosamps2fudge;
+        }
+        totalRead += samps2Fudge;
         lastEnq = tNow;
     }
 
@@ -727,7 +731,7 @@ namespace DAQ
         const int NCHANS1 = p.nVAIChans1, NCHANS2 = p.dualDevMode ? p.nVAIChans2 : 0; 
         muxMode =  (p.mode != AIRegular);
         int nscans_per_mux_scan = 1;
-        AOWriteThread * aoWriteThr = 0;
+        aoWriteThr = 0;
 
         if (muxMode) {
             const int mux_chans_per_phys = ModeNumChansPerIntan[p.mode];
@@ -742,8 +746,6 @@ namespace DAQ
             }
              */
         }
-
-        QVector<QPair<int,int> > aoAITab;
 
         recomputeAOAITab(aoAITab, aoChan, p);
         
@@ -810,7 +812,7 @@ namespace DAQ
         }
 
         lastEnq = lastReadTime = startTime = getTime();
-        u64 aoSampCount = 0;
+        aoSampCount = 0;
         double hzAvg = 0.;
         int nHz = 0, nHzMax = 20;
 

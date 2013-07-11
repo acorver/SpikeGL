@@ -23,6 +23,7 @@
 #undef max
 #endif
 
+
 namespace DAQ
 {
     struct Range {
@@ -181,6 +182,8 @@ namespace DAQ
     //-------- END NI DAQmx helper methods -------------
 
 
+    class AOWriteThread;
+
     /** This class represents 1 daq task, running in a separate thread.  
         Data is enqueued and other threads may be alerted via siganl/slot 
         mechanism when there is more data. */
@@ -227,9 +230,7 @@ namespace DAQ
 
         friend struct DAQPvt;
 
-        static void recomputeAOAITab(QVector<QPair<int,int> > & aoAITab,
-                                     QString & aoChan,
-                                     const Params & p);
+        static void recomputeAOAITab(QVector<QPair<int, int> > & aoAITab, QString & aoChan, const Params & p);
 
         static int computeTaskReadFreq(double srate);
 		
@@ -237,6 +238,9 @@ namespace DAQ
 		/// only used in Windows / Real (non fake) mode to break up the incoming data into manageable chunks
 		void breakupDataIntoChunksAndEnqueue(std::vector<int16> & data, u64 sampCount, bool putFakeDataOnOverrun);
 
+        AOWriteThread *aoWriteThr;
+        QVector<QPair<int,int> > aoAITab;
+        u64 aoSampCount;
 
 		// used for task create/destroy
 		TaskHandle taskHandle, taskHandle2;
