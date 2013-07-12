@@ -136,6 +136,7 @@ namespace DAQ
 		bool resumeGraphSettings;
 
 		bool autoRetryOnAIOverrun; ///< if true, auto-restart the acquisition every time there is a buffer overrun error from the NI DAQ drivers. Note that if we get more than 2 failures in a 1s period, the acquisition is aborted anyway.
+        int overrideGraphsPerTab; ///< if nonzero, the number of graphs per tab to display, 0 implies use mode-specific limits
 
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }

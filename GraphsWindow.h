@@ -98,6 +98,10 @@ private:
 
 	static int NumGraphsPerGraphTab[DAQ::N_Modes];
 	static void SetupNumGraphsPerGraphTab();
+
+    int getNumGraphsPerGraphTab() const;
+    int NUM_GRAPHS_PER_GRAPH_TAB;
+
 	
     DAQ::Params & params;
 	QTabWidget *tabWidget;

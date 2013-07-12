@@ -217,6 +217,14 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
 	dualDevModeChkd();
 
 	dialog->autoRetryOnAIOverrunsChk->setChecked(p.autoRetryOnAIOverrun);
+    dialog->graphsPerTabCB->setCurrentIndex(0);
+    for (int i = 1; i < dialog->graphsPerTabCB->count(); ++i) {
+        if (dialog->graphsPerTabCB->itemText(i).toUInt() == p.overrideGraphsPerTab) {
+            dialog->graphsPerTabCB->setCurrentIndex(i);
+            break;
+        }
+    }
+
 }
 
 void ConfigureDialogController::aiRangeChanged()
@@ -844,6 +852,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
 
 	p.resumeGraphSettings = resumeGraphSettings;
 	p.autoRetryOnAIOverrun = dialog->autoRetryOnAIOverrunsChk->isChecked();
+    p.overrideGraphsPerTab = dialog->graphsPerTabCB->currentText().toUInt();
     saveSettings();       
     
     return OK;
@@ -1047,6 +1056,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.secondDevIsAuxOnly = settings.value("secondDevIsAuxOnly", false).toBool();
 	p.resumeGraphSettings = settings.value("resumeGraphSettings", true).toBool();
 	p.autoRetryOnAIOverrun = settings.value("autoRetryOnAIOverrun", true).toBool();
+    p.overrideGraphsPerTab = settings.value("overrideGraphsPerTab", 0).toUInt();
 }
 
 void ConfigureDialogController::loadSettings()
@@ -1124,6 +1134,7 @@ void ConfigureDialogController::saveSettings() const
 	settings.setValue("pdOnSecondDev", p.pdOnSecondDev);
 	settings.setValue("resumeGraphSettings", p.resumeGraphSettings);
 	settings.setValue("autoRetryOnAIOverrun", p.autoRetryOnAIOverrun);
+    settings.setValue("overrideGraphsPerTab", p.overrideGraphsPerTab);
 
     settings.endGroup();
 }

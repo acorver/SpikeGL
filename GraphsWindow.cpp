@@ -114,11 +114,21 @@ void GraphsWindow::setupGraph(int num, int firstExtraChan)
 	}
 }
 
+int GraphsWindow::getNumGraphsPerGraphTab() const
+{
+    DAQ::Params & p(params);
+    int hardlim = NumGraphsPerGraphTab[p.mode];
+    if (!p.overrideGraphsPerTab || hardlim < p.overrideGraphsPerTab)
+        return hardlim;
+    // else..
+    return p.overrideGraphsPerTab;
+}
+
 void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 {    
     initIcons();
 	SetupNumGraphsPerGraphTab();
-#define NUM_GRAPHS_PER_GRAPH_TAB (NumGraphsPerGraphTab[p.mode])
+    NUM_GRAPHS_PER_GRAPH_TAB = getNumGraphsPerGraphTab();
 	const int nGraphTabs ( (p.nVAIChans / NUM_GRAPHS_PER_GRAPH_TAB) + ((p.nVAIChans % NUM_GRAPHS_PER_GRAPH_TAB) ? 1 : 0));
 	graphTabs.resize(nGraphTabs);
 	tabWidget = new QTabWidget(this);
@@ -909,7 +919,6 @@ void GraphsWindow::retileGraphsAccordingToSorting() {
 		QFrame * f = graphFrames[i];
 		f->setParent(dummy);
 	}
-	const DAQ::Params & p(params);
 	for (int i = 0; i < nGraphTabs; ++i) {
 		
 		int numThisPage = (nGraphTabs - i > 1) ? NUM_GRAPHS_PER_GRAPH_TAB : (graphs.size() % NUM_GRAPHS_PER_GRAPH_TAB);
@@ -1005,7 +1014,6 @@ void GraphsWindow::tabChange(int t)
 			graphs[i] = 0;
 		}
 	}
-	const DAQ::Params & p(params);
 	// next, swap the graph widgets to their new frames and set their states..
 	for (int i = t*NUM_GRAPHS_PER_GRAPH_TAB; !extraGraphs.isEmpty() && i < N_G; ++i) {
 		int graphId = sorting[i];
