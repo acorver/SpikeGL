@@ -99,7 +99,7 @@ ChanMappingController::~ChanMappingController()
     delete dialogParent, dialogParent = 0;
 }
 
-bool ChanMappingController::mappingFromForm()
+ChanMap ChanMappingController::getFormMapping() const
 {
 	ChanMap cm (is_dual ? mapping2[currentMode] : mapping[currentMode]);
     const int rowct = dialog->tableWidget->rowCount();
@@ -111,11 +111,18 @@ bool ChanMappingController::mappingFromForm()
 		if (ok) {
 			cm[i].electrodeId = val;
 			if (seen.contains(val)) {
-				return false;
+				return ChanMap();
 			}
 			seen.insert(val);
 		}
 	}
+    return cm;
+}
+
+bool ChanMappingController::mappingFromForm()
+{
+    ChanMap cm( getFormMapping() );
+    if (!cm.size()) return false;
 	// now that everything's ok, save mapping to class state...
 	if (is_dual) 
 		mapping2[currentMode] = cm;
@@ -227,7 +234,9 @@ void ChanMappingController::loadButPushed()
 void ChanMappingController::saveButPushed()
 {
 	QString fn = QFileDialog::getSaveFileName(dialogParent, "Save channel mapping", lastDir);
-	if (fn.length()) {
+    ChanMap cm( getFormMapping() );
+
+	if (fn.length() && cm.size()) {
 		QFile f(fn);
 		QFileInfo fi(fn);
 		lastDir = fi.absolutePath();
@@ -242,7 +251,7 @@ void ChanMappingController::saveButPushed()
 			dialog->statusLbl->setText(QString("Error opening %1 for writing").arg(fn));
 			return;
 		}
-		int bc = f.write(currentMapping().toWSDelimFlatFileString().toUtf8());
+		int bc = f.write(cm.toWSDelimFlatFileString().toUtf8());
 		if (bc < 0) {
 			dialog->statusLbl->setText(QString("Error writing to %1").arg(fn));
 			return;

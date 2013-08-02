@@ -45,6 +45,7 @@ private:
 	void resetFromMapping(const ChanMap & cm);
     void resetFromSettings();
 	bool mappingFromForm();
+    ChanMap getFormMapping() const;
 
     QDialog *dialogParent;
     Ui::ChanMapping *dialog;
