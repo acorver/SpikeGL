@@ -945,6 +945,48 @@ void PostJuly2011Remuxer::run()
 	}
 }
 
+void MainApp::putRestarts(const DAQ::Params & p, u64 firstSamp, u64 restartNumScans) const
+{
+    const u64 dfScanNr = dataFile.isOpen() ? dataFile.scanCount() : 0;
+    const u64 scanNr = firstSamp/p.nVAIChans;
+
+    Warning() << "Buffer overflow - scan: " << scanNr << ", datafile scan: " << dfScanNr << " (size: " << restartNumScans << " scans). Scans for missing time are fudged with MAX_VOLTS!";
+	QFileInfo fi(p.outputFileOrig);
+	if (!fi.isAbsolute()) {
+		fi.setFile(outputDirectory() + "/" + p.outputFileOrig);
+	}
+    QString dir = fi.path();
+    QString fn = fi.fileName();
+	QString ext = fi.completeSuffix();
+    if (ext.length()) {
+	    fn.chop(ext.length()+1);
+    }
+    QFile of (dir + "/" + fn + ".restarts");
+    of.open(QIODevice::Text|QIODevice::Append);
+    QTextStream ts(&of);
+    if (!of.size()) {
+        ts << "# .restarts file for `" << fn << "'. This file indicates at which scans and times there was a DAQ error requiring an AI restart.\n";
+        ts << "# Data columns are:\n";
+        ts << "# TIMESTAMP TRIAL_NAME ABS_SCAN_BEGIN ABS_SCAN_END TRIAL_RELATIVE_SCAN_BEGIN TRIAL_RELATIVE_SCAN_END\n";
+    }
+    QString trialName = "<NO TRIAL>";
+    if (dataFile.isOpen()) {
+        trialName = dataFile.fileName();
+        QFileInfo fi2(trialName);
+        trialName = fi2.baseName();
+    }
+    ts  << QDateTime::currentDateTime().toString(Qt::ISODate) << "\t" 
+        << trialName << "\t"
+        << scanNr << "\t"
+        << (scanNr+restartNumScans) << "\t";
+    if (dataFile.isOpen()) {
+        ts << dfScanNr << "\t" << (dfScanNr + restartNumScans);
+    } else {
+        ts << "0\t0";
+    }
+    ts << "\n";
+}
+
 
 ///< called from a timer at 30Hz
 void MainApp::taskReadFunc() 
@@ -971,8 +1013,7 @@ void MainApp::taskReadFunc()
         const bool wasFakeData = fakeDataSz > -1;
         // TODO XXX FIXME -- implement detection of fake data (DAQ restart!) properly
         if (wasFakeData) {
-            u64 dfScanNr = dataFile.isOpen() ? dataFile.scanCount() : 0;
-            Warning() << "Buffer overflow - scan: " << (firstSamp/p.nVAIChans) << ", datafile scan: " << dfScanNr << " (size: " << (fakeDataSz/p.nVAIChans) << " scans). Scans for missing time are fudged with MAX_VOLTS!";
+            putRestarts(p, firstSamp, u64(fakeDataSz/p.nVAIChans));
         }
 
         tNow = getTime();

@@ -281,6 +281,8 @@ private:
 	// WindowMenu stuff
 	void windowMenuRemove(QWidget *w);
 	void windowMenuAdd(QWidget *w);
+
+    void putRestarts(const DAQ::Params & p, u64 firstSamp, u64 restartSize) const;
 	
     QMap<QString, QVariant> queuedParams;    
     QMap<Par2Window *, CommandConnection *> par2WinConnMap;
