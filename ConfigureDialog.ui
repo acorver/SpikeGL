@@ -364,9 +364,9 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
     <widget class="QLabel" name="acqStartEndDescrLbl">
      <property name="geometry">
       <rect>
-       <x>15</x>
+       <x>10</x>
        <y>9</y>
-       <width>381</width>
+       <width>400</width>
        <height>82</height>
       </rect>
      </property>
