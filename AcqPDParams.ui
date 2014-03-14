@@ -209,6 +209,9 @@ above/below threshold for a crossing to have occurred.</string>
       <property name="toolTip">
        <string>The physical AI channel to monitor for trigger threshold crossings</string>
       </property>
+      <property name="maximum">
+       <number>9999</number>
+      </property>
       <property name="value">
        <number>4</number>
       </property>

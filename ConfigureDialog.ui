@@ -342,7 +342,12 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
     </item>
     <item>
      <property name="text">
-      <string>AI Controlled Start &amp; ReTriggering</string>
+      <string>Physical AI Controlled Start &amp; ReTriggering</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Virtual AI (Demuxed) Start &amp; ReTriggering</string>
      </property>
     </item>
    </widget>

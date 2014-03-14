@@ -285,7 +285,11 @@ namespace DAQ
     
     Task::Task(const Params & acqParams, QObject *p) 
         : QThread(p), SampleBufQ("DAQ Task", SAMPLE_BUF_Q_SIZE), pleaseStop(false), params(acqParams), 
-          fast_settle(0), muxMode(false), totalRead(0ULL), aoWriteThr(0), taskHandle(0), taskHandle2(0), clockSource(0), error(0), callStr(0)
+          fast_settle(0), muxMode(false), totalRead(0ULL), aoWriteThr(0),
+#ifdef HAVE_NIDAQmx
+          taskHandle(0), taskHandle2(0),
+#endif
+          clockSource(0), error(0), callStr(0)
     {
         errBuff[0] = 0;
         setDO(false); // assert DO is low when stopped...

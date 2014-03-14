@@ -44,7 +44,8 @@ namespace DAQ
         /* these correspond to items in 'acqStartEndCB' combobox in 
            the Ui::ConfigureDialog form */
         Immediate=0, PDStartEnd, PDStart, Timed, StimGLStartEnd, StimGLStart, 
-		AITriggered,
+		AITriggered, /* use physical AI line for triggering */
+		VAITriggered, /* use virtual (demuxed) channel for triggering */
         N_AcqStartEndModes
     };
 
@@ -243,8 +244,10 @@ namespace DAQ
         QVector<QPair<int,int> > aoAITab;
         u64 aoSampCount;
 
+#ifdef HAVE_NIDAQmx
 		// used for task create/destroy
 		TaskHandle taskHandle, taskHandle2;
+#endif
 		QString chan, chan2;
 		const char *clockSource;
 		float64 sampleRate,min,max,timeout;
@@ -260,8 +263,10 @@ namespace DAQ
 		bool createAITasks();
 		bool startAITasks();
 		void destroyAITasks();
+#ifdef HAVE_NIDAQmx
         // returns 0 if all ok, -1 if unrecoverable error, 1 if had "buffer overflow error" and tried did acq restart..
         int doAIRead(TaskHandle th, u64 samplesPerChan, std::vector<int16> & data, unsigned long oldS, int32 pointsToRead, int32 & pointsRead);
+#endif
         void fudgeDataDueToReadRetry();
 	};
 

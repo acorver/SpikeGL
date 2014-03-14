@@ -499,10 +499,12 @@ void MainApp::about()
 {
     QMessageBox::about(consoleWindow, "About "APPNAME, 
                        VERSION_STR
-                       "\n\n(C) 2010 Calin A. Culianu <calin.culianu@gmail.com>\n\n"
+                       "\n\n(C) 2010-2014 Calin A. Culianu <calin.culianu@gmail.com>\n\n"
                        "Developed for the Anthony Leonardo lab at\n"
                        "Janelia Farm Research Campus, HHMI\n\n"
-                       "Software License: GPL v2 or later");
+                       "Software License: GPL v2 or later\n\n"
+					   "Bitcoin Address: 1Ca1inQuedcKdyELCTmN8AtKTTehebY4mC"
+					   );
 }
 
 bool MainApp::setOutputDirectory(const QString & dpath)
@@ -697,7 +699,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     preBuf2.clear();
     preBuf2.reserve(0);
     if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd
-						 || params.acqStartEndMode == DAQ::AITriggered)) {
+						 || params.acqStartEndMode == DAQ::AITriggered || params.acqStartEndMode == DAQ::VAITriggered)) {
         const double sil = params.silenceBeforePD > 0. ? params.silenceBeforePD : DEFAULT_PD_SILENCE;
         if (params.stimGlTrigResave) pdWaitingForStimGL = true;
         int szSamps = params.nVAIChans*params.srate*sil;
@@ -746,6 +748,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         case DAQ::StimGLStartEnd:
         case DAQ::StimGLStart:
 		case DAQ::AITriggered:
+		case DAQ::VAITriggered:
             taskWaitingForTrigger = true; break;
         default:
             errTitle = "Internal Error";
@@ -1036,6 +1039,8 @@ void MainApp::taskReadFunc()
                     Status() << "Acquisition waiting for start trigger from photo-diode";
                 } else if (p.acqStartEndMode == DAQ::AITriggered) {
                     Status() << "Acquisition waiting for start trigger from AI";
+                } else if (p.acqStartEndMode == DAQ::VAITriggered) {
+                    Status() << "Acquisition waiting for start trigger from virtual (demuxed) channel";
                 }
             }
         } 
@@ -1054,7 +1059,7 @@ void MainApp::taskReadFunc()
             const u64 fudgedFirstSamp = firstSamp - scan0Fudge;            
             const u64 scanSz = scans.size();
 
-			if (p.acqStartEndMode == DAQ::AITriggered && !dataFile.isOpen()) {
+			if ((p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::VAITriggered) && !dataFile.isOpen()) {
 				// HACK!
 				QString fn = getNewDataFileName();
 				if (!dataFile.openForWrite(p, fn)) {
@@ -1063,7 +1068,7 @@ void MainApp::taskReadFunc()
 				updateWindowTitles();
 			}
 			
-            if (!dataFile.isOpen() && p.acqStartEndMode != DAQ::AITriggered) 
+            if (!dataFile.isOpen() && !(p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::VAITriggered) ) 
 				scan0Fudge = firstSamp + scanSz;
 
             if (!needToStop && !taskShouldStop && taskWaitingForStop) {
@@ -1121,12 +1126,13 @@ void MainApp::taskReadFunc()
 				// and.. swap back if we have anything in scans_full
 				if (scans_orig.size()) scans.swap(scans_orig);
 				if (doStopRecord) {
-					if (!p.stimGlTrigResave && p.acqStartEndMode != DAQ::AITriggered) needToStop = true;
+					if (!p.stimGlTrigResave && !(p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::VAITriggered)) 
+						needToStop = true;
                     Debug() << "Post-untrigger window detection: Closing datafile because passed samp# stopRecordAtSamp=" << stopRecordAtSamp;
                     dataFile.closeAndFinalize();
                     stopRecordAtSamp = -1;
                     updateWindowTitles();    
-				    if (p.stimGlTrigResave || p.acqStartEndMode == DAQ::AITriggered) {
+				    if (p.stimGlTrigResave || p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::VAITriggered) {
 						taskWaitingForTrigger = true;
 						preBuf = preBuf2; // we will get a re-trigger soon, so preBuffer the scans we had previously..
 						updateWindowTitles();        
@@ -1205,7 +1211,8 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp, i3
         break;
     case DAQ::PDStartEnd:
     case DAQ::PDStart:
-	case DAQ::AITriggered: {
+	case DAQ::AITriggered:
+	case DAQ::VAITriggered: {
         // NB: photodiode channel is always the last channel
         const int sz = scans.size();
         if (p.idxOfPdChan < 0) {
@@ -1264,6 +1271,7 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
         }
         break;
 	case DAQ::AITriggered: 
+	case DAQ::VAITriggered:
     case DAQ::PDStartEnd: {
         if (p.idxOfPdChan < 0) {
             Error() << "INTERNAL ERROR, acqEndMode is PD/AI based but no PD/AI channel specified in DAQ params!";
@@ -1318,6 +1326,7 @@ void MainApp::triggerTask()
         case DAQ::PDStartEnd:             
         case DAQ::StimGLStartEnd:
 		case DAQ::AITriggered: 
+		case DAQ::VAITriggered:
             taskWaitingForStop = true; 
             Log() << "Acquisition triggered";
             break;

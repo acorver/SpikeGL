@@ -330,6 +330,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	bool modeCaresAboutSGL = false, modeCaresAboutPD = false;
 	switch(p.acqStartEndMode) {
 		case DAQ::AITriggered: 
+		case DAQ::VAITriggered:
 			modeCaresAboutPD = true, modeCaresAboutSGL = false; 
 			break;
 		case DAQ::PDStart:
@@ -346,7 +347,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	hbl->addWidget(lbl);
 	stimTrigLed->setMinimumSize(20,20);
 	hbl->addWidget(stimTrigLed);
-	lbl = new QLabel(p.acqStartEndMode == DAQ::AITriggered ? "TTL:" : "PDTrig:");
+	lbl = new QLabel((p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::VAITriggered) ? "TTL:" : "PDTrig:");
 	pdTrigLed = new QLed;
 	pdTrigLed->setOffColor(modeCaresAboutPD ? QLed::Red : QLed::Grey);
 	pdTrigLed->setOnColor(QLed::Green);

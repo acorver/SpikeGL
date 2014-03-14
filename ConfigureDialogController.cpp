@@ -48,6 +48,7 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     Connect(acqPdParams->pdPassthruAOChk, SIGNAL(toggled(bool)), this, SLOT(aoPDChanChkd()));
     Connect(dialog->muxMapBut, SIGNAL(clicked()), &chanMapCtl, SLOT(exec()));
     Connect(dialog->aiRangeCB, SIGNAL(currentIndexChanged(int)), this, SLOT(aiRangeChanged()));
+    Connect(dialog->auxGainSB, SIGNAL(valueChanged(double)), this, SLOT(aiRangeChanged())); // to recompute AI/VAI pd threshold valid values..
     Connect(acqPdParams->pdPassthruAOSB, SIGNAL(valueChanged(int)), this, SLOT(aoPDPassthruUpdateLE()));
 	Connect(dialog->bufferSizeSlider, SIGNAL(valueChanged(int)), this, SLOT(bufferSizeSliderChanged()));
 	Connect(aoPassthru->bufferSizeSlider, SIGNAL(valueChanged(int)), this, SLOT(aoBufferSizeSliderChanged()));
@@ -146,7 +147,11 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
 	dialog->lowLatencyChk->setChecked(p.lowLatency);
 	dialog->preJuly2011DemuxCB->setChecked(p.doPreJuly2011IntanDemux);
 	dialog->preJuly2011DemuxCB->setEnabled(p.mode != DAQ::AIRegular);
-    acqPdParams->pdAIThreshSB->setValue((p.pdThresh/32768.+1.)/2. * (p.range.max-p.range.min) + p.range.min);
+	double val = (p.pdThresh/32768.+1.)/2. * (p.range.max-p.range.min) + p.range.min;
+	if (p.acqStartEndMode == DAQ::VAITriggered && p.auxGain != 0.) {
+		val = val / p.auxGain;
+	}
+    acqPdParams->pdAIThreshSB->setValue(val);
     acqPdParams->pdAISB->setValue(p.pdChan);
     acqPdParams->pdPassthruAOChk->setChecked(p.pdPassThruToAO > -1);
     acqPdParams->pdPassthruAOSB->setValue(p.pdPassThruToAO > -1 ? p.pdPassThruToAO : 0);   
@@ -205,10 +210,10 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
     acqTimedParams->nowCB->setChecked(p.isImmediate);
     
     // fire off the slots to polish?
+    deviceCBChanged();
     acqStartEndCBChanged();
     acqModeCBChanged();
     dialog->clockCB->setCurrentIndex(p.extClock ? 0 : 1);
-    deviceCBChanged();
     aoDeviceCBChanged();
     aoPassthruChkd();
     aoPDChanChkd();
@@ -237,13 +242,18 @@ void ConfigureDialogController::aiRangeChanged()
 		return;
 	}
     const DAQ::Range r = ranges[dialog->aiRangeCB->currentIndex()];
-    acqPdParams->pdAIThreshSB->setMinimum(r.min);
-    acqPdParams->pdAIThreshSB->setMaximum(r.max);
+	double minn = r.min, maxx = r.max;
+	if (dialog->acqStartEndCB->currentIndex() == (int)DAQ::VAITriggered && dialog->auxGainSB->value() != 0.) {
+		minn = minn / dialog->auxGainSB->value();
+		maxx = maxx / dialog->auxGainSB->value();
+	}
+    acqPdParams->pdAIThreshSB->setMinimum(minn);
+    acqPdParams->pdAIThreshSB->setMaximum(maxx);
 }
 
 void ConfigureDialogController::acqStartEndCBChanged()
 {
-    bool entmp = false, aitriggered = false;
+    bool entmp = false, aitriggered = false, vaitriggered = false;
     acqPdParamsW->hide();
     acqTimedParamsW->hide();
     DAQ::AcqStartEndMode mode = (DAQ::AcqStartEndMode)dialog->acqStartEndCB->currentIndex();
@@ -254,13 +264,23 @@ void ConfigureDialogController::acqStartEndCBChanged()
         dialog->acqStartEndDescrLbl->setText("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\"><html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">p, li { white-space: pre-wrap; }</style></head><body style=\" font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;\"><p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:10pt; font-style:italic; \">The acquisition will start immediately.</span></p></body></html>");
         dialog->acqStartEndDescrLbl->show();
         break;
+	case DAQ::VAITriggered:
+		vaitriggered = true;
 	case DAQ::AITriggered:
 		aitriggered = true;
     case DAQ::PDStartEnd:
         entmp = true;
     case DAQ::PDStart:
         acqPdParams->pdStopTimeLbl->setEnabled(entmp);
-		if (aitriggered) {
+		acqPdParams->pdAILabel->setText("AI Ch:");
+		acqPdParams->pdAILabel->setToolTip(acqPdParams->pdAILabel->toolTip().replace("virtual (demuxed)","physical AI"));
+	    acqPdParams->pdAISB->setToolTip(acqPdParams->pdAILabel->toolTip());
+	    if (vaitriggered) {
+			acqPdParams->pdStopTimeLbl->setText("Chan stop time (sec):");
+			acqPdParams->pdAILabel->setText("Chan:");
+			acqPdParams->pdAILabel->setToolTip(acqPdParams->pdAILabel->toolTip().replace("physical AI","virtual (demuxed)"));
+			acqPdParams->pdAISB->setToolTip(acqPdParams->pdAILabel->toolTip());
+		} else if (aitriggered) {
 			acqPdParams->pdStopTimeLbl->setText("AI stop time (sec):");
 		} else {
 			acqPdParams->pdStopTimeLbl->setText("PD stop time (sec):");	
@@ -288,6 +308,8 @@ void ConfigureDialogController::acqStartEndCBChanged()
 	
 	dialog->stimGLReopenCB->setEnabled(!aitriggered);
 	if (aitriggered) dialog->stimGLReopenCB->setChecked(false);
+	
+	aiRangeChanged();
 }
 
 void ConfigureDialogController::acqModeCBChanged()
@@ -570,6 +592,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     int pdChan = acqPdParams->pdAISB->value();
 	int pdChanAdjusted = -1;
     bool havePD = false;
+	
     if ( (havePD=(acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::AITriggered))
         && (chanVect.contains(pdChan) || pdChan < 0 || pdChan >= aiChanLists[dev].count())
         ) {
@@ -582,15 +605,25 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
 		    return AGAIN;
 		}
     }
-    
+	    
     
 	if (acqMode != DAQ::AIRegular) {
 		nVAI1 = (nVAI1-nExtraChans1) * DAQ::ModeNumChansPerIntan[acqMode] + nExtraChans1; 
 		nVAI2 = (nVAI2-nExtraChans2) * DAQ::ModeNumChansPerIntan[acqMode] + nExtraChans2; 
 		nVAI = nVAI1 + nVAI2;
 	}
-    
-    bool usePD = false;
+
+	bool usePD = false, pdIsVAI = false;
+
+	if (acqStartEndMode == DAQ::VAITriggered) {
+		if (pdChan < 0 || pdChan >= (int)nVAI) {
+	        errTitle = "Trigger Channel Invalid", errMsg = QString().sprintf("Specified trigger channel (%d) is not valid. For the current setup, 0-%d are valid virtual channels.", pdChan, nVAI-1);
+		    return AGAIN;
+		}
+		usePD = true;
+		pdIsVAI = true;
+	}
+			
     if (acqStartEndMode == DAQ::PDStart || acqStartEndMode == DAQ::PDStartEnd || acqStartEndMode == DAQ::AITriggered) {
 		if (pdOnSecondDev) {
 			chanVect2.push_back(pdChanAdjusted);
@@ -610,10 +643,15 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     if (aoPassthru->aoPassthruGB->isChecked() && aoDevNames.count()) {
         QString le = aoPassthru->aoPassthruLE->text();
 		if (havePD) {
-			if (pdOnSecondDev) {
-				le=le.replace("PDCHAN", QString::number(nVAI-1));
+			if (pdIsVAI) {
+				le=le.replace("PDCHAN", QString::number(pdChan));				
 			} else {
-				le=le.replace("PDCHAN", QString::number(nVAI1-1)); // PD channel index is always the last index
+				// pd is physical ai
+				if (pdOnSecondDev) {
+					le=le.replace("PDCHAN", QString::number(nVAI-1));
+				} else {
+					le=le.replace("PDCHAN", QString::number(nVAI1-1)); // PD channel index is always the last index
+				}
 			}
 		}
         aopass = parseAOPassthruString(le, &err);
@@ -790,12 +828,18 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     
     p.pdChan = pdChan;
 	p.pdOnSecondDev = pdOnSecondDev;
-	if (pdOnSecondDev) {
-		p.idxOfPdChan = p.nVAIChans-1;
+	if (p.acqStartEndMode == DAQ::VAITriggered) {
+		p.idxOfPdChan = p.pdChan;
 	} else {
-		p.idxOfPdChan = p.nVAIChans1-1 /* always the last index in first dev */;
+		if (pdOnSecondDev) {
+			p.idxOfPdChan = p.nVAIChans-1;
+		} else {
+			p.idxOfPdChan = p.nVAIChans1-1 /* always the last index in first dev */;
+		}
 	}
-    p.pdThresh = static_cast<signed short>((acqPdParams->pdAIThreshSB->value()-p.range.min)/(p.range.max-p.range.min) * 65535. - 32768.);
+	double threshGainFactor = ( (p.acqStartEndMode == DAQ::VAITriggered) ? dialog->auxGainSB->value() : 1.0 );
+    p.pdThresh = static_cast<signed short>(((acqPdParams->pdAIThreshSB->value()*threshGainFactor-p.range.min)/(p.range.max-p.range.min)) * 65535. - 32768.);
+	
 	p.pdThreshW = static_cast<unsigned>(acqPdParams->pdWSB->value());
     p.pdPassThruToAO = pdAOChan;
     p.pdStopTime = acqPdParams->pdStopTimeSB->value();
