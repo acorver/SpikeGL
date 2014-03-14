@@ -287,6 +287,10 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     if (dp.usePD) {
         params["pdChan"] = dp.pdChan;
         params["pdThresh"] = dp.pdThresh;
+		params["pdChanIsVirtual"] = dp.pdChanIsVirtual;
+		params["pdThreshW"] = dp.pdThreshW;
+		params["pdPassThruToAO"] = dp.pdPassThruToAO;
+		params["pdStopTime"] = dp.pdStopTime;
     }
     params["acqStartEndMode"] = DAQ::AcqStartEndModeToString(dp.acqStartEndMode);
     if (dp.demuxedBitMap.count(false)) {
