@@ -18,7 +18,7 @@
   </property>
   <property name="windowIcon">
    <iconset>
-    <normaloff>../../../.designer/backup/Icon-Config.xpm</normaloff>../../../.designer/backup/Icon-Config.xpm</iconset>
+    <normaloff>../../../../.designer/backup/Icon-Config.xpm</normaloff>../../../../.designer/backup/Icon-Config.xpm</iconset>
   </property>
   <property name="toolTip">
    <string/>
@@ -342,12 +342,7 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
     </item>
     <item>
      <property name="text">
-      <string>Physical AI Controlled Start &amp; ReTriggering</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Virtual AI (Demuxed) Start &amp; ReTriggering</string>
+      <string>AI Controlled Start &amp; ReTriggering</string>
      </property>
     </item>
    </widget>

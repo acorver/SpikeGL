@@ -312,5 +312,10 @@ QString Resampler::resample(const std::vector<int16> & input, std::vector<int16>
 	 return "";
 }
 
+bool feq(double a, double b) 
+{
+	double diff = a-b;
+	return (diff < EPSILON) && (-diff < EPSILON);
+}
 
 } // end namespace Util

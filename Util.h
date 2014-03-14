@@ -19,6 +19,8 @@ class MainApp;
 #define STR1(x) #x
 #define STR(x) STR1(x)
 
+#define EPSILON 0.0000001
+
 #ifdef Q_OS_WIN
 #  define PATH_SEPARATOR "/" /**< new qt uses this */
 #else
@@ -97,6 +99,9 @@ namespace Util
  /// Removes all data temporary files (SpikeGL_DSTemp_*.bin) fromn the TEMP directory
  void removeTempDataFiles();
 
+ /// true iff the difference between a and b is smaller than EPSILON (0.0000001)
+ bool feq(double a, double b);
+	
  /// Resample (internally uses Secret Rabbit Code samplerate lib)
  class Resampler {
 public:

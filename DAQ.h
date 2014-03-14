@@ -45,7 +45,6 @@ namespace DAQ
            the Ui::ConfigureDialog form */
         Immediate=0, PDStartEnd, PDStart, Timed, StimGLStartEnd, StimGLStart, 
 		AITriggered, /* use physical AI line for triggering */
-		VAITriggered, /* use virtual (demuxed) channel for triggering */
         N_AcqStartEndModes
     };
 
@@ -104,6 +103,7 @@ namespace DAQ
 						         threshhold thold crossing.  Default 5. */
         bool usePD;
         int pdChan, idxOfPdChan;
+		bool pdChanIsVirtual; ///< default false, if true, PD/trigger channel is virtual (demuxed) electrode id, if false, old behavior of physical channel
 		bool pdOnSecondDev;
         int pdPassThruToAO; ///< if negative, don't, else the channel id
         double pdStopTime; ///< iff PDEnd mode, the amount of time in seconds that need to be elapsed before we pronounce the PD signal as gone and we stop the task

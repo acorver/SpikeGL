@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>411</width>
+    <width>450</width>
     <height>87</height>
    </rect>
   </property>
@@ -22,9 +22,9 @@
   <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
-     <x>11</x>
-     <y>44</y>
-     <width>435</width>
+     <x>10</x>
+     <y>40</y>
+     <width>431</width>
      <height>32</height>
     </rect>
    </property>
@@ -166,10 +166,10 @@ above/below threshold for a crossing to have occurred.</string>
   <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
-     <x>14</x>
-     <y>12</y>
-     <width>391</width>
-     <height>27</height>
+     <x>10</x>
+     <y>10</y>
+     <width>431</width>
+     <height>31</height>
     </rect>
    </property>
    <property name="font">
@@ -178,7 +178,7 @@ above/below threshold for a crossing to have occurred.</string>
      <pointsize>10</pointsize>
     </font>
    </property>
-   <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0">
+   <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0,0">
     <property name="sizeConstraint">
      <enum>QLayout::SetFixedSize</enum>
     </property>
@@ -191,7 +191,7 @@ above/below threshold for a crossing to have occurred.</string>
        </font>
       </property>
       <property name="toolTip">
-       <string>The physical AI channel to monitor for trigger threshold crossings</string>
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The (physical or virtual) AI channel to monitor for trigger threshold crossings&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
       <property name="text">
        <string>AI Ch:</string>
@@ -207,13 +207,23 @@ above/below threshold for a crossing to have occurred.</string>
        </font>
       </property>
       <property name="toolTip">
-       <string>The physical AI channel to monitor for trigger threshold crossings</string>
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The (physical or virtual) AI channel to monitor for trigger threshold crossings&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
       <property name="maximum">
        <number>9999</number>
       </property>
       <property name="value">
        <number>4</number>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QCheckBox" name="virtualChk">
+      <property name="toolTip">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, and if using a MUX/INTAN acquisition mode, the AI channel number specified to the left is interpreted as a &amp;quot;virtual&amp;quot; or demuxed AI channel (aka &amp;quot;electrode&amp;quot;). &lt;/p&gt;&lt;p&gt;If unchecked, then the channel number specified is interpreted as a physical AI channel (outside of the set of MUXed channels). &lt;/p&gt;&lt;p&gt;This checkbox has no effect if using a &amp;quot;Straight&amp;quot; acquisition mode that isn't multiplexed.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+      <property name="text">
+       <string>Virtual</string>
       </property>
      </widget>
     </item>
