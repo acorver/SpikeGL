@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>920</width>
+    <width>950</width>
     <height>495</height>
    </rect>
   </property>
@@ -285,7 +285,7 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
     <rect>
      <x>476</x>
      <y>240</y>
-     <width>431</width>
+     <width>461</width>
      <height>193</height>
     </rect>
    </property>
@@ -351,7 +351,7 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
      <rect>
       <x>9</x>
       <y>86</y>
-      <width>417</width>
+      <width>444</width>
       <height>92</height>
      </rect>
     </property>
@@ -366,7 +366,7 @@ Straight AI always uses an internal clock, whereas the MUX modes use an external
       <rect>
        <x>10</x>
        <y>9</y>
-       <width>400</width>
+       <width>440</width>
        <height>82</height>
       </rect>
      </property>
@@ -671,7 +671,7 @@ p, li { white-space: pre-wrap; }
     <rect>
      <x>476</x>
      <y>21</y>
-     <width>431</width>
+     <width>461</width>
      <height>215</height>
     </rect>
    </property>
