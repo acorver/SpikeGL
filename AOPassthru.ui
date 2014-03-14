@@ -39,7 +39,7 @@
      <rect>
       <x>11</x>
       <y>174</y>
-      <width>401</width>
+      <width>431</width>
       <height>22</height>
      </rect>
     </property>
@@ -55,7 +55,7 @@
      <rect>
       <x>11</x>
       <y>150</y>
-      <width>411</width>
+      <width>441</width>
       <height>16</height>
      </rect>
     </property>
@@ -84,7 +84,7 @@
      <rect>
       <x>313</x>
       <y>21</y>
-      <width>99</width>
+      <width>121</width>
       <height>22</height>
      </rect>
     </property>
@@ -111,9 +111,9 @@
    <widget class="QLabel" name="aoRangeLbl">
     <property name="geometry">
      <rect>
-      <x>199</x>
+      <x>206</x>
       <y>21</y>
-      <width>108</width>
+      <width>101</width>
       <height>22</height>
      </rect>
     </property>
@@ -130,9 +130,9 @@
    <widget class="QLabel" name="aoClockLbl">
     <property name="geometry">
      <rect>
-      <x>233</x>
+      <x>213</x>
       <y>60</y>
-      <width>71</width>
+      <width>91</width>
       <height>22</height>
      </rect>
     </property>
@@ -155,7 +155,7 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>313</x>
       <y>60</y>
-      <width>99</width>
+      <width>121</width>
       <height>22</height>
      </rect>
     </property>
@@ -331,7 +331,7 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>210</x>
       <y>110</y>
-      <width>201</width>
+      <width>231</width>
       <height>22</height>
      </rect>
     </property>
