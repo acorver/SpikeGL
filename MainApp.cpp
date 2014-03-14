@@ -505,6 +505,18 @@ void MainApp::about()
                        "Software License: GPL v2 or later\n\n"
 					   "Bitcoin Address: 1Ca1inQuedcKdyELCTmN8AtKTTehebY4mC"
 					   );
+	// find the QLabel for the above text to make it selectable...
+	foreach (QWidget *w, QApplication::topLevelWidgets()) {
+		//Debug() << "Window title: " << w->windowTitle();
+		QList<QLabel *> chlds = w->findChildren<QLabel *>();
+		foreach (QLabel *l, chlds) {
+			//Debug() << "   Label text: " << l->text();
+			if (l->text().startsWith(VERSION_STR)) { 
+				// found it! make text selectable so they can email or bitcoin me! :)
+				l->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse);
+			}
+		}
+	}	
 }
 
 bool MainApp::setOutputDirectory(const QString & dpath)
