@@ -24,7 +24,7 @@
     <rect>
      <x>10</x>
      <y>40</y>
-     <width>431</width>
+     <width>421</width>
      <height>32</height>
     </rect>
    </property>
@@ -40,7 +40,7 @@
       <property name="font">
        <font>
         <family>MS Reference Sans Serif</family>
-        <pointsize>9</pointsize>
+        <pointsize>8</pointsize>
        </font>
       </property>
       <property name="toolTip">
@@ -72,7 +72,7 @@
       <property name="font">
        <font>
         <family>MS Reference Sans Serif</family>
-        <pointsize>9</pointsize>
+        <pointsize>8</pointsize>
        </font>
       </property>
       <property name="toolTip">
@@ -113,7 +113,7 @@
       <property name="font">
        <font>
         <family>MS Reference Sans Serif</family>
-        <pointsize>9</pointsize>
+        <pointsize>8</pointsize>
        </font>
       </property>
       <property name="toolTip">
@@ -169,7 +169,7 @@ above/below threshold for a crossing to have occurred.</string>
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>431</width>
+     <width>421</width>
      <height>31</height>
     </rect>
    </property>
@@ -184,11 +184,27 @@ above/below threshold for a crossing to have occurred.</string>
      <enum>QLayout::SetFixedSize</enum>
     </property>
     <item>
+     <widget class="QCheckBox" name="virtualChk">
+      <property name="font">
+       <font>
+        <family>MS Reference Sans Serif</family>
+        <pointsize>8</pointsize>
+       </font>
+      </property>
+      <property name="toolTip">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, and if using a MUX/INTAN acquisition mode, the AI channel number specified to the left is interpreted as a &amp;quot;virtual&amp;quot; or demuxed AI channel (aka &amp;quot;electrode&amp;quot;). &lt;/p&gt;&lt;p&gt;If unchecked, then the channel number specified is interpreted as a physical AI channel (outside of the set of MUXed channels). &lt;/p&gt;&lt;p&gt;This checkbox has no effect if using a &amp;quot;Straight&amp;quot; acquisition mode that isn't multiplexed.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+      <property name="text">
+       <string>Virtual</string>
+      </property>
+     </widget>
+    </item>
+    <item>
      <widget class="QLabel" name="pdAILabel">
       <property name="font">
        <font>
         <family>MS Reference Sans Serif</family>
-        <pointsize>9</pointsize>
+        <pointsize>8</pointsize>
        </font>
       </property>
       <property name="toolTip">
@@ -219,27 +235,11 @@ above/below threshold for a crossing to have occurred.</string>
      </widget>
     </item>
     <item>
-     <widget class="QCheckBox" name="virtualChk">
-      <property name="font">
-       <font>
-        <family>MS Reference Sans Serif</family>
-        <pointsize>9</pointsize>
-       </font>
-      </property>
-      <property name="toolTip">
-       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, and if using a MUX/INTAN acquisition mode, the AI channel number specified to the left is interpreted as a &amp;quot;virtual&amp;quot; or demuxed AI channel (aka &amp;quot;electrode&amp;quot;). &lt;/p&gt;&lt;p&gt;If unchecked, then the channel number specified is interpreted as a physical AI channel (outside of the set of MUXed channels). &lt;/p&gt;&lt;p&gt;This checkbox has no effect if using a &amp;quot;Straight&amp;quot; acquisition mode that isn't multiplexed.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-      </property>
-      <property name="text">
-       <string>Virtual</string>
-      </property>
-     </widget>
-    </item>
-    <item>
      <widget class="QLabel" name="pdAIThreshLabel">
       <property name="font">
        <font>
         <family>MS Reference Sans Serif</family>
-        <pointsize>9</pointsize>
+        <pointsize>8</pointsize>
        </font>
       </property>
       <property name="toolTip">
@@ -292,7 +292,7 @@ above/below threshold for a crossing to have occurred.</string>
       <property name="font">
        <font>
         <family>MS Reference Sans Serif</family>
-        <pointsize>9</pointsize>
+        <pointsize>8</pointsize>
        </font>
       </property>
       <property name="toolTip">
