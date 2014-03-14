@@ -36,38 +36,6 @@
    </property>
    <layout class="QHBoxLayout" name="horizontalLayout_2">
     <item>
-     <widget class="QCheckBox" name="pdPassthruAOChk">
-      <property name="font">
-       <font>
-        <family>MS Reference Sans Serif</family>
-        <pointsize>8</pointsize>
-       </font>
-      </property>
-      <property name="toolTip">
-       <string>Optionally, you may pass thru the trigger channel back to AO. </string>
-      </property>
-      <property name="text">
-       <string>AO passthru:</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QSpinBox" name="pdPassthruAOSB">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="font">
-       <font>
-        <family>MS Reference Sans Serif</family>
-        <pointsize>9</pointsize>
-       </font>
-      </property>
-      <property name="toolTip">
-       <string>The AO channel to pass trigger input back out to.  Node this is on the AO device selected above.</string>
-      </property>
-     </widget>
-    </item>
-    <item>
      <widget class="QLabel" name="pdStopTimeLbl">
       <property name="font">
        <font>
@@ -159,6 +127,38 @@ above/below threshold for a crossing to have occurred.</string>
       </property>
       <property name="value">
        <number>5</number>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QCheckBox" name="pdPassthruAOChk">
+      <property name="font">
+       <font>
+        <family>MS Reference Sans Serif</family>
+        <pointsize>8</pointsize>
+       </font>
+      </property>
+      <property name="toolTip">
+       <string>Optionally, you may pass thru the trigger channel back to AO. </string>
+      </property>
+      <property name="text">
+       <string>AO passthru:</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QSpinBox" name="pdPassthruAOSB">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="font">
+       <font>
+        <family>MS Reference Sans Serif</family>
+        <pointsize>9</pointsize>
+       </font>
+      </property>
+      <property name="toolTip">
+       <string>The AO channel to pass trigger input back out to.  Node this is on the AO device selected above.</string>
       </property>
      </widget>
     </item>
@@ -339,8 +339,6 @@ generated. This parameter ensures data files have a regular amount of leading wh
   <tabstop>pdAISB</tabstop>
   <tabstop>pdAIThreshSB</tabstop>
   <tabstop>pdPre</tabstop>
-  <tabstop>pdPassthruAOChk</tabstop>
-  <tabstop>pdPassthruAOSB</tabstop>
   <tabstop>pdStopTimeSB</tabstop>
   <tabstop>pdWSB</tabstop>
  </tabstops>
