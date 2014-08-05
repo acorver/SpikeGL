@@ -1028,7 +1028,7 @@ namespace DAQ
                 aoData.reserve(aoData.size()+dsize);
                 for (int i = 0; i < dsize; i += NCHANS1+NCHANS2) { // for each scan..
                     for (QVector<QPair<int,int> >::const_iterator it = aoAITab.begin(); it != aoAITab.end(); ++it) { // take ao channels
-                        const int aiChIdx = p.doPreJuly2011IntanDemux || !muxMode ? (*it).second : mapNewChanIdToPreJuly2011ChanId((*it).second, p.mode, p.dualDevMode && !p.secondDevIsAuxOnly);
+                        const int aiChIdx = ( (p.doPreJuly2011IntanDemux || !muxMode) ? ((*it).second) : mapNewChanIdToPreJuly2011ChanId((*it).second, p.mode, p.dualDevMode && !p.secondDevIsAuxOnly) );
                         const int dix = i+aiChIdx;
                         if (dix < dsize)
                             aoData.push_back(data[dix]);
