@@ -426,14 +426,13 @@ namespace DAQ
         const float64     aoTimeout = DAQ_TIMEOUT*2.;
         unsigned aoWriteCt = 0;
         pleaseStop = false;
-        std::vector<int16> leftOver;
+        //std::vector<int16> leftOver;
         // XXX diags..
         int nWritesAvg = 0, nWritesAvgMax = 10;
         double writeSpeedAvg = 0.;
-        double tLastData = -1.0, inpDataRate=0.;
+        double tLastData = -1.0, inpDataRate=0., outDataRate=0.;
         std::vector<int16> sampsOrig, samps;
         Util::Resampler resampler(double(p.aoSrate) / double(p.srate) /* HACK FIXME * 2.0*/, aoChansSize);
-        int16 lastSamp = 0;
         int nodatact = 0;
         int daqerrct = 0;
 
@@ -441,8 +440,8 @@ namespace DAQ
             bool break2 = false;
             DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
             DAQmxErrChk (DAQmxCreateAOVoltageChan(taskHandle,aoChanString.toUtf8().constData(),"",aoMin,aoMax,DAQmx_Val_Volts,NULL));
-            DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,p.aoClock.toUtf8().constData(),p.aoSrate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*//*aoSamplesPerChan*/0));
-            //DAQmxErrChk (DAQmxCfgOutputBuffer(taskHandle,aoSamplesPerChan));
+            DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,p.aoClock.toUtf8().constData(),p.aoSrate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan/*0*/));
+            DAQmxErrChk (DAQmxCfgOutputBuffer(taskHandle,aoSamplesPerChan));
             DAQmxSetWriteRegenMode(taskHandle, DAQmx_Val_DoNotAllowRegen);
 
             Debug() << "AOWrite thread started.";
@@ -450,46 +449,54 @@ namespace DAQ
             while (!pleaseStop && !break2) {
                 u64 sampCount;
                 if (!dequeueBuffer(sampsOrig, sampCount) || !sampsOrig.size()) {
-                    if (++nodatact > 2) {
+                    if (++nodatact > 10) {
                         nodatact = 0;
+						if (aoWriteCt) Warning() << "AOWrite thread failed to dequeue any sample data 10 times in a row. Clocks drifting?";
                         // failed to dequeue data, insert silence to keep ao writer going otherwise we get underruns!
-                        sampsOrig.clear();
+ /*                       sampsOrig.clear();
                         samps.clear();
                         samps.resize(p.aoSrate * 0.002 * aoChansSize, lastSamp); // insert 2ms of silence?
+*/
                     } else {
                         msleep(2);
                         continue;
                     }
                 } else { // normal operation..
                     double now = getTime();
-                    if (tLastData > 0.0) 
-                        inpDataRate = (double(sampsOrig.size())/aoChansSize)/(now-tLastData);
-                    tLastData = now;
+					nodatact = 0;
                     QString err = resampler.resample(sampsOrig, samps);
+					if (tLastData > 0.0) { 
+                        inpDataRate = (double(sampsOrig.size())/aoChansSize)/(now-tLastData);
+						outDataRate = (double(samps.size())/aoChansSize)/(now-tLastData);
+					}
+                    tLastData = now;
                     if (err.length()) {
                         Error() << "AOWrite thread resampler error: " << err;
                         continue;
                     }
                 }
-                if (leftOver.size()) samps.insert(samps.begin(), leftOver.begin(), leftOver.end());
-                leftOver.clear();
+                //if (leftOver.size()) samps.insert(samps.begin(), leftOver.begin(), leftOver.end());
+                //leftOver.clear();
                 unsigned sampsSize = samps.size(), rem = sampsSize % aoChansSize;
                 if (rem) {
-                    Debug() << "AOWrite left over partial scan of size of size " << rem << " for writect " << aoWriteCt;
-                    sampsSize -= rem;
-                    leftOver.reserve(rem);
-                    leftOver.insert(leftOver.begin(), samps.begin()+sampsSize, samps.end());
+                    Warning() << "AOWrite thread got scan data that has invalid size.. throwing away last " << rem << " chans (writect " << aoWriteCt << ")";
+                    //sampsSize -= rem;
+                    //leftOver.reserve(rem);
+                    //leftOver.insert(leftOver.begin(), samps.begin()+sampsSize, samps.end());
                 }
                 unsigned sampIdx = 0;
                 while (sampIdx < sampsSize && !pleaseStop) {
                     int32 nScansToWrite = (sampsSize-sampIdx)/aoChansSize;
                     int32 nScansWritten = 0;                
 
+					if (nScansToWrite > aoSamplesPerChan) {
+						Warning() << "AOWrite thread got " << nScansToWrite << " input scans but AO Buffer size is only " << aoSamplesPerChan << " scans.. increase AO buffer size in UI!";
+					}
                     /*if (nScansToWrite > aoSamplesPerChan)
                     nScansToWrite = aoSamplesPerChan;
-                    else*/ if (!aoWriteCt && nScansToWrite < aoSamplesPerChan) {                    leftOver.insert(leftOver.end(), samps.begin()+sampIdx, samps.end());
+                    else if (!aoWriteCt && nScansToWrite < aoSamplesPerChan) {                    leftOver.insert(leftOver.end(), samps.begin()+sampIdx, samps.end());
                     break;
-                    }
+                    }*/
 
                     double t0 = getTime();
                     if ( DAQmxErrChkNoJump(DAQmxWriteBinaryI16(taskHandle, nScansToWrite, 1, aoTimeout, DAQmx_Val_GroupByScanNumber, &samps[sampIdx], &nScansWritten, NULL)) )
@@ -505,20 +512,19 @@ namespace DAQ
                             Debug() << "AOWrite error on write and not retrying since errct >= 3!";
                         }
                         break;
-                    } else if (daqerrct) daqerrct--; 
+                    } else if (daqerrct > 0) --daqerrct; 
 
                     const double tWrite(getTime()-t0);
 
                     if (nScansWritten >= 0 && nScansWritten < nScansToWrite) {
                         rem = (nScansToWrite - nScansWritten) * aoChansSize;
                         Debug() << "Partial write: nScansWritten=" << nScansWritten << " nScansToWrite=" << nScansToWrite << ", queueing for next write..";
-                        leftOver.insert(leftOver.end(), samps.begin()+sampIdx+nScansWritten, samps.end());
+                        //leftOver.insert(leftOver.end(), samps.begin()+sampIdx+nScansWritten, samps.end());
                         break;
                     } else if (nScansWritten != nScansToWrite) {
                         Error() << "nScansWritten (" << nScansWritten << ") != nScansToWrite (" << nScansToWrite << ")";
                         break;
                     }
-                    lastSamp = samps[sampIdx+nScansWritten-1]; // save last sample for 'silence' generation hack..
 
                     if (++nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;
                     writeSpeedAvg -= writeSpeedAvg/nWritesAvg;
@@ -528,7 +534,7 @@ namespace DAQ
                     if (tWrite > 0.250) {
                         Debug() << "AOWrite #" << aoWriteCt << " " << nScansWritten << " scans " << aoChansSize << " chans" << " (bufsize=" << aoBufferSize << ") took: " << tWrite << " secs";
                     }
-                    if (excessiveDebug) Debug() << "AOWrite speed " << spd << " Hz avg speed " << writeSpeedAvg << " Hz" << " (" << nScansWritten << " scans) buffer fill " << ((dataQueueSize()/double(dataQueueMaxSize))*100.0) << "% inprate:" << inpDataRate << "(?) Hz";
+                    if (excessiveDebug) Debug() << "AOWrite speed " << spd << " Hz avg speed " << writeSpeedAvg << " Hz" << " (" << nScansWritten << " scans) buffer fill " << ((dataQueueSize()/double(dataQueueMaxSize))*100.0) << "% inprate->outrate:" << inpDataRate << "->" << outDataRate << "(?) Hz";
 
                     ++aoWriteCt;
                     sampIdx += nScansWritten*aoChansSize;
@@ -1028,7 +1034,8 @@ namespace DAQ
                 aoData.reserve(aoData.size()+dsize);
                 for (int i = 0; i < dsize; i += NCHANS1+NCHANS2) { // for each scan..
                     for (QVector<QPair<int,int> >::const_iterator it = aoAITab.begin(); it != aoAITab.end(); ++it) { // take ao channels
-                        const int aiChIdx = ( (p.doPreJuly2011IntanDemux || !muxMode) ? ((*it).second) : mapNewChanIdToPreJuly2011ChanId((*it).second, p.mode, p.dualDevMode && !p.secondDevIsAuxOnly) );
+						const int FIRSTAUX = muxMode ? (NCHANS1+NCHANS2) - (nExtraChans1+nExtraChans2) : 0;
+                        const int aiChIdx = ( (p.doPreJuly2011IntanDemux || !muxMode || ((*it).second) >= FIRSTAUX) ? ((*it).second) : mapNewChanIdToPreJuly2011ChanId((*it).second, p.mode, p.dualDevMode && !p.secondDevIsAuxOnly) );
                         const int dix = i+aiChIdx;
                         if (dix < dsize)
                             aoData.push_back(data[dix]);
