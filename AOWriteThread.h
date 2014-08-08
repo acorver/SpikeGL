@@ -31,6 +31,7 @@ signals:
 	void daqError(const QString &);
 protected:
 	void run();
+	void overflowWarning(); ///< prints a more helpful warning to console
 private:
 	volatile bool pleaseStop;
 	QString aoChanString;

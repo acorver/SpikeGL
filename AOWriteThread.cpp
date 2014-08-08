@@ -37,6 +37,14 @@ void AOWriteThread::stop()
 	}
 }
 
+void AOWriteThread::overflowWarning() 
+{
+    Warning() << name << " overflow! Buffer queue full, dropping a buffer (capacity: " <<  dataQueueMaxSize << " buffers)!\n" 
+		<< "This may be due to one or more of the following:\n"
+		<< "(1) the system not being able to handle the specified AI/AO rate(s)\n"
+		<< "(2) the AI and AO clocks are drifting with respect to each other, they may need to be linked physically (eg AI & AO should use PFI as clock, with AO samplerate = NUM_MUX_CHANS * AI Samplerate [if in MUX mode])\n"
+		<< "(3) the AI sample rate specified is not accurate and you are using external clock (PFI) for AI, and OnBoard for AO";
+}
 }
 
 
