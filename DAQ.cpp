@@ -418,7 +418,12 @@ namespace DAQ
         int32       error = 0;
         char        errBuff[2048]={'\0'};
         const char *callStr = "";
-        const int32 aoSamplesPerChan(p.aoSrate * (p.aoBufferSizeCS/100.0));
+        unsigned bufferSizeCS = p.aoBufferSizeCS;
+        if (p.aoBufferSizeCS < p.aiBufferSizeCS) {
+            Warning() << "AOWrite thread AO buf=" << (p.aoBufferSizeCS*10.) << " is less than AI buf=" << (p.aiBufferSizeCS*10.) << ", this is unsupported.  Forcing AO buffer size to " << (p.aiBufferSizeCS*10.);
+            bufferSizeCS = p.aiBufferSizeCS;
+        }
+        const int32 aoSamplesPerChan(p.aoSrate * (bufferSizeCS/100.0));
         const int32 aoChansSize = p.aoChannels.size();
         unsigned aoBufferSize(aoSamplesPerChan * aoChansSize);
         const float64     aoMin = p.aoRange.min;

@@ -13,8 +13,10 @@
 
 namespace DAQ {
 
+const unsigned AOWriteThread::QueueSz(5);
+
 AOWriteThread::AOWriteThread(QObject *parent, const QString & aoChanString, const Params & params, AOWriteThread *oldToDelete)
-: QThread(parent), SampleBufQ("AOWriteThread", 128), aoChanString(aoChanString), params(params), old2Delete(oldToDelete)
+: QThread(parent), SampleBufQ("AOWriteThread", QueueSz), aoChanString(aoChanString), params(params), old2Delete(oldToDelete)
 {
 	pleaseStop = false;
 }

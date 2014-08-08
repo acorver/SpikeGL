@@ -24,6 +24,9 @@ public:
 	AOWriteThread(QObject * parent, const QString & aoChanString, const Params & params, AOWriteThread *oldAOWriteThreadToDeleteAfterStart = 0);
 	~AOWriteThread();
 	void stop();
+
+    static const unsigned QueueSz;
+
 signals:
 	void daqError(const QString &);
 protected:
