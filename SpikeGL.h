@@ -30,5 +30,5 @@
 #define MAX_NUM_GRAPHS_PER_GRAPH_TAB 36
 #define SAMPLE_BUF_Q_SIZE 128
 
-extern const bool excessiveDebug; ///< If true, print lots of debug output.. mainly daq related
+extern bool excessiveDebug; ///< If true, print lots of debug output.. mainly daq related.. enable in console with control-D
 #endif

@@ -26,7 +26,7 @@
 #define DAQmxErrChk(functionCall) do { if( DAQmxFailed(error=(functionCall)) ) { callStr = STR(functionCall); goto Error_Out; } } while (0)
 #define DAQmxErrChkNoJump(functionCall) ( DAQmxFailed(error=(functionCall)) && (callStr = STR(functionCall)) )
 
-const bool excessiveDebug = false; /* from SpikeGL.h */
+bool excessiveDebug = false; /* from SpikeGL.h */
 
 namespace DAQ 
 {
@@ -443,6 +443,7 @@ namespace DAQ
             DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,p.aoClock.toUtf8().constData(),p.aoSrate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,/*aoBufferSize*/aoSamplesPerChan/*0*/));
             DAQmxErrChk (DAQmxCfgOutputBuffer(taskHandle,aoSamplesPerChan));
             DAQmxSetWriteRegenMode(taskHandle, DAQmx_Val_DoNotAllowRegen);
+			DAQmxSetImplicitUnderflowBehavior(taskHandle, DAQmx_Val_PauseUntilDataAvailable);
 
             Debug() << "AOWrite thread started.";
 

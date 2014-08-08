@@ -32,6 +32,7 @@ ConsoleWindow::ConsoleWindow(QWidget *p, Qt::WindowFlags f)
 
     m = mb->addMenu("&Options");
     m->addAction(app->toggleDebugAct);
+    m->addAction(app->toggleExcessiveDebugAct);
     m->addAction(app->chooseOutputDirAct);
     m->addAction(app->hideUnhideConsoleAct);
     m->addAction(app->hideUnhideGraphsAct);

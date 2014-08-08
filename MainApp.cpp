@@ -216,6 +216,13 @@ void MainApp::toggleDebugMode()
     saveSettings();    
 }
 
+void MainApp::toggleExcessiveDebugMode()
+{
+    excessiveDebug = !excessiveDebug;
+    Debug() << "Excessive Debug mode: " << (excessiveDebug ? "on" : "off");
+	saveSettings();
+}
+
 void MainApp::toggleShowChannelSaveCB()
 {
 	saveCBEnabled = !saveCBEnabled;
@@ -245,7 +252,10 @@ bool MainApp::processKey(QKeyEvent *event)
     switch (event->key()) {
     case 'd':
     case 'D':
-        toggleDebugAct->trigger();
+        if (event->modifiers() == Qt::ControlModifier)
+		    toggleExcessiveDebugAct->trigger();
+		else 
+            toggleDebugAct->trigger();
         return true;
     case 'c':
     case 'C':
@@ -373,6 +383,7 @@ void MainApp::loadSettings()
 
     settings.beginGroup("MainApp");
     debug = settings.value("debug", true).toBool();
+	excessiveDebug = settings.value("excessiveDebug", excessiveDebug).toBool();
 	saveCBEnabled = settings.value("saveChannelCB", true).toBool();
 
 	dsFacilityEnabled = settings.value("dsFacilityEnabled", false).toBool();
@@ -410,6 +421,7 @@ void MainApp::saveSettings()
 
     settings.beginGroup("MainApp");
     settings.setValue("debug", debug);
+	settings.setValue("excessiveDebug", excessiveDebug);
 	settings.setValue("saveChannelCB", saveCBEnabled);
 
 	settings.setValue("dsFacilityEnabled", dsFacilityEnabled);
@@ -591,8 +603,13 @@ void MainApp::initActions()
              SIGNAL(triggered()), this, SLOT(maybeQuit()));
     Connect( toggleDebugAct = new QAction("&Debug Mode D", this) ,
              SIGNAL(triggered()), this, SLOT(toggleDebugMode()));
+    Connect( toggleExcessiveDebugAct = new QAction("Excessive Debug Mode Ctrl+D", this) ,
+             SIGNAL(triggered()), this, SLOT(toggleExcessiveDebugMode()));
+
 	toggleDebugAct->setCheckable(true);
 	toggleDebugAct->setChecked(isDebugMode());
+	toggleExcessiveDebugAct->setCheckable(true);
+	toggleExcessiveDebugAct->setChecked(excessiveDebug);
 
     Connect( chooseOutputDirAct = new QAction("Choose &Output Directory...", this),
              SIGNAL(triggered()), this, SLOT(pickOutputDir()));

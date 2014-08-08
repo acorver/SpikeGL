@@ -172,6 +172,8 @@ public:
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
     void toggleDebugMode(); 
+	/// Like above, but set with Ctrl+D
+	void toggleExcessiveDebugMode();
     /// Pops up the application "About" dialog box
     void about();
 
@@ -362,7 +364,7 @@ public:
 
 /// Main application actions!
     QAction 
-        *quitAct, *toggleDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
+        *quitAct, *toggleDebugAct, *toggleExcessiveDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
         *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct, *commandServerOptionsAct,
 		*showChannelSaveCBAct, *enableDSFacilityAct, *fileOpenAct, *tempFileSizeAct, *bringAllToFrontAct,
 	    *sortGraphsByElectrodeAct;
