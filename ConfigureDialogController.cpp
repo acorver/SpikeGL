@@ -3,6 +3,7 @@
 #include "Util.h"
 #include "MainApp.h"
 #include "ui_Dialog.h"
+#include "ui_TextBrowser.h"
 #include <QTimeEdit>
 #include <QTime>
 #include <QMessageBox>
@@ -22,6 +23,7 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
 {
     aoPassW = 0;
     applyDlg = 0;
+	helpWindow = 0;
     dialogW = new QDialog(0);
     dialog = new Ui::ConfigureDialog;
     aoPassthru = new Ui::AoPassThru;
@@ -43,6 +45,7 @@ ConfigureDialogController::ConfigureDialogController(QObject *parent)
     Connect(dialog->acqModeCB, SIGNAL(activated(int)), this, SLOT(acqModeCBChanged()));
     Connect(dialog->deviceCB, SIGNAL(activated(const QString &)), this, SLOT(deviceCBChanged()));
     Connect(aoPassthru->aoDeviceCB, SIGNAL(activated(const QString &)), this, SLOT(aoDeviceCBChanged()));
+	Connect(aoPassthru->aoNoteLink, SIGNAL(linkActivated(const QString  &)), this, SLOT(aoNote()));
     Connect(dialog->browseBut, SIGNAL(clicked()), this, SLOT(browseButClicked()));
     Connect(aoPassthru->aoPassthruGB, SIGNAL(toggled(bool)), this, SLOT(aoPassthruChkd()));
     Connect(acqPdParams->pdPassthruAOChk, SIGNAL(toggled(bool)), this, SLOT(aoPDChanChkd()));
@@ -71,6 +74,7 @@ ConfigureDialogController::~ConfigureDialogController()
     delete acqTimedParamsW;
     delete dialogW;
     delete aoPassW;
+	//delete helpWindow;
 }
 
 void ConfigureDialogController::probeDAQHardware()
@@ -915,6 +919,7 @@ int ConfigureDialogController::exec()
         delete applyDlg, applyDlg = 0;
 
         ret = ((QDialog *)dialogW)->exec();
+		if (helpWindow) delete helpWindow, helpWindow = 0;
         again = false;
 
    
@@ -1403,4 +1408,22 @@ bool ConfigureDialogController::chopNumberFromFilename(const QString & filename,
 		return true;
 	}
 	return false;
+}
+
+
+void ConfigureDialogController::aoNote()
+{
+	bool createNew = !helpWindow;
+
+    if (createNew) {
+        Ui::TextBrowser tb;
+        helpWindow = new HelpWindow(dialogW);
+        tb.setupUi(helpWindow);
+        helpWindow->setWindowTitle("AO Setup Note");
+        tb.textBrowser->setSearchPaths(QStringList("qrc:/"));
+        tb.textBrowser->setSource(QUrl("qrc:/AO-Note.html"));
+    }
+	helpWindow->show();
+	helpWindow->activateWindow();
+    if (createNew) helpWindow->setMaximumSize(helpWindow->size());
 }

@@ -63,6 +63,7 @@ protected slots:
 	void aoBufferSizeSliderChanged();
 	void dualDevModeChkd();
 	void secondIsAuxChkd();
+	void aoNote();
 
 private:
     void resetFromParams(DAQ::Params *p = 0);
@@ -84,6 +85,7 @@ private:
     DAQ::DeviceRangeMap aiDevRanges, aoDevRanges;
     QVector<QString> devNames, aoDevNames;
     DAQ::DeviceChanMap aiChanLists, aoChanLists;
+	QDialog *helpWindow;
 };
 
 

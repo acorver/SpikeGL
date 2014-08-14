@@ -1,0 +1,43 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=windows-1252">
+	<TITLE>AO Setup Note</TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice 4.1.0  (Win32)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGED" CONTENT="20140814;7594031">
+	<!-- @page { margin: 0.79in } 		P { margin-bottom: 0.08in } 		H1 { margin-bottom: 0.08in } 		H1.western { font-family: "Arial", sans-serif; font-size: 16pt } 		H1.cjk { font-family: "MS Mincho"; font-size: 16pt } 		H1.ctl { font-family: "Tahoma"; font-size: 16pt } 		A:link { so-language: zxx } 	-->
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<H1 ALIGN=CENTER>AO Setup Note</H1>
+<P ALIGN=CENTER>Calin Culianu &lt;calin.culianu@gmail.com&gt;</P>
+<P ALIGN=CENTER>Last Updated: August 14, 2014</P>
+<DIV ID="Introduction" DIR="LTR">
+	<P ALIGN=LEFT STYLE="text-decoration: none"><FONT FACE="Verdana, sans-serif"><FONT SIZE=3><FONT COLOR="#222222"><SPAN STYLE="font-style: normal"><SPAN STYLE="font-weight: normal">AO
+	passthru works best when the AI and AO subdevices are using the same
+	clock source.  So if you are doing &ldquo;Straight AI&rdquo; (no
+	INTAN hardware), and AI &amp; AO are on the same DAQ card, then
+	setting the AO passthru clock to &ldquo;OnBoard&rdquo; is
+	acceptable, and any sample rate can be used for AO passthru.</SPAN></SPAN></FONT></FONT></FONT></P>
+	<P ALIGN=LEFT STYLE="text-decoration: none"><FONT FACE="Verdana, sans-serif"><FONT SIZE=3><FONT COLOR="#222222"><SPAN STYLE="font-style: normal"><SPAN STYLE="font-weight: normal">However,
+	when using the INTAN (MUX) modes for AI, then you may experience
+	problems if the AO device is using &ldquo;OnBoard&rdquo; as its
+	clock source. The problems are related to clock drift, and can
+	manifest themselves as a latency or delay in the AO data, or as
+	potential distortions in the AO passthru data.</SPAN></SPAN></FONT></FONT></FONT></P>
+	<P ALIGN=LEFT STYLE="text-decoration: none"><FONT FACE="Verdana, sans-serif"><FONT SIZE=3>The
+	best way to handle this scenario is to <B>wire the AO device's clock
+	(say, on PFI 2) to the INTAN board's clock output </B><SPAN STYLE="font-weight: normal">(and
+	select PFI2 as the AO clock)</SPAN>.  Then, set the <B>AO samplerate
+	to match the INTAN clock sample rate</B> (say, on a 32 MUX INTAN
+	running at 20kHz per MUX channel, this would be approximately 640
+	kHz for the AO passthru output sample rate).  In this way, the AO
+	passthru data is perfectly synched up to the incoming AI data, and
+	no clock drift is possible.</FONT></FONT></P>
+	<P ALIGN=LEFT><A NAME="Introduction"></A><FONT FACE="Verdana, sans-serif"><FONT SIZE=3><SPAN STYLE="text-decoration: none">Not
+	following the above advice may produce artifacts and/or delays in
+	the AO passthru data! </SPAN></FONT></FONT>
+	</P>
+</DIV>
+</BODY>
+</HTML>

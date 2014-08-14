@@ -37,8 +37,8 @@
    <widget class="QLineEdit" name="aoPassthruLE">
     <property name="geometry">
      <rect>
-      <x>11</x>
-      <y>174</y>
+      <x>10</x>
+      <y>160</y>
       <width>431</width>
       <height>22</height>
      </rect>
@@ -53,8 +53,8 @@
    <widget class="QLabel" name="aoPassthruLabel">
     <property name="geometry">
      <rect>
-      <x>11</x>
-      <y>150</y>
+      <x>10</x>
+      <y>136</y>
       <width>441</width>
       <height>16</height>
      </rect>
@@ -307,8 +307,8 @@ p, li { white-space: pre-wrap; }
    <widget class="QLabel" name="bufferSizeLbl">
     <property name="geometry">
      <rect>
-      <x>11</x>
-      <y>113</y>
+      <x>10</x>
+      <y>99</y>
       <width>91</width>
       <height>16</height>
      </rect>
@@ -329,8 +329,8 @@ p, li { white-space: pre-wrap; }
    <widget class="QSlider" name="bufferSizeSlider">
     <property name="geometry">
      <rect>
-      <x>210</x>
-      <y>110</y>
+      <x>209</x>
+      <y>96</y>
       <width>231</width>
       <height>22</height>
      </rect>
@@ -360,8 +360,8 @@ p, li { white-space: pre-wrap; }
    <widget class="QLabel" name="bufSzLbl">
     <property name="geometry">
      <rect>
-      <x>105</x>
-      <y>113</y>
+      <x>104</x>
+      <y>99</y>
       <width>98</width>
       <height>20</height>
      </rect>
@@ -386,6 +386,22 @@ p, li { white-space: pre-wrap; }
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="aoNoteLink">
+    <property name="geometry">
+     <rect>
+      <x>270</x>
+      <y>190</y>
+      <width>171</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>Read the AO Setup Note</string>
+    </property>
+    <property name="text">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a href=&quot;blah&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;A note about Analog Output...&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
    </widget>
   </widget>
