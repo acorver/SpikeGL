@@ -22,6 +22,7 @@
 #include <QMutexLocker>
 #include <math.h>
 #include "SampleBufQ.h"
+#include "MainApp.h"
 
 #define DAQmxErrChk(functionCall) do { if( DAQmxFailed(error=(functionCall)) ) { callStr = STR(functionCall); goto Error_Out; } } while (0)
 #define DAQmxErrChkNoJump(functionCall) ( DAQmxFailed(error=(functionCall)) && (callStr = STR(functionCall)) )
@@ -387,7 +388,9 @@ namespace DAQ
                 if (!totalRead) emit(gotFirstScan());
                 enqueueBuffer(data, totalRead);
       
+                totalReadMut.lock();
                 totalRead += nread;
+                totalReadMut.unlock();
             }
             usleep(int((1e6/params.srate)*onePd));
         }
@@ -423,7 +426,9 @@ namespace DAQ
             Warning() << "AOWrite thread AO buf=" << (p.aoBufferSizeCS*10.) << " is less than AI buf=" << (p.aiBufferSizeCS*10.) << ", this is unsupported.  Forcing AO buffer size to " << (p.aiBufferSizeCS*10.);
             bufferSizeCS = p.aiBufferSizeCS;
         }
-        const int32 aoSamplesPerChan(p.aoSrate * (bufferSizeCS/100.0));
+        int32 aoSamplesPerChan( ceil(ceil(p.aoSrate) * ((bufferSizeCS/100.0)+0.005/*<--ugly fudge to make sure AO buffer size is always 5ms bigger than AI! Argh!*/)) );
+        while (aoSamplesPerChan % 2)
+            ++aoSamplesPerChan; // force aoSamplesPerChan to be multiple of 2? I forget why!!!!
         const int32 aoChansSize = p.aoChannels.size();
         unsigned aoBufferSize(aoSamplesPerChan * aoChansSize);
         const float64     aoMin = p.aoRange.min;
@@ -519,6 +524,13 @@ namespace DAQ
                         }
                         break;
                     } else if (daqerrct > 0) --daqerrct; 
+
+                    // test code to test AI->AO delay in software, in a very rough way.. remove if you want.
+                    if (excessiveDebug) {
+                        u64 scanCt = (sampsOrig.size() + sampCount)/aoChansSize,
+                        gScanCt = mainApp()->currentDAQScan();
+                        Debug() << "AO got scan:" << scanCt << " (global scan: " << gScanCt << "). delay=~" << int32( (gScanCt-scanCt) / double(p.srate) * 1000.) << "ms";
+                    }
 
                     const double tWrite(getTime()-t0);
 
@@ -1005,7 +1017,9 @@ namespace DAQ
                 data.swap(out);
             }
 
+            totalReadMut.lock();
             totalRead += static_cast<u64>(nRead) + static_cast<u64>(nRead2);
+            totalReadMut.unlock();
 
             // note that from this point forward, the 'data' buffer is the only valid buffer
             // and it contains the MERGED data from both devices if in dual dev mode.
@@ -1227,6 +1241,15 @@ namespace DAQ
         } else {
             Warning() << "Dupe fast settle requested -- fast settle already running!";
         }
+    }
+    
+    u64 Task::lastReadScan() const
+    {
+        u64 ret (0);
+        totalReadMut.lock();
+        ret = totalRead / numChans();
+        totalReadMut.unlock();
+        return ret;
     }
 
     int32 DAQPvt::everyNSamples_func (TaskHandle taskHandle, int32 everyNsamplesEventType, uint32 nSamples, void *callbackData)
