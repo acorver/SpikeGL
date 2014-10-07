@@ -100,6 +100,9 @@ public:
     
     /// Returns true if the application is currently acquiring data
     bool isAcquiring() const { return task; }
+    
+    /// Returns the current scan number that was most recently read from the daq hardware and enqueued, or 0 if no task is running
+    u64 currentDAQScan() const { if (isAcquiring() && task) return task->lastReadScan(); return 0; }
 
     /// Returns true if the application is currently saving data
     bool isSaving() const;

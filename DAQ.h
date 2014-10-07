@@ -205,6 +205,8 @@ namespace DAQ
         unsigned samplingRate() const { return params.srate; }
 
         void setDO(bool onoff);
+        
+        u64 lastReadScan() const;
 
     public slots:
         void requestFastSettle(); ///< task needs to be running and it will then be done synchronously with the task
@@ -229,6 +231,7 @@ namespace DAQ
         void daqThr();
 
         u64 totalRead;
+        mutable QMutex totalReadMut;
 
         friend struct DAQPvt;
 
