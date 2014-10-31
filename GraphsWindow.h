@@ -5,7 +5,7 @@
 #include "DAQ.h"
 #include "GLGraph.h"
 #include "TypeDefs.h"
-#include "Vec2WrapBuffer.h"
+#include "VecWrapBuffer.h"
 #include <QVector>
 #include <vector>
 #include "ChanMappingController.h"

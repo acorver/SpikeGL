@@ -10,7 +10,7 @@
 #define FileViewerWindow_H
 #include <QMainWindow>
 #include "DataFile.h"
-#include "Vec2WrapBuffer.h"
+#include "VecWrapBuffer.h"
 #include <QPair>
 #include "ChanMap.h"
 #include <QBitArray>

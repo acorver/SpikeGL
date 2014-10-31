@@ -26,6 +26,7 @@ class QMessageBox;
 class CommandConnection;
 class FileViewerWindow;
 class PostJuly2011Remuxer;
+class SpatialVisWindow;
 
 #include <QApplication>
 #include <QColor>
@@ -335,6 +336,7 @@ private:
     std::vector<int16> lastNPDSamples;
     QTimer *taskReadTimer;
     GraphsWindow *graphsWindow;
+	SpatialVisWindow *spatialWindow;
     Par2Window *par2Win;
     StimGL_SpikeGL_Integration::NotifyServer *notifyServer;
     CommandServer *commandServer;

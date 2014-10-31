@@ -43,6 +43,7 @@
 #include "ui_TempFileDialog.h"
 #include "FileViewerWindow.h"
 #include <algorithm>
+#include "SpatialVisWindow.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -98,7 +99,7 @@ private:
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-	: QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0)
+	: QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), spatialWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0)
 {
     sb_Timeout = 0;
     if (singleton) {
@@ -301,7 +302,7 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
 	if (type == QEvent::Close) {
 		FileViewerWindow *fvw = 0;
 		
-		if (watched == graphsWindow) {
+		if (watched == graphsWindow || (spatialWindow && watched == spatialWindow)) {
 			// request to close the graphsWindow.. this stops the acq -- ask the user to confirm.. do this after this event handler runs, so enqueue it with a timer
 			QTimer::singleShot(1, this, SLOT(maybeCloseCurrentIfRunning()));
 			event->ignore();
@@ -752,6 +753,14 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     graphsWindow->installEventFilter(this);
 	
 	windowMenuAdd(graphsWindow);
+
+	// TESTING OF SPATIAL VISUALIZATION WINDOW -- REMOVE ME TO NOT USE SPATIAL VIS
+	spatialWindow = new SpatialVisWindow(params, 0);
+	spatialWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
+	spatialWindow->setWindowIcon(appIcon);
+	windowMenuAdd(spatialWindow);
+	spatialWindow->installEventFilter(this);
+	spatialWindow->show();
     
     if (!params.suppressGraphs) {
         graphsWindow->show();
@@ -852,6 +861,10 @@ void MainApp::stopTask()
     if (graphsWindow) {
 		windowMenuRemove(graphsWindow);
 		delete graphsWindow, graphsWindow = 0;
+	}
+	if (spatialWindow) {
+		windowMenuRemove(spatialWindow);
+		delete spatialWindow, spatialWindow = 0;
 	}
     hideUnhideGraphsAct->setEnabled(false);
     Log() << "Task " << dataFile.fileName() << " stopped.";
@@ -1209,6 +1222,12 @@ void MainApp::taskReadFunc()
 			SampleBufQ *buf = *it; 
 			Warning() << "The buffer: `" << (*it)->name << "' is " << double((buf->dataQueueSize()/double(buf->dataQueueMaxSize))*100.) << "% full! System too slow for the specified acquisition?";
 		}
+		
+		// SPATIAL VIS TESTING 
+		if (spatialWindow && !spatialWindow->isHidden()) {
+			spatialWindow->putScans(scans, firstSamp);
+		}
+		
         if (graphsWindow && !graphsWindow->isHidden()) {            
             if (daqIsOver || qFillPct > 70.0) {
                 Warning() << "Some scans were dropped from graphing due to queue limits being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
