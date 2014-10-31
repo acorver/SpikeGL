@@ -2,6 +2,7 @@
 #define NETCLIENT_H
 
 #include <string>
+#include <cstring>
 #include "Socket.h"
 
 class NetClient : public Socket
