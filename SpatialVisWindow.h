@@ -29,6 +29,10 @@ public:
     // overrides parent -- applies event filtering to the doublespinboxes as well!
 //    void installEventFilter(QObject * filterObj);
     
+protected:
+	// virtual from parent class
+	void resizeEvent (QResizeEvent * event);
+	
 private slots:
     void updateGraph();
 //    void selectGraph(int num);
@@ -40,7 +44,12 @@ private slots:
 	
 private:	
 	int pos2ChanId(double x, double y) const;
+	Vec2 chanId2Pos(const int chanid) const;
+	void updatePointSize();
+
     DAQ::Params & params;
+	const int nvai, nextra;
+	int nx, ny;
     QVector<Vec2> points;
     QVector<Vec4f> colors;
 	QVector<double> chanVolts;

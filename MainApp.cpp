@@ -292,7 +292,7 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
         if (k && !noHotKeys 
             && watched != helpWindow && (!helpWindow || !Util::objectHasAncestor(watched, helpWindow)) 
             && watched != par2Win && (!par2Win || !Util::objectHasAncestor(watched, par2Win)) 
-            && (watched == graphsWindow || watched == consoleWindow || watched == consoleWindow->textEdit() || ((!graphsWindow || watched != graphsWindow->saveFileLineEdit()) && Util::objectHasAncestor(watched, graphsWindow)))) {
+            && (watched == graphsWindow || watched == consoleWindow || (spatialWindow && watched == spatialWindow) || watched == consoleWindow->textEdit() || ((!graphsWindow || watched != graphsWindow->saveFileLineEdit()) && Util::objectHasAncestor(watched, graphsWindow)))) {
             if (processKey(k)) {
                 event->accept();
                 return true;
@@ -760,11 +760,12 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	spatialWindow->setWindowIcon(appIcon);
 	windowMenuAdd(spatialWindow);
 	spatialWindow->installEventFilter(this);
-	spatialWindow->show();
     
     if (!params.suppressGraphs) {
+		spatialWindow->show();
         graphsWindow->show();
     } else {
+		spatialWindow->hide();
         graphsWindow->hide();
     }
     taskWaitingForStop = false;
@@ -2158,6 +2159,7 @@ void MainApp::windowMenuActivate(QWidget *w)
 		w = reinterpret_cast<QWidget *>(a->data().toULongLong());
 	}
 	if (w) {
+		if (w->isHidden()) w->show();
 		w->raise();
 		w->activateWindow();
 	}
