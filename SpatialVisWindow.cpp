@@ -63,23 +63,26 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, QWidget * parent)
     t->setSingleShot(false);
     t->start(1000/DEF_TASK_READ_FREQ_HZ);
 	
-	graph->setMouseTracking(true);		
+	graph->setMouseTracking(true);	
+	
+	graph->setGlyphType(GLSpatialVis::Square);
+	graph->setPoints(points); // setup graph points
 }
 
 void SpatialVisWindow::resizeEvent (QResizeEvent * event)
 {
-	updatePointSize();
+	updateGlyphSize();
 	QMainWindow::resizeEvent(event);
 }
 
-void SpatialVisWindow::updatePointSize()
+void SpatialVisWindow::updateGlyphSize()
 {
 	if (!graph) return;
-	int ps = graph->width() / nx;
-	if (graph->height() / ny < ps) ps = graph->height()/ny;
-	ps *= 0.8;
-	if (ps < 1) ps = 1;
-	graph->setPointSize(ps);		
+	int szx = graph->width() / nx, szy = graph->height() / ny;
+	szx *= 0.9, szy *= 0.9;
+	if (szx < 1) szx = 1;
+	if (szy < 1) szy = 1;
+	graph->setGlyphSize(Vec2f(szx,szy));		
 }
 
 void SpatialVisWindow::putScans(const std::vector<int16> & scans, u64 firstSamp)
@@ -109,8 +112,8 @@ SpatialVisWindow::~SpatialVisWindow()
 void SpatialVisWindow::updateGraph()
 {
 	if (!graph) return;
-	updatePointSize();
-	graph->setPoints(points,colors);
+	updateGlyphSize();
+	graph->setColors(colors);
 }
 
 void SpatialVisWindow::mouseOverGraph(double x, double y)

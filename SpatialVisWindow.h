@@ -45,7 +45,7 @@ private slots:
 private:	
 	int pos2ChanId(double x, double y) const;
 	Vec2 chanId2Pos(const int chanid) const;
-	void updatePointSize();
+	void updateGlyphSize();
 
     DAQ::Params & params;
 	const int nvai, nextra;

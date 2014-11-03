@@ -15,11 +15,12 @@ struct GLSpatialVisState
     QColor bg_Color, grid_Color;
     unsigned nHGridLines, nVGridLines;
     unsigned short gridLineStipplePattern;
-	double pointSize;
+	Vec2f glyphSize;
 	double selx1, selx2, sely1, sely2;
 	bool hasSelection;	
 	QString objectName;
 };
+
 
 class GLSpatialVis : public QGLWidget
 {
@@ -31,11 +32,17 @@ public:
     /// Reset the graph to default params, as if it were freshly constructed
     void reset();
 
-//    void setPoints(const Vec2WrapBuffer *pointsBuf, const Vec3fWrapBuffer *colorsBuf);
-	void setPoints(const QVector<Vec2> & points, const QVector<Vec4f> & colors);
-	double pointSize() const { return point_size; }
-	void setPointSize(double ps) { point_size = ps; }
+	void setPoints(const QVector<Vec2> & points);
+	void setColors(const QVector<Vec4f> & colors);
+	
+	Vec2f glyphSize() const { return glyph_size; }
+	void setGlyphSize(Vec2f gs);
+	
+	enum GlyphType { Square=0, Circle, N_GlyphType };
 
+	GlyphType glyphType() const { return glyph; }
+	void setGlyphType(GlyphType g);
+	
     const QColor & bgColor() const { return bg_Color; }
     const QColor & gridColor() const { return grid_Color; }
 	void setBGColor(QColor c);
@@ -88,14 +95,23 @@ protected:
 private:
     void drawGrid() const;
     void drawPoints() const;
+	void drawCircles() const;
+	void drawSquares() const;
 	void drawSelection() const;
+	
+	void updateColorBuf();
+	void updateVertexBuf();
 
     QColor bg_Color, grid_Color;
 	double point_size;
+	Vec2f glyph_size;
+	GlyphType glyph;
     unsigned nHGridLines, nVGridLines;
     unsigned short gridLineStipplePattern;
     QVector<Vec2> pointsDisplayBuf;
 	QVector<Vec4f> colorsDisplayBuf;
+	QVector<Vec2f> vbuf;///< scratch buff for vertices in squares mode, mostly
+	QVector<Vec4f> cbuf; 
     std::vector<Vec2> gridVs, gridHs;
     bool auto_update, need_update;
 	double selx1,selx2,sely1,sely2;

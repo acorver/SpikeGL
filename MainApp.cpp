@@ -762,7 +762,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	spatialWindow->installEventFilter(this);
     
     if (!params.suppressGraphs) {
-		spatialWindow->show();
+		//spatialWindow->show();
         graphsWindow->show();
     } else {
 		spatialWindow->hide();

@@ -22,11 +22,13 @@ void GLSpatialVis::reset()
     bg_Color = QColor(0x2f, 0x4f, 0x4f);
     grid_Color = QColor(0x87, 0xce, 0xfa, 0x7f);
 	point_size = 1.0;
+	glyph_size = Vec2f(-1.,-1.);
 	hasSelection = false;
 	selx1 = selx2 = sely1 = sely2 = 0.;
     gridLineStipplePattern = 0xf0f0; // 4pix on 4 off 4 on 4 off
     auto_update = true;
     need_update = false;
+	glyph = Square;
 
     pointsDisplayBuf.clear();
 	colorsDisplayBuf.clear();
@@ -64,6 +66,7 @@ void GLSpatialVis::resizeGL(int w, int h)
     glLoadIdentity();
     glViewport(0, 0, w, h);
     gluOrtho2D( 0., 1., 0., 1.);
+	if (glyphType() == Square) updateVertexBuf();
 }
 
 void GLSpatialVis::paintGL()
@@ -130,23 +133,57 @@ void GLSpatialVis::drawGrid() const
     if (!wasEnabled) glDisable(GL_LINE_STIPPLE);
 }
 
-void GLSpatialVis::drawPoints() const 
+void GLSpatialVis::drawCircles() const
 {
     GLfloat savedWidth;
     // save some values
     glGetFloatv(GL_POINT_SIZE, &savedWidth);
-    glPointSize(pointSize());
+    glPointSize(point_size);
     
 	glEnableClientState(GL_COLOR_ARRAY);
 	
 	glVertexPointer(2, GL_DOUBLE, 0, pointsDisplayBuf.constData());
 	glColorPointer(4, GL_FLOAT, 0, colorsDisplayBuf.constData());
 	glDrawArrays(GL_POINTS, 0, pointsDisplayBuf.size());
-
+	
 	glDisableClientState(GL_COLOR_ARRAY);
-
+	
     // restore saved values
-    glPointSize(savedWidth);
+    glPointSize(savedWidth);	
+}
+
+void GLSpatialVis::drawPoints() const 
+{
+	switch (glyph) {
+		case Circle:
+			drawCircles();
+			break;
+		case Square:
+		default:
+			drawSquares();
+			break;
+	}
+}
+
+void GLSpatialVis::drawSquares() const
+{
+	// in this mode, each point is the center of a square of glyphSize() width
+	if (vbuf.size() != cbuf.size()) {
+		Error() << "GLSparialVis::drawSquares INTERNAL error -- color buffer != points buffer size!";
+		return;
+	}
+	GLint saved_polygonmode[2];
+	glGetIntegerv(GL_POLYGON_MODE, saved_polygonmode);		   
+	glPolygonMode(GL_FRONT, GL_FILL); // make suroe to fill the polygon;	
+
+	glEnableClientState(GL_COLOR_ARRAY);
+	
+	glVertexPointer(2, GL_FLOAT, 0, vbuf.constData());
+	glColorPointer(4, GL_FLOAT, 0, cbuf.constData());
+	glDrawArrays(GL_QUADS, 0, vbuf.size());
+	
+	glDisableClientState(GL_COLOR_ARRAY);
+	glPolygonMode(GL_FRONT, saved_polygonmode[0]);
 }
 
 void GLSpatialVis::drawSelection() const
@@ -192,6 +229,18 @@ void GLSpatialVis::setNumHGridLines(unsigned n)
     else need_update = true;    
 }
 
+void GLSpatialVis::setGlyphType(GLSpatialVis::GlyphType g)
+{
+	glyph = g;
+	if (g == Square) {
+		updateVertexBuf();
+		updateColorBuf();
+	}
+	if (auto_update) updateGL();
+	else need_update = true;
+}
+
+
 void GLSpatialVis::setNumVGridLines(unsigned n)
 {
     nVGridLines = n;
@@ -210,53 +259,69 @@ void GLSpatialVis::setNumVGridLines(unsigned n)
     else need_update = true;
 }
 
-/*
-void GLSpatialVis::setPoints(const Vec2WrapBuffer *pointsWB, const Vec3fWrapBuffer *colorsWB)
+void GLSpatialVis::setGlyphSize(Vec2f gs) 
 {
-	if (!pointsWB || !colorsWB) {
-		Error() << "INTERNAL ERROR: GLSpatialVis::setPoints() was passed a NULL points pointer!";
-		return;
+	if (gs.x < 1.f || gs.y < 1.f) return;
+	float ps = gs.x;
+	if (gs.y < ps) ps = gs.y;
+	const Vec2f oldgs = glyph_size;
+	point_size = ps; 
+	glyph_size = gs;
+	if (glyphType() == Square && (int(oldgs.x) != int(gs.x) || int(oldgs.y) != int(gs.y))) {
+		updateVertexBuf();
 	}
-    const Vec2 *pv1(0), *pv2(0);
-	const Vec3f *pc1(0), *pc2(0);
-    unsigned l1(0), l2(0), l3(0), l4(0);
-    
-    pointsWB->dataPtr1((Vec2 *&)pv1, l1);
-    pointsWB->dataPtr2((Vec2 *&)pv2, l2);
-    colorsWB->dataPtr1((Vec3f *&)pc1, l3);
-    colorsWB->dataPtr2((Vec3f *&)pc2, l4);
-	
-    const size_t len = l1+l2, len2 = l3+l4;
-	
-	if (len == len2) {
-		QVector<Vec2> & points ( pointsDisplayBuf );
-		QVector<Vec3f> & colors ( colorsDisplayBuf );
-		// copy point to display vertex buffer
-		if (size_t(points.size()) != len) points.resize(len);
-		if (size_t(colors.size()) != len2) colors.resize(len2);
-		if (l1)  memcpy(points.data(), pv1, l1*sizeof(Vec2));
-		if (l2)  memcpy(points.data()+l1, pv2, l2*sizeof(Vec2));
-		if (l3)  memcpy(colors.data(), pc1, l3*sizeof(Vec3f));
-		if (l4)  memcpy(colors.data()+l3, pc2, l4*sizeof(Vec3f));		
-	} else {
-		Error() << "INTERNAL ERROR: GLSpatialVis '" << objectName() << "' -- color buffer length != vector buffer length! Argh!";
-	}
-    if (auto_update) updateGL();
+	if (auto_update) updateGL();
     else need_update = true;
 }
-*/
 
-void GLSpatialVis::setPoints(const QVector<Vec2> & points, const QVector<Vec4f> & colors)
+
+void GLSpatialVis::setPoints(const QVector<Vec2> & points)
 {
-	if (points.size() == colors.size()) {
-		// constant time copy, because of copy-on-write semantics of QVector...
-		pointsDisplayBuf = points;
-		colorsDisplayBuf = colors;
-	} else {
-		Error() << "INTERNAL ERROR: GLSpatialVis '" << objectName() << "' -- color buffer length != vector buffer length! Argh!";
-	}
+	// constant time copy, because of copy-on-write semantics of QVector...
+	pointsDisplayBuf = points;
+	if (glyphType() == Square) updateVertexBuf();
     if (auto_update) updateGL();
     else need_update = true;	
+}
+
+void GLSpatialVis::updateColorBuf()
+{
+	int cdbsz = colorsDisplayBuf.size();
+	cbuf.resize(cdbsz * 4);
+	
+	for (int i = 0, vi = 0; i < cdbsz; ++i, vi+=4) {
+		// set vertex colors
+		cbuf[vi] = cbuf[vi+1] = cbuf[vi+2] = cbuf[vi+3] = colorsDisplayBuf[i];
+	}
+	if (auto_update) updateGL();
+	else need_update = true;
+}
+
+void GLSpatialVis::updateVertexBuf()
+{
+	// in this mode, each point is the center of a square of glyphSize() width
+	const int pdbsz = pointsDisplayBuf.size();
+	vbuf.resize(pdbsz * 4);
+	const float xoff = (glyphSize().x/2.0f) / width(), yoff = (glyphSize().y/2.0f) / height();
+	
+	for (int i = 0, vi = 0; i < pdbsz; ++i, vi+=4) {
+		const Vec2 & p (pointsDisplayBuf[i]);
+		vbuf[vi+0].x = p.x-xoff, vbuf[vi+0].y = p.y-yoff; // bottom left
+		vbuf[vi+1].x = p.x+xoff, vbuf[vi+1].y = p.y-yoff; // bottom right
+		vbuf[vi+2].x = p.x+xoff, vbuf[vi+2].y = p.y+yoff; // top right
+		vbuf[vi+3].x = p.x-xoff, vbuf[vi+3].y = p.y+yoff; // top left		
+	}	
+}
+
+void GLSpatialVis::setColors(const QVector<Vec4f> & colors)
+{
+	if (pointsDisplayBuf.size() != colors.size()) {
+		Error() << "INTERNAL ERROR: GLSpatialVis '" << objectName() << "' -- color buffer length != vector buffer length! Argh!";		
+	}
+	colorsDisplayBuf = colors;
+	if (glyphType() == Square) updateColorBuf();	
+	if (auto_update) updateGL();
+	else need_update = true;
 }
 
 void GLSpatialVis::mouseMoveEvent(QMouseEvent *evt)
@@ -333,7 +398,7 @@ GLSpatialVisState GLSpatialVis::getState() const
 	s.grid_Color = grid_Color;
 	s.nHGridLines = nHGridLines;
 	s.nVGridLines = nVGridLines;
-	s.pointSize = pointSize();
+	s.glyphSize = glyphSize();
 	s.gridLineStipplePattern = gridLineStipplePattern;
 	s.selx1 = selx1;
 	s.selx2 = selx2;
@@ -352,7 +417,7 @@ void GLSpatialVis::setState(const GLSpatialVisState & s)
 	setNumHGridLines(s.nHGridLines);
 	setNumVGridLines(s.nVGridLines);
 	gridLineStipplePattern = s.gridLineStipplePattern;
-	setPointSize(s.pointSize);
+	setGlyphSize(s.glyphSize);
 	selx1 = s.selx1;
 	selx2 = s.selx2;
 	sely1 = s.sely1;
