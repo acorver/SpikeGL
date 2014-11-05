@@ -223,8 +223,8 @@ void GLSpatialVis::drawSelection() const
 			// outline.. use normal alphas
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glLineWidth(1.0f);
-			unsigned short pat = 0xdb6d;
-			int shift = static_cast<unsigned int>(Util::getTime() * 10.0) % 16;
+			unsigned short pat = 0xcccc;
+			int shift = static_cast<unsigned int>(Util::getTime() * 16.0) % 16;
 			pat = rol(pat,shift);
 			
 			glLineStipple(1, pat);
