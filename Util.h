@@ -106,13 +106,13 @@ namespace Util
 template<class T>
 T ror(T x, unsigned int moves)
 {
-	return (x >> moves) | (x << sizeof(T)*8 - moves);
+	return (x >> moves) | (x << (sizeof(T)*8 - moves));
 }
 /// rotate left 'moves' bits. Different from << shift operator in that it rotates in bits from left side to right side
 template<class T>
 T rol(T x, unsigned int moves)
 {
-	return (x << moves) | (x >> sizeof(T)*8 - moves);
+	return (x << moves) | (x >> (sizeof(T)*8 - moves));
 }
 	
  /// Resample (internally uses Secret Rabbit Code samplerate lib)
