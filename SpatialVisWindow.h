@@ -26,12 +26,14 @@ public:
 	
     void putScans(const std::vector<int16> & scans, u64 firstSamp);
 		
-    // overrides parent -- applies event filtering to the doublespinboxes as well!
-//    void installEventFilter(QObject * filterObj);
-    
+signals:
+	void channelsSelected(const QVector<unsigned> & ids);
+	void channelsOpened(const QVector<unsigned> & ids);
+	
 protected:
 	// virtual from parent class
-	void resizeEvent (QResizeEvent * event);
+	void resizeEvent(QResizeEvent *event);
+	void keyPressEvent(QKeyEvent *event);
 	
 private slots:
     void updateGraph();

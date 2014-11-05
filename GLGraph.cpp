@@ -24,6 +24,7 @@ void GLGraph::reset(QMutex *mut)
     bg_Color = QColor(0x2f, 0x4f, 0x4f);
     graph_Color = QColor(0xee, 0xdd, 0x82);
     grid_Color = QColor(0x87, 0xce, 0xfa, 0x7f);
+	highlight_Color = QColor(0x4f, 0x2f, 0x2f); // a reddish hue.. for now highlight color is applied to BG
 	hasSelection = false;
 	selectionBegin = selectionEnd = 0.;
     min_x = 0., max_x = 1.; 
@@ -103,7 +104,11 @@ void GLGraph::paintGL()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    glClearColor(bg_Color.redF(), bg_Color.greenF(), bg_Color.blueF(), bg_Color.alphaF());
+	if (!highlighted) 
+		glClearColor(bg_Color.redF(), bg_Color.greenF(), bg_Color.blueF(), bg_Color.alphaF());
+	else
+		glClearColor(highlight_Color.redF(), highlight_Color.greenF(), highlight_Color.blueF(), highlight_Color.alphaF());
+		
     glClear(GL_COLOR_BUFFER_BIT);
     glEnableClientState(GL_VERTEX_ARRAY);
 
@@ -354,6 +359,7 @@ GLGraphState GLGraph::getState() const
 	s.bg_Color = bg_Color;
 	s.graph_Color = graph_Color;
 	s.grid_Color = grid_Color;
+	s.highlight_Color = highlight_Color;
 	s.nHGridLines = nHGridLines;
 	s.nVGridLines = nVGridLines;
 	s.min_x = min_x;
@@ -365,6 +371,7 @@ GLGraphState GLGraph::getState() const
 	s.selectionBegin = selectionBegin;
 	s.selectionEnd = selectionEnd;
 	s.hasSelection = hasSelection;
+	s.highlighted = highlighted;
 	s.objectName = objectName();
 	
 	return s;
@@ -376,6 +383,7 @@ void GLGraph::setState(const GLGraphState & s)
 	bg_Color = s.bg_Color;
 	graph_Color = s.graph_Color;
 	grid_Color = s.grid_Color;
+	highlight_Color = s.highlight_Color;
 	setNumHGridLines(s.nHGridLines);
 	setNumVGridLines(s.nVGridLines);
 	min_x = s.min_x;
@@ -387,6 +395,7 @@ void GLGraph::setState(const GLGraphState & s)
 	selectionBegin = s.selectionBegin;
 	selectionEnd = s.selectionEnd;
 	hasSelection = s.hasSelection;
+	highlighted = s.highlighted;
 	setObjectName(s.objectName);
 	if (auto_update) updateGL();
 	else need_update = true;
@@ -432,3 +441,11 @@ void GLGraphState::fromString(const QString &s)
 		}		
 	}
 }
+
+void GLGraph::setHighlighted(bool onoff)
+{
+	highlighted = onoff;
+	if (auto_update) updateGL();
+	else need_update = true;
+}
+

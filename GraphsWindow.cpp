@@ -132,6 +132,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	const int nGraphTabs ( (p.nVAIChans / NUM_GRAPHS_PER_GRAPH_TAB) + ((p.nVAIChans % NUM_GRAPHS_PER_GRAPH_TAB) ? 1 : 0));
 	graphTabs.resize(nGraphTabs);
 	tabWidget = new QTabWidget(this);
+	tabWidget->setTabPosition(nGraphTabs > 8 ? QTabWidget::East : QTabWidget::North);
+	tabWidget->setElideMode(Qt::ElideLeft);
 	setCentralWidget(tabWidget);
     statusBar();
     resize(1024,768);
@@ -1168,4 +1170,37 @@ void GraphsWindow::saveGraphSettings()
 	}
 	settings.setValue(mykey,settingsString);
 	settings.endGroup();
+}
+
+void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
+{
+	//Debug() << "GraphsWindow::highlightGraphsById called with " << ids.size() << " ids...";
+	QVector<unsigned>::const_iterator it = ids.begin();
+	int last = -1;
+	for (int i = 0; i < (int)graphs.size(); ++i) {
+		bool highlighted = false;
+		if (it != ids.end()) {
+			highlighted = int(*it) == i;
+			if (last >= int(*it) || int(*it) >= graphs.size()) {
+				Error() << "INTERNAL ERROR IN GraphsWindow::highlightGraphsById -- expected ids to be unique, sorted, and only contain valid ids!";
+			}
+			if (highlighted) last = *it, ++it;
+		}
+		graphStates[i].highlighted = highlighted;
+		if (graphs[i]) 
+			graphs[i]->setHighlighted(highlighted);
+	}
+}
+
+void GraphsWindow::openGraphsById(const QVector<unsigned> & ids) ///< really just opens the first graph
+{
+	//Debug() << "GraphsWindow::openGraphsById called with " << ids.size() << " ids...";	
+	if (ids.size()) {
+		unsigned id = ids[0];
+		if (id < unsigned(graphs.size())) {
+			unsigned tab = id / NUM_GRAPHS_PER_GRAPH_TAB;
+			tabWidget->setCurrentIndex(tab);
+			selectGraph(id);
+		}		
+	}
 }

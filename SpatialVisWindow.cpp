@@ -12,6 +12,7 @@
 #include <QIcon>
 #include <QSettings>
 #include <QColorDialog>
+#include <QKeyEvent>
 
 #define SETTINGS_GROUP "SpatialVisWindow Settings"
 #define GlyphShrink 0.925
@@ -20,6 +21,12 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, QWidget * parent)
 : QMainWindow(parent), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2), 
   graph(0), graphFrame(0), mouseOverChan(-1)
 {
+	static bool registeredMetaType = false;
+	
+	if (!registeredMetaType) {
+		qRegisterMetaType<QVector<uint>	>("QVector<uint>");
+		registeredMetaType = true;
+	}
 
 	setWindowTitle("Spatial Visualization");
 	resize(800,600);
@@ -172,6 +179,7 @@ void SpatialVisWindow::mouseOverGraph(double x, double y)
 		graph->setSelectionRange(selClick.x, x, selClick.y, y, GLSpatialVis::Outline);
 		graph->setSelectionEnabled(true, GLSpatialVis::Outline);
 		selIdxs = graph->selectAllGlyphsIntersectingRect(Vec2(selClick.x,selClick.y),Vec2(x,y),GLSpatialVis::Box,glyphMargins01Coords());
+		emit channelsSelected(selIdxs);
 	}
 }
 
@@ -182,6 +190,7 @@ void SpatialVisWindow::mouseClickGraph(double x, double y)
 	else statusLabel->setText(QString("Mouse click %1,%2 -> %3").arg(x).arg(y).arg(chanId));
 	selClear();
 	selClick = Vec2(x,y);
+	emit channelsSelected(selIdxs);
 }
 
 
@@ -195,6 +204,7 @@ void SpatialVisWindow::mouseReleaseGraph(double x, double y)
 		selIdxs = graph->selectAllGlyphsIntersectingRect(Vec2(sclk.x,sclk.y),Vec2(x,y),GLSpatialVis::Box,glyphMargins01Coords());
 		selIdxs = graph->selectAllGlyphsIntersectingRect(Vec2(sclk.x,sclk.y),Vec2(x,y),GLSpatialVis::Outline,glyphMargins01Coords());
 	}
+	emit channelsSelected(selIdxs);
 }
 
 void SpatialVisWindow::mouseDoubleClickGraph(double x, double y)
@@ -218,7 +228,7 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 	if (selIdxs.size()) {
 		QString t = statusLabel->text();
 		if (t.length()) t = QString("(mouse at: %1)").arg(t);
-		statusLabel->setText(QString("Selection: %1 channels, double-click to open. %2").arg(selIdxs.size()).arg(t));
+		statusLabel->setText(QString("Selection: %1 channels, hit ENTER to open bottom-left of selection. %2").arg(selIdxs.size()).arg(t));
 	}
 }
 
@@ -287,4 +297,14 @@ Vec2 SpatialVisWindow::glyphMargins01Coords() const
 	ret.x = (ret.x - graph->glyphSize().x) / double(graph->width()) / 2.0;
 	ret.y = (ret.y - graph->glyphSize().y) / double(graph->height()) / 2.0;
 	return ret;
+}
+
+void SpatialVisWindow::keyPressEvent(QKeyEvent *e)
+{
+	if (e->key() == Qt::Key_Return && selIdxs.size() > 0) {
+		e->accept();
+		emit channelsOpened(selIdxs);
+		return;
+	}
+	QMainWindow::keyPressEvent(e);
 }

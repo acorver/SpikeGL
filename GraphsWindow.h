@@ -51,6 +51,10 @@ public:
 	void sortGraphsByElectrodeId();
 	void sortGraphsByIntan();
 	
+public slots:
+	void highlightGraphsById(const QVector<unsigned> & electrode_ids);
+	void openGraphsById(const QVector<unsigned> & electrode_ids); ///< really just opens the first graph
+	
 private slots:
     void updateGraphs();
     void downsampleChk(bool checked);

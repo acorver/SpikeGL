@@ -758,9 +758,12 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	spatialWindow = new SpatialVisWindow(params, 0);
 	spatialWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
 	spatialWindow->setWindowIcon(appIcon);
-	windowMenuAdd(spatialWindow);
 	spatialWindow->installEventFilter(this);
+	windowMenuAdd(spatialWindow);
     
+	Connect(spatialWindow, SIGNAL(channelsSelected(const QVector<unsigned> &)), graphsWindow, SLOT(highlightGraphsById(const QVector<unsigned> &)));
+	Connect(spatialWindow, SIGNAL(channelsOpened(const QVector<unsigned> &)), graphsWindow, SLOT(openGraphsById(const QVector<unsigned> &)));
+
     if (!params.suppressGraphs) {
 		//spatialWindow->show();
         graphsWindow->show();

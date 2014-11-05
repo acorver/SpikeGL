@@ -13,14 +13,15 @@ class QMutex;
 struct GLGraphState
 {
 	QMutex *ptsMut;
-    QColor bg_Color, graph_Color, grid_Color;
+    QColor bg_Color, graph_Color, grid_Color, highlight_Color;
     unsigned nHGridLines, nVGridLines;
     double min_x, max_x, yscale;
     unsigned short gridLineStipplePattern;
     const Vec2WrapBuffer *pointsWB;
     QVariant tagData;
 	double selectionBegin, selectionEnd;
-	bool hasSelection;	
+	bool hasSelection;
+	bool highlighted;
 	QString objectName;
 
 	QString toString() const;
@@ -50,6 +51,7 @@ public:
     QColor & bgColor() { return bg_Color; }
     QColor & graphColor() { return graph_Color; }
     QColor & gridColor() { return grid_Color; }
+	QColor & highlightColor() { return highlight_Color; }
     
     double & minx() { return min_x; }
     double & maxx() { return max_x; }
@@ -77,6 +79,9 @@ public:
 
 	GLGraphState getState() const;
 	void setState(const GLGraphState & state);
+	
+	bool isHighlighted() const { return highlighted; }
+	void setHighlighted(bool onoff);
 	
 signals:    
 	/// like cursorOver(), except emitted x,y units are in window coordinates, not graph coordinates
@@ -107,7 +112,7 @@ private:
 	void drawSelection() const;
 
     QMutex *ptsMut;
-    QColor bg_Color, graph_Color, grid_Color;
+    QColor bg_Color, graph_Color, grid_Color, highlight_Color;
     unsigned nHGridLines, nVGridLines;
     double min_x, max_x, yscale;
     unsigned short gridLineStipplePattern;
@@ -118,6 +123,7 @@ private:
     QVariant tagData;
 	double selectionBegin, selectionEnd;
 	bool hasSelection;
+	bool highlighted;
 };
 
 #endif
