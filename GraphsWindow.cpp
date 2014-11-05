@@ -1201,6 +1201,8 @@ void GraphsWindow::openGraphsById(const QVector<unsigned> & ids) ///< really jus
 			unsigned tab = id / NUM_GRAPHS_PER_GRAPH_TAB;
 			tabWidget->setCurrentIndex(tab);
 			selectGraph(id);
+			show();
+			raise();
 		}		
 	}
 }
