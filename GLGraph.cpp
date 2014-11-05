@@ -26,6 +26,7 @@ void GLGraph::reset(QMutex *mut)
     grid_Color = QColor(0x87, 0xce, 0xfa, 0x7f);
 	highlight_Color = QColor(0x4f, 0x2f, 0x2f); // a reddish hue.. for now highlight color is applied to BG
 	hasSelection = false;
+	highlighted = false;
 	selectionBegin = selectionEnd = 0.;
     min_x = 0., max_x = 1.; 
     gridLineStipplePattern = 0xf0f0; // 4pix on 4 off 4 on 4 off
