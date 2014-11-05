@@ -41,7 +41,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, QWidget * parent)
 	
 	Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
 	
-    nx = sqrt(nvai), ny = nx;
+    nx = sqrtf(static_cast<float>(nvai)), ny = nx;
 	if (nx <= 0) nx = 1;
 	while (nx*ny < nvai) ++ny;	
 	
