@@ -100,7 +100,20 @@ namespace Util
  void removeTempDataFiles();
 
  /// true iff the difference between a and b is smaller than EPSILON (0.0000001)
- bool feq(double a, double b);
+ bool feq(double a, double b, double epsilon = EPSILON);
+	
+/// rotate right 'moves' bits. Different from >> shift operator in that it rotates in bits from right side to left side
+template<class T>
+T ror(T x, unsigned int moves)
+{
+	return (x >> moves) | (x << sizeof(T)*8 - moves);
+}
+/// rotate left 'moves' bits. Different from << shift operator in that it rotates in bits from left side to right side
+template<class T>
+T rol(T x, unsigned int moves)
+{
+	return (x << moves) | (x >> sizeof(T)*8 - moves);
+}
 	
  /// Resample (internally uses Secret Rabbit Code samplerate lib)
  class Resampler {

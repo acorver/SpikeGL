@@ -23,15 +23,20 @@ void GLSpatialVis::reset()
     grid_Color = QColor(0x87, 0xce, 0xfa, 0x7f);
 	point_size = 1.0;
 	glyph_size = Vec2f(-1.,-1.);
-	hasSelection = false;
-	selx1 = selx2 = sely1 = sely2 = 0.;
+	for (int s = 0; s < (int)N_Sel; ++s) {
+		hasSelection[s] = false;
+		selx1[s] = selx2[s] = sely1[s] = sely2[s] = 0.;
+		sel_Color[s] = ( s == Box ? QColor::fromRgbF(.5f,.5f,.5f,.5f) : QColor::fromRgbF(1.,1.,1.,1.) );
+	}
     gridLineStipplePattern = 0xf0f0; // 4pix on 4 off 4 on 4 off
     auto_update = true;
     need_update = false;
 	glyph = Square;
 
-    pointsDisplayBuf.clear();
-	colorsDisplayBuf.clear();
+    pointsBuf.clear();
+	colorsBuf.clear();
+	vbuf.clear();
+	cbuf.clear();
     auto_update = false;
     setNumHGridLines(4);
     setNumVGridLines(4);
@@ -55,7 +60,7 @@ void GLSpatialVis::initializeGL()
     glEnable(GL_BLEND);
     glDisable(GL_TEXTURE_2D);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    //glEnable(GL_LINE_SMOOTH);
+//    glEnable(GL_LINE_SMOOTH);
     glEnable(GL_POINT_SMOOTH);
 }
 
@@ -82,7 +87,7 @@ void GLSpatialVis::paintGL()
 
     drawGrid();
 
-    if (pointsDisplayBuf.size() && colorsDisplayBuf.size()) {
+    if (pointsBuf.size() && colorsBuf.size()) {
         glPushMatrix();
 //        if (fabs(max_x-min_x) > 0.) {
           glScaled(1./*/(max_x-min_x)*/, /*yscale*/1., 1.);
@@ -142,9 +147,9 @@ void GLSpatialVis::drawCircles() const
     
 	glEnableClientState(GL_COLOR_ARRAY);
 	
-	glVertexPointer(2, GL_DOUBLE, 0, pointsDisplayBuf.constData());
-	glColorPointer(4, GL_FLOAT, 0, colorsDisplayBuf.constData());
-	glDrawArrays(GL_POINTS, 0, pointsDisplayBuf.size());
+	glVertexPointer(2, GL_DOUBLE, 0, pointsBuf.constData());
+	glColorPointer(4, GL_FLOAT, 0, colorsBuf.constData());
+	glDrawArrays(GL_POINTS, 0, pointsBuf.size());
 	
 	glDisableClientState(GL_COLOR_ARRAY);
 	
@@ -188,27 +193,62 @@ void GLSpatialVis::drawSquares() const
 
 void GLSpatialVis::drawSelection() const
 {
-	if (!isSelectionVisible()) return;
-	int saved_polygonmode[2];
-	// invert selection..
-	glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ZERO);
+	for (int s = 0; s < N_Sel; ++s) {
+		if (!isSelectionVisible((Sel)s)) continue;
+		
+		GLint saved_polygonmode[2];
+		GLint saved_sfactor, saved_dfactor;
+		GLint savedPat(0), savedRepeat(0);
+		GLfloat savedColor[4];
+		GLfloat savedWidth;
+		bool wasEnabled = glIsEnabled(GL_LINE_STIPPLE);
+		
+		glGetIntegerv(GL_POLYGON_MODE, saved_polygonmode);		   
+		// save some values
+		glGetFloatv(GL_CURRENT_COLOR, savedColor);
+		glGetIntegerv(GL_LINE_STIPPLE_PATTERN, &savedPat);
+		glGetIntegerv(GL_LINE_STIPPLE_REPEAT, &savedRepeat);
+		glGetFloatv(GL_LINE_WIDTH, &savedWidth);
+		glGetIntegerv(GL_BLEND_SRC, &saved_sfactor);
+		glGetIntegerv(GL_BLEND_DST, &saved_dfactor);
 
-	glGetIntegerv(GL_POLYGON_MODE, saved_polygonmode);		   
-	glColor4f(.5, .5, .5, .5);
-	glPolygonMode(GL_FRONT, GL_FILL); // make suroe to fill the polygon;	
-	const double vertices[] = {
-		selx1, sely1,
-		selx2, sely1,
-		selx2, sely2,
-		selx1, sely2
-	};
-	
-	glVertexPointer(2, GL_DOUBLE, 0, vertices);
-	glDrawArrays(GL_QUADS, 0, 4);	
-	
-	// restore saved OpenGL state
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glPolygonMode(GL_FRONT, saved_polygonmode[0]);
+		if (s == Box) {
+			glPolygonMode(GL_FRONT, GL_FILL); // make sure to fill the polygon;	
+			// invert selection..
+			glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ZERO);
+		} else { // s == Outline
+			if (!wasEnabled)
+				glEnable(GL_LINE_STIPPLE);
+			glPolygonMode(GL_FRONT, GL_LINE);
+			// outline.. use normal alphas
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glLineWidth(1.0f);
+			unsigned short pat = 0xdb6d;
+			int shift = static_cast<unsigned int>(Util::getTime() * 10.0) % 16;
+			pat = rol(pat,shift);
+			
+			glLineStipple(1, pat);
+		}
+		const double vertices[] = {
+			selx1[s], sely1[s],
+			selx2[s], sely1[s],
+			selx2[s], sely2[s],
+			selx1[s], sely2[s]
+		};
+		
+		glColor4f(sel_Color[s].redF(), sel_Color[s].greenF(), sel_Color[s].blueF(), sel_Color[s].alphaF());
+		glVertexPointer(2, GL_DOUBLE, 0, vertices);
+		glDrawArrays(GL_QUADS, 0, 4);	
+		
+		// restore saved OpenGL state
+		glBlendFunc(saved_sfactor, saved_dfactor);
+		glPolygonMode(GL_FRONT, saved_polygonmode[0]);
+		glColor4fv(savedColor);
+		glLineStipple(savedRepeat, savedPat);
+		glLineWidth(savedWidth);
+		if (!wasEnabled) glDisable(GL_LINE_STIPPLE);
+		
+	}
 }
 
 void GLSpatialVis::setNumHGridLines(unsigned n)
@@ -278,7 +318,7 @@ void GLSpatialVis::setGlyphSize(Vec2f gs)
 void GLSpatialVis::setPoints(const QVector<Vec2> & points)
 {
 	// constant time copy, because of copy-on-write semantics of QVector...
-	pointsDisplayBuf = points;
+	pointsBuf = points;
 	if (glyphType() == Square) updateVertexBuf();
     if (auto_update) updateGL();
     else need_update = true;	
@@ -286,12 +326,12 @@ void GLSpatialVis::setPoints(const QVector<Vec2> & points)
 
 void GLSpatialVis::updateColorBuf()
 {
-	int cdbsz = colorsDisplayBuf.size();
+	int cdbsz = colorsBuf.size();
 	cbuf.resize(cdbsz * 4);
 	
 	for (int i = 0, vi = 0; i < cdbsz; ++i, vi+=4) {
 		// set vertex colors
-		cbuf[vi] = cbuf[vi+1] = cbuf[vi+2] = cbuf[vi+3] = colorsDisplayBuf[i];
+		cbuf[vi] = cbuf[vi+1] = cbuf[vi+2] = cbuf[vi+3] = colorsBuf[i];
 	}
 	if (auto_update) updateGL();
 	else need_update = true;
@@ -299,13 +339,13 @@ void GLSpatialVis::updateColorBuf()
 
 void GLSpatialVis::updateVertexBuf()
 {
-	// in this mode, each point is the center of a square of glyphSize() width
-	const int pdbsz = pointsDisplayBuf.size();
+	// in this mode, each point is the center of a square of glyphSize() size
+	const int pdbsz = pointsBuf.size();
 	vbuf.resize(pdbsz * 4);
 	const float xoff = (glyphSize().x/2.0f) / width(), yoff = (glyphSize().y/2.0f) / height();
 	
 	for (int i = 0, vi = 0; i < pdbsz; ++i, vi+=4) {
-		const Vec2 & p (pointsDisplayBuf[i]);
+		const Vec2 & p (pointsBuf[i]);
 		vbuf[vi+0].x = p.x-xoff, vbuf[vi+0].y = p.y-yoff; // bottom left
 		vbuf[vi+1].x = p.x+xoff, vbuf[vi+1].y = p.y-yoff; // bottom right
 		vbuf[vi+2].x = p.x+xoff, vbuf[vi+2].y = p.y+yoff; // top right
@@ -315,10 +355,10 @@ void GLSpatialVis::updateVertexBuf()
 
 void GLSpatialVis::setColors(const QVector<Vec4f> & colors)
 {
-	if (pointsDisplayBuf.size() != colors.size()) {
+	if (pointsBuf.size() != colors.size()) {
 		Error() << "INTERNAL ERROR: GLSpatialVis '" << objectName() << "' -- color buffer length != vector buffer length! Argh!";		
 	}
-	colorsDisplayBuf = colors;
+	colorsBuf = colors;
 	if (glyphType() == Square) updateColorBuf();	
 	if (auto_update) updateGL();
 	else need_update = true;
@@ -365,67 +405,32 @@ Vec2 GLSpatialVis::pos2Vec(const QPoint & pos)
     return ret;
 }
 
-void GLSpatialVis::setSelectionRange(double begin_x, double end_x, double begin_y, double end_y)
+void GLSpatialVis::setSelectionRange(double begin_x, double end_x, double begin_y, double end_y, Sel s)
 {
+	if (s < 0 || s >= N_Sel) return;
 	if (begin_x > end_x) 
-		selx1 = end_x, selx2 = begin_x;
+		selx1[s] = end_x, selx2[s] = begin_x;
 	else
-		selx1 = begin_x, selx2 = end_x;
+		selx1[s] = begin_x, selx2[s] = end_x;
 	if (begin_y > end_y) 
-		sely1 = end_y, sely2 = begin_y;
+		sely1[s] = end_y, sely2[s] = begin_y;
 	else
-		sely1 = begin_y, sely2 = end_y;
+		sely1[s] = begin_y, sely2[s] = end_y;
 	if (auto_update) updateGL();
 	else need_update = true;
 }
 
-void GLSpatialVis::setSelectionEnabled(bool onoff)
+void GLSpatialVis::setSelectionEnabled(bool onoff, Sel s)
 {
-	hasSelection = onoff;
+	if (s < 0 || s >= N_Sel) return;
+	hasSelection[s] = onoff;
 }
 
 
-bool GLSpatialVis::isSelectionVisible() const
+bool GLSpatialVis::isSelectionVisible(Sel s) const
 {
-	return hasSelection && selx2 >= /*min_x*/0.0 && selx1 <= /*max_x*/1.0 && sely2 >= 0. && sely1 <= 1.;	
-}
-
-GLSpatialVisState GLSpatialVis::getState() const
-{
-	GLSpatialVisState s;
-	
-	s.bg_Color = bg_Color;
-	s.grid_Color = grid_Color;
-	s.nHGridLines = nHGridLines;
-	s.nVGridLines = nVGridLines;
-	s.glyphSize = glyphSize();
-	s.gridLineStipplePattern = gridLineStipplePattern;
-	s.selx1 = selx1;
-	s.selx2 = selx2;
-	s.sely1 = sely1;
-	s.sely2 = sely2;
-	s.hasSelection = hasSelection;
-	s.objectName = objectName();
-	
-	return s;
-}
-
-void GLSpatialVis::setState(const GLSpatialVisState & s)
-{
-	bg_Color = s.bg_Color;
-	grid_Color = s.grid_Color;
-	setNumHGridLines(s.nHGridLines);
-	setNumVGridLines(s.nVGridLines);
-	gridLineStipplePattern = s.gridLineStipplePattern;
-	setGlyphSize(s.glyphSize);
-	selx1 = s.selx1;
-	selx2 = s.selx2;
-	sely1 = s.sely1;
-	sely2 = s.sely2;
-	hasSelection = s.hasSelection;
-	setObjectName(s.objectName);
-	if (auto_update) updateGL();
-	else need_update = true;
+	if (s < 0 || s >= N_Sel) return false;
+	return hasSelection[s] && selx2[s] >= /*min_x*/0.0 && selx1[s] <= /*max_x*/1.0 && sely2[s] >= 0. && sely1[s] <= 1.;	
 }
 
 void GLSpatialVis::setBGColor(QColor c)
@@ -441,3 +446,36 @@ void GLSpatialVis::setGridColor(QColor c)
 	if (auto_update) updateGL();
 	else need_update = true;
 }
+
+QVector<unsigned> GLSpatialVis::selectAllGlyphsIntersectingRect(Vec2 corner1, Vec2 corner2, Sel s, Vec2 margin) 
+{
+	if (corner1.x > corner2.x) { double t = corner1.x; corner1.x = corner2.x; corner2.x = t; }
+	if (corner1.y > corner2.y) { double t = corner1.y; corner1.y = corner2.y; corner2.y = t; }
+	double left(999.), right(-1), top(-1), bottom(999.);
+	QVector<unsigned> ret;
+	ret.reserve(pointsBuf.size());
+	// at this point corner1 is bottom left, corner 2 is top right
+	for (int i = 0; i < pointsBuf.size(); ++i) {
+		const Vec2 & p (pointsBuf[i]);
+		double w = width(), h = height();
+		double l = p.x - (glyph_size.x/2.f)/w, r = p.x + (glyph_size.x/2.f)/w, 
+		       b = p.y - (glyph_size.y/2.f)/h, t = p.y + (glyph_size.y/2.f)/h;
+		if (   (l > corner2.x || r < corner1.x) // test if one rect is to left of other
+			|| (t < corner1.y || b > corner2.y) // test if one rect is above other
+			) continue;
+		if (l < left) left = l;
+		if (r > right) right = r;
+		if (t > top) top = t;
+		if (b < bottom) bottom = b;
+		ret.push_back(i);
+	}
+	if (ret.size()) {
+		setSelectionRange(left-margin.x,right+margin.x,bottom-margin.y,top+margin.y,s);
+		setSelectionEnabled(true,s);
+	} else {
+		setSelectionRange(0,0,0,0,s);
+		setSelectionEnabled(false,s);
+	}
+	return ret;
+}
+

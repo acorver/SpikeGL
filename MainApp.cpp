@@ -302,7 +302,7 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
 	if (type == QEvent::Close) {
 		FileViewerWindow *fvw = 0;
 		
-		if (watched == graphsWindow || (spatialWindow && watched == spatialWindow)) {
+		if (watched == graphsWindow) {
 			// request to close the graphsWindow.. this stops the acq -- ask the user to confirm.. do this after this event handler runs, so enqueue it with a timer
 			QTimer::singleShot(1, this, SLOT(maybeCloseCurrentIfRunning()));
 			event->ignore();

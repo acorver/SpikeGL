@@ -39,14 +39,23 @@ private slots:
 	
     void mouseOverGraph(double x, double y);
     void mouseClickGraph(double x, double y);
+    void mouseReleaseGraph(double x, double y);
     void mouseDoubleClickGraph(double x, double y);
     void updateMouseOver(); // called periodically every 1s
+	void updateToolBar();
+	void colorButPressed();
 	
 private:	
 	int pos2ChanId(double x, double y) const;
 	Vec2 chanId2Pos(const int chanid) const;
 	void updateGlyphSize();
-
+	bool selStarted() const;
+	void selClear();
+	
+	void saveSettings();
+	void loadSettings();
+	Vec2 glyphMargins01Coords() const;
+	
     DAQ::Params & params;
 	const int nvai, nextra;
 	int nx, ny;
@@ -58,6 +67,11 @@ private:
 	QColor fg, fg2;
 	QLabel *statusLabel;
 	int mouseOverChan;
+	Vec2 selClick;
+	QVector<unsigned> selIdxs;
+	
+	QToolBar *toolBar;
+	QPushButton *colorBut;
 };
 
 

@@ -7,25 +7,14 @@
 #include <QVariant>
 
 #include "Vec.h"
-//#include "VecWrapBuffer.h"
-
-
-struct GLSpatialVisState
-{
-    QColor bg_Color, grid_Color;
-    unsigned nHGridLines, nVGridLines;
-    unsigned short gridLineStipplePattern;
-	Vec2f glyphSize;
-	double selx1, selx2, sely1, sely2;
-	bool hasSelection;	
-	QString objectName;
-};
-
 
 class GLSpatialVis : public QGLWidget
 {
     Q_OBJECT
 public:
+	
+	enum Sel { Box = 0, Outline = 1, N_Sel };
+	
     GLSpatialVis(QWidget *parent = 0);
     virtual ~GLSpatialVis();
 
@@ -59,14 +48,13 @@ public:
 
     bool needsUpdateGL() const { return need_update; }
 	
-	void setSelectionRange(double begin_x, double end_x, double begin_y, double end_y);
-	void setSelectionEnabled(bool onoff);
-	bool isSelectionEnabled() const { return hasSelection; }
-	bool isSelectionVisible() const;
-
-	GLSpatialVisState getState() const;
-	void setState(const GLSpatialVisState & state);
+	void setSelectionRange(double begin_x, double end_x, double begin_y, double end_y, Sel = Box);
+	void setSelectionEnabled(bool onoff, Sel = Box);
+	bool isSelectionEnabled(Sel s = Box) const { return hasSelection[s]; }
+	bool isSelectionVisible(Sel = Box) const;
 	
+	QVector<unsigned> selectAllGlyphsIntersectingRect(Vec2 corner1, Vec2 corner2, Sel = Box, Vec2 margin = Vec2());
+
 signals:    
 	/// like cursorOver(), except emitted x,y units are in window coordinates, not graph coordinates
 	void cursorOverWindowCoords(int x, int y);
@@ -103,19 +91,20 @@ private:
 	void updateVertexBuf();
 
     QColor bg_Color, grid_Color;
+	QColor sel_Color[N_Sel];
 	double point_size;
 	Vec2f glyph_size;
 	GlyphType glyph;
     unsigned nHGridLines, nVGridLines;
     unsigned short gridLineStipplePattern;
-    QVector<Vec2> pointsDisplayBuf;
-	QVector<Vec4f> colorsDisplayBuf;
+    QVector<Vec2> pointsBuf;
+	QVector<Vec4f> colorsBuf;
 	QVector<Vec2f> vbuf;///< scratch buff for vertices in squares mode, mostly
 	QVector<Vec4f> cbuf; 
     std::vector<Vec2> gridVs, gridHs;
     bool auto_update, need_update;
-	double selx1,selx2,sely1,sely2;
-	bool hasSelection;
+	double selx1[N_Sel],selx2[N_Sel],sely1[N_Sel],sely2[N_Sel];
+	bool hasSelection[N_Sel];
 };
 
 #endif
