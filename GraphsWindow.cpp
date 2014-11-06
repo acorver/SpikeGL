@@ -26,6 +26,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QTabWidget>
+#include <string.h>
 #include "MainApp.h"
 #include "HPFilter.h"
 #include "QLed.h"
@@ -35,9 +36,10 @@
 #include "window_fullscreen.xpm"
 #include "window_nofullscreen.xpm"
 #include "apply_all.xpm"
+#include "multiple_graphs.xpm"
 //#include "fastsettle.xpm"
 
-static const QIcon *playIcon(0), *pauseIcon(0), *windowFullScreenIcon(0), *windowNoFullScreenIcon(0), *applyAllIcon(0);
+static const QIcon *playIcon(0), *pauseIcon(0), *windowFullScreenIcon(0), *windowNoFullScreenIcon(0), *applyAllIcon(0), *hasSelectedGraphsIcon(0);
 
 static const QColor AuxGraphBGColor(0xa6, 0x69,0x3c, 0xff),
                     NormalGraphBGColor(0x2f, 0x4f, 0x4f, 0xff);
@@ -59,6 +61,9 @@ static void initIcons()
     if (!applyAllIcon) {
         applyAllIcon = new QIcon(apply_all_xpm);
     }
+	if (!hasSelectedGraphsIcon) {
+		hasSelectedGraphsIcon = new QIcon(multiple_graphs_xpm);
+	}
 }
 
 GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
@@ -300,9 +305,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 			}
 		}
 		tabWidget->addTab(graphsWidget, QString("Elec. %1-%2").arg(first_graph_num).arg(last_graph_num));
-
 	}
-		
+	
     selectedGraph = 0;
     lastMouseOverGraph = -1;;
 
@@ -1175,6 +1179,9 @@ void GraphsWindow::saveGraphSettings()
 void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
 {
 	//Debug() << "GraphsWindow::highlightGraphsById called with " << ids.size() << " ids...";
+	QVarLengthArray<unsigned char> tabsWithHighlights(tabWidget->count());
+	memset(tabsWithHighlights.data(), 0, tabsWithHighlights.size());
+	
 	QVector<unsigned>::const_iterator it = ids.begin();
 	int last = -1;
 	for (int i = 0; i < (int)graphs.size(); ++i) {
@@ -1184,11 +1191,21 @@ void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
 			if (last >= int(*it) || int(*it) >= graphs.size()) {
 				Error() << "INTERNAL ERROR IN GraphsWindow::highlightGraphsById -- expected ids to be unique, sorted, and only contain valid ids!";
 			}
-			if (highlighted) last = *it, ++it;
+			if (highlighted) {
+				last = *it, ++it;
+				tabsWithHighlights[ i / NUM_GRAPHS_PER_GRAPH_TAB ] = 1;
+			}
 		}
 		graphStates[i].highlighted = highlighted;
 		if (graphs[i]) 
 			graphs[i]->setHighlighted(highlighted);
+	}
+	
+	for (int i = 0; i < tabsWithHighlights.count(); ++i) {
+		if (tabsWithHighlights[i] && hasSelectedGraphsIcon)
+			tabWidget->setTabIcon(i, *hasSelectedGraphsIcon);
+		else
+			tabWidget->setTabIcon(i, QIcon());
 	}
 }
 
