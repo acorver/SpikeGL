@@ -22,6 +22,9 @@ class HPFilter;
 class QLed;
 class QPushButton;
 class QTabWidget;
+class QTimer;
+class QStackedWidget;
+class QComboBox;
 
 class GraphsWindow : public QMainWindow
 {
@@ -79,6 +82,8 @@ private slots:
 
 	void saveFileLineEditChanged(const QString & newtext);
 	
+	void updateTabsWithHighlights();
+	
 private:
     void setGraphTimeSecs(int graphnum, double t); // note you should call update_nPtsAllGs after this!  (Not auto-called in this function just in case of batch setGraphTimeSecs() in which case 1 call at end to update_nPtsAllGs() suffices.)
     void update_nPtsAllGs();
@@ -109,6 +114,7 @@ private:
 	
     DAQ::Params & params;
 	QTabWidget *tabWidget;
+	QStackedWidget *stackedWidget; QComboBox *stackedCombo;
     QVector<QWidget *> graphTabs;
     QToolBar *graphCtls;
     QPushButton *chanBut;
@@ -150,6 +156,7 @@ private:
 	bool suppressRecursive;
 	QVector <int> sorting, naming;
 	QSet<GLGraph *> extraGraphs;
+	QTimer *tabHighlightTimer;
 };
 
 

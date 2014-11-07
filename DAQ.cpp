@@ -67,6 +67,12 @@ namespace DAQ
         r.min = -5.;
         r.max = 5.;
         ret.insert("Dev1", r);
+        r.min = -2.5;
+        r.max = 2.5;
+        ret.insert("Dev2", r);
+        r.min = -5.;
+        r.max = 5.;
+        ret.insert("Dev2", r);
 #endif
         return ret;
     }
@@ -96,6 +102,12 @@ namespace DAQ
         r.min = -5.;
         r.max = 5.;
         ret.insert("Dev1", r);
+        r.min = -2.5;
+        r.max = 2.5;
+        ret.insert("Dev2", r);
+        r.min = -5.;
+        r.max = 5.;
+        ret.insert("Dev2", r);
 #endif
         return ret;
     }
@@ -183,6 +195,11 @@ namespace DAQ
                 ret.push_back(QString("%1/ai%2").arg(devname).arg(i));
             }
         }
+        if (devname == "Dev2") { // new "massive-channel" dev 2, for testing..
+            for (int i = 0; i < 4096; ++i) {
+                ret.push_back(QString("%1/ai%2").arg(devname).arg(i));
+            }
+        }
         return ret;
 #endif
     }
@@ -193,7 +210,7 @@ namespace DAQ
         return GetPhysChans(devname, DAQmxGetDevAOPhysicalChans, "DAQmxGetDevAOPhysicalChans");
 #else // !HAVE_NIDAQmx, emulated, 2 chans
         QStringList ret;
-        if (devname == "Dev1") {
+        if (devname == "Dev1" || devname == "Dev2") {
             for (int i = 0; i < 2; ++i) {
                 ret.push_back(QString("%1/ao%2").arg(devname).arg(i));
             }
@@ -280,7 +297,7 @@ namespace DAQ
         return buf;
 #else
         (void)dev;
-        return "FakeDAQ";
+        return dev == "Dev2" ? "FakeDAQMassiveTest" : "FakeDAQ";
 #endif
     }
     
@@ -378,6 +395,7 @@ namespace DAQ
         std::vector<int16> data;
         const double onePd = int(params.srate/double(computeTaskReadFreq(params.srate)));
         while (!pleaseStop) {
+			double ts = getTime();
             data.resize(unsigned(params.nVAIChans*onePd));
             qint64 nread = f.read((char *)&data[0], data.size()*sizeof(int16));
             if (nread != data.size()*sizeof(int16)) {
@@ -392,7 +410,11 @@ namespace DAQ
                 totalRead += nread;
                 totalReadMut.unlock();
             }
-            usleep(int((1e6/params.srate)*onePd));
+			int sleeptime = int((1e6/params.srate)*onePd) - (getTime()-ts)*1e6;
+			if (sleeptime > 0) 
+				usleep(sleeptime);
+			else
+				Warning() << "FakeDAQ Task::daqThr(). sleeptime (" << sleeptime << ") is less than 0!";
         }
     }
 

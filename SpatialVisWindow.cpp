@@ -103,6 +103,8 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, QWidget * parent)
 	
 	loadSettings();
 	updateToolBar();
+	
+	graph->setAutoUpdate(false);
 }
 
 void SpatialVisWindow::resizeEvent (QResizeEvent * event)
@@ -136,7 +138,7 @@ void SpatialVisWindow::putScans(const std::vector<int16> & scans, u64 firstSamp)
 		colors[chanid].z = color.blueF()*val;
 		colors[chanid].w = color.alphaF();
 	}
-	updateGraph();
+//	updateGraph();
 }
 
 SpatialVisWindow::~SpatialVisWindow()
@@ -150,6 +152,8 @@ void SpatialVisWindow::updateGraph()
 	if (!graph) return;
 	updateGlyphSize();
 	graph->setColors(colors);
+	if (graph->needsUpdateGL())
+		graph->updateGL();
 }
 
 bool SpatialVisWindow::selStarted() const
@@ -178,8 +182,12 @@ void SpatialVisWindow::mouseOverGraph(double x, double y)
 	if (selStarted()) {
 		graph->setSelectionRange(selClick.x, x, selClick.y, y, GLSpatialVis::Outline);
 		graph->setSelectionEnabled(true, GLSpatialVis::Outline);
+		const QVector<unsigned>oldIdxs (selIdxs);
 		selIdxs = graph->selectAllGlyphsIntersectingRect(Vec2(selClick.x,selClick.y),Vec2(x,y),GLSpatialVis::Box,glyphMargins01Coords());
-		emit channelsSelected(selIdxs);
+		bool changed = oldIdxs.size() != selIdxs.size();
+		for (int i = 0; !changed && i < selIdxs.size(); ++i)
+			changed = selIdxs[i] != oldIdxs[i];
+		if (changed) emit channelsSelected(selIdxs);
 	}
 }
 
@@ -188,9 +196,11 @@ void SpatialVisWindow::mouseClickGraph(double x, double y)
 	int chanId = pos2ChanId(x,y);
 	if (chanId < 0 || chanId >= (int)params.nVAIChans) statusLabel->setText("");  
 	else statusLabel->setText(QString("Mouse click %1,%2 -> %3").arg(x).arg(y).arg(chanId));
+	const QVector<unsigned> oldIdxs(selIdxs);
 	selClear();
 	selClick = Vec2(x,y);
-	emit channelsSelected(selIdxs);
+	if (oldIdxs.size())
+		emit channelsSelected(selIdxs);
 }
 
 
@@ -198,13 +208,17 @@ void SpatialVisWindow::mouseReleaseGraph(double x, double y)
 {
 	bool hasSel = selStarted() && !feq(selClick.x,x,0.01) && !feq(selClick.y,y,0.01);
 	Vec2 sclk = selClick;
+	const QVector<unsigned>oldIdxs (selIdxs);
 	selClear();
 	if (hasSel) {
 		// update/grow selection here to include all squares that it crosses...	
 		selIdxs = graph->selectAllGlyphsIntersectingRect(Vec2(sclk.x,sclk.y),Vec2(x,y),GLSpatialVis::Box,glyphMargins01Coords());
 		selIdxs = graph->selectAllGlyphsIntersectingRect(Vec2(sclk.x,sclk.y),Vec2(x,y),GLSpatialVis::Outline,glyphMargins01Coords());
 	}
-	emit channelsSelected(selIdxs);
+	bool changed = oldIdxs.size() != selIdxs.size();
+	for (int i = 0; !changed && i < selIdxs.size(); ++i)
+		changed = selIdxs[i] != oldIdxs[i];
+	if (changed) emit channelsSelected(selIdxs);
 }
 
 void SpatialVisWindow::mouseDoubleClickGraph(double x, double y)
@@ -228,7 +242,7 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 	if (selIdxs.size()) {
 		QString t = statusLabel->text();
 		if (t.length()) t = QString("(mouse at: %1)").arg(t);
-		statusLabel->setText(QString("Selection: %1 channels, hit ENTER to open bottom-left of selection. %2").arg(selIdxs.size()).arg(t));
+		statusLabel->setText(QString("Selection: %1 channels, hit ENTER to page to first graph of selection. %2").arg(selIdxs.size()).arg(t));
 	}
 }
 

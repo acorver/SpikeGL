@@ -26,6 +26,8 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QTabWidget>
+#include <QStackedWidget>
+#include <QComboBox>
 #include <string.h>
 #include "MainApp.h"
 #include "HPFilter.h"
@@ -131,18 +133,35 @@ int GraphsWindow::getNumGraphsPerGraphTab() const
 
 void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 {    
+	tabHighlightTimer = 0;
+	stackedWidget = 0;
+	tabWidget = 0;
+	stackedCombo = 0;
     initIcons();
 	SetupNumGraphsPerGraphTab();
     NUM_GRAPHS_PER_GRAPH_TAB = getNumGraphsPerGraphTab();
 	const int nGraphTabs ( (p.nVAIChans / NUM_GRAPHS_PER_GRAPH_TAB) + ((p.nVAIChans % NUM_GRAPHS_PER_GRAPH_TAB) ? 1 : 0));
 	graphTabs.resize(nGraphTabs);
-	tabWidget = new QTabWidget(this);
-	tabWidget->setTabPosition(nGraphTabs > 8 ? QTabWidget::East : QTabWidget::North);
-	tabWidget->setElideMode(Qt::ElideLeft);
-	setCentralWidget(tabWidget);
+	if (nGraphTabs <= 8) {
+		tabWidget = new QTabWidget(this);
+		tabWidget->setTabPosition(QTabWidget::North);
+		tabWidget->setElideMode(Qt::ElideLeft);
+		Connect(tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabChange(int)));
+		setCentralWidget(tabWidget);
+	} else {
+		QWidget *w = new QWidget(this);
+		QVBoxLayout *l = new QVBoxLayout(w);
+		stackedCombo = new QComboBox(w);
+		l->addWidget(stackedCombo,0,Qt::AlignLeft);
+		stackedWidget = new QStackedWidget(w);
+		l->addWidget(stackedWidget,10);
+		w->setLayout(l);
+		Connect(stackedWidget, SIGNAL(currentChanged(int)), this, SLOT(tabChange(int)));
+		Connect(stackedCombo, SIGNAL(activated(int)), stackedWidget, SLOT(setCurrentIndex(int)));
+		setCentralWidget(w);
+	}
     statusBar();
     resize(1024,768);
-	Connect(tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabChange(int)));
     graphCtls = addToolBar("Graph Controls");
     graphCtls->addWidget(chanBut = new QPushButton("Sorting by Channel:", graphCtls));
 	chanBut->setToolTip("Click to toggle between sorting graphs by either electrode id or INTAN channel.");
@@ -304,7 +323,12 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 				setGraphTimeSecs(num, DEFAULT_GRAPH_TIME_SECS);
 			}
 		}
-		tabWidget->addTab(graphsWidget, QString("Elec. %1-%2").arg(first_graph_num).arg(last_graph_num));
+		if (tabWidget)
+			tabWidget->addTab(graphsWidget, QString("Elec. %1-%2").arg(first_graph_num).arg(last_graph_num));
+		else if (stackedWidget) {
+			stackedWidget->addWidget(graphsWidget);
+			stackedCombo->addItem(QString("Electrode %1-%2").arg(first_graph_num).arg(last_graph_num));
+		}
 	}
 	
     selectedGraph = 0;
@@ -737,36 +761,49 @@ void GraphsWindow::updateMouseOver()
 void GraphsWindow::toggleMaximize()
 {
     int num = selectedGraph;
+	QWidget *tabber = tabWidget ? (QWidget *)tabWidget : (QWidget *)stackedWidget;
     if (maximized && graphs[num] != maximized) {
         Warning() << "Maximize/unmaximize on a graph that isn't maximized when e have 1 graph maximized.. how is that possible?";
     } else if (maximized) { 
-        tabWidget->setHidden(true); // if we don't hide the parent, the below operation is slow and jerky
+        tabber->setHidden(true); // if we don't hide the parent, the below operation is slow and jerky
         // un-maximize
         for (int i = 0; i < (int)graphs.size(); ++i) {
             if (graphs[i] == maximized) continue;
             graphFrames[i]->setHidden(false);
             clearGraph(i); // clear previously-paused graph            
         }
-		int idx = tabWidget->currentIndex();
-		for (int i = 0; i < (int)tabWidget->count(); ++i)
+		int idx = tabWidget ? tabWidget->currentIndex() : stackedCombo->currentIndex();
+		for (int i = 0; tabWidget && i < (int)tabWidget->count(); ++i)
 			tabWidget->setTabEnabled(i, true);
-		tabWidget->setCurrentIndex(idx);
-        tabWidget->setHidden(false);
-        tabWidget->show(); // now show parent
+		if (stackedCombo) stackedCombo->setEnabled(true);
+		if (tabWidget)
+			tabWidget->setCurrentIndex(idx);
+		else {
+			stackedCombo->setCurrentIndex(idx);
+			stackedWidget->setCurrentIndex(idx);
+		}
+        tabber->setHidden(false);
+        tabber->show(); // now show parent
         maximized = 0;
     } else if (!maximized) {
-        tabWidget->setHidden(true); // if we don't hide the parent, the below operation is slow and jerky
+        tabber->setHidden(true); // if we don't hide the parent, the below operation is slow and jerky
         for (int i = 0; i < (int)graphs.size(); ++i) {
             if (num == i) continue;
             graphFrames[i]->setHidden(true);
         }
         maximized = graphs[num];
-		int idx = tabWidget->currentIndex();
-		for (int i = 0; i < (int)tabWidget->count(); ++i)
+		int idx = tabWidget ? tabWidget->currentIndex() : stackedCombo->currentIndex();
+		for (int i = 0; tabWidget && i < (int)tabWidget->count(); ++i)
 				tabWidget->setTabEnabled(i, tabWidget->currentIndex() == i);
-		tabWidget->setCurrentIndex(idx);
-        tabWidget->setHidden(false);
-        tabWidget->show(); // now show parent
+		if (stackedCombo) stackedCombo->setEnabled(false);
+		if (tabWidget)
+			tabWidget->setCurrentIndex(idx);
+		else {
+			stackedCombo->setCurrentIndex(idx);
+			stackedWidget->setCurrentIndex(idx);
+		}
+        tabber->setHidden(false);
+        tabber->show(); // now show parent
     }
     updateGraphCtls();
 }
@@ -957,9 +994,14 @@ void GraphsWindow::retileGraphsAccordingToSorting() {
 
 			}
 		}
-		tabWidget->setTabText(i, QString("Elec. %1-%2").arg(first_graph_num).arg(last_graph_num));
+		QString tabText = QString("Elec. %1-%2").arg(first_graph_num).arg(last_graph_num);
+		if (tabWidget)
+			tabWidget->setTabText(i, tabText);
+		else if (stackedWidget) {
+			stackedCombo->setItemText(i, tabText);
+		}
 	}
-	tabChange(tabWidget->currentIndex());
+	tabChange(tabWidget ? tabWidget->currentIndex() : stackedCombo->currentIndex());
 	delete dummy;
 }
 
@@ -1020,9 +1062,11 @@ void GraphsWindow::tabChange(int t)
 			graphs[i] = 0;
 		}
 	}
+	int firstGraph = -1;
 	// next, swap the graph widgets to their new frames and set their states..
 	for (int i = t*NUM_GRAPHS_PER_GRAPH_TAB; !extraGraphs.isEmpty() && i < N_G; ++i) {
 		int graphId = sorting[i];
+		if (firstGraph < 0) firstGraph = graphId;
 		QFrame *f = graphFrames[graphId];
 		QList<GLGraph *> gl = f->findChildren<GLGraph *>();
 		// here, sometimes, the destination graph frames had a graph already.  
@@ -1050,6 +1094,8 @@ void GraphsWindow::tabChange(int t)
 	}
 	for (int i = 0; i < N_G; ++i) if (graphs[i]) graphs[i]->setUpdatesEnabled(true);
 	setUpdatesEnabled(true);
+	if (selectedGraph < firstGraph || selectedGraph >= firstGraph+NUM_GRAPHS_PER_GRAPH_TAB)
+		selectGraph(firstGraph); // force first graph to be selected!
 	//retileGraphsAccordingToSorting();
 }
 
@@ -1176,11 +1222,35 @@ void GraphsWindow::saveGraphSettings()
 	settings.endGroup();
 }
 
+
+void GraphsWindow::updateTabsWithHighlights()
+{
+	QVarLengthArray<unsigned char> tabsWithHighlights(tabWidget ? tabWidget->count() : stackedWidget->count());
+	memset(tabsWithHighlights.data(), 0, tabsWithHighlights.size());
+	for (int i = 0; i < (int)graphs.size(); ++i) {
+		bool highlighted = graphStates[i].highlighted;
+		if (graphs[i]) highlighted = graphStates[i].highlighted;
+		if (highlighted) tabsWithHighlights[i / NUM_GRAPHS_PER_GRAPH_TAB] = 1;
+	}
+	/* NB: this is SLOWWWWW for tabWidget.. for high channel counts hopefully using the combo box method instead!!*/
+	for (int i = 0; i < tabsWithHighlights.count(); ++i) {
+		if (tabWidget) {
+			if (tabsWithHighlights[i] && hasSelectedGraphsIcon)
+				tabWidget->setTabIcon(i, *hasSelectedGraphsIcon);
+			else
+				tabWidget->setTabIcon(i, QIcon());
+		} else if (stackedWidget && stackedCombo) {
+			if (tabsWithHighlights[i] && hasSelectedGraphsIcon)
+				stackedCombo->setItemIcon(i, *hasSelectedGraphsIcon);
+			else
+				stackedCombo->setItemIcon(i, QIcon());			
+		}
+	}
+}
+
 void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
 {
 	//Debug() << "GraphsWindow::highlightGraphsById called with " << ids.size() << " ids...";
-	QVarLengthArray<unsigned char> tabsWithHighlights(tabWidget->count());
-	memset(tabsWithHighlights.data(), 0, tabsWithHighlights.size());
 	
 	QVector<unsigned>::const_iterator it = ids.begin();
 	int last = -1;
@@ -1193,19 +1263,18 @@ void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
 			}
 			if (highlighted) {
 				last = *it, ++it;
-				tabsWithHighlights[ i / NUM_GRAPHS_PER_GRAPH_TAB ] = 1;
 			}
 		}
 		graphStates[i].highlighted = highlighted;
 		if (graphs[i]) 
 			graphs[i]->setHighlighted(highlighted);
 	}
-	
-	for (int i = 0; i < tabsWithHighlights.count(); ++i) {
-		if (tabsWithHighlights[i] && hasSelectedGraphsIcon)
-			tabWidget->setTabIcon(i, *hasSelectedGraphsIcon);
-		else
-			tabWidget->setTabIcon(i, QIcon());
+	if (!tabHighlightTimer) tabHighlightTimer = new QTimer(this); 
+	if (!tabHighlightTimer->isActive()) {
+		Connect(tabHighlightTimer, SIGNAL(timeout()), this, SLOT(updateTabsWithHighlights()));
+		tabHighlightTimer->setInterval(250);
+		tabHighlightTimer->setSingleShot(true);
+		tabHighlightTimer->start();
 	}
 }
 
@@ -1216,7 +1285,8 @@ void GraphsWindow::openGraphsById(const QVector<unsigned> & ids) ///< really jus
 		unsigned id = ids[0];
 		if (id < unsigned(graphs.size())) {
 			unsigned tab = id / NUM_GRAPHS_PER_GRAPH_TAB;
-			tabWidget->setCurrentIndex(tab);
+			if (tabWidget) tabWidget->setCurrentIndex(tab);
+			else if (stackedCombo) { stackedCombo->setCurrentIndex(tab); stackedWidget->setCurrentIndex(tab); }
 			selectGraph(id);
 			show();
 			raise();
