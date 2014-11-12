@@ -44,7 +44,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 		
 	nGraphsPerBlock = blockDims.x * blockDims.y;
 	nblks = (nvai / nGraphsPerBlock) + (nvai%nGraphsPerBlock?1:0);
-    nbx = roundf(sqrtf(static_cast<float>(nblks))), nby = 0;
+    nbx = floor(sqrtf(static_cast<float>(nblks))+0.5), nby = 0;
 	if (nbx <= 0) nbx = 1;
 	while (nbx*nby < nblks) ++nby;
 	
