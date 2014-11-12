@@ -1287,6 +1287,7 @@ void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
 	}
 	*/
 	if (ids.size()) {
+		if (maximized) toggleMaximize();
 		int page = ids[0]/NUM_GRAPHS_PER_GRAPH_TAB;
 		if (tabWidget) { tabWidget->setCurrentIndex(page); }
 		else if (stackedCombo) { stackedCombo->setCurrentIndex(page); stackedWidget->setCurrentIndex(page); }
@@ -1298,6 +1299,7 @@ void GraphsWindow::openGraphsById(const QVector<unsigned> & ids) ///< really jus
 {
 	//Debug() << "GraphsWindow::openGraphsById called with " << ids.size() << " ids...";	
 	if (ids.size()) {
+		if (maximized) toggleMaximize();
 		unsigned id = ids[0];
 		if (id < unsigned(graphs.size())) {
 			unsigned tab = id / NUM_GRAPHS_PER_GRAPH_TAB;
