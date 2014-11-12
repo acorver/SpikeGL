@@ -15,9 +15,10 @@
 #include <QKeyEvent>
 
 #define SETTINGS_GROUP "SpatialVisWindow Settings"
-#define GlyphShrink 0.925
+#define GlyphShrink 0.9725
+#define BlockShrink 0.970
 
-SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, QWidget * parent)
+SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims, QWidget * parent)
 : QMainWindow(parent), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2), 
   graph(0), graphFrame(0), mouseOverChan(-1)
 {
@@ -40,10 +41,16 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, QWidget * parent)
 	toolBar->addSeparator();
 	
 	Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
+		
+	nGraphsPerBlock = blockDims.x * blockDims.y;
+	nblks = (nvai / nGraphsPerBlock) + (nvai%nGraphsPerBlock?1:0);
+    nbx = roundf(sqrtf(static_cast<float>(nblks))), nby = 0;
+	if (nbx <= 0) nbx = 1;
+	while (nbx*nby < nblks) ++nby;
 	
-    nx = sqrtf(static_cast<float>(nvai)), ny = nx;
-	if (nx <= 0) nx = 1;
-	while (nx*ny < nvai) ++ny;	
+	blocknx = blockDims.x;
+	blockny = blockDims.y;
+	//Debug() << " nvai=" << nvai << " nGraphsPerBlock=" << nGraphsPerBlock << " nblks=" << nblks << " nbx=" << nbx << " nby=" << nby << " blkdims=" << blocknx << "," << blockny;
 	
 	points.resize(nvai);
 	colors.resize(nvai);
@@ -61,8 +68,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, QWidget * parent)
 	bl->addWidget(graph,1);	
 	setCentralWidget(graphFrame);
 
-	if ((int)graph->numVGridLines() != nx) graph->setNumVGridLines(nx);
-	if ((int)graph->numHGridLines() != ny) graph->setNumHGridLines(ny);
+	setupGridlines();
 	
 	fg = QColor(0x87, 0xce, 0xfa, 0x7f);
 	fg2 = QColor(0xfa, 0x87, 0x37, 0x7f);
@@ -107,6 +113,12 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, QWidget * parent)
 	graph->setAutoUpdate(false);
 }
 
+void SpatialVisWindow::setupGridlines()
+{
+	graph->setNumVGridLines(nbx);
+	graph->setNumHGridLines(nby);
+}
+
 void SpatialVisWindow::resizeEvent (QResizeEvent * event)
 {
 	updateGlyphSize();
@@ -116,7 +128,10 @@ void SpatialVisWindow::resizeEvent (QResizeEvent * event)
 void SpatialVisWindow::updateGlyphSize()
 {
 	if (!graph) return;
-	int szx = graph->width() / nx, szy = graph->height() / ny;
+	Vec4 br = blockBoundingRect(0);
+	Vec2 bs = Vec2(br.v3-br.v1, br.v2-br.v4);
+	int szx = bs.x/blocknx * graph->width();
+	int szy = bs.y/blockny * graph->height();
 	szx *= GlyphShrink, szy *= GlyphShrink;
 	if (szx < 1) szx = 1;
 	if (szy < 1) szy = 1;
@@ -155,7 +170,7 @@ void SpatialVisWindow::updateGraph()
 	if (graph->needsUpdateGL())
 		graph->updateGL();
 }
-
+/*
 bool SpatialVisWindow::selStarted() const
 {
 	return selClick.x > -.009 && selClick.y > -.009;
@@ -245,20 +260,142 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 		statusLabel->setText(QString("Selection: %1 channels, hit ENTER to page to first graph of selection. %2").arg(selIdxs.size()).arg(t));
 	}
 }
+*/
+
+void SpatialVisWindow::selClear() { 
+	selIdxs.clear(); 	
+}
+
+void SpatialVisWindow::mouseOverGraph(double x, double y)
+{
+	mouseOverChan = -1;
+	int chanId = pos2ChanId(x,y);
+	if (chanId < 0 || chanId >= (int)params.nVAIChans) 
+		mouseOverChan = -1;
+	else
+		mouseOverChan = chanId;
+	updateMouseOver();
+}
+
+void SpatialVisWindow::selectBlock(int blk)
+{
+	const QVector<unsigned> oldIdxs(selIdxs);
+	selClear();
+	Vec4 r = blockBoundingRectNoMargins(blk);
+	selIdxs.reserve(nGraphsPerBlock);
+	for (int i = 0, ch = 0; i < nGraphsPerBlock && ((ch=i + blk*nGraphsPerBlock) < nvai); ++i) {
+		selIdxs.push_back(ch);
+	}
+	if (blk >= 0 && blk < nblks) {
+		graph->setSelectionRange(r.v1,r.v3,r.v2,r.v4, GLSpatialVis::Outline);
+		graph->setSelectionEnabled(true, GLSpatialVis::Outline);
+	} else {
+		// not normally reached unless we have "blank" blocks at the end.....
+		graph->setSelectionEnabled(false, GLSpatialVis::Outline);
+	}
+	if (oldIdxs.size() != selIdxs.size() 
+		|| (oldIdxs.size() && selIdxs.size() && oldIdxs[0] != selIdxs[0]))
+		emit channelsSelected(selIdxs);	
+}
+
+void SpatialVisWindow::mouseClickGraph(double x, double y)
+{
+	int chanId = pos2ChanId(x,y);
+	int blk = chanId / nGraphsPerBlock;
+	selectBlock(blk);
+	emit channelsSelected(selIdxs);
+}
+
+
+void SpatialVisWindow::mouseReleaseGraph(double x, double y)
+{ 
+	(void)x; (void)y;
+}
+
+void SpatialVisWindow::mouseDoubleClickGraph(double x, double y)
+{
+	(void)x; (void)y;
+	emit channelsOpened(selIdxs);
+}
+
+void SpatialVisWindow::updateMouseOver() // called periodically every 1s
+{
+	if (!statusLabel) return;
+	const int chanId = mouseOverChan;
+	if (chanId < 0 || chanId >= chanVolts.size()) 
+		statusLabel->setText("");
+	else
+		statusLabel->setText(QString("Chan: #%3 -- Volts: %4 V")
+							 .arg(chanId)
+							 .arg(chanId < (int)chanVolts.size() ? chanVolts[chanId] : 0.0));
+	
+	if (selIdxs.size()) {
+		QString t = statusLabel->text();
+		if (t.length()) t = QString("(mouse at: %1)").arg(t);
+		statusLabel->setText(QString("Selected: %1/%3 channels. %2").arg(selIdxs.size()).arg(t).arg(nvai));
+	}
+}
+
+Vec4 SpatialVisWindow::blockBoundingRectNoMargins(int blk) const
+{
+	Vec4 ret;
+	// top left
+	ret.v1 = (1.0/nbx) * (blk % nbx);
+	ret.v2 = 1.0 - (1.0/nby) * (blk / nbx);
+	// bottom right
+	ret.v3 = ret.v1 + (1.0/nbx);
+	ret.v4 = ret.v2 - (1.0/nby);
+	return ret;
+}
+
+
+Vec2 SpatialVisWindow::blockMargins() const 
+{
+	return Vec2(1.0/nbx - (1.0/nbx * BlockShrink), 1.0/nby - (1.0/nby * BlockShrink)); 
+}
+
+Vec4 SpatialVisWindow::blockBoundingRect(int blk) const
+{
+	Vec4 ret (blockBoundingRectNoMargins(blk));
+	Vec2 blkmrg(blockMargins());
+	ret.v1+=blkmrg.x;
+	ret.v3-=blkmrg.x;
+	ret.v2-=blkmrg.y;
+	ret.v4+=blkmrg.y;
+	return ret;
+}
 
 Vec2 SpatialVisWindow::chanId2Pos(const int chanid) const
 {
-	Vec2 ret;
+/*	Vec2 ret;
 	const int col = chanid % nx, row = chanid / nx;
 	ret.x = (col/double(nx)) + (1./(nx*2.));
 	ret.y = (row/double(ny)) + (1./(ny*2.));
-	return ret;
+	return ret;*/
+	const int blk = chanid / nGraphsPerBlock;
+	Vec4 r(blockBoundingRect(blk));
+	int ch = chanid % nGraphsPerBlock;
+	const int col = ch % blocknx, row = ch / blocknx;
+	double cellw = (r.v3-r.v1)/blocknx, cellh = (r.v2-r.v4)/blockny; 
+	return Vec2(
+				r.v1 + ((cellw * col) + cellw/2.0),
+		        r.v4 + ((cellh * (blockny-row)) - cellh/2.0) 
+		);
 }
 
 int SpatialVisWindow::pos2ChanId(double x, double y) const
 {
-	int col = x*nx, row = y*ny;
+/*	int col = x*nx, row = y*ny;
 	return col + row*nx;
+*/
+	
+	int blkcol = x*nbx, blkrow = (1.0-y)*nby;
+	int blk = (blkrow * nbx) + blkcol;
+	Vec4 r(blockBoundingRect(blk));
+	Vec2 offset(x-r.v1, r.v2-y); // transformed for 0,0 is top left
+	double cellw = (r.v3-r.v1)/blocknx, cellh = (r.v2-r.v4)/blockny; 
+	int col = (offset.x/cellw), row = (offset.y/cellh);
+	return blk*nGraphsPerBlock + (row*blocknx + col);
 }
 
 void SpatialVisWindow::updateToolBar()

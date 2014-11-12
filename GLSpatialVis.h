@@ -54,7 +54,7 @@ public:
 	bool isSelectionVisible(Sel = Box) const;
 	
 	QVector<unsigned> selectAllGlyphsIntersectingRect(Vec2 corner1, Vec2 corner2, Sel = Box, Vec2 margin = Vec2());
-
+	
 signals:    
 	/// like cursorOver(), except emitted x,y units are in window coordinates, not graph coordinates
 	void cursorOverWindowCoords(int x, int y);

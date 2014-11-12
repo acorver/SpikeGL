@@ -755,7 +755,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	windowMenuAdd(graphsWindow);
 
 	// TESTING OF SPATIAL VISUALIZATION WINDOW -- REMOVE ME TO NOT USE SPATIAL VIS
-	spatialWindow = new SpatialVisWindow(params, 0);
+	spatialWindow = new SpatialVisWindow(params, Vec2(graphsWindow->numColsPerGraphTab(),graphsWindow->numRowsPerGraphTab()), 0);
 	spatialWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
 	spatialWindow->setWindowIcon(appIcon);
 	spatialWindow->installEventFilter(this);
@@ -763,6 +763,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     
 	Connect(spatialWindow, SIGNAL(channelsSelected(const QVector<unsigned> &)), graphsWindow, SLOT(highlightGraphsById(const QVector<unsigned> &)));
 	Connect(spatialWindow, SIGNAL(channelsOpened(const QVector<unsigned> &)), graphsWindow, SLOT(openGraphsById(const QVector<unsigned> &)));
+	Connect(graphsWindow, SIGNAL(tabChanged(int)), spatialWindow, SLOT(selectBlock(int)));
 
     if (!params.suppressGraphs) {
 		//spatialWindow->show();

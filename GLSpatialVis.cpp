@@ -222,7 +222,7 @@ void GLSpatialVis::drawSelection() const
 			glPolygonMode(GL_FRONT, GL_LINE);
 			// outline.. use normal alphas
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			glLineWidth(1.0f);
+			glLineWidth(2.0f);
 			unsigned short pat = 0xcccc;
 			int shift = static_cast<unsigned int>(Util::getTime() * 16.0) % 16;
 			pat = rol(pat,shift);

@@ -13,7 +13,6 @@
 
 class QToolBar;
 class QLabel;
-class PointProcThread;
 class QAction;
 class QFrame;
 class QDoubleSpinBox;
@@ -54,6 +53,14 @@ public:
 	void sortGraphsByElectrodeId();
 	void sortGraphsByIntan();
 	
+	int numGraphsPerTab() const { return NUM_GRAPHS_PER_GRAPH_TAB; }
+	int numGraphTabs() const { return nGraphTabs; }
+	int numColsPerGraphTab() const { return nColsGraphTab; }
+	int numRowsPerGraphTab() const { return nRowsGraphTab; }
+
+signals:
+	void tabChanged(int tabNum);
+
 public slots:
 	void highlightGraphsById(const QVector<unsigned> & electrode_ids);
 	void openGraphsById(const QVector<unsigned> & electrode_ids); ///< really just opens the first graph
@@ -109,7 +116,7 @@ private:
 	static void SetupNumGraphsPerGraphTab();
 
     int getNumGraphsPerGraphTab() const;
-    int NUM_GRAPHS_PER_GRAPH_TAB;
+    int NUM_GRAPHS_PER_GRAPH_TAB, nGraphTabs, nColsGraphTab, nRowsGraphTab;
 
 	
     DAQ::Params & params;

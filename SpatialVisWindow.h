@@ -21,11 +21,14 @@ class SpatialVisWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    SpatialVisWindow(DAQ::Params & params, QWidget *parent = 0);
+    SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims, QWidget *parent = 0);
     ~SpatialVisWindow();
 	
     void putScans(const std::vector<int16> & scans, u64 firstSamp);
 		
+public slots:
+	void selectBlock(int tabNum);
+
 signals:
 	void channelsSelected(const QVector<unsigned> & ids);
 	void channelsOpened(const QVector<unsigned> & ids);
@@ -50,9 +53,13 @@ private slots:
 private:	
 	int pos2ChanId(double x, double y) const;
 	Vec2 chanId2Pos(const int chanid) const;
+	Vec4 blockBoundingRect(int block) const;
+	Vec4 blockBoundingRectNoMargins(int block) const;
+	Vec2 blockMargins() const;
 	void updateGlyphSize();
-	bool selStarted() const;
 	void selClear();
+	
+	void setupGridlines();
 	
 	void saveSettings();
 	void loadSettings();
@@ -60,7 +67,7 @@ private:
 	
     DAQ::Params & params;
 	const int nvai, nextra;
-	int nx, ny;
+	int nblks, nbx, nby, nGraphsPerBlock, blocknx, blockny;
     QVector<Vec2> points;
     QVector<Vec4f> colors;
 	QVector<double> chanVolts;
@@ -69,7 +76,6 @@ private:
 	QColor fg, fg2;
 	QLabel *statusLabel;
 	int mouseOverChan;
-	Vec2 selClick;
 	QVector<unsigned> selIdxs;
 	
 	QToolBar *toolBar;

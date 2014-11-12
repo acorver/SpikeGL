@@ -140,7 +140,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     initIcons();
 	SetupNumGraphsPerGraphTab();
     NUM_GRAPHS_PER_GRAPH_TAB = getNumGraphsPerGraphTab();
-	const int nGraphTabs ( (p.nVAIChans / NUM_GRAPHS_PER_GRAPH_TAB) + ((p.nVAIChans % NUM_GRAPHS_PER_GRAPH_TAB) ? 1 : 0));
+	nGraphTabs = (p.nVAIChans / NUM_GRAPHS_PER_GRAPH_TAB) + ((p.nVAIChans % NUM_GRAPHS_PER_GRAPH_TAB) ? 1 : 0);
 	graphTabs.resize(nGraphTabs);
 	if (nGraphTabs <= 8) {
 		tabWidget = new QTabWidget(this);
@@ -263,6 +263,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     Connect(graphSecs, SIGNAL(valueChanged(double)), this, SLOT(graphSecsChanged(double)));
     Connect(graphYScale, SIGNAL(valueChanged(double)), this, SLOT(graphYScaleChanged(double)));
 	
+	nRowsGraphTab = nColsGraphTab = -1;
 	int num = 0;
 	for (int i = 0; i < nGraphTabs && num < (int)graphs.size(); ++i) {
 		QWidget *graphsWidget = new QWidget(0);
@@ -273,11 +274,17 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 
 		int numThisPage = (nGraphTabs - i > 1) ? NUM_GRAPHS_PER_GRAPH_TAB : (graphs.size() % NUM_GRAPHS_PER_GRAPH_TAB);
 		if (!numThisPage) numThisPage = NUM_GRAPHS_PER_GRAPH_TAB;
-		int nrows = int(sqrtf(numThisPage)), ncols = 0;
-		while (nrows*ncols < (int)numThisPage) {
+		//int nrows = int(sqrtf(numThisPage)), ncols = 0;
+		int nrows = int(sqrtf(NUM_GRAPHS_PER_GRAPH_TAB)), ncols = 0;
+//		while (nrows*ncols < (int)numThisPage) {
+		while (nrows*ncols < (int)NUM_GRAPHS_PER_GRAPH_TAB) {
 			if (nrows > ncols) ++ncols;
 			else ++nrows;
 		};
+		if (nRowsGraphTab < 0) {
+			nRowsGraphTab = nrows;
+			nColsGraphTab = ncols;
+		}
 		int first_graph_num = -1, last_graph_num = -1;
 		for (int r = 0; r < nrows; ++r) {
 			for (int c = 0; c < ncols; ++c, ++num) {
@@ -1097,6 +1104,7 @@ void GraphsWindow::tabChange(int t)
 	if (selectedGraph < firstGraph || selectedGraph >= firstGraph+NUM_GRAPHS_PER_GRAPH_TAB)
 		selectGraph(firstGraph); // force first graph to be selected!
 	//retileGraphsAccordingToSorting();
+	emit tabChanged(t);
 }
 
 void GraphsWindow::saveFileLineEditChanged(const QString &t)
@@ -1252,6 +1260,7 @@ void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
 {
 	//Debug() << "GraphsWindow::highlightGraphsById called with " << ids.size() << " ids...";
 	
+	/*
 	QVector<unsigned>::const_iterator it = ids.begin();
 	int last = -1;
 	for (int i = 0; i < (int)graphs.size(); ++i) {
@@ -1275,6 +1284,13 @@ void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
 		tabHighlightTimer->setInterval(250);
 		tabHighlightTimer->setSingleShot(true);
 		tabHighlightTimer->start();
+	}
+	*/
+	if (ids.size()) {
+		int page = ids[0]/NUM_GRAPHS_PER_GRAPH_TAB;
+		if (tabWidget) { tabWidget->setCurrentIndex(page); }
+		else if (stackedCombo) { stackedCombo->setCurrentIndex(page); stackedWidget->setCurrentIndex(page); }
+		selectGraph(ids[0]);
 	}
 }
 
