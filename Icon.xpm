@@ -1,5 +1,5 @@
 /* XPM */
-static const char *Icon_xpm[]={
+static const char * const Icon_xpm[]={
 "48 48 740 2",
 "Qt c None",
 ".# c #000000",

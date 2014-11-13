@@ -17,6 +17,7 @@ class QAction;
 class QFrame;
 class QPushButton;
 class QSpinBox;
+class QSlider;
 
 class SpatialVisWindow : public QMainWindow
 {
@@ -51,6 +52,8 @@ private slots:
 	void updateToolBar();
 	void colorButPressed();
 	void blockLayoutChanged();
+	void overlayAlphaChanged(int);
+	void ovltstRotate();
 	
 private:	
 	int pos2ChanId(double x, double y) const;
@@ -83,6 +86,9 @@ private:
 	QToolBar *toolBar;
 	QPushButton *colorBut;
 	QSpinBox *sbCols, *sbRows;
+	QSlider *overlayAlpha;
+	
+	QImage ovltst;
 };
 
 

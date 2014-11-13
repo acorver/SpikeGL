@@ -5,6 +5,7 @@
 #include <QColor>
 #include <vector>
 #include <QVariant>
+#include <QImage>
 
 #include "Vec.h"
 
@@ -54,6 +55,9 @@ public:
 	bool isSelectionVisible(Sel = Box) const;
 	
 	QVector<unsigned> selectAllGlyphsIntersectingRect(Vec2 corner1, Vec2 corner2, Sel = Box, Vec2 margin = Vec2());
+
+	void setOverlay(const QImage & overlay); ///< if set to a null image, disable overlay
+	void setOverlayAlpha(float alpha); ///< if set to 0, then disable overlay
 	
 signals:    
 	/// like cursorOver(), except emitted x,y units are in window coordinates, not graph coordinates
@@ -86,6 +90,7 @@ private:
 	void drawCircles() const;
 	void drawSquares() const;
 	void drawSelection() const;
+	void drawOverlay();
 	
 	void updateColorBuf();
 	void updateVertexBuf();
@@ -105,6 +110,11 @@ private:
     bool auto_update, need_update;
 	double selx1[N_Sel],selx2[N_Sel],sely1[N_Sel],sely2[N_Sel];
 	bool hasSelection[N_Sel];
+
+	GLuint tex;
+	QImage overlay;
+	float overlay_alpha;
+	bool overlay_changed, overlay_subimg;
 };
 
 #endif

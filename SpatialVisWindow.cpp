@@ -14,6 +14,10 @@
 #include <QColorDialog>
 #include <QKeyEvent>
 #include <QSpinBox>
+#include <QSlider>
+#include <QMatrix>
+
+#include "Icon.xpm"
 
 #define SETTINGS_GROUP "SpatialVisWindow Settings"
 #define GlyphScaleFactor 0.9725 /**< set this to less than 1 to give each glyph a margin */
@@ -45,7 +49,19 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	toolBar->addWidget(sbCols = new QSpinBox(toolBar));
 	toolBar->addWidget(new QLabel("x", toolBar));
 	toolBar->addWidget(sbRows = new QSpinBox(toolBar));
-		
+
+	toolBar->addSeparator();
+	
+	toolBar->addWidget(label = new QLabel("Overlay: ", toolBar));
+	toolBar->addWidget(overlayAlpha = new QSlider(Qt::Horizontal, toolBar));
+	QSize sz = overlayAlpha->maximumSize(); overlayAlpha->setMaximumSize(QSize(125,sz.height()));
+	overlayAlpha->setRange(0,100);
+	overlayAlpha->setSingleStep(1);
+	overlayAlpha->setPageStep(10);
+	overlayAlpha->setValue(0);
+	
+	Connect(overlayAlpha, SIGNAL(valueChanged(int)), this, SLOT(overlayAlphaChanged(int)));
+
 	Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
 		
 	nGraphsPerBlock = blockDims.x * blockDims.y;
@@ -72,7 +88,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	sbCols->setRange(1,nblks);
 	Connect(sbCols, SIGNAL(valueChanged(int)), this, SLOT(blockLayoutChanged()));
 	Connect(sbRows, SIGNAL(valueChanged(int)), this, SLOT(blockLayoutChanged()));
-
+	
 	graphFrame = new QFrame(this);
 	QVBoxLayout *bl = new QVBoxLayout(graphFrame);
     bl->setSpacing(0);
@@ -92,8 +108,20 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	graph->setBGColor(bg);
 	graph->setGridColor(grid);
 	
-	// load settings here..
+	// testing overlay here
+	ovltst = QImage(Icon_xpm);
+	ovltst = QGLWidget::convertToGLFormat(ovltst);
+	if (ovltst.isNull()) {
+		Error() << "could not convert QImage to Gl format";
+	}
+	graph->setOverlay(ovltst);
 	
+	QTimer *t;
+	
+	t = new QTimer(this);
+	Connect(t, SIGNAL(timeout()), this, SLOT(ovltstRotate()));
+	t->setSingleShot(false);
+	t->start(1000.0/6.0);
 		
 	Connect(graph, SIGNAL(cursorOver(double, double)), this, SLOT(mouseOverGraph(double, double)));
 	Connect(graph, SIGNAL(clicked(double, double)), this, SLOT(mouseClickGraph(double, double)));
@@ -103,7 +131,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	QStatusBar *sb = statusBar();
 	sb->addWidget(statusLabel = new QLabel(sb),1);
 	
-	QTimer *t = new QTimer(this);
+	t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateGraph()));
     t->setSingleShot(false);
     t->start(1000/DEF_TASK_READ_FREQ_HZ);        
@@ -501,4 +529,15 @@ void SpatialVisWindow::blockLayoutChanged()
 		}
 		saveSettings();
 	}
+}
+
+void SpatialVisWindow::overlayAlphaChanged(int v)
+{
+	graph->setOverlayAlpha(v / 100.0f);
+}
+
+void SpatialVisWindow::ovltstRotate()
+{
+	QImage rot = ovltst.transformed(QMatrix().rotate(-long(getTime()*60.0)%360),Qt::SmoothTransformation);
+	graph->setOverlay(rot);
 }
