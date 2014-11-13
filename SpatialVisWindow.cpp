@@ -17,7 +17,7 @@
 #include <QSlider>
 #include <QMatrix>
 
-#include "Icon.xpm"
+#include "cheeseburger.xpm"
 
 #define SETTINGS_GROUP "SpatialVisWindow Settings"
 #define GlyphScaleFactor 0.9725 /**< set this to less than 1 to give each glyph a margin */
@@ -109,7 +109,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	graph->setGridColor(grid);
 	
 	// testing overlay here
-	ovltst = QImage(Icon_xpm);
+	ovltst = QImage(cheeseburger_xpm);
 	ovltst = QGLWidget::convertToGLFormat(ovltst);
 	if (ovltst.isNull()) {
 		Error() << "could not convert QImage to Gl format";
@@ -538,6 +538,8 @@ void SpatialVisWindow::overlayAlphaChanged(int v)
 
 void SpatialVisWindow::ovltstRotate()
 {
-	QImage rot = ovltst.transformed(QMatrix().rotate(-long(getTime()*60.0)%360),Qt::SmoothTransformation);
-	graph->setOverlay(rot);
+	if (overlayAlpha->value()) {
+		QImage rot = ovltst.transformed(QMatrix().rotate(-long(getTime()*60.0)%360),Qt::SmoothTransformation);
+		graph->setOverlay(rot);
+	}
 }

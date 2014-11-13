@@ -58,6 +58,7 @@ public:
 
 	void setOverlay(const QImage & overlay); ///< if set to a null image, disable overlay
 	void setOverlayAlpha(float alpha); ///< if set to 0, then disable overlay
+	float overlayAlpha() const { return overlay_alpha; }
 	
 signals:    
 	/// like cursorOver(), except emitted x,y units are in window coordinates, not graph coordinates

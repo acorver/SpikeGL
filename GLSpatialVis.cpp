@@ -7,6 +7,9 @@
 #endif
 #ifdef Q_WS_WIN32
 #  include <GL/GLU.h>
+#ifndef GL_TEXTURE_RECTANGLE_ARB
+#define GL_TEXTURE_RECTANGLE_ARB          0x84F5
+#endif
 #endif
 #include <QPainter>
 #include <math.h>
