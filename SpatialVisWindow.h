@@ -16,6 +16,7 @@ class QLabel;
 class QAction;
 class QFrame;
 class QPushButton;
+class QSpinBox;
 
 class SpatialVisWindow : public QMainWindow
 {
@@ -49,6 +50,7 @@ private slots:
     void updateMouseOver(); // called periodically every 1s
 	void updateToolBar();
 	void colorButPressed();
+	void blockLayoutChanged();
 	
 private:	
 	int pos2ChanId(double x, double y) const;
@@ -80,6 +82,7 @@ private:
 	
 	QToolBar *toolBar;
 	QPushButton *colorBut;
+	QSpinBox *sbCols, *sbRows;
 };
 
 

@@ -13,10 +13,11 @@
 #include <QSettings>
 #include <QColorDialog>
 #include <QKeyEvent>
+#include <QSpinBox>
 
 #define SETTINGS_GROUP "SpatialVisWindow Settings"
-#define GlyphShrink 0.9725
-#define BlockShrink 0.970
+#define GlyphScaleFactor 0.9725 /**< set this to less than 1 to give each glyph a margin */
+#define BlockScaleFactor 1.0 /**< set this to less than 1 to give blocks a margin */
 
 SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims, QWidget * parent)
 : QMainWindow(parent), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2), 
@@ -40,6 +41,11 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	
 	toolBar->addSeparator();
 	
+	toolBar->addWidget(label = new QLabel("Layout: ", toolBar));
+	toolBar->addWidget(sbCols = new QSpinBox(toolBar));
+	toolBar->addWidget(new QLabel("x", toolBar));
+	toolBar->addWidget(sbRows = new QSpinBox(toolBar));
+		
 	Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
 		
 	nGraphsPerBlock = blockDims.x * blockDims.y;
@@ -59,7 +65,14 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	for (int chanid = 0; chanid < nvai; ++chanid) {
 		points[chanid] = chanId2Pos(chanid);
 	}
-	
+
+	sbRows->setValue(nby);
+	sbCols->setValue(nbx);
+	sbRows->setRange(1,nblks);
+	sbCols->setRange(1,nblks);
+	Connect(sbCols, SIGNAL(valueChanged(int)), this, SLOT(blockLayoutChanged()));
+	Connect(sbRows, SIGNAL(valueChanged(int)), this, SLOT(blockLayoutChanged()));
+
 	graphFrame = new QFrame(this);
 	QVBoxLayout *bl = new QVBoxLayout(graphFrame);
     bl->setSpacing(0);
@@ -132,7 +145,7 @@ void SpatialVisWindow::updateGlyphSize()
 	Vec2 bs = Vec2(br.v3-br.v1, br.v2-br.v4);
 	int szx = bs.x/blocknx * graph->width();
 	int szy = bs.y/blockny * graph->height();
-	szx *= GlyphShrink, szy *= GlyphShrink;
+	szx *= GlyphScaleFactor, szy *= GlyphScaleFactor;
 	if (szx < 1) szx = 1;
 	if (szy < 1) szy = 1;
 	graph->setGlyphSize(Vec2f(szx,szy));		
@@ -332,7 +345,7 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 	if (selIdxs.size()) {
 		QString t = statusLabel->text();
 		if (t.length()) t = QString("(mouse at: %1)").arg(t);
-		statusLabel->setText(QString("Selected: %1/%3 channels. %2").arg(selIdxs.size()).arg(t).arg(nvai));
+		statusLabel->setText(QString("Selected channels %1-%2 of %3, page %4/%5. %6").arg(selIdxs.first()).arg(selIdxs.last()).arg(nvai).arg(selIdxs.first()/nGraphsPerBlock + 1).arg(nblks).arg(t));
 	}
 }
 
@@ -351,7 +364,7 @@ Vec4 SpatialVisWindow::blockBoundingRectNoMargins(int blk) const
 
 Vec2 SpatialVisWindow::blockMargins() const 
 {
-	return Vec2(1.0/nbx - (1.0/nbx * BlockShrink), 1.0/nby - (1.0/nby * BlockShrink)); 
+	return Vec2(1.0/nbx - (1.0/nbx * BlockScaleFactor), 1.0/nby - (1.0/nby * BlockScaleFactor)); 
 }
 
 Vec4 SpatialVisWindow::blockBoundingRect(int blk) const
@@ -428,6 +441,8 @@ void SpatialVisWindow::saveSettings()
 	settings.beginGroup(SETTINGS_GROUP);
 
 	settings.setValue("fgcolor1", static_cast<unsigned int>(fg.rgba())); 
+	settings.setValue(QString("layout%1cols").arg(nblks), nbx);
+	settings.setValue(QString("layout%1rows").arg(nblks), nby);
 	
 	settings.endGroup();
 }
@@ -438,13 +453,21 @@ void SpatialVisWindow::loadSettings()
 	settings.beginGroup(SETTINGS_GROUP);
 
 	fg = QColor::fromRgba(settings.value("fgcolor1", static_cast<unsigned int>(fg.rgba())).toUInt());
+	int sbcols = settings.value(QString("layout%1cols").arg(nblks), nbx).toInt();
+	int sbrows = settings.value(QString("layout%1rows").arg(nblks), nby).toInt();
+	if (sbrows > 0 && sbcols > 0 && sbrows <= 100 && sbcols <= 100 && sbrows * sbcols >= nblks) {
+		sbRows->setValue(sbrows);
+		sbCols->setValue(sbcols);
+		if (nbx != sbcols || nby != sbrows)
+			blockLayoutChanged();
+	}
 	
 	settings.endGroup();
 }
 
 Vec2 SpatialVisWindow::glyphMargins01Coords() const 
 {
-	Vec2 ret(graph->glyphSize().x/GlyphShrink, graph->glyphSize().y/GlyphShrink);
+	Vec2 ret(graph->glyphSize().x/GlyphScaleFactor, graph->glyphSize().y/GlyphScaleFactor);
 	ret.x = (ret.x - graph->glyphSize().x) / double(graph->width()) / 2.0;
 	ret.y = (ret.y - graph->glyphSize().y) / double(graph->height()) / 2.0;
 	return ret;
@@ -458,4 +481,24 @@ void SpatialVisWindow::keyPressEvent(QKeyEvent *e)
 		return;
 	}
 	QMainWindow::keyPressEvent(e);
+}
+
+void SpatialVisWindow::blockLayoutChanged()
+{
+	int sbrows = sbRows->value(), sbcols = sbCols->value();
+	if (sbrows * sbcols >= nblks) {
+		nbx = sbcols;
+		nby = sbrows;
+		
+		for (int chanid = 0; chanid < nvai; ++chanid) {
+			points[chanid] = chanId2Pos(chanid);
+		}
+		setupGridlines();
+		graph->setPoints(points);
+		if (selIdxs.size()) {
+			int blk = selIdxs[0] / nGraphsPerBlock;
+			selectBlock(blk);
+		}
+		saveSettings();
+	}
 }
