@@ -942,7 +942,7 @@ inline void ApplyNewIntanDemuxToScan(int16 *begin, const unsigned nchans_per_int
 	int16 tmparr[NUM_MUX_CHANS_MAX]; // hopefully 512 channels is freakin' enough.. 
 	if (narr > NUM_MUX_CHANS_MAX) {
 		Error() << "INTERNAL ERROR: Scan size too large for compiled-in limits (too many INTANs?!).  Please fix the sourcecode at DAQ::ApplyJFRCIntanXXDemuxToScan!";
-		narr = NUM_MUX_CHANS_MAX;
+		return;
 	}
 	int i,j,k;
 	for (k = 0; k < int(num_intans); ++k) {			

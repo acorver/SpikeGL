@@ -111,8 +111,8 @@ void GraphsWindow::setupGraph(int num, int firstExtraChan)
 	if (NumGraphsPerGraphTab[0]) return;
 	// defensively program against adding modes that lack a spec for number of graphs per tab
 	for (int i = 0; i < (int)DAQ::N_Modes; ++i) {
-		if (!DAQ::ModeNumIntans[i]) NumGraphsPerGraphTab[i] = MAX_NUM_GRAPHS_PER_GRAPH_TAB;
-		else {
+		NumGraphsPerGraphTab[i] = MAX_NUM_GRAPHS_PER_GRAPH_TAB;
+		if (DAQ::ModeNumIntans[i]) {
 			const int nchans = DAQ::ModeNumChansPerIntan[i];
 			int n = 0;
 			for (int j = 1; (n=(j * nchans)) <= MAX_NUM_GRAPHS_PER_GRAPH_TAB; ++j)
