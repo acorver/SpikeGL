@@ -445,7 +445,7 @@ void GraphsWindow::setGraphTimeSecs(int num, double t)
 {
     if (num < 0 || num >= (int)graphs.size()) return;
     graphTimesSecs[num] = t;
-    i64 npts = nptsAll[num] = i64(ceil(t*params.srate/downsampleRatio));
+    const i64 npts = nptsAll[num] = (graphs[num] ? i64(ceil(t*params.srate/downsampleRatio)) : 0); // if the graph is not on-screen, make it use 0 points in the points WB to save memory for high-channel-counts
     points[num].reserve(npts);
     double s = t;
     int nlines = 1;
@@ -1067,6 +1067,7 @@ void GraphsWindow::tabChange(int t)
 			extraGraphs.insert(graphs[i]);
 			graphs[i]->setPoints(0); // clear points buf!
 			graphs[i] = 0;
+			setGraphTimeSecs(i, graphTimesSecs[i]); // call here forces the WB buffer to 0 bytes because graph[i] is NULL.. this saves memory 
 		}
 	}
 	int firstGraph = -1;
@@ -1098,6 +1099,8 @@ void GraphsWindow::tabChange(int t)
 				f->layout()->addWidget(g->parentWidget());
 			}
 		}
+		// at this point, the graph is properly set up, set graphtimesecs again so that it gets a real (non-zero-sized) points buffer to work with
+		setGraphTimeSecs(graphId, graphTimesSecs[graphId]);
 	}
 	for (int i = 0; i < N_G; ++i) if (graphs[i]) graphs[i]->setUpdatesEnabled(true);
 	setUpdatesEnabled(true);
