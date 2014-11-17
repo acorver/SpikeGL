@@ -16,8 +16,10 @@
 #include <QSpinBox>
 #include <QSlider>
 #include <QMatrix>
+#include <QCheckBox>
+#include "StimGL_SpikeGL_Integration.h"
 
-#include "cheeseburger.xpm"
+#include "no_data.xpm"
 
 #define SETTINGS_GROUP "SpatialVisWindow Settings"
 #define GlyphScaleFactor 0.9725 /**< set this to less than 1 to give each glyph a margin */
@@ -28,6 +30,26 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
   graph(0), graphFrame(0), mouseOverChan(-1)
 {
 	static bool registeredMetaType = false;
+		
+	if (fshare.shm) {
+		Log() << "SpatialVisWindow: " << (fshare.createdByThisInstance ? "Created" : "Attatched to pre-existing") <<  " StimGL 'frame share' memory segment, size: " << (double(fshare.size())/1024.0/1024.0) << "MB.";
+		QImage nodata = QImage(no_data_xpm);
+		nodata = QGLWidget::convertToGLFormat(nodata);
+		if (nodata.isNull()) {
+			Error() << "could not convert QImage to GL format";
+		} else {
+			fshare.lock();
+			fshare.shm->enabled = 0;
+			fshare.shm->fmt = GL_RGBA;
+			fshare.shm->w = nodata.width();
+			fshare.shm->h = nodata.height();
+			fshare.shm->sz_bytes = nodata.byteCount();
+			memcpy((void *)fshare.shm->data, nodata.bits(), nodata.byteCount() < fshare.size() ? nodata.byteCount() : fshare.size());
+			fshare.unlock();
+		}
+	} else {
+		Error() << "INTERNAL ERROR: Could not attach to StimGL 'frame share' shared memory segment! FIXME!";
+	}
 	
 	if (!registeredMetaType) {
 		qRegisterMetaType<QVector<uint>	>("QVector<uint>");
@@ -52,14 +74,18 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 
 	toolBar->addSeparator();
 	
-	toolBar->addWidget(label = new QLabel("Overlay: ", toolBar));
+	toolBar->addWidget(overlayChk = new QCheckBox("StimGL Overlay:", toolBar));
 	toolBar->addWidget(overlayAlpha = new QSlider(Qt::Horizontal, toolBar));
 	QSize sz = overlayAlpha->maximumSize(); overlayAlpha->setMaximumSize(QSize(125,sz.height()));
 	overlayAlpha->setRange(0,100);
 	overlayAlpha->setSingleStep(1);
 	overlayAlpha->setPageStep(10);
-	overlayAlpha->setValue(0);
+	overlayAlpha->setValue(50);
 	
+	overlayChk->setEnabled(!!fshare.shm);
+	overlayAlpha->setEnabled(!!fshare.shm);
+	
+	Connect(overlayChk, SIGNAL(toggled(bool)), this, SLOT(overlayChecked(bool)));
 	Connect(overlayAlpha, SIGNAL(valueChanged(int)), this, SLOT(overlayAlphaChanged(int)));
 
 	Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
@@ -107,21 +133,13 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	
 	graph->setBGColor(bg);
 	graph->setGridColor(grid);
-	
-	// testing overlay here
-	ovltst = QImage(cheeseburger_xpm);
-	ovltst = QGLWidget::convertToGLFormat(ovltst);
-	if (ovltst.isNull()) {
-		Error() << "could not convert QImage to Gl format";
-	}
-	graph->setOverlay(ovltst);
-	
+		
 	QTimer *t;
 	
 	t = new QTimer(this);
-	Connect(t, SIGNAL(timeout()), this, SLOT(ovltstRotate()));
+	Connect(t, SIGNAL(timeout()), this, SLOT(ovlUpdate()));
 	t->setSingleShot(false);
-	t->start(1000.0/6.0);
+	t->start(1000.0/60.0);
 		
 	Connect(graph, SIGNAL(cursorOver(double, double)), this, SLOT(mouseOverGraph(double, double)));
 	Connect(graph, SIGNAL(clicked(double, double)), this, SLOT(mouseClickGraph(double, double)));
@@ -201,6 +219,13 @@ SpatialVisWindow::~SpatialVisWindow()
 {
 	delete graphFrame, graphFrame = 0;
 	graph = 0;
+	if (fshare.shm) {
+		if (fshare.lock()) {
+			fshare.shm->enabled = 0;
+			fshare.unlock();
+		}
+		fshare.detach();
+	}
 }
 
 void SpatialVisWindow::updateGraph()
@@ -471,6 +496,7 @@ void SpatialVisWindow::saveSettings()
 	settings.setValue("fgcolor1", static_cast<unsigned int>(fg.rgba())); 
 	settings.setValue(QString("layout%1cols").arg(nblks), nbx);
 	settings.setValue(QString("layout%1rows").arg(nblks), nby);
+	settings.setValue(QString("UseStimGLOverlay"), overlayChk->isChecked());
 	
 	settings.endGroup();
 }
@@ -489,6 +515,7 @@ void SpatialVisWindow::loadSettings()
 		if (nbx != sbcols || nby != sbrows)
 			blockLayoutChanged();
 	}
+	overlayChecked(settings.value(QString("UseStimGLOverlay"), false).toBool());
 	
 	settings.endGroup();
 }
@@ -531,15 +558,29 @@ void SpatialVisWindow::blockLayoutChanged()
 	}
 }
 
+void SpatialVisWindow::overlayChecked(bool chk)
+{
+	overlayAlpha->setEnabled(chk);
+	overlayChk->blockSignals(true);
+	overlayChk->setChecked(chk);
+	overlayChk->blockSignals(false);
+	overlayAlphaChanged(chk ? overlayAlpha->value() : 0);
+	if (fshare.shm && fshare.lock()) {
+		fshare.shm->enabled = chk ? 1 : 0;
+		fshare.unlock();
+	}
+//	saveSettings(); // uncomment if you want to save the state of this in the settings...
+}
+
 void SpatialVisWindow::overlayAlphaChanged(int v)
 {
 	graph->setOverlayAlpha(v / 100.0f);
 }
 
-void SpatialVisWindow::ovltstRotate()
+void SpatialVisWindow::ovlUpdate()
 {
-	if (overlayAlpha->value()) {
-		QImage rot = ovltst.transformed(QMatrix().rotate(-long(getTime()*60.0)%360),Qt::SmoothTransformation);
-		graph->setOverlay(rot);
+	if (overlayAlpha->value() && overlayAlpha->isEnabled() && fshare.shm) {
+//		QImage rot = ovltst.transformed(QMatrix().rotate(-long(getTime()*60.0)%360),Qt::SmoothTransformation);
+		graph->setOverlay((void *)fshare.shm->data, fshare.shm->w, fshare.shm->h, fshare.shm->fmt);
 	}
 }

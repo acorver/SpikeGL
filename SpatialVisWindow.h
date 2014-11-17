@@ -10,6 +10,7 @@
 #include <vector>
 #include <QSet>
 #include <QColor.h>
+#include "StimGL_SpikeGL_Integration.h"
 
 class QToolBar;
 class QLabel;
@@ -18,6 +19,7 @@ class QFrame;
 class QPushButton;
 class QSpinBox;
 class QSlider;
+class QCheckBox;
 
 class SpatialVisWindow : public QMainWindow
 {
@@ -52,8 +54,9 @@ private slots:
 	void updateToolBar();
 	void colorButPressed();
 	void blockLayoutChanged();
+	void overlayChecked(bool);
 	void overlayAlphaChanged(int);
-	void ovltstRotate();
+	void ovlUpdate();
 	
 private:	
 	int pos2ChanId(double x, double y) const;
@@ -86,9 +89,10 @@ private:
 	QToolBar *toolBar;
 	QPushButton *colorBut;
 	QSpinBox *sbCols, *sbRows;
+	QCheckBox *overlayChk;
 	QSlider *overlayAlpha;
-	
-	QImage ovltst;
+		
+	StimGL_SpikeGL_Integration::FrameShare fshare;
 };
 
 

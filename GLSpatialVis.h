@@ -56,7 +56,7 @@ public:
 	
 	QVector<unsigned> selectAllGlyphsIntersectingRect(Vec2 corner1, Vec2 corner2, Sel = Box, Vec2 margin = Vec2());
 
-	void setOverlay(const QImage & overlay); ///< if set to a null image, disable overlay
+	void setOverlay(const void *data, int w, int h, int fmt=GL_RGBA); ///< if set to a null, disable overlay
 	void setOverlayAlpha(float alpha); ///< if set to 0, then disable overlay
 	float overlayAlpha() const { return overlay_alpha; }
 	
@@ -113,7 +113,8 @@ private:
 	bool hasSelection[N_Sel];
 
 	GLuint tex;
-	QImage overlay;
+	const void * overlay;
+	int overlay_width, overlay_height, overlay_fmt;
 	float overlay_alpha;
 	bool overlay_changed, overlay_subimg;
 };

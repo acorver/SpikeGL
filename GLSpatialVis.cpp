@@ -44,7 +44,7 @@ void GLSpatialVis::reset()
     setNumHGridLines(4);
     setNumVGridLines(4);
 	overlay_alpha = 0.f;
-	setOverlay(QImage());
+	setOverlay(0,0,0);
     auto_update = true;
 	
     setAutoBufferSwap(true);	
@@ -265,26 +265,26 @@ void GLSpatialVis::drawOverlay()
 {
 	if (overlay_changed) {
 		glEnable(GL_TEXTURE_RECTANGLE_ARB);
-		if (overlay.isNull()) {
+		if (!overlay) {
 			if (tex > 0) glDeleteTextures(1, &tex);
 			tex = 0;
 		} else  {
 			if (tex) glDeleteTextures(1, &tex), tex = 0;
 			glGenTextures(1, &tex);
 			glBindTexture(GL_TEXTURE_RECTANGLE_ARB, tex);
-			glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA, overlay.width(), overlay.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, overlay.bits());
+			glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA, overlay_width, overlay_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, overlay);
 		} 
 		overlay_changed = false;
 		overlay_subimg = false;
 		glDisable(GL_TEXTURE_RECTANGLE_ARB);			
 	}
 	
-	if (tex && overlay_alpha >= 0.001 && !overlay.isNull()) {
+	if (tex && overlay_alpha >= 0.001 && overlay) {
 		glEnable(GL_TEXTURE_RECTANGLE_ARB);
 		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, tex);
 
 		if (overlay_subimg) {
-			glTexSubImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, overlay.width(), overlay.height(), GL_RGBA, GL_UNSIGNED_BYTE, overlay.bits());	
+			glTexSubImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, overlay_width, overlay_height, GL_RGBA, GL_UNSIGNED_BYTE, overlay);	
 			overlay_subimg = false;
 		}
 
@@ -298,7 +298,7 @@ void GLSpatialVis::drawOverlay()
 			1.f, 0.f,
 		};
 		
-		const int w = overlay.width(), h = overlay.height();
+		const int w = overlay_width, h = overlay_height;
 		
 		const GLfloat t[] = {
 			0.f, 0.f,
@@ -317,8 +317,8 @@ void GLSpatialVis::drawOverlay()
 		//glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
 		//glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, c);
 
-		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
 
 		glEnableClientState(GL_COLOR_ARRAY);
 		glTexCoordPointer(2, GL_FLOAT, 0, t);
@@ -561,11 +561,14 @@ QVector<unsigned> GLSpatialVis::selectAllGlyphsIntersectingRect(Vec2 corner1, Ve
 	return ret;
 }
 
-void GLSpatialVis::setOverlay(const QImage & img)
+void GLSpatialVis::setOverlay(const void *ptr, int w, int h, int f)
 {
-	overlay_changed = img.isNull() != overlay.isNull() || img.height() != overlay.height() || img.width() != overlay.width();
-	overlay = img;
-	overlay_subimg = !overlay.isNull();
+	overlay_changed = ((ptr?1:0) != (overlay?1:0)) || h != overlay_height || w != overlay_width;
+	overlay = ptr;
+	overlay_width = w;
+	overlay_height = h;
+	overlay_fmt = f;
+	overlay_subimg = bool(overlay);
 	if (auto_update) updateGL();
 	else need_update = true;
 }
