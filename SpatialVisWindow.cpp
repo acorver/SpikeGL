@@ -27,26 +27,16 @@
 
 SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims, QWidget * parent)
 : QMainWindow(parent), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2), 
-  graph(0), graphFrame(0), mouseOverChan(-1)
+  graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_time(0.), last_fs_frame_num(0xffffffff)
 {
 	static bool registeredMetaType = false;
 		
 	if (fshare.shm) {
 		Log() << "SpatialVisWindow: " << (fshare.createdByThisInstance ? "Created" : "Attatched to pre-existing") <<  " StimGL 'frame share' memory segment, size: " << (double(fshare.size())/1024.0/1024.0) << "MB.";
-		QImage nodata = QImage(no_data_xpm);
-		nodata = QGLWidget::convertToGLFormat(nodata);
-		if (nodata.isNull()) {
-			Error() << "could not convert QImage to GL format";
-		} else {
-			fshare.lock();
-			fshare.shm->enabled = 0;
-			fshare.shm->fmt = GL_RGBA;
-			fshare.shm->w = nodata.width();
-			fshare.shm->h = nodata.height();
-			fshare.shm->sz_bytes = nodata.byteCount();
-			memcpy((void *)fshare.shm->data, nodata.bits(), nodata.byteCount() < fshare.size() ? nodata.byteCount() : fshare.size());
-			fshare.unlock();
-		}
+		fshare.lock();
+		fshare.shm->enabled = 0;
+		ovlSetNoData();
+		fshare.unlock();
 	} else {
 		Error() << "INTERNAL ERROR: Could not attach to StimGL 'frame share' shared memory segment! FIXME!";
 	}
@@ -236,6 +226,7 @@ void SpatialVisWindow::updateGraph()
 	if (graph->needsUpdateGL())
 		graph->updateGL();
 }
+
 /*
 bool SpatialVisWindow::selStarted() const
 {
@@ -580,7 +571,37 @@ void SpatialVisWindow::overlayAlphaChanged(int v)
 void SpatialVisWindow::ovlUpdate()
 {
 	if (overlayAlpha->value() && overlayAlpha->isEnabled() && fshare.shm) {
-//		QImage rot = ovltst.transformed(QMatrix().rotate(-long(getTime()*60.0)%360),Qt::SmoothTransformation);
+/*		if (last_fs_frame_num != fshare.shm->frame_num) {
+			last_fs_frame_time = getTime();
+			last_fs_frame_num = fshare.shm->frame_num;
+		} else if ((getTime()-last_fs_frame_time) > 3.0) {
+			fshare.lock();
+			ovlSetNoData();
+			last_fs_frame_time = getTime();
+			fshare.unlock();
+		}
+*/
 		graph->setOverlay((void *)fshare.shm->data, fshare.shm->w, fshare.shm->h, fshare.shm->fmt);
 	}
+}
+
+void SpatialVisWindow::ovlSetNoData()
+{
+	QImage nodata(no_data_xpm);
+	nodata = QGLWidget::convertToGLFormat(nodata);
+	if (nodata.isNull()) {
+		Error() << "could not convert nodata QImage to GL format";
+	} else {
+		fshare.shm->fmt = GL_RGBA;
+		fshare.shm->w = nodata.width();
+		fshare.shm->h = nodata.height();
+		fshare.shm->sz_bytes = nodata.byteCount();
+		memcpy((void *)fshare.shm->data, nodata.bits(), nodata.byteCount() < fshare.size() ? nodata.byteCount() : fshare.size());
+	}
+}
+
+void SpatialVisWindow::closeEvent(QCloseEvent *e)
+{
+	overlayChecked(false); // force overlay to uncheck when closing window..
+	QMainWindow::closeEvent(e);
 }

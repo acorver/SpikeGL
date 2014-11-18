@@ -41,6 +41,7 @@ protected:
 	// virtual from parent class
 	void resizeEvent(QResizeEvent *event);
 	void keyPressEvent(QKeyEvent *event);
+    void closeEvent(QCloseEvent *);
 	
 private slots:
     void updateGraph();
@@ -72,6 +73,7 @@ private:
 	void saveSettings();
 	void loadSettings();
 	Vec2 glyphMargins01Coords() const;
+	void ovlSetNoData();
 	
     DAQ::Params & params;
 	const int nvai, nextra;
@@ -93,6 +95,8 @@ private:
 	QSlider *overlayAlpha;
 		
 	StimGL_SpikeGL_Integration::FrameShare fshare;
+    double last_fs_frame_time;
+	GLuint last_fs_frame_num;
 };
 
 
