@@ -195,7 +195,7 @@ namespace StimGL_SpikeGL_Integration
 	
 	FrameShare::FrameShare() 
 	{
-		qsm = new QSharedMemory(QString("%1").arg(FRAME_SHARE_SHM_MAGIC));
+		qsm = new QSharedMemory(QString("%1").arg(FRAME_SHARE_SHM_MAGIC), qApp);
 		shm = 0;
 		createdByThisInstance = false;
 		if (!qsm->isAttached() && !qsm->attach() && qsm->create(FRAME_SHARE_SHM_SIZE)) {
