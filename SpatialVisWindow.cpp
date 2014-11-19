@@ -62,10 +62,10 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	toolBar = addToolBar("Spatial Visualization Controls");
 	
 	QLabel *label;
-	toolBar->addWidget(label = new QLabel("Color: ", toolBar));
-	toolBar->addWidget(colorBut = new QPushButton(toolBar));
+	//toolBar->addWidget(label = new QLabel("Color: ", toolBar));
+	//toolBar->addWidget(colorBut = new QPushButton(toolBar));
 	
-	toolBar->addSeparator();
+	//toolBar->addSeparator();
 	
 	toolBar->addWidget(label = new QLabel("Layout: ", toolBar));
 	toolBar->addWidget(sbCols = new QSpinBox(toolBar));
@@ -88,7 +88,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	Connect(overlayChk, SIGNAL(toggled(bool)), this, SLOT(overlayChecked(bool)));
 	Connect(overlayAlpha, SIGNAL(valueChanged(int)), this, SLOT(overlayAlphaChanged(int)));
 
-	Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
+	//Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
 		
 	nGraphsPerBlock = blockDims.x * blockDims.y;
 	nblks = (nvai / nGraphsPerBlock) + (nvai%nGraphsPerBlock?1:0);
@@ -466,7 +466,7 @@ int SpatialVisWindow::pos2ChanId(double x, double y) const
 
 void SpatialVisWindow::updateToolBar()
 {
-	{ // update color button
+/*	{ // update color button
         QPixmap pm(22,22);
         QPainter p;
         p.begin(&pm);
@@ -474,6 +474,7 @@ void SpatialVisWindow::updateToolBar()
         p.end();
         colorBut->setIcon(QIcon(pm));
     }
+ */
 }
 
 void SpatialVisWindow::colorButPressed()

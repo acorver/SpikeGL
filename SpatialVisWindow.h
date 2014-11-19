@@ -87,7 +87,7 @@ private:
 	QVector<unsigned> selIdxs;
 	
 	QToolBar *toolBar;
-	QPushButton *colorBut;
+//	QPushButton *colorBut;
 	QSpinBox *sbCols, *sbRows;
 	QCheckBox *overlayChk;
 	QSlider *overlayAlpha;
