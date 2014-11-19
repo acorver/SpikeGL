@@ -11,6 +11,7 @@
 #define AOWriteThread_H
 #include "DAQ.h"
 #include "SampleBufQ.h"
+#include <QObject>
 #include <QThread>
 //#ifdef HAVE_NIDAQmx
 #  include "NI/NIDAQmx.h"

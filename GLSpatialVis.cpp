@@ -272,7 +272,7 @@ void GLSpatialVis::drawOverlay()
 			if (tex) glDeleteTextures(1, &tex), tex = 0;
 			glGenTextures(1, &tex);
 			glBindTexture(GL_TEXTURE_RECTANGLE_ARB, tex);
-			glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA, overlay_width, overlay_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, overlay);
+			glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA, overlay_width, overlay_height, 0, overlay_fmt, GL_UNSIGNED_BYTE, overlay);
 		} 
 		overlay_changed = false;
 		overlay_subimg = false;
@@ -284,7 +284,7 @@ void GLSpatialVis::drawOverlay()
 		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, tex);
 
 		if (overlay_subimg) {
-			glTexSubImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, overlay_width, overlay_height, GL_RGBA, GL_UNSIGNED_BYTE, overlay);	
+			glTexSubImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, overlay_width, overlay_height, overlay_fmt, GL_UNSIGNED_BYTE, overlay);	
 			overlay_subimg = false;
 		}
 
@@ -563,7 +563,7 @@ QVector<unsigned> GLSpatialVis::selectAllGlyphsIntersectingRect(Vec2 corner1, Ve
 
 void GLSpatialVis::setOverlay(const void *ptr, int w, int h, int f)
 {
-	overlay_changed = ((ptr?1:0) != (overlay?1:0)) || h != overlay_height || w != overlay_width;
+	overlay_changed = ((ptr?1:0) != (overlay?1:0)) || h != overlay_height || w != overlay_width || f != overlay_fmt;
 	overlay = ptr;
 	overlay_width = w;
 	overlay_height = h;
