@@ -58,6 +58,7 @@ private slots:
 	void overlayChecked(bool);
 	void overlayAlphaChanged(int);
 	void ovlUpdate();
+	void overlayButPushed();
 	
 private:	
 	int pos2ChanId(double x, double y) const;
@@ -92,6 +93,7 @@ private:
 //	QPushButton *colorBut;
 	QSpinBox *sbCols, *sbRows;
 	QCheckBox *overlayChk;
+	QPushButton *overlayBut;
 	QSlider *overlayAlpha;
 		
 	StimGL_SpikeGL_Integration::FrameShare fshare;

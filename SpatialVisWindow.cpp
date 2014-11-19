@@ -78,6 +78,11 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	Connect(overlayChk, SIGNAL(toggled(bool)), this, SLOT(overlayChecked(bool)));
 	Connect(overlayAlpha, SIGNAL(valueChanged(int)), this, SLOT(overlayAlphaChanged(int)));
 
+	toolBar->addWidget(overlayBut = new QPushButton("Set Overlay Box...",toolBar));
+	QFont f = overlayBut->font();
+	f.setPointSize(10);
+	overlayBut->setFont(f);
+	Connect(overlayBut, SIGNAL(clicked(bool)), this, SLOT(overlayButPushed()));
 	//Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
 		
 	nGraphsPerBlock = blockDims.x * blockDims.y;
@@ -225,6 +230,15 @@ void SpatialVisWindow::updateGraph()
 	graph->setColors(colors);
 	if (graph->needsUpdateGL())
 		graph->updateGL();
+	
+	if (fshare.shm) {
+		bool en = overlayBut->isEnabled();
+		if (en && !fshare.shm->stimgl_pid) {
+			overlayBut->setEnabled(false);
+			ovlSetNoData();
+		}
+		else if (!en && fshare.shm->stimgl_pid) overlayBut->setEnabled(true);
+	}
 }
 
 /*
@@ -559,6 +573,7 @@ void SpatialVisWindow::overlayChecked(bool chk)
 	overlayAlphaChanged(chk ? overlayAlpha->value() : 0);
 	if (fshare.shm && fshare.lock()) {
 		fshare.shm->enabled = chk ? 1 : 0;
+		overlayBut->setEnabled(chk && fshare.shm->stimgl_pid);
 		fshare.unlock();
 	}
 //	saveSettings(); // uncomment if you want to save the state of this in the settings...
@@ -605,4 +620,13 @@ void SpatialVisWindow::closeEvent(QCloseEvent *e)
 {
 	overlayChecked(false); // force overlay to uncheck when closing window..
 	QMainWindow::closeEvent(e);
+}
+
+void SpatialVisWindow::overlayButPushed()
+{
+	if (fshare.shm) {
+		fshare.lock();
+		fshare.shm->do_box_select = 1;
+		fshare.unlock();
+	}
 }
