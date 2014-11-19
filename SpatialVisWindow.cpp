@@ -587,16 +587,6 @@ void SpatialVisWindow::overlayAlphaChanged(int v)
 void SpatialVisWindow::ovlUpdate()
 {
 	if (overlayAlpha->value() && overlayAlpha->isEnabled() && fshare.shm) {
-/*		if (last_fs_frame_num != fshare.shm->frame_num) {
-			last_fs_frame_time = getTime();
-			last_fs_frame_num = fshare.shm->frame_num;
-		} else if ((getTime()-last_fs_frame_time) > 3.0) {
-			fshare.lock();
-			ovlSetNoData();
-			last_fs_frame_time = getTime();
-			fshare.unlock();
-		}
-*/
 		graph->setOverlay((void *)fshare.shm->data, fshare.shm->w, fshare.shm->h, fshare.shm->fmt);
 	}
 }
