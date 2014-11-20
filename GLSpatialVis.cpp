@@ -273,6 +273,9 @@ void GLSpatialVis::drawOverlay()
 			glGenTextures(1, &tex);
 			glBindTexture(GL_TEXTURE_RECTANGLE_ARB, tex);
 			glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA, overlay_width, overlay_height, 0, overlay_fmt, GL_UNSIGNED_BYTE, overlay);
+			GLenum err = glGetError();
+			if (err) Error() << "glTexImage2D returned: " << (int)err << "(" << glGetErrorString(err) << ")" << "\n" <<
+				"params passed were: " << overlay_width << "," << overlay_height << "," << overlay_fmt << "," << (void *)overlay ;
 		} 
 		overlay_changed = false;
 		overlay_subimg = false;
@@ -285,6 +288,9 @@ void GLSpatialVis::drawOverlay()
 
 		if (overlay_subimg) {
 			glTexSubImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, overlay_width, overlay_height, overlay_fmt, GL_UNSIGNED_BYTE, overlay);	
+			GLenum err = glGetError();
+			if (err) Error() << "glTexSubImage2D returned: " << (int)err << "(" << glGetErrorString(err) << ")" << "\n" <<
+				"params passed were: " << overlay_width << "," << overlay_height << "," << overlay_fmt << "," << (void *)overlay ;
 			overlay_subimg = false;
 		}
 
@@ -325,6 +331,8 @@ void GLSpatialVis::drawOverlay()
 		glVertexPointer(2, GL_FLOAT, 0, v);
 		glColorPointer(4, GL_FLOAT, 0, c);
 		glDrawArrays(GL_QUADS, 0, 4);
+		GLenum err = glGetError();
+		if (err) Error() << "glDrawArrays returned: " << (int)err << "(" << glGetErrorString(err) << ")";
 		glDisableClientState(GL_COLOR_ARRAY);		
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		
@@ -563,7 +571,7 @@ QVector<unsigned> GLSpatialVis::selectAllGlyphsIntersectingRect(Vec2 corner1, Ve
 
 void GLSpatialVis::setOverlay(const void *ptr, int w, int h, int f)
 {
-	overlay_changed = ((ptr?1:0) != (overlay?1:0)) || h != overlay_height || w != overlay_width || f != overlay_fmt;
+	overlay_changed = overlay_changed || (!tex && ptr) || (!ptr && tex) || ((ptr?1:0) != (overlay?1:0)) || h != overlay_height || w != overlay_width || f != overlay_fmt;
 	overlay = ptr;
 	overlay_width = w;
 	overlay_height = h;

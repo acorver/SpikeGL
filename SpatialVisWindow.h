@@ -97,7 +97,6 @@ private:
 	QSlider *overlayAlpha;
 		
 	StimGL_SpikeGL_Integration::FrameShare fshare;
-    double last_fs_frame_time;
 	GLuint last_fs_frame_num;
 };
 

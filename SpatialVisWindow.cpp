@@ -27,7 +27,7 @@
 
 SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims, QWidget * parent)
 : QMainWindow(parent), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2), 
-  graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_time(0.), last_fs_frame_num(0xffffffff)
+  graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xffffffff)
 {
 	static bool registeredMetaType = false;
 		
@@ -569,13 +569,13 @@ void SpatialVisWindow::overlayChecked(bool chk)
 	overlayAlpha->setEnabled(chk);
 	overlayChk->blockSignals(true);
 	overlayChk->setChecked(chk);
-	overlayChk->blockSignals(false);
 	overlayAlphaChanged(chk ? overlayAlpha->value() : 0);
 	if (fshare.shm && fshare.lock()) {
 		fshare.shm->enabled = chk ? 1 : 0;
 		overlayBut->setEnabled(chk && fshare.shm->stimgl_pid);
 		fshare.unlock();
 	}
+	overlayChk->blockSignals(false);
 //	saveSettings(); // uncomment if you want to save the state of this in the settings...
 }
 
@@ -586,9 +586,15 @@ void SpatialVisWindow::overlayAlphaChanged(int v)
 
 void SpatialVisWindow::ovlUpdate()
 {
+	GLuint frameNum = last_fs_frame_num;
 	if (overlayAlpha->value() && overlayAlpha->isEnabled() && fshare.shm) {
 		graph->setOverlay((void *)fshare.shm->data, fshare.shm->w, fshare.shm->h, fshare.shm->fmt);
+		frameNum = fshare.shm->frame_num;
 	}
+	if (frameNum != last_fs_frame_num && graph->needsUpdateGL()) {
+		graph->updateGL();
+	}
+	last_fs_frame_num = frameNum;
 }
 
 void SpatialVisWindow::ovlSetNoData()
