@@ -105,8 +105,8 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 
 	sbRows->setValue(nby);
 	sbCols->setValue(nbx);
-	sbRows->setRange(1,nblks);
-	sbCols->setRange(1,nblks);
+	sbRows->setRange(1,100);
+	sbCols->setRange(1,100);
 	Connect(sbCols, SIGNAL(valueChanged(int)), this, SLOT(blockLayoutChanged()));
 	Connect(sbRows, SIGNAL(valueChanged(int)), this, SLOT(blockLayoutChanged()));
 	
@@ -240,98 +240,6 @@ void SpatialVisWindow::updateGraph()
 		else if (!en && fshare.shm->stimgl_pid) overlayBut->setEnabled(true);
 	}
 }
-
-/*
-bool SpatialVisWindow::selStarted() const
-{
-	return selClick.x > -.009 && selClick.y > -.009;
-}
-
-void SpatialVisWindow::selClear() { 
-	selClick = Vec2(-1.,-1.); 
-	selIdxs.clear(); 	
-	graph->setSelectionEnabled(false, GLSpatialVis::Outline);
-	graph->setSelectionEnabled(false, GLSpatialVis::Box);
- }
-
-void SpatialVisWindow::mouseOverGraph(double x, double y)
-{
-	mouseOverChan = -1;
-	int chanId = pos2ChanId(x,y);
-	if (chanId < 0 || chanId >= (int)params.nVAIChans) 
-		mouseOverChan = -1;
-	else
-		mouseOverChan = chanId;
-	updateMouseOver();
-	
-	// update selection
-	if (selStarted()) {
-		graph->setSelectionRange(selClick.x, x, selClick.y, y, GLSpatialVis::Outline);
-		graph->setSelectionEnabled(true, GLSpatialVis::Outline);
-		const QVector<unsigned>oldIdxs (selIdxs);
-		selIdxs = graph->selectAllGlyphsIntersectingRect(Vec2(selClick.x,selClick.y),Vec2(x,y),GLSpatialVis::Box,glyphMargins01Coords());
-		bool changed = oldIdxs.size() != selIdxs.size();
-		for (int i = 0; !changed && i < selIdxs.size(); ++i)
-			changed = selIdxs[i] != oldIdxs[i];
-		if (changed) emit channelsSelected(selIdxs);
-	}
-}
-
-void SpatialVisWindow::mouseClickGraph(double x, double y)
-{
-	int chanId = pos2ChanId(x,y);
-	if (chanId < 0 || chanId >= (int)params.nVAIChans) statusLabel->setText("");  
-	else statusLabel->setText(QString("Mouse click %1,%2 -> %3").arg(x).arg(y).arg(chanId));
-	const QVector<unsigned> oldIdxs(selIdxs);
-	selClear();
-	selClick = Vec2(x,y);
-	if (oldIdxs.size())
-		emit channelsSelected(selIdxs);
-}
-
-
-void SpatialVisWindow::mouseReleaseGraph(double x, double y)
-{
-	bool hasSel = selStarted() && !feq(selClick.x,x,0.01) && !feq(selClick.y,y,0.01);
-	Vec2 sclk = selClick;
-	const QVector<unsigned>oldIdxs (selIdxs);
-	selClear();
-	if (hasSel) {
-		// update/grow selection here to include all squares that it crosses...	
-		selIdxs = graph->selectAllGlyphsIntersectingRect(Vec2(sclk.x,sclk.y),Vec2(x,y),GLSpatialVis::Box,glyphMargins01Coords());
-		selIdxs = graph->selectAllGlyphsIntersectingRect(Vec2(sclk.x,sclk.y),Vec2(x,y),GLSpatialVis::Outline,glyphMargins01Coords());
-	}
-	bool changed = oldIdxs.size() != selIdxs.size();
-	for (int i = 0; !changed && i < selIdxs.size(); ++i)
-		changed = selIdxs[i] != oldIdxs[i];
-	if (changed) emit channelsSelected(selIdxs);
-}
-
-void SpatialVisWindow::mouseDoubleClickGraph(double x, double y)
-{
-	int chanId = pos2ChanId(x,y);
-	if (chanId < 0 || chanId >= (int)params.nVAIChans) { statusLabel->setText(""); return; }
-	statusLabel->setText(QString("Mouse dbl click %1,%2 -> %3").arg(x).arg(y).arg(chanId));
-}
-
-void SpatialVisWindow::updateMouseOver() // called periodically every 1s
-{
-	if (!statusLabel) return;
-	const int chanId = mouseOverChan;
-	if (chanId < 0 || chanId >= chanVolts.size()) 
-		statusLabel->setText("");
-	else
-		statusLabel->setText(QString("Chan: #%3 -- Volts: %4 V")
-							 .arg(chanId)
-							 .arg(chanId < (int)chanVolts.size() ? chanVolts[chanId] : 0.0));
-	
-	if (selIdxs.size()) {
-		QString t = statusLabel->text();
-		if (t.length()) t = QString("(mouse at: %1)").arg(t);
-		statusLabel->setText(QString("Selection: %1 channels, hit ENTER to page to first graph of selection. %2").arg(selIdxs.size()).arg(t));
-	}
-}
-*/
 
 void SpatialVisWindow::selClear() { 
 	selIdxs.clear(); 	
