@@ -92,10 +92,10 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 														
 	toolBar->addWidget(overlayBut = new QPushButton("Set Overlay Box...",toolBar));
 	QFont f = overlayBut->font();
-	f.setPointSize(10);
+	f.setPointSize(f.pointSize()-1);
 	overlayBut->setFont(f);
 	f = ovlAlphaLbl->font();
-	f.setPointSize(9);
+	f.setPointSize(f.pointSize()-1);
 	ovlAlphaLbl->setFont(f);
 	Connect(overlayBut, SIGNAL(clicked(bool)), this, SLOT(overlayButPushed()));
 	//Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
