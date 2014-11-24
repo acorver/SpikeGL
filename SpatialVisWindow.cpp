@@ -220,7 +220,7 @@ void SpatialVisWindow::putScans(const std::vector<int16> & scans, u64 firstSamp)
 	for (int i = firstidx; i < int(scans.size()); ++i) {
 		int chanid = i % nvai;
 		const QColor color (chanid < nvai-nextra ? fg : fg2);
-#ifdef EPILEPSY_PROTECTION
+#ifdef HEADACHE_PROTECTION
 		double val = .9;
 #else
 		double val = (double(scans[i])+32768.) / 65535.;
