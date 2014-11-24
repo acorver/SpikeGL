@@ -56,9 +56,11 @@ private slots:
 	void colorButPressed();
 	void blockLayoutChanged();
 	void overlayChecked(bool);
-	void overlayAlphaChanged(int);
+	void setOverlayAlpha(int);
 	void ovlUpdate();
 	void overlayButPushed();
+	void ovlFFChecked(bool);
+	void ovlAlphaChanged(int);
 	
 private:	
 	int pos2ChanId(double x, double y) const;
@@ -92,7 +94,8 @@ private:
 	QToolBar *toolBar;
 //	QPushButton *colorBut;
 	QSpinBox *sbCols, *sbRows;
-	QCheckBox *overlayChk;
+	QCheckBox *overlayChk, *ovlFFChk;
+	QLabel *ovlAlphaLbl;
 	QPushButton *overlayBut;
 	QSlider *overlayAlpha;
 		

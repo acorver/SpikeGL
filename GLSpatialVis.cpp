@@ -46,6 +46,9 @@ void GLSpatialVis::reset()
 	overlay_alpha = 0.f;
 	setOverlay(0,0,0);
     auto_update = true;
+	xform = Vec4f(0.f,0.f,1.f,1.f);
+	xform_is_set = false;
+	w_pix = h_pix = 1;
 	
     setAutoBufferSwap(true);	
 	setUpdatesEnabled(wasupden);
@@ -79,12 +82,14 @@ void GLSpatialVis::resizeGL(int w, int h)
     glLoadIdentity();
     glViewport(0, 0, w, h);
     gluOrtho2D( 0., 1., 0., 1.);
+	w_pix = w; h_pix = h;
 	if (glyphType() == Square) updateVertexBuf();
 }
 
 void GLSpatialVis::paintGL()
 {
 	if (!isVisible()) return;
+	timeNow = Util::getTime();
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
@@ -93,24 +98,64 @@ void GLSpatialVis::paintGL()
     glEnableClientState(GL_VERTEX_ARRAY);
 
 
-    drawGrid();
+	glPushMatrix();
+	
+		glTranslatef(xform.x,xform.y,0.f);
+		glScalef(xform.v3,xform.v4,1.f);
 
-    if (pointsBuf.size() && colorsBuf.size()) {
-        glPushMatrix();
-//        if (fabs(max_x-min_x) > 0.) {
-          glScaled(1./*/(max_x-min_x)*/, /*yscale*/1., 1.);
-//        }
-        drawPoints();
-        glPopMatrix();
-    }
-
-	drawSelection();
+		drawGrid();
+		if (pointsBuf.size() && colorsBuf.size()) 
+			drawPoints();
+		drawSelection();
+	
+		if (xform_is_set) {
+			drawBoundingBox();
+		}
+	
+	glPopMatrix();
 	
 	drawOverlay();
 	
     glDisableClientState(GL_VERTEX_ARRAY);
 
     need_update = false;
+}
+
+void GLSpatialVis::drawBoundingBox() const
+{
+    bool wasEnabled = glIsEnabled(GL_LINE_STIPPLE);
+    if (wasEnabled)
+        glDisable(GL_LINE_STIPPLE);
+    
+    GLfloat savedWidth;
+    GLfloat savedColor[4];
+    // save some values
+    glGetFloatv(GL_CURRENT_COLOR, savedColor);
+    glGetFloatv(GL_LINE_WIDTH, &savedWidth);
+	
+	const float xpix = 1.f/w_pix, ypix = 1.f/h_pix;
+	
+	static const GLfloat v[] = { 0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f, 0.f,0.f };
+	glLineWidth(1.0f);
+	const float shift = .3f;//(static_cast<unsigned int>(timeNow * 40.0) % 40) * (.3f/40.f);
+	glMatrixMode(GL_MODELVIEW);
+	/*glPushMatrix();
+	glTranslatef(-2.f*xpix, -2.f*ypix, 0.f);
+	glScalef(1.f+4.f*xpix, 1.f+4.f*ypix, 1.f);
+	glColor4f(.9f,.9f,.9f,1.f);
+	glVertexPointer(2, GL_FLOAT, 0, v);
+	glDrawArrays(GL_LINE_LOOP, 0, 5);
+	glPopMatrix();*/
+	glPushMatrix();
+	glTranslatef(-xpix, -ypix, 0.f);
+	glScalef(1.f+2.f*xpix, 1.f+2.f*ypix, 1.f);
+	glColor4f(.4f+shift,.4f+shift,.7f+shift,1.f);
+	glVertexPointer(2, GL_FLOAT, 0, v);
+	glDrawArrays(GL_LINE_LOOP, 0, 5);
+	glPopMatrix();
+	
+	if (wasEnabled) glEnable(GL_LINE_STIPPLE);
+	glLineWidth(savedWidth);
 }
 
 void GLSpatialVis::drawGrid() const
@@ -234,7 +279,7 @@ void GLSpatialVis::drawSelection() const
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glLineWidth(2.0f);
 			unsigned short pat = 0xcccc;
-			int shift = static_cast<unsigned int>(Util::getTime() * 16.0) % 16;
+			int shift = static_cast<unsigned int>(timeNow * 16.0) % 16;
 			pat = rol(pat,shift);
 			
 			glLineStipple(1, pat);
@@ -432,7 +477,7 @@ void GLSpatialVis::updateVertexBuf()
 	// in this mode, each point is the center of a square of glyphSize() size
 	const int pdbsz = pointsBuf.size();
 	vbuf.resize(pdbsz * 4);
-	const float xoff = (glyphSize().x/2.0f) / width(), yoff = (glyphSize().y/2.0f) / height();
+	const float xoff = (glyphSize().x/2.0f) / w_pix, yoff = (glyphSize().y/2.0f) / h_pix;
 	
 	for (int i = 0, vi = 0; i < pdbsz; ++i, vi+=4) {
 		const Vec2 & p (pointsBuf[i]);
@@ -488,10 +533,14 @@ void GLSpatialVis::mouseDoubleClickEvent(QMouseEvent *evt)
 Vec2 GLSpatialVis::pos2Vec(const QPoint & pos)
 {
     Vec2 ret;
-    ret.x = double(pos.x())/double(width());
+    ret.x = double(pos.x())/double(w_pix);
     // invert Y
     int y = height()-pos.y();
-    ret.y = double(y)/double(height());
+    ret.y = double(y)/double(h_pix);
+	ret.x-=xform.v1;
+	ret.y-=xform.v2;
+	ret.x/=xform.v3;
+	ret.y/=xform.v4;
     return ret;
 }
 
@@ -547,7 +596,7 @@ QVector<unsigned> GLSpatialVis::selectAllGlyphsIntersectingRect(Vec2 corner1, Ve
 	// at this point corner1 is bottom left, corner 2 is top right
 	for (int i = 0; i < pointsBuf.size(); ++i) {
 		const Vec2 & p (pointsBuf[i]);
-		double w = width(), h = height();
+		double w = w_pix, h = h_pix;
 		double l = p.x - (glyph_size.x/2.f)/w, r = p.x + (glyph_size.x/2.f)/w, 
 		       b = p.y - (glyph_size.y/2.f)/h, t = p.y + (glyph_size.y/2.f)/h;
 		if (   (l > corner2.x || r < corner1.x) // test if one rect is to left of other
@@ -582,3 +631,12 @@ void GLSpatialVis::setOverlay(const void *ptr, int w, int h, int f)
 }
 
 void GLSpatialVis::setOverlayAlpha(float a) { overlay_alpha = a; }
+
+void GLSpatialVis::setXForm(float tx, float ty, float sx, float sy)
+{
+	xform = Vec4f(tx,ty,sx,sy);
+	xform_is_set = xform != Vec4f(0.f,0.f,1.f,1.f);
+	if (auto_update) updateGL();
+	else need_update = true;	
+}
+

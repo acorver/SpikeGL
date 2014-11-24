@@ -179,7 +179,7 @@ unsigned getNProcessors()
     return nProcs;
 }
 #elif defined(Q_OS_DARWIN)
-} // end namespace util
+} // end namespace Util
 #include <CoreServices/CoreServices.h>
 namespace Util {
 unsigned getNProcessors() 
@@ -194,6 +194,21 @@ unsigned getNProcessors()
 unsigned getNProcessors()
 {
     return 1;
+}
+#endif
+
+#ifdef Q_OS_WIN
+unsigned getPid()
+{
+		return (unsigned)GetCurrentProcessId();
+}
+#else
+} // end namespace Util
+#include <unistd.h>
+namespace Util {
+unsigned getPid() 
+{
+		return (unsigned)getpid();
 }
 #endif
 

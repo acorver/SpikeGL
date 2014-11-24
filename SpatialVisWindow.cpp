@@ -34,9 +34,19 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	if (fshare.shm) {
 		Log() << "SpatialVisWindow: " << (fshare.createdByThisInstance ? "Created" : "Attatched to pre-existing") <<  " StimGL 'frame share' memory segment, size: " << (double(fshare.size())/1024.0/1024.0) << "MB.";
 		fshare.lock();
-		fshare.shm->enabled = 0;
-		ovlSetNoData();
+		const bool already_running = fshare.shm->spikegl_pid;
 		fshare.unlock();
+		if (!already_running || fshare.warnUserAlreadyRunning()) {
+			fshare.lock();
+			fshare.shm->enabled = 0;
+			fshare.shm->spikegl_pid = Util::getPid();
+			fshare.shm->dump_full_window = 0;
+			ovlSetNoData();
+			fshare.unlock();
+		} else {
+			Warning() << "Possible duplicate instance of SpikeGL, disabling 'frame share' in this instance.";
+			fshare.detach();
+		}
 	} else {
 		Error() << "INTERNAL ERROR: Could not attach to StimGL 'frame share' shared memory segment! FIXME!";
 	}
@@ -66,6 +76,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	
 	toolBar->addWidget(overlayChk = new QCheckBox("StimGL Overlay:", toolBar));
 	toolBar->addWidget(overlayAlpha = new QSlider(Qt::Horizontal, toolBar));
+	toolBar->addWidget(ovlAlphaLbl = new QLabel(QString("50% %1").arg(QChar(ushort(0x03b1))), toolBar));
 	QSize sz = overlayAlpha->maximumSize(); overlayAlpha->setMaximumSize(QSize(125,sz.height()));
 	overlayAlpha->setRange(0,100);
 	overlayAlpha->setSingleStep(1);
@@ -76,15 +87,24 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	overlayAlpha->setEnabled(!!fshare.shm);
 	
 	Connect(overlayChk, SIGNAL(toggled(bool)), this, SLOT(overlayChecked(bool)));
-	Connect(overlayAlpha, SIGNAL(valueChanged(int)), this, SLOT(overlayAlphaChanged(int)));
-
+	Connect(overlayAlpha, SIGNAL(valueChanged(int)), this, SLOT(setOverlayAlpha(int)));
+	Connect(overlayAlpha, SIGNAL(valueChanged(int)), this, SLOT(ovlAlphaChanged(int)));
+														
 	toolBar->addWidget(overlayBut = new QPushButton("Set Overlay Box...",toolBar));
 	QFont f = overlayBut->font();
 	f.setPointSize(10);
 	overlayBut->setFont(f);
+	f = ovlAlphaLbl->font();
+	f.setPointSize(9);
+	ovlAlphaLbl->setFont(f);
 	Connect(overlayBut, SIGNAL(clicked(bool)), this, SLOT(overlayButPushed()));
 	//Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
-		
+	
+	toolBar->addWidget(ovlFFChk = new QCheckBox("Full Frame", toolBar));
+	ovlFFChk->setEnabled(!!fshare.shm);
+	ovlFFChk->setChecked(fshare.shm && fshare.shm->dump_full_window);
+	Connect(ovlFFChk, SIGNAL(toggled(bool)), this, SLOT(ovlFFChecked(bool)));
+	
 	nGraphsPerBlock = blockDims.x * blockDims.y;
 	nblks = (nvai / nGraphsPerBlock) + (nvai%nGraphsPerBlock?1:0);
     nbx = floor(sqrtf(static_cast<float>(nblks))+0.5), nby = 0;
@@ -200,7 +220,11 @@ void SpatialVisWindow::putScans(const std::vector<int16> & scans, u64 firstSamp)
 	for (int i = firstidx; i < int(scans.size()); ++i) {
 		int chanid = i % nvai;
 		const QColor color (chanid < nvai-nextra ? fg : fg2);
+#ifdef EPILEPSY_PROTECTION
+		double val = .9;
+#else
 		double val = (double(scans[i])+32768.) / 65535.;
+#endif
 		chanVolts[chanid] = val * (params.range.max-params.range.min)+params.range.min;
 		colors[chanid].x = color.redF()*val;
 		colors[chanid].y = color.greenF()*val;
@@ -217,6 +241,7 @@ SpatialVisWindow::~SpatialVisWindow()
 	if (fshare.shm) {
 		if (fshare.lock()) {
 			fshare.shm->enabled = 0;
+			fshare.shm->spikegl_pid = 0;
 			fshare.unlock();
 		}
 		fshare.detach();
@@ -232,13 +257,23 @@ void SpatialVisWindow::updateGraph()
 		graph->updateGL();
 	
 	if (fshare.shm) {
-		bool en = overlayBut->isEnabled();
-		if (en && !fshare.shm->stimgl_pid) {
+		bool en = overlayBut->isEnabled(), en2 = ovlFFChk->isEnabled();
+		if ((en || en2) && !fshare.shm->stimgl_pid) {
 			overlayBut->setEnabled(false);
+			ovlFFChk->setEnabled(false);
+			fshare.lock();
+			fshare.shm->dump_full_window = 0;
 			ovlSetNoData();
+			fshare.unlock();
+			graph->unsetXForm();
+			ovlFFChk->blockSignals(true);
+			ovlFFChk->setChecked(false);
+			ovlFFChk->blockSignals(false);
 		}
-		else if (!en && fshare.shm->stimgl_pid) overlayBut->setEnabled(true);
-	}
+		else if ((!en || !en2) && fshare.shm->stimgl_pid) 
+			overlayBut->setEnabled(true), ovlFFChk->setEnabled(true);
+	} else
+		overlayBut->setEnabled(false), ovlFFChk->setEnabled(false);
 }
 
 void SpatialVisWindow::selClear() { 
@@ -477,25 +512,40 @@ void SpatialVisWindow::overlayChecked(bool chk)
 	overlayAlpha->setEnabled(chk);
 	overlayChk->blockSignals(true);
 	overlayChk->setChecked(chk);
-	overlayAlphaChanged(chk ? overlayAlpha->value() : 0);
+	ovlFFChk->blockSignals(true);
+	setOverlayAlpha(chk ? overlayAlpha->value() : 0);
 	if (fshare.shm && fshare.lock()) {
 		fshare.shm->enabled = chk ? 1 : 0;
 		overlayBut->setEnabled(chk && fshare.shm->stimgl_pid);
+		ovlFFChk->setEnabled(chk && fshare.shm->stimgl_pid);
+		ovlFFChk->setChecked(ovlFFChk->isChecked() && chk);
+		bool dfw = (fshare.shm->dump_full_window = !!ovlFFChk->isChecked());
 		fshare.unlock();
+		if (!dfw) graph->unsetXForm();
 	}
 	overlayChk->blockSignals(false);
+	ovlFFChk->blockSignals(false);
 //	saveSettings(); // uncomment if you want to save the state of this in the settings...
 }
 
-void SpatialVisWindow::overlayAlphaChanged(int v)
+void SpatialVisWindow::setOverlayAlpha(int v)
 {
 	graph->setOverlayAlpha(v / 100.0f);
+}
+
+void SpatialVisWindow::ovlAlphaChanged(int v)
+{
+	ovlAlphaLbl->setText(QString("%2% %1").arg(QChar(ushort(0x03b1))).arg(v));	
 }
 
 void SpatialVisWindow::ovlUpdate()
 {
 	GLuint frameNum = last_fs_frame_num;
 	if (overlayAlpha->value() && overlayAlpha->isEnabled() && fshare.shm) {
+		if (fshare.shm->dump_full_window) 
+			graph->setXForm(fshare.shm->box_x, fshare.shm->box_y, fshare.shm->box_w, fshare.shm->box_h);
+		else
+			graph->unsetXForm();
 		graph->setOverlay((void *)fshare.shm->data, fshare.shm->w, fshare.shm->h, fshare.shm->fmt);
 		frameNum = fshare.shm->frame_num;
 	}
@@ -532,5 +582,15 @@ void SpatialVisWindow::overlayButPushed()
 		fshare.lock();
 		fshare.shm->do_box_select = 1;
 		fshare.unlock();
+	}
+}
+
+void SpatialVisWindow::ovlFFChecked(bool b)
+{
+	if (fshare.shm && fshare.shm->stimgl_pid) {
+		fshare.shm->dump_full_window = b?1:0;
+	} else  {
+		fshare.shm->dump_full_window = 0;
+		ovlFFChk->blockSignals(true); ovlFFChk->setChecked(false); ovlFFChk->blockSignals(false);
 	}
 }

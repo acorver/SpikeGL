@@ -60,6 +60,9 @@ public:
 	void setOverlayAlpha(float alpha); ///< if set to 0, then disable overlay
 	float overlayAlpha() const { return overlay_alpha; }
 	
+	void setXForm(float translate_x, float translate_y, float scale_x, float scale_y);
+	void unsetXForm() { setXForm(0.f,0.f,1.f,1.f); xform_is_set = false; }
+	bool xformIsSet() const { return xform_is_set; }
 signals:    
 	/// like cursorOver(), except emitted x,y units are in window coordinates, not graph coordinates
 	void cursorOverWindowCoords(int x, int y);
@@ -92,10 +95,12 @@ private:
 	void drawSquares() const;
 	void drawSelection() const;
 	void drawOverlay();
+	void drawBoundingBox() const;
 	
 	void updateColorBuf();
 	void updateVertexBuf();
 
+	int w_pix, h_pix;
     QColor bg_Color, grid_Color;
 	QColor sel_Color[N_Sel];
 	double point_size;
@@ -112,11 +117,16 @@ private:
 	double selx1[N_Sel],selx2[N_Sel],sely1[N_Sel],sely2[N_Sel];
 	bool hasSelection[N_Sel];
 
+	double timeNow;
+	
 	GLuint tex;
 	const void * overlay;
 	int overlay_width, overlay_height, overlay_fmt;
 	float overlay_alpha;
 	bool overlay_changed, overlay_subimg;
+	
+	Vec4f xform;
+	bool xform_is_set;
 };
 
 #endif

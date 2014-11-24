@@ -318,4 +318,10 @@ bool feq(double a, double b, double epsilon)
 	return (diff < epsilon) && (-diff < epsilon);
 }
 
+bool feqf(float a, float b, float epsilon) 
+{
+	float diff = a-b;
+	return (diff < epsilon) && (-diff < epsilon);
+}
+	
 } // end namespace Util

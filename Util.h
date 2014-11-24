@@ -20,6 +20,7 @@ class MainApp;
 #define STR(x) STR1(x)
 
 #define EPSILON 0.0000001
+#define EPSILONf 0.0001
 
 #ifdef Q_OS_WIN
 #  define PATH_SEPARATOR "/" /**< new qt uses this */
@@ -48,6 +49,9 @@ namespace Util
 
 /// returns the number of real CPUs (cores) on the system
  unsigned getNProcessors(); 
+
+/// returns the PID of the current process.
+extern unsigned getPid();
 
 /// sets the process affinity mask -- a bitset of which processors to run on
  extern "C" void setProcessAffinityMask(unsigned mask);
@@ -101,6 +105,7 @@ namespace Util
 
  /// true iff the difference between a and b is smaller than EPSILON (0.0000001)
  bool feq(double a, double b, double epsilon = EPSILON);
+ bool feqf(float a, float b, float epsilon = EPSILONf);
 	
 /// rotate right 'moves' bits. Different from >> shift operator in that it rotates in bits from right side to left side
 template<class T>
