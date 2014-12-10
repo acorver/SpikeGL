@@ -52,7 +52,7 @@ namespace {
 };
 
 namespace Util {
-
+#undef NEED_RT_PRIO_AND_PROC_AFF_MASK
 #ifdef Q_OS_WIN
 void setRTPriority()
 {
@@ -75,8 +75,22 @@ double getTime()
     }
     return double(ct-t0)/double(freq);
 }
+u64 getAbsTimeNS()
+{
+	static __int64 freq = 0;
+	__int64 ct, factor;
+	
+	if (!freq) {
+		QueryPerformanceFrequency((LARGE_INTEGER *)&freq);
+	}
+	QueryPerformanceCounter((LARGE_INTEGER *)&ct);   // reads the current time (in system units) 
+	factor = 1000000000LL/freq;
+	if (factor <= 0) factor = 1;
+	return u64(ct * factor);
+}
+} // end namespace Util
 /// sets the process affinity mask -- a bitset of which processors to run on
-void setProcessAffinityMask(unsigned mask)
+extern "C" void setProcessAffinityMask(unsigned mask)
 {
     if (!SetProcessAffinityMask(GetCurrentProcess(), mask)) {
         Error() << "Error from Win32 API when setting process affinity mask: " << GetLastError();
@@ -84,6 +98,7 @@ void setProcessAffinityMask(unsigned mask)
         Log() << "Process affinity mask set to: " << QString().sprintf("0x%x",mask);
     }
 }
+namespace Util {
 #elif defined(Q_OS_LINUX)
 void setRTPriority()
 {
@@ -113,9 +128,15 @@ double getTime()
         if (t0 < 0.) t0 = t; 
         return t-t0;
 }
-
+u64 getAbsTimeNS()
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return u64(ts.tv_sec)*1000000000ULL + u64(ts.tv_nsec);
+}
+} // end namespace Util
 /// sets the process affinity mask -- a bitset of which processors to run on
-void setProcessAffinityMask(unsigned mask)
+extern "C" void setProcessAffinityMask(unsigned mask)
 {
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -129,21 +150,36 @@ void setProcessAffinityMask(unsigned mask)
         Log() << "Process affinity mask set to: " << QString().sprintf("0x%x",mask);
     }
 }
-
-#else /* !WIN and !LINUX */
-void setRTPriority()
+namespace Util {
+#elif defined(Q_OS_DARWIN) // Apple OSX (Darwin)
+#define NEED_RT_PRIO_AND_PROC_AFF_MASK
+} // end namespace Util
+#include <mach/mach_time.h>
+#include <stdint.h>
+namespace Util {
+double getTime()
 {
-    Warning() << "Cannot set realtime priority -- unknown platform!";
+		double t = static_cast<double>(mach_absolute_time());
+		struct mach_timebase_info info;
+		mach_timebase_info(&info);
+		return t * (1e-9 * static_cast<double>(info.numer) / static_cast<double>(info.denom) );
 }
-} // end namespace util
-
-/// sets the process affinity mask -- a bitset of which processors to run on
-extern "C" void setProcessAffinityMask(unsigned mask)
+u64 getAbsTimeNS() 
 {
-    (void)mask;
-    Warning() << "`Set process affinity mask' for this platform unimplemented -- ignoring.";
+	/* get timer units */
+	mach_timebase_info_data_t info;
+	mach_timebase_info(&info);
+	/* get timer value */
+	uint64_t ts = mach_absolute_time();
+	
+	/* convert to nanoseconds */
+	ts *= info.numer;
+	ts /= info.denom;
+	return ts;
 }
-
+#else /* !WIN and !LINUX and !DARWIN */
+#define NEED_RT_PRIO_AND_PROC_AFF_MASK
+} // end namepsace Util
 #include <QTime>
 namespace Util {
 double getTime()
@@ -153,8 +189,27 @@ double getTime()
     if (!started) { t.start(); started = true; }
     return double(t.elapsed())/1000.0;
 }
-
-#endif 
+u64 getAbsTimeNS()
+{
+	return u64(getTime()*1e9);
+}
+#endif
+#ifdef NEED_RT_PRIO_AND_PROC_AFF_MASK
+#undef NEED_RT_PRIO_AND_PROC_AFF_MASK
+void setRTPriority()
+{
+	Warning() << "Cannot set realtime priority -- unknown platform!";
+}
+} // end namespace util
+	
+/// sets the process affinity mask -- a bitset of which processors to run on
+extern "C" void setProcessAffinityMask(unsigned mask)
+{
+	(void)mask;
+	Warning() << "`Set process affinity mask' for this platform unimplemented -- ignoring.";
+}
+namespace Util {	
+#endif
 #ifdef Q_OS_WIN
 unsigned getNProcessors()
 {

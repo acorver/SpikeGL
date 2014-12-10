@@ -47,15 +47,20 @@ namespace Util
 /// retrieve a time value from the system's high resolution timer
  double getTime();
 
+/// retrieve a time value from the system's high resolution timer -- the absolute time since system boot is returns, in nanoseconds
+/// implemented to attempt to do synch in the StimGL/SpikeGL frame share mechanism
+  u64 getAbsTimeNS();
+	
 /// returns the number of real CPUs (cores) on the system
  unsigned getNProcessors(); 
 
 /// returns the PID of the current process.
 extern unsigned getPid();
-
+}
 /// sets the process affinity mask -- a bitset of which processors to run on
- extern "C" void setProcessAffinityMask(unsigned mask);
+extern "C" void setProcessAffinityMask(unsigned mask);
 
+namespace Util {
 /// returns the current host name
  QString getHostName();
 

@@ -101,6 +101,7 @@ private:
 		
 	StimGL_SpikeGL_Integration::FrameShare fshare;
 	GLuint last_fs_frame_num;
+	quint64 last_fs_frame_tsc;
 };
 
 

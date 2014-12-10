@@ -27,7 +27,7 @@
 
 SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims, QWidget * parent)
 : QMainWindow(parent), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2), 
-  graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xffffffff)
+  graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xffffffff), last_fs_frame_tsc(getAbsTimeNS())
 {
 	static bool registeredMetaType = false;
 		
@@ -154,7 +154,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	t = new QTimer(this);
 	Connect(t, SIGNAL(timeout()), this, SLOT(ovlUpdate()));
 	t->setSingleShot(false);
-	t->start(1000.0/60.0);
+	t->start(1000.0/120.0);
 		
 	Connect(graph, SIGNAL(cursorOver(double, double)), this, SLOT(mouseOverGraph(double, double)));
 	Connect(graph, SIGNAL(clicked(double, double)), this, SLOT(mouseClickGraph(double, double)));
@@ -541,6 +541,7 @@ void SpatialVisWindow::ovlAlphaChanged(int v)
 void SpatialVisWindow::ovlUpdate()
 {
 	GLuint frameNum = last_fs_frame_num;
+	quint64 frameTsc = last_fs_frame_tsc, nowTsc = getAbsTimeNS();
 	if (overlayAlpha->value() && overlayAlpha->isEnabled() && fshare.shm) {
 		if (fshare.shm->dump_full_window) 
 			graph->setXForm(fshare.shm->box_x, fshare.shm->box_y, fshare.shm->box_w, fshare.shm->box_h);
@@ -548,11 +549,14 @@ void SpatialVisWindow::ovlUpdate()
 			graph->unsetXForm();
 		graph->setOverlay((void *)fshare.shm->data, fshare.shm->w, fshare.shm->h, fshare.shm->fmt);
 		frameNum = fshare.shm->frame_num;
+		frameTsc = fshare.shm->frame_abs_time_ns;
 	}
 	if (frameNum != last_fs_frame_num && graph->needsUpdateGL()) {
 		graph->updateGL();
+		if (excessiveDebug) Debug() << "Frame: " << frameNum << " delay: " << ((nowTsc-frameTsc)/1e6) << " ms";
 	}
 	last_fs_frame_num = frameNum;
+	last_fs_frame_tsc = frameTsc;
 }
 
 void SpatialVisWindow::ovlSetNoData()
