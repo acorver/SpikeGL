@@ -57,7 +57,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	}
 
 	setWindowTitle("Spatial Visualization");
-	resize(800,600);
+	resize(900,675);
 
 	toolBar = addToolBar("Spatial Visualization Controls");
 	
@@ -104,6 +104,16 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	ovlFFChk->setEnabled(!!fshare.shm);
 	ovlFFChk->setChecked(fshare.shm && fshare.shm->dump_full_window);
 	Connect(ovlFFChk, SIGNAL(toggled(bool)), this, SLOT(ovlFFChecked(bool)));
+	
+	toolBar->addWidget(ovlfpsTit = new QLabel("FPS Limit:", toolBar));
+	toolBar->addWidget(ovlFps = new QSlider(Qt::Horizontal, toolBar));
+	ovlFps->setRange(1,121);
+	ovlFps->setSingleStep(1);
+	ovlFps->setPageStep(10);
+	toolBar->addWidget(ovlfpsLimit = new QLabel("10", toolBar));
+	Connect(ovlFps, SIGNAL(valueChanged(int)), this, SLOT(ovlFpsChanged(int)));
+	ovlfpsTit->setEnabled(!!fshare.shm), ovlfpsLimit->setEnabled(!!fshare.shm), ovlFps->setEnabled(!!fshare.shm);			
+	ovlFpsChanged(fshare.shm ? fshare.shm->frame_rate_limit : 0);
 	
 	nGraphsPerBlock = blockDims.x * blockDims.y;
 	nblks = (nvai / nGraphsPerBlock) + (nvai%nGraphsPerBlock?1:0);
@@ -261,6 +271,7 @@ void SpatialVisWindow::updateGraph()
 		if ((en || en2) && !fshare.shm->stimgl_pid) {
 			overlayBut->setEnabled(false);
 			ovlFFChk->setEnabled(false);
+			ovlfpsTit->setEnabled(false), ovlfpsLimit->setEnabled(false), ovlFps->setEnabled(false);			
 			fshare.lock();
 			fshare.shm->dump_full_window = 0;
 			ovlSetNoData();
@@ -271,9 +282,10 @@ void SpatialVisWindow::updateGraph()
 			ovlFFChk->blockSignals(false);
 		}
 		else if ((!en || !en2) && fshare.shm->stimgl_pid) 
-			overlayBut->setEnabled(true), ovlFFChk->setEnabled(true);
+			overlayBut->setEnabled(true), ovlFFChk->setEnabled(true), ovlfpsTit->setEnabled(true), ovlfpsLimit->setEnabled(true), ovlFps->setEnabled(true);
+
 	} else
-		overlayBut->setEnabled(false), ovlFFChk->setEnabled(false);
+		overlayBut->setEnabled(false), ovlFFChk->setEnabled(false),	ovlfpsTit->setEnabled(false), ovlfpsLimit->setEnabled(false), ovlFps->setEnabled(false);			
 }
 
 void SpatialVisWindow::selClear() { 
@@ -596,5 +608,18 @@ void SpatialVisWindow::ovlFFChecked(bool b)
 	} else  {
 		fshare.shm->dump_full_window = 0;
 		ovlFFChk->blockSignals(true); ovlFFChk->setChecked(false); ovlFFChk->blockSignals(false);
+	}
+}
+
+void SpatialVisWindow::ovlFpsChanged(int fps)
+{
+	if (fps < 1 || fps >= ovlFps->maximum()) fps = 0;
+	if (fshare.shm) fshare.shm->frame_rate_limit = fps;
+	//if (excessiveDebug) Debug() << "set fshare shm fps to " << fps;
+	ovlfpsLimit->setText(fps ? QString().sprintf("%3d",fps) : QString("  %1  ").arg(QChar(ushort(0x221e))));
+	if (sender() != ovlFps || fps != ovlFps->value()) {
+		ovlFps->blockSignals(true);
+		ovlFps->setValue(!fps ? ovlFps->maximum() : fps);
+		ovlFps->blockSignals(false);
 	}
 }

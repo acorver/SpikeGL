@@ -61,6 +61,7 @@ private slots:
 	void overlayButPushed();
 	void ovlFFChecked(bool);
 	void ovlAlphaChanged(int);
+	void ovlFpsChanged(int);
 	
 private:	
 	int pos2ChanId(double x, double y) const;
@@ -98,6 +99,8 @@ private:
 	QLabel *ovlAlphaLbl;
 	QPushButton *overlayBut;
 	QSlider *overlayAlpha;
+	QLabel *ovlfpsTit, *ovlfpsLimit;
+	QSlider *ovlFps;
 		
 	StimGL_SpikeGL_Integration::FrameShare fshare;
 	GLuint last_fs_frame_num;
