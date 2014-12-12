@@ -111,9 +111,9 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	ovlFps->setSingleStep(1);
 	ovlFps->setPageStep(10);
 	toolBar->addWidget(ovlfpsLimit = new QLabel("10", toolBar));
-	Connect(ovlFps, SIGNAL(valueChanged(int)), this, SLOT(ovlFpsChanged(int)));
 	ovlfpsTit->setEnabled(!!fshare.shm), ovlfpsLimit->setEnabled(!!fshare.shm), ovlFps->setEnabled(!!fshare.shm);			
 	ovlFpsChanged(fshare.shm ? fshare.shm->frame_rate_limit : 0);
+	Connect(ovlFps, SIGNAL(valueChanged(int)), this, SLOT(ovlFpsChanged(int)));
 	
 	nGraphsPerBlock = blockDims.x * blockDims.y;
 	nblks = (nvai / nGraphsPerBlock) + (nvai%nGraphsPerBlock?1:0);
@@ -458,6 +458,7 @@ void SpatialVisWindow::saveSettings()
 	settings.setValue(QString("layout%1cols").arg(nblks), nbx);
 	settings.setValue(QString("layout%1rows").arg(nblks), nby);
 	settings.setValue(QString("UseStimGLOverlay"), overlayChk->isChecked());
+	settings.setValue(QString("OverlayFPS"), ovlFps->value());
 	
 	settings.endGroup();
 }
@@ -477,7 +478,7 @@ void SpatialVisWindow::loadSettings()
 			blockLayoutChanged();
 	}
 	overlayChecked(settings.value(QString("UseStimGLOverlay"), false).toBool());
-	
+//	ovlFpsChanged(settings.value(QString("OverlayFPS"), ovlFps->value()).toInt());
 	settings.endGroup();
 }
 
@@ -622,4 +623,6 @@ void SpatialVisWindow::ovlFpsChanged(int fps)
 		ovlFps->setValue(!fps ? ovlFps->maximum() : fps);
 		ovlFps->blockSignals(false);
 	}
+//	if (sender() == ovlFps)
+//		saveSettings(); // uncomment if you want to save the state of this in the settings...
 }
