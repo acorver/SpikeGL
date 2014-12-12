@@ -224,6 +224,22 @@ public:
 protected:
     bool isError;
 };
+	
+class Avg {
+	double avg;
+	unsigned navg, nlim;
+public:
+	Avg() { reset(); }
+	void reset(unsigned n=10) { avg = 0.0, navg = 0, setN(n); }
+	void setN(unsigned n) { if (!n) n = 1; nlim = n; if (navg >= nlim) navg = nlim; }
+	unsigned N() const { return nlim; }
+	double operator()(double x) { 
+		if (navg >= nlim && navg) { avg = avg - avg/double(navg);  navg = nlim-1; }
+		avg = avg + x/double(++navg);
+		return avg;
+	}
+	double operator()() const { return avg; }
+};
 
 } // end namespace Util
 

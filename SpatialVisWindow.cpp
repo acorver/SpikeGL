@@ -360,6 +360,10 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 		if (t.length()) t = QString("(mouse at: %1)").arg(t);
 		statusLabel->setText(QString("Selected channels %1-%2 of %3, page %4/%5. %6").arg(selIdxs.first()).arg(selIdxs.last()).arg(nvai).arg(selIdxs.first()/nGraphsPerBlock + 1).arg(nblks).arg(t));
 	}
+	if (fdelayStr.size()) {
+		QString t = statusLabel->text();
+		statusLabel->setText(QString("%1%2").arg(t.size() ? t : "").arg(fdelayStr));
+	}
 }
 
 Vec4 SpatialVisWindow::blockBoundingRectNoMargins(int blk) const
@@ -555,7 +559,8 @@ void SpatialVisWindow::ovlUpdate()
 {
 	GLuint frameNum = last_fs_frame_num;
 	quint64 frameTsc = last_fs_frame_tsc, nowTsc = getAbsTimeNS();
-	if (overlayAlpha->value() && overlayAlpha->isEnabled() && fshare.shm) {
+	bool tscIsValid = false;
+	if (overlayAlpha->value() && overlayAlpha->isEnabled() && fshare.shm && fshare.shm->enabled) {
 		if (fshare.shm->dump_full_window) 
 			graph->setXForm(fshare.shm->box_x, fshare.shm->box_y, fshare.shm->box_w, fshare.shm->box_h);
 		else
@@ -563,11 +568,20 @@ void SpatialVisWindow::ovlUpdate()
 		graph->setOverlay((void *)fshare.shm->data, fshare.shm->w, fshare.shm->h, fshare.shm->fmt);
 		frameNum = fshare.shm->frame_num;
 		frameTsc = fshare.shm->frame_abs_time_ns;
+		tscIsValid = true;
 	}
 	if (frameNum != last_fs_frame_num && graph->needsUpdateGL()) {
 		graph->updateGL();
-		if (excessiveDebug) Debug() << "Frame: " << frameNum << " delay: " << ((nowTsc-frameTsc)/1e6) << " ms";
-	}
+		//if (excessiveDebug) Debug() << "Frame: " << frameNum << " delay: " << ((nowTsc-frameTsc)/1e6) << " ms";
+		if (tscIsValid) {
+			double delay = (nowTsc-frameTsc)/1e6;
+			if (delay < 1500.0 && delay > 0.0) { // throw out outliers...
+				frameDelayAvg(delay);
+				fdelayStr = QString().sprintf(" - Overlay %2.2f ms avg. frame latency",frameDelayAvg()); 
+			}
+		}
+	} else if (nowTsc-frameTsc > 1500000000)
+		fdelayStr = "";
 	last_fs_frame_num = frameNum;
 	last_fs_frame_tsc = frameTsc;
 }
