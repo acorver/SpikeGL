@@ -47,7 +47,11 @@ win32 {
 		RESOURCES += Resources.qrc
         RC_FILE += WinResources.rc
 		HEADERS += AOWriteThread.h
-		SOURCES += AOWriteThread.cpp
+        SOURCES += AOWriteThread.cpp
+        QMAKE_CFLAGS_RELEASE -= /O2 /O1 -O1 -O2
+        QMAKE_CXXFLAGS_RELEASE -= /O2 /O1 -O1 -O2
+        QMAKE_CFLAGS_RELEASE += -arch:SSE2 -Ox
+        QMAKE_CXXFLAGS_RELEASE += -arch:SSE2 -Ox
 }
 
 unix {
