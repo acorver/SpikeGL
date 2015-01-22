@@ -4,7 +4,7 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = app
+TARGET = SpikeGL
 DEPENDPATH += .
 INCLUDEPATH += .
 
