@@ -49,22 +49,22 @@ static const QColor AuxGraphBGColor(0xa6, 0x69,0x3c, 0xff),
 static void initIcons()
 {
     if (!playIcon) {
-        playIcon = new QIcon(play_xpm);
+        playIcon = new QIcon(QPixmap(play_xpm));
     }
     if (!pauseIcon) {
-        pauseIcon = new QIcon(pause_xpm);
+        pauseIcon = new QIcon(QPixmap(pause_xpm));
     }
     if (!windowFullScreenIcon) {
-        windowFullScreenIcon = new QIcon(window_fullscreen_xpm);
+        windowFullScreenIcon = new QIcon(QPixmap(window_fullscreen_xpm));
     }
     if (!windowNoFullScreenIcon) {
-        windowNoFullScreenIcon = new QIcon(window_nofullscreen_xpm);
+        windowNoFullScreenIcon = new QIcon(QPixmap(window_nofullscreen_xpm));
     }
     if (!applyAllIcon) {
-        applyAllIcon = new QIcon(apply_all_xpm);
+        applyAllIcon = new QIcon(QPixmap(apply_all_xpm));
     }
 	if (!hasSelectedGraphsIcon) {
-		hasSelectedGraphsIcon = new QIcon(multiple_graphs_xpm);
+        hasSelectedGraphsIcon = new QIcon(QPixmap(multiple_graphs_xpm));
 	}
 }
 

@@ -5,7 +5,6 @@
 
 #include <qglobal.h>
 #include <QGLContext>
-
 #ifdef Q_OS_WIN
 #include <winsock.h>
 #include <io.h>
