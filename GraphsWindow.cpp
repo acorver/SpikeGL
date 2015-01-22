@@ -83,8 +83,8 @@ void GraphsWindow::setupGraph(int num, int firstExtraChan)
 		Connect(graphs[num], SIGNAL(clicked(double,double)), this, SLOT(mouseClickGraph(double,double)));
 		Connect(graphs[num], SIGNAL(doubleClicked(double,double)), this, SLOT(mouseDoubleClickGraph(double,double)));
 		graphs[num]->setAutoUpdate(false);
-		graphs[num]->setMouseTracking(true);
-		graphs[num]->setCursor(Qt::CrossCursor);
+        graphs[num]->setMouseTracking(true);
+        graphs[num]->setCursor(Qt::CrossCursor);
 		graphs[num]->setTag(QVariant(num));
 		if (num >= firstExtraChan) {
 			// this is the photodiode channel
@@ -277,6 +277,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 		//int nrows = int(sqrtf(numThisPage)), ncols = 0;
 		int nrows = int(sqrtf(NUM_GRAPHS_PER_GRAPH_TAB)), ncols = 0;
 //		while (nrows*ncols < (int)numThisPage) {
+        if (NUM_GRAPHS_PER_GRAPH_TAB == 32)
+            nrows = 8, ncols = 4; // HACK!!!
 		while (nrows*ncols < (int)NUM_GRAPHS_PER_GRAPH_TAB) {
 			if (nrows > ncols) ++ncols;
 			else ++nrows;
@@ -439,6 +441,13 @@ void GraphsWindow::installEventFilter(QObject *obj)
     QObject::installEventFilter(obj);
     graphYScale->installEventFilter(obj);
     graphSecs->installEventFilter(obj);
+}
+
+void GraphsWindow::removeEventFilter(QObject *obj)
+{
+    QObject::installEventFilter(obj);
+    graphYScale->removeEventFilter(obj);
+    graphSecs->removeEventFilter(obj);
 }
 
 void GraphsWindow::setGraphTimeSecs(int num, double t)
@@ -1062,7 +1071,7 @@ void GraphsWindow::tabChange(int t)
 	for (int i = 0; i < N_G; ++i) {
 		// first, save all existing graph states...
 		if (graphs[i]) {
-			graphs[i]->setUpdatesEnabled(false);
+            graphs[i]->setUpdatesEnabled(false);
 			graphStates[i] = graphs[i]->getState();
 			extraGraphs.insert(graphs[i]);
 			graphs[i]->setPoints(0); // clear points buf!
@@ -1289,25 +1298,27 @@ void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
 		tabHighlightTimer->start();
 	}
 	*/
-	if (ids.size()) {
+    if (ids.size()) {
 		if (maximized) toggleMaximize();
 		int page = ids[0]/NUM_GRAPHS_PER_GRAPH_TAB;
-		if (tabWidget) { tabWidget->setCurrentIndex(page); }
-		else if (stackedCombo) { stackedCombo->setCurrentIndex(page); stackedWidget->setCurrentIndex(page); }
+        //qDebug("highlightGraphsById called, ids[0]=%d page=%d",int(ids[0]),page);
+        if (tabWidget && page != tabWidget->currentIndex()) { tabWidget->setCurrentIndex(page); }
+        else if (stackedCombo && page != stackedCombo->currentIndex()) { stackedCombo->setCurrentIndex(page); stackedWidget->setCurrentIndex(page); }
 		selectGraph(ids[0]);
 	}
 }
 
 void GraphsWindow::openGraphsById(const QVector<unsigned> & ids) ///< really just opens the first graph
 {
-	//Debug() << "GraphsWindow::openGraphsById called with " << ids.size() << " ids...";	
+    //Debug() << "GraphsWindow::openGraphsById called with " << ids.size() << " ids...";
+    qDebug("selectGraphsById called, ids[0]=%d",ids.size()?int(ids[0]):-1);
 	if (ids.size()) {
 		if (maximized) toggleMaximize();
 		unsigned id = ids[0];
 		if (id < unsigned(graphs.size())) {
 			unsigned tab = id / NUM_GRAPHS_PER_GRAPH_TAB;
-			if (tabWidget) tabWidget->setCurrentIndex(tab);
-			else if (stackedCombo) { stackedCombo->setCurrentIndex(tab); stackedWidget->setCurrentIndex(tab); }
+            if (tabWidget && tab != tabWidget->currentIndex()) tabWidget->setCurrentIndex(tab);
+            else if (stackedCombo && tab != stackedCombo->currentIndex()) { stackedCombo->setCurrentIndex(tab); stackedWidget->setCurrentIndex(tab); }
 			selectGraph(id);
 			show();
 			raise();

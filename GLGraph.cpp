@@ -299,7 +299,7 @@ void GLGraph::mouseMoveEvent(QMouseEvent *evt)
 
 void GLGraph::mousePressEvent(QMouseEvent *evt)
 {
-	if (!(evt->buttons() & Qt::LeftButton)) return;
+    if (!(evt->buttons() & Qt::LeftButton)) return;
 	emit(clickedWindowCoords(evt->x(), evt->y()));
     Vec2 v(pos2Vec(evt->pos()));
     emit(clicked(v.x,v.y));
@@ -307,7 +307,7 @@ void GLGraph::mousePressEvent(QMouseEvent *evt)
 
 void GLGraph::mouseReleaseEvent(QMouseEvent *evt)
 {
-	if (evt->buttons() & Qt::LeftButton) return;
+    if (evt->buttons() & Qt::LeftButton) return;
 	emit(clickReleasedWindowCoords(evt->x(), evt->y()));
     Vec2 v(pos2Vec(evt->pos()));
     emit(clickReleased(v.x,v.y));
@@ -316,7 +316,7 @@ void GLGraph::mouseReleaseEvent(QMouseEvent *evt)
 
 void GLGraph::mouseDoubleClickEvent(QMouseEvent *evt)
 {
-	if (!(evt->buttons() & Qt::LeftButton)) return;
+    if (!(evt->buttons() & Qt::LeftButton)) return;
     Vec2 v(pos2Vec(evt->pos()));
     emit(doubleClicked(v.x,v.y));
 }

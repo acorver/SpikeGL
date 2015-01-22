@@ -312,6 +312,7 @@ void SpatialVisWindow::selectBlock(int blk)
 	for (int i = 0, ch = 0; i < nGraphsPerBlock && ((ch=i + blk*nGraphsPerBlock) < nvai); ++i) {
 		selIdxs.push_back(ch);
 	}
+    //qDebug("selectBlock(%d) oldIdxs(%d) firstIdx(%d)", blk, oldIdxs.size() ? oldIdxs[0] : -1, selIdxs.size()?selIdxs[0]:-1);
 	if (blk >= 0 && blk < nblks) {
 		graph->setSelectionRange(r.v1,r.v3,r.v2,r.v4, GLSpatialVis::Outline);
 		graph->setSelectionEnabled(true, GLSpatialVis::Outline);

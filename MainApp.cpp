@@ -761,7 +761,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	spatialWindow = new SpatialVisWindow(params, Vec2(graphsWindow->numColsPerGraphTab(),graphsWindow->numRowsPerGraphTab()), 0);
 	spatialWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
 	spatialWindow->setWindowIcon(appIcon);
-	spatialWindow->installEventFilter(this);
+    spatialWindow->installEventFilter(this);
 	windowMenuAdd(spatialWindow);
     
 	Connect(spatialWindow, SIGNAL(channelsSelected(const QVector<unsigned> &)), graphsWindow, SLOT(highlightGraphsById(const QVector<unsigned> &)));
@@ -1233,14 +1233,15 @@ void MainApp::taskReadFunc()
 		
 		// SPATIAL VIS TESTING 
 		if (spatialWindow && !spatialWindow->isHidden()) {
-			spatialWindow->putScans(scans, firstSamp);
+            if (!daqIsOver && qFillPct <= 70.0)
+                spatialWindow->putScans(scans, firstSamp);
 		}
 		
         if (graphsWindow && !graphsWindow->isHidden()) {            
             if (daqIsOver || qFillPct > 70.0) {
                 Warning() << "Some scans were dropped from graphing due to queue limits being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
              } else { 
-                 graphsWindow->putScans(scans, firstSamp);
+                graphsWindow->putScans(scans, firstSamp);
              }
         }
         
