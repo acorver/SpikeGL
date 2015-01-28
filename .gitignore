@@ -8,4 +8,27 @@ LeoDAQGL
 Makefile
 core
 core.*
+.DS_Store
+Deleted/
+Documentation/
+Info.plist
+LeoDAQGL.tag
+Matlab/spikegl_profile.m
+Profile/
+SpikeGL.app/
+SpikeGL.ncb
+SpikeGL.pro.winfakedaq
+SpikeGL.sln
+SpikeGL.suo
+SpikeGL.vcproj
+SpikeGL.vcproj.SUPERLOGICS.USER.user
+SpikeGL.vcproj.VKRAKENXP.calin.user
+SpikeGL.vcproj.vspscc
+SpikeGL.xcodeproj/
+Win32/
+build/
+debug/
+release/
+vc90.idb
+vc90.pdb
 
