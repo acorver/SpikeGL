@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual C# Express 2010
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bug3_spikegl", "Bug3 for SpikeGL\bug3_spikegl.csproj", "{86DB7B20-C948-4D43-BDF5-7284EA663FBC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bug3_spikegl", "Bug3_for_SpikeGL\bug3_spikegl.csproj", "{86DB7B20-C948-4D43-BDF5-7284EA663FBC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

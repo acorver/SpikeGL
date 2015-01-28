@@ -1,8 +1,8 @@
 <RCC>
     <qresource prefix="/Bug3">
-        <file>Bug3_for_SpikeGL/Bug3 for SpikeGL/bin/Release/bug3_spikegl.exe</file>
-        <file>Bug3_for_SpikeGL/Bug3 for SpikeGL/bug3a_receiver_1.bit</file>
-        <file>Bug3_for_SpikeGL/Bug3 for SpikeGL/libFrontPanel-csharp.dll</file>
-        <file>Bug3_for_SpikeGL/Bug3 for SpikeGL/libFrontPanel-pinv.dll</file>
+        <file>Bug3_for_SpikeGL/Bug3_for_SpikeGL/bin/Release/bug3_spikegl.exe</file>
+        <file>Bug3_for_SpikeGL/Bug3_for_SpikeGL/bug3a_receiver_1.bit</file>
+        <file>Bug3_for_SpikeGL/Bug3_for_SpikeGL/libFrontPanel-csharp.dll</file>
+        <file>Bug3_for_SpikeGL/Bug3_for_SpikeGL/libFrontPanel-pinv.dll</file>
     </qresource>
 </RCC>
