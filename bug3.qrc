@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/Bug3">
+        <file>Bug3_for_SpikeGL/ForDeployment/bug3_spikegl.exe</file>
+        <file>Bug3_for_SpikeGL/ForDeployment/bug3a_receiver_1.bit</file>
+        <file>Bug3_for_SpikeGL/ForDeployment/libFrontPanel-csharp.dll</file>
+        <file>Bug3_for_SpikeGL/ForDeployment/libFrontPanel-pinv.dll</file>
+    </qresource>
+</RCC>

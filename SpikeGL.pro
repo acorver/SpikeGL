@@ -40,6 +40,7 @@ RESOURCES += qled.qrc
 
 
 win32 {
+	RESOURCES += bug3.qrc
 #        LIBS += WS2_32.lib
         LIBS += $${PWD}/NI/NIDAQmx.lib WS2_32.lib
 #        DEFINES += _CRT_SECURE_NO_WARNINGS
