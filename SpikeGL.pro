@@ -51,8 +51,8 @@ win32 {
         SOURCES += AOWriteThread.cpp
         QMAKE_CFLAGS_RELEASE -= /O2 /O1 -O1 -O2
         QMAKE_CXXFLAGS_RELEASE -= /O2 /O1 -O1 -O2
-        QMAKE_CFLAGS_RELEASE += -arch:SSE2 -Ox
-        QMAKE_CXXFLAGS_RELEASE += -arch:SSE2 -Ox
+        QMAKE_CFLAGS_RELEASE += -arch:SSE2 -Oy -Ox
+        QMAKE_CXXFLAGS_RELEASE += -arch:SSE2 -Oy -Ox
 }
 
 unix {
