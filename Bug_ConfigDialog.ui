@@ -548,10 +548,29 @@ p, li { white-space: pre-wrap; }
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>Bug3_for_SpikeGL/Bug3_for_SpikeGL/IntanTitleSmall.png</pixmap>
+    <pixmap resource="bug3.qrc">:/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/IntanTitleSmall.png</pixmap>
    </property>
    <property name="scaledContents">
     <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>176</x>
+     <y>179</y>
+     <width>75</width>
+     <height>75</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap resource="bug3.qrc">:/Bug3/dragonfly.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>true</bool>
    </property>
   </widget>
  </widget>
@@ -565,7 +584,9 @@ p, li { white-space: pre-wrap; }
   <tabstop>disableGraphsChk</tabstop>
   <tabstop>buttonBox</tabstop>
  </tabstops>
- <resources/>
+ <resources>
+  <include location="bug3.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>buttonBox</sender>

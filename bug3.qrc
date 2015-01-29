@@ -4,5 +4,7 @@
         <file>Bug3_for_SpikeGL/Bug3_for_SpikeGL/bug3a_receiver_1.bit</file>
         <file>Bug3_for_SpikeGL/Bug3_for_SpikeGL/libFrontPanel-csharp.dll</file>
         <file>Bug3_for_SpikeGL/Bug3_for_SpikeGL/libFrontPanel-pinv.dll</file>
+        <file>Bug3_for_SpikeGL/Bug3_for_SpikeGL/IntanTitleSmall.png</file>
+        <file>dragonfly.png</file>
     </qresource>
 </RCC>
