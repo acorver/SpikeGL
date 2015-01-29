@@ -59,5 +59,12 @@ namespace Bug3.Properties {
                 resourceCulture = value;
             }
         }
+        
+        internal static System.Drawing.Bitmap IntanTitleSmall {
+            get {
+                object obj = ResourceManager.GetObject("IntanTitleSmall", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
     }
 }

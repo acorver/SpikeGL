@@ -38,7 +38,7 @@ using System.Threading;
 using OpalKelly.FrontPanel;
 
 namespace Bug3
-{   
+{
     /// <summary>
     /// Main window for Intan Insect Telemetry Receiver GUI
     /// </summary>
@@ -59,10 +59,10 @@ namespace Bug3
         private double[] EMGDataPrev = new double[Constant.TotalEMGChannels];
         private double[,] auxData = new double[Constant.TotalAuxChannels, Constant.FramesPerBlock];
         private bool[,] TTLData = new bool[Constant.TotalTTLChannels, Constant.FramesPerBlock];
-        
+
         private bool[] displayNeuralChannel = new bool[Constant.TotalNeuralChannels];
         private bool[] displayEMGChannel = new bool[Constant.TotalEMGChannels];
-        
+
         private int xSlowPos = 0;
         private int xSlowPosBER = 0;
         private const int XPlotOffset = 64;
@@ -163,13 +163,14 @@ namespace Bug3
                 string ratename = "HIGH";
                 if (s[0] == 'l') { Params.rate = DataRate.Low; ratename = "LOW"; }
                 else if (s[0] == 'm') { Params.rate = DataRate.Medium; ratename = "MEDIUM"; }
-                else Params.rate = Params.rate = DataRate.High;
+                else Params.rate = DataRate.High;
                 Console.WriteLine("Data rate set to '" + ratename + "'");
             }
             if (null != (s = Environment.GetEnvironmentVariable("BUG3_CHANGES_ON_CLOCK"))) // rising/falling
             {
                 int pol = -1;
-                try { pol = Convert.ToInt32(s, 10);  } catch { pol = -1; }
+                try { pol = Convert.ToInt32(s, 10); }
+                catch { pol = -1; }
                 if (pol > -1)
                 {
                     Params.clockEdgePolarity = pol;
@@ -250,7 +251,7 @@ namespace Bug3
             lblYScale.Text = YScaleText[yScaleIndex];
             lblEMGYScale.Text = YScaleTextEMG[yScaleIndexEMG];
             lblXScale.Text = XScaleText[xScaleIndex];
-            
+
             myBuffer.Render();
 
             myHammingDecoder = new HammingDecoder();
@@ -270,12 +271,14 @@ namespace Bug3
                 yScaleIndex = 2;
                 lblYScale.Text = YScaleText[yScaleIndex];
                 yScaleIndexEMG = 2;
-                lblEMGYScale.Text = YScaleTextEMG[yScaleIndexEMG]; 
-                
-                if (Params.guiHidden) {
+                lblEMGYScale.Text = YScaleTextEMG[yScaleIndexEMG];
+
+                if (Params.guiHidden)
+                {
                     Console.WriteLine(this.Text);
-                } else if (MessageBox.Show("Intan Technologies USB device not found.  Click OK to run application with synthesized neural data for demonstration purposes.\n\nTo use the USB FPGA board click Cancel, load correct drivers and/or connect device to USB port, then restart application.",
-                    "Intan USB Device Not Found", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) == DialogResult.Cancel)
+                }
+                else if (MessageBox.Show("Intan Technologies USB device not found.  Click OK to run application with synthesized neural data for demonstration purposes.\n\nTo use the USB FPGA board click Cancel, load correct drivers and/or connect device to USB port, then restart application.",
+                  "Intan USB Device Not Found", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) == DialogResult.Cancel)
                     this.Close();
             }
 
@@ -306,6 +309,106 @@ namespace Bug3
             {
                 this.WindowState = System.Windows.Forms.FormWindowState.Minimized;
             }
+            if (Params.consoleData) doStdinHandler();
+        }
+
+        private void doStdinHandler()
+        {
+            BackgroundWorker bw = new BackgroundWorker();
+
+            // this allows our worker to report progress during work
+            bw.WorkerReportsProgress = true;
+
+            // what to do in the background thread
+            bw.DoWork += new DoWorkEventHandler(
+            delegate(object o, DoWorkEventArgs args)
+            {
+                BackgroundWorker b = o as BackgroundWorker;
+
+                // process stdin
+                string line = null;
+                try
+                {
+                    while ((line = Console.ReadLine()) != null)
+                    {
+                        if (line.Length <= 0) continue;
+                        line = line.ToLower();
+                        // handle turn on/off software notch filter
+                        if (line.StartsWith("snf="))
+                        {
+                            int snf = -1;
+                            try { snf = Convert.ToInt32(line.Substring(4)); }
+                            catch { snf = -1; }
+                            if (snf >= 0) b.ReportProgress(1, snf);
+                            else b.ReportProgress(0, "PASS A POSITIVE INT: " + line);
+                        }
+                        // handle turn on/off high pass filter
+                        else if (line.StartsWith("hpf="))
+                        {
+                            int hpf = -1;
+                            try { hpf = Convert.ToInt32(line.Substring(4)); }
+                            catch { hpf = -1; }
+                            if (hpf >= 0) b.ReportProgress(2, hpf);
+                            else b.ReportProgress(0, "PASS A POSITIVE INT: " + line);
+                        }
+                        else if (line.StartsWith("quit") || line.StartsWith("exit"))
+                            return;
+                        else
+                            b.ReportProgress(0, "UNRECOGNIZED: '" + line + "'");
+                    }
+                }
+                catch
+                {
+                    // ...
+                }
+
+            });
+
+            // what to do when progress changed (update the progress bar for example)
+            bw.ProgressChanged += new ProgressChangedEventHandler(
+            delegate(object o, ProgressChangedEventArgs args)
+            {
+                if (args.ProgressPercentage <= 0)
+                    Console.WriteLine(args.UserState as string);
+                else if (args.ProgressPercentage == 1) //snf
+                {
+                    if ((int)args.UserState != 0)
+                    {
+                        btnNotchFilterDisable.Checked = false;
+                        btnNotchFilter60Hz.Checked = true;
+                    }
+                    else
+                    {
+                        btnNotchFilter60Hz.Checked = false;
+                        btnNotchFilterDisable.Checked = true;
+                    }
+//                    Console.WriteLine("snf set to: " + (int)args.UserState);
+                }
+                else if (args.ProgressPercentage == 2) // hpf
+                {
+                    int hpf = (int)args.UserState;
+                    if (hpf <= 0)
+                    { // off
+                        chkEnableHPF.Checked = false;
+                    }
+                    else
+                    { // on
+                        chkEnableHPF.Checked = true;
+                        txtHPF.Text = Convert.ToString(hpf);
+                    }
+//                    Console.WriteLine("hpf set to: " + hpf);
+                }
+            });
+
+            // what to do when worker completes its task (notify the user)
+            bw.RunWorkerCompleted += new RunWorkerCompletedEventHandler(
+            delegate(object o, RunWorkerCompletedEventArgs args)
+            {
+                Console.WriteLine("QUITTING...");
+                Application.Exit();
+            });
+
+            bw.RunWorkerAsync();
         }
 
         private void MainForm_Shown(object sender, EventArgs e)
@@ -868,14 +971,14 @@ namespace Bug3
 
         }
 
-        private static System.Int64 t0 = 0; 
+        private static System.Int64 t0 = 0;
 
         private void doConsoleDataOutput(int numPagesLeftInRAM)
         {
-            if (t0==0) t0 = System.DateTime.Now.Ticks;
- 
-            Console.WriteLine("---> Console data out called at time: " + (long)((System.DateTime.Now.Ticks-t0)/1e4) + "ms plotQueue.Count=" + plotQueue.Count + " numPagesLeftInRAM=" + numPagesLeftInRAM);
-            foreach(USBData data in plotQueue)
+            if (t0 == 0) t0 = System.DateTime.Now.Ticks;
+
+            Console.WriteLine("---> Console data out called at time: " + (long)((System.DateTime.Now.Ticks - t0) / 1e4) + "ms plotQueue.Count=" + plotQueue.Count + " numPagesLeftInRAM=" + numPagesLeftInRAM);
+            foreach (USBData data in plotQueue)
             {
                 double[,] array = null;
                 StringWriter writer = new StringWriter();
@@ -886,7 +989,7 @@ namespace Bug3
                     writer.Write("NEU_{0:D}{{", i);
                     for (int j = 0; j < Constant.NeuralSamplesPerFrame * Constant.FramesPerBlock; ++j)
                     {
-                        if (j>0) writer.Write(",");
+                        if (j > 0) writer.Write(",");
                         writer.Write(array[i, j]);
                     }
                     writer.WriteLine("}");
@@ -897,7 +1000,7 @@ namespace Bug3
                     writer.Write("EMG_{0:D}{{", i);
                     for (int j = 0; j < Constant.FramesPerBlock; ++j)
                     {
-                        if (j>0) writer.Write(",");
+                        if (j > 0) writer.Write(",");
                         writer.Write(array[i, j]);
                     }
                     writer.WriteLine("}");
@@ -908,7 +1011,7 @@ namespace Bug3
                     writer.Write("AUX_{0:D}{{", i);
                     for (int j = 0; j < Constant.FramesPerBlock; ++j)
                     {
-                        if (j>0) writer.Write(",");
+                        if (j > 0) writer.Write(",");
                         writer.Write(array[i, j]);
                     }
                     writer.WriteLine("}");
@@ -920,7 +1023,7 @@ namespace Bug3
                     writer.Write("TTL_{0:D}{{", i);
                     for (int j = 0; j < Constant.FramesPerBlock; ++j)
                     {
-                        if (j>0) writer.Write(",");
+                        if (j > 0) writer.Write(",");
                         writer.Write((int)(ttls[i, j] ? 1 : 0));
                     }
                     writer.WriteLine("}");
@@ -979,7 +1082,7 @@ namespace Bug3
                 writer.Write("FALSE_FC{"); writer.Write(data.falseFrameCount); writer.WriteLine("}");
 
                 writer.Flush();
-                Console.Write( writer.ToString() );
+                Console.Write(writer.ToString());
             }
         }
 
@@ -1056,9 +1159,9 @@ namespace Bug3
             else if (readMode && rawMode)
             {
                 numPagesLeftInRAM = myUSBSource.CheckForUSBData(plotQueue, saveQueue, dataRate, rawMode, myHammingDecoder);
-                
+
                 doConsoleDataOutput(numPagesLeftInRAM); // yep, we call it here too..
-                
+
                 plotQueue.Clear();
 
                 if (saveMode)
@@ -1375,7 +1478,7 @@ namespace Bug3
         // Frame marker correlation error tolerance number selector
         private void numFrameErrorTolerance_ValueChanged(object sender, EventArgs e)
         {
-            myUSBSource.SetCorrelationThreshold(Constant.MaxFrameCorrelation - 2*((int)numFrameErrorTolerance.Value));
+            myUSBSource.SetCorrelationThreshold(Constant.MaxFrameCorrelation - 2 * ((int)numFrameErrorTolerance.Value));
             lblChipID.Focus();  // remove focus from this control
         }
 

@@ -30,7 +30,6 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            this.picIntanLogo = new System.Windows.Forms.PictureBox();
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -45,6 +44,7 @@
             this.label1 = new System.Windows.Forms.Label();
             this.chkEnableHPF = new System.Windows.Forms.CheckBox();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.btnRaw = new System.Windows.Forms.Button();
             this.btnRecord = new System.Windows.Forms.Button();
             this.numMaxMinutes = new System.Windows.Forms.NumericUpDown();
             this.label5 = new System.Windows.Forms.Label();
@@ -123,8 +123,7 @@
             this.label32 = new System.Windows.Forms.Label();
             this.label33 = new System.Windows.Forms.Label();
             this.label34 = new System.Windows.Forms.Label();
-            this.btnRaw = new System.Windows.Forms.Button();
-            ((System.ComponentModel.ISupportInitialize)(this.picIntanLogo)).BeginInit();
+            this.picIntanLogo = new System.Windows.Forms.PictureBox();
             this.menuStrip1.SuspendLayout();
             this.sbrMainStatusStrip.SuspendLayout();
             this.groupBox1.SuspendLayout();
@@ -134,18 +133,8 @@
             this.groupBox4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numFrameErrorTolerance)).BeginInit();
             this.groupBox5.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.picIntanLogo)).BeginInit();
             this.SuspendLayout();
-            // 
-            // picIntanLogo
-            // 
-            this.picIntanLogo.BackColor = System.Drawing.Color.White;
-            this.picIntanLogo.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-            this.picIntanLogo.Image = ((System.Drawing.Image)(resources.GetObject("picIntanLogo.Image")));
-            this.picIntanLogo.Location = new System.Drawing.Point(866, 27);
-            this.picIntanLogo.Name = "picIntanLogo";
-            this.picIntanLogo.Size = new System.Drawing.Size(205, 77);
-            this.picIntanLogo.TabIndex = 0;
-            this.picIntanLogo.TabStop = false;
             // 
             // menuStrip1
             // 
@@ -163,14 +152,14 @@
             this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.exitToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 20);
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(35, 20);
             this.fileToolStripMenuItem.Text = "&File";
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
             this.exitToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Q)));
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(143, 22);
             this.exitToolStripMenuItem.Text = "&Exit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
             // 
@@ -179,13 +168,13 @@
             this.helpToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.aboutToolStripMenuItem});
             this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
-            this.helpToolStripMenuItem.Size = new System.Drawing.Size(44, 20);
+            this.helpToolStripMenuItem.Size = new System.Drawing.Size(40, 20);
             this.helpToolStripMenuItem.Text = "&Help";
             // 
             // aboutToolStripMenuItem
             // 
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(239, 22);
             this.aboutToolStripMenuItem.Text = "&About Intan Telemetry Receiver";
             this.aboutToolStripMenuItem.Click += new System.EventHandler(this.aboutToolStripMenuItem_Click);
             // 
@@ -203,7 +192,7 @@
             // lblStatus
             // 
             this.lblStatus.Name = "lblStatus";
-            this.lblStatus.Size = new System.Drawing.Size(82, 17);
+            this.lblStatus.Size = new System.Drawing.Size(81, 17);
             this.lblStatus.Text = "Ready to start.";
             // 
             // groupBox1
@@ -275,6 +264,17 @@
             this.groupBox2.TabIndex = 4;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Save to Disk";
+            // 
+            // btnRaw
+            // 
+            this.btnRaw.Enabled = false;
+            this.btnRaw.Location = new System.Drawing.Point(247, 60);
+            this.btnRaw.Name = "btnRaw";
+            this.btnRaw.Size = new System.Drawing.Size(55, 23);
+            this.btnRaw.TabIndex = 62;
+            this.btnRaw.Text = "Raw";
+            this.btnRaw.UseVisualStyleBackColor = true;
+            this.btnRaw.Click += new System.EventHandler(this.btnRaw_Click);
             // 
             // btnRecord
             // 
@@ -1096,16 +1096,17 @@
             this.label34.TabIndex = 61;
             this.label34.Text = "1 sec";
             // 
-            // btnRaw
+            // picIntanLogo
             // 
-            this.btnRaw.Enabled = false;
-            this.btnRaw.Location = new System.Drawing.Point(247, 60);
-            this.btnRaw.Name = "btnRaw";
-            this.btnRaw.Size = new System.Drawing.Size(55, 23);
-            this.btnRaw.TabIndex = 62;
-            this.btnRaw.Text = "Raw";
-            this.btnRaw.UseVisualStyleBackColor = true;
-            this.btnRaw.Click += new System.EventHandler(this.btnRaw_Click);
+            this.picIntanLogo.BackColor = System.Drawing.Color.White;
+            this.picIntanLogo.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
+            this.picIntanLogo.Image = global::Bug3.Properties.Resources.IntanTitleSmall;
+            this.picIntanLogo.InitialImage = global::Bug3.Properties.Resources.IntanTitleSmall;
+            this.picIntanLogo.Location = new System.Drawing.Point(866, 27);
+            this.picIntanLogo.Name = "picIntanLogo";
+            this.picIntanLogo.Size = new System.Drawing.Size(205, 77);
+            this.picIntanLogo.TabIndex = 0;
+            this.picIntanLogo.TabStop = false;
             // 
             // MainForm
             // 
@@ -1179,10 +1180,9 @@
             this.Text = "Intan Technologies Insect Telemetry Receiver";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainForm_FormClosed);
             this.Load += new System.EventHandler(this.MainForm_Load);
+            this.Shown += new System.EventHandler(this.MainForm_Shown);
             this.Paint += new System.Windows.Forms.PaintEventHandler(this.MainForm_Paint);
             this.MouseClick += new System.Windows.Forms.MouseEventHandler(this.MainForm_MouseClick);
-            this.Shown += new System.EventHandler(this.MainForm_Shown);
-            ((System.ComponentModel.ISupportInitialize)(this.picIntanLogo)).EndInit();
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
             this.sbrMainStatusStrip.ResumeLayout(false);
@@ -1199,6 +1199,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.numFrameErrorTolerance)).EndInit();
             this.groupBox5.ResumeLayout(false);
             this.groupBox5.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.picIntanLogo)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
