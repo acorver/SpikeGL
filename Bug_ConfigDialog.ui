@@ -1,0 +1,668 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Bug_ConfigDialog</class>
+ <widget class="QDialog" name="Bug_ConfigDialog">
+  <property name="windowModality">
+   <enum>Qt::ApplicationModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>512</width>
+    <height>384</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Configure Bug (Telemetry) Acquisition</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>../../../../.designer/backup/Icon-Config.xpm</normaloff>../../../../.designer/backup/Icon-Config.xpm</iconset>
+  </property>
+  <property name="toolTip">
+   <string/>
+  </property>
+  <property name="modal">
+   <bool>true</bool>
+  </property>
+  <widget class="QDialogButtonBox" name="buttonBox">
+   <property name="geometry">
+    <rect>
+     <x>328</x>
+     <y>344</y>
+     <width>175</width>
+     <height>32</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+   <property name="standardButtons">
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+   </property>
+  </widget>
+  <widget class="QLabel" name="outputFileLabel">
+   <property name="geometry">
+    <rect>
+     <x>3</x>
+     <y>5</y>
+     <width>117</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Output filename:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="outputFileLE">
+   <property name="geometry">
+    <rect>
+     <x>128</x>
+     <y>5</y>
+     <width>272</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>c:\blah</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="browseBut">
+   <property name="geometry">
+    <rect>
+     <x>410</x>
+     <y>5</y>
+     <width>88</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Browse...</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="acqRateLabel">
+   <property name="geometry">
+    <rect>
+     <x>3</x>
+     <y>46</y>
+     <width>117</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The rate at which to acquire telemetry data.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Acquisition Rate:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="acqRateCB">
+   <property name="geometry">
+    <rect>
+     <x>128</x>
+     <y>46</y>
+     <width>147</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The rate at which to acquire telemetry data.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="currentIndex">
+    <number>2</number>
+   </property>
+   <item>
+    <property name="text">
+     <string>Low (1.25 Mbps)</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Medium (2.5 Mbps)</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>High (5.0 Mbps)</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QCheckBox" name="disableGraphsChk">
+   <property name="geometry">
+    <rect>
+     <x>242</x>
+     <y>271</y>
+     <width>261</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Disabling graphing of data saves on CPU/GPU load. Graphs can be re-enabled at any time from the system tray.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Disable data graphs (just save to disk)</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="ttlTrigLbl">
+   <property name="geometry">
+    <rect>
+     <x>280</x>
+     <y>46</y>
+     <width>70</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If enabled, the TTL line to monitor to trigger the acquisition.  Data file saving won't occur until the TTL line is high.  The acquisition will stop when the line goes low again.  Re-triggers increment the save file name based on the name specified in the 'output filename' box.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>TTL Trig:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="ttlTrigCB">
+   <property name="geometry">
+    <rect>
+     <x>362</x>
+     <y>46</y>
+     <width>87</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If enabled, the TTL line to monitor to trigger the acquisition. Data file saving won't occur until the TTL line is high. The acquisition will stop when the line goes low again. Re-triggers increment the save file name based on the name specified in the 'output filename' box.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <item>
+    <property name="text">
+     <string>Disabled</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 0</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 1</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 2</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 4</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 5</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 6</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 7</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 8</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 9</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 10</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 11</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QComboBox" name="clkEdgeCB">
+   <property name="geometry">
+    <rect>
+     <x>128</x>
+     <y>110</y>
+     <width>121</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>Specifies the clock edge detection for the clock line. </string>
+   </property>
+   <item>
+    <property name="text">
+     <string>Rising</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Falling</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLabel" name="clkEdgeLbl">
+   <property name="geometry">
+    <rect>
+     <x>3</x>
+     <y>110</y>
+     <width>117</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>Specifies the clock edge detection for the clock line. </string>
+   </property>
+   <property name="text">
+    <string>Clock Edge Det.:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="channelSubsetLE">
+   <property name="geometry">
+    <rect>
+     <x>128</x>
+     <y>78</y>
+     <width>366</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This option is useful if you wish to save &amp;amp; graph only a subset of the bug3 telemetry channels. &lt;/p&gt;&lt;ul&gt;&lt;li&gt;The 10 'neural amp' channels are numbered 0-9. &lt;/li&gt;&lt;li&gt;The 4 'EMG amp' channels are numbered 10-13.&lt;/li&gt;&lt;li&gt;The 2 AUX channels are numbered 14-15.&lt;/li&gt;&lt;li&gt;The TTL channel (if enabled) is numbered 16.&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Ranges such as 0:16, or comma-separated-lists such as 1,2,3,4 are ok. * or 'ALL' or an empty string indicates all channels will be saved. &lt;/p&gt;&lt;p&gt;This option is remembered across subsequent runs of the program.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>*</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="channelSubsetLabel">
+   <property name="geometry">
+    <rect>
+     <x>3</x>
+     <y>78</y>
+     <width>117</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This option is useful if you wish to save &amp;amp; graph only a subset of the bug3 telemetry channels. &lt;/p&gt;&lt;ul&gt;&lt;li&gt;The 10 'neural amp' channels are numbered 0-9. &lt;/li&gt;&lt;li&gt;The 4 'EMG amp' channels are numbered 10-13.&lt;/li&gt;&lt;li&gt;The 2 AUX channels are numbered 14-15.&lt;/li&gt;&lt;li&gt;The TTL channel (if enabled) is numbered 16.&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Ranges such as 0:16, or comma-separated-lists such as 1,2,3,4 are ok. * or 'ALL' or an empty string indicates all channels will be saved. &lt;/p&gt;&lt;p&gt;This option is remembered across subsequent runs of the program.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Save Ch. Subset:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="resumeGraphSettingsChk">
+   <property name="geometry">
+    <rect>
+     <x>242</x>
+     <y>303</y>
+     <width>261</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, apply the graph settings (X-Scale, Y-Scale, color, etc) from the previous run.  This only really works if the same channel lists, AI devices, and acquisition mode is used.  If unchecked, default values are used.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="whatsThis">
+    <string>If checked, apply the graph settings (X-Scale, Y-Scale, color, etc) from the previous run.  This only really works if the same channel lists, AI devices, and acquisition mode is used.  If unchecked, default values are used.</string>
+   </property>
+   <property name="text">
+    <string>Restore Graphs Scale &amp;&amp; Color Settings</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="graphsPerTabCB">
+   <property name="geometry">
+    <rect>
+     <x>133</x>
+     <y>303</y>
+     <width>102</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'.Lucida Grande UI'; font-size:13pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;If set to anything other than 'Default', limit the number of on-screen graphs simultaneously displayed per graph tab. This may help performance in the case where the GUI display is slow and you experience many buffer overruns (since displaying fewer graphs on-screen implies a  reduced GUI/display and/or processing burden on the system).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="whatsThis">
+    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;If set to anything other than 'Default', limit the number of on-screen graphs simultaneously displayed per graph tab. This may help performance in the case where the GUI display is slow and you experience many buffer overruns (since displaying fewer graphs on-screen implies a  reduced GUI/display and/or processing burden on the system).&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <item>
+    <property name="text">
+     <string>Default</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>4</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>9</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>16</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>25</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>36</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLabel" name="graphsPerTabLabel">
+   <property name="geometry">
+    <rect>
+     <x>6</x>
+     <y>303</y>
+     <width>117</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'.Lucida Grande UI'; font-size:13pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;If set to anything other than 'Default', limit the number of on-screen graphs simultaneously displayed per graph tab. This may help performance in the case where the GUI display is slow and you experience many buffer overruns (since displaying fewer graphs on-screen implies a  reduced GUI/display and/or processing burden on the system).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="whatsThis">
+    <string>If set to anything other than 'Default', limit the number of on-screen graphs simultaneously displayed per graph tab. This may help performance in the case where the GUI display is slow and you experience many buffer overruns (since displaying fewer graphs on-screen implies a  reduced GUI/display and/or processing burden on the system).</string>
+   </property>
+   <property name="text">
+    <string>Graphs Per Tab:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QLabel" name="errTolLbl">
+   <property name="geometry">
+    <rect>
+     <x>250</x>
+     <y>110</y>
+     <width>180</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Frame finder error tolerance (out of 144 bits).  Defaults to 6.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Error tolerance (of 144 bits):</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="errTolSB">
+   <property name="geometry">
+    <rect>
+     <x>442</x>
+     <y>110</y>
+     <width>53</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Frame finder error tolerance (out of 144 bits).  Defaults to 6.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="minimum">
+    <number>1</number>
+   </property>
+   <property name="maximum">
+    <number>144</number>
+   </property>
+   <property name="value">
+    <number>6</number>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="notchFilterChk">
+   <property name="geometry">
+    <rect>
+     <x>214</x>
+     <y>142</y>
+     <width>286</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Enable Software Notch Filter (60 Hz) </string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="hpfChk">
+   <property name="geometry">
+    <rect>
+     <x>16</x>
+     <y>142</y>
+     <width>171</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, the software high pass filter is enabled.  Specify the filter's cutoff in Hz in the spinbox provided.  This property can be modified while the acquisition is running.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Enable High-Pass Filter:</string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="hpfSB">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>38</x>
+     <y>165</y>
+     <width>68</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Specify the filter's cutoff in Hz.  This property can be modified while the acquisition is running.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="minimum">
+    <number>1</number>
+   </property>
+   <property name="maximum">
+    <number>99999</number>
+   </property>
+   <property name="value">
+    <number>1</number>
+   </property>
+  </widget>
+  <widget class="QLabel" name="hpfLbl">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>111</x>
+     <y>165</y>
+     <width>32</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Specify the filter's cutoff in Hz.  This property can be modified while the acquisition is running.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Hz</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="intanLbl">
+   <property name="geometry">
+    <rect>
+     <x>30</x>
+     <y>209</y>
+     <width>208</width>
+     <height>82</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>Bug3_for_SpikeGL/Bug3_for_SpikeGL/IntanTitleSmall.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>false</bool>
+   </property>
+  </widget>
+ </widget>
+ <tabstops>
+  <tabstop>outputFileLE</tabstop>
+  <tabstop>browseBut</tabstop>
+  <tabstop>acqRateCB</tabstop>
+  <tabstop>ttlTrigCB</tabstop>
+  <tabstop>channelSubsetLE</tabstop>
+  <tabstop>clkEdgeCB</tabstop>
+  <tabstop>disableGraphsChk</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>Bug_ConfigDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>Bug_ConfigDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>disableGraphsChk</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>resumeGraphSettingsChk</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>547</x>
+     <y>454</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>394</x>
+     <y>451</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>hpfChk</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>hpfSB</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>101</x>
+     <y>152</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>71</x>
+     <y>175</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>hpfChk</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>hpfLbl</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>101</x>
+     <y>152</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>126</x>
+     <y>175</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <designerdata>
+  <property name="gridDeltaX">
+   <number>10</number>
+  </property>
+  <property name="gridDeltaY">
+   <number>10</number>
+  </property>
+  <property name="gridSnapX">
+   <bool>false</bool>
+  </property>
+  <property name="gridSnapY">
+   <bool>false</bool>
+  </property>
+  <property name="gridVisible">
+   <bool>true</bool>
+  </property>
+ </designerdata>
+</ui>

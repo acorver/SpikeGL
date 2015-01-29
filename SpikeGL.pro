@@ -17,7 +17,8 @@ HEADERS += SpikeGL.h DataFile.h Params.h sha1.h Util.h TypeDefs.h \
            HPFilter.h ChanMappingController.h ChanMap.h  CommandServer.h \
            SockUtil.h QLed.h TempDataFile.h FileViewerWindow.h \
            ExportDialogController.h ClickableLabel.h GLSpatialVis.h \
-           SpatialVisWindow.h
+           SpatialVisWindow.h \
+           Bug_ConfigDialog.h
 
 SOURCES += DataFile.cpp osdep.cpp Params.cpp sha1.cpp Util.cpp \
            MainApp.cpp ConsoleWindow.cpp main.cpp \
@@ -27,20 +28,21 @@ SOURCES += DataFile.cpp osdep.cpp Params.cpp sha1.cpp Util.cpp \
            ChanMappingController.cpp ChanMap.cpp CommandServer.cpp SockUtil.cpp \
            QLed.cpp TempDataFile.cpp FileViewerWindow.cpp \
            ExportDialogController.cpp ClickableLabel.cpp GLSpatialVis.cpp \
-           SpatialVisWindow.cpp
+           SpatialVisWindow.cpp \
+           Bug_ConfigDialog.cpp
 
 FORMS += ConfigureDialog.ui AcqPDParams.ui AcqTimedParams.ui Par2Window.ui \
          StimGLIntegration.ui ChanMapping.ui AOPassthru.ui Dialog.ui \
          ApplyDialog.ui TextBrowser.ui CommandServerOptions.ui \
-         TempFileDialog.ui ExportDialog.ui FVW_OptionsDialog.ui 
+         TempFileDialog.ui ExportDialog.ui FVW_OptionsDialog.ui \
+         Bug_ConfigDialog.ui
 
 QT += opengl network svg
 
-RESOURCES += qled.qrc
+RESOURCES += qled.qrc bug3.qrc
 
 
 win32 {
-	RESOURCES += bug3.qrc
 #        LIBS += WS2_32.lib
         LIBS += $${PWD}/NI/NIDAQmx.lib WS2_32.lib
 #        DEFINES += _CRT_SECURE_NO_WARNINGS

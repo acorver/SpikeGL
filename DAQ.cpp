@@ -301,9 +301,9 @@ namespace DAQ
 #endif
     }
     
-    Task::Task(const Params & acqParams, QObject *p) 
-        : QThread(p), SampleBufQ("DAQ Task", SAMPLE_BUF_Q_SIZE), pleaseStop(false), params(acqParams), 
-          fast_settle(0), muxMode(false), totalRead(0ULL), aoWriteThr(0),
+    NITask::NITask(const Params & acqParams, QObject *p) 
+        : Task(p,"DAQ Task", SAMPLE_BUF_Q_SIZE), pleaseStop(false), params(acqParams), 
+          fast_settle(0), muxMode(false), aoWriteThr(0),
 #ifdef HAVE_NIDAQmx
           taskHandle(0), taskHandle2(0),
 #endif
@@ -312,14 +312,11 @@ namespace DAQ
         errBuff[0] = 0;
         setDO(false); // assert DO is low when stopped...
     }
-
-    Task::~Task()
-    {
-        stop();
-    }
+	
+	NITask::~NITask() { stop(); }
 
 
-    void Task::stop() 
+    void NITask::stop() 
     {
         if (isRunning() && !pleaseStop) {
             pleaseStop = true;
@@ -329,12 +326,12 @@ namespace DAQ
         setDO(false); // assert DO low when stopped...
     }
 
-    void Task::run()
+    void NITask::run()
     {
         daqThr();
     }
 
-    void Task::overflowWarning() 
+    void NITask::overflowWarning() 
     {
         Warning() << "DAQ Task sample buffer overflow!  Queue has " << dataQueueMaxSize << " buffers in it!  Dropping a buffer!";
         emit(bufferOverrun());
@@ -348,7 +345,7 @@ namespace DAQ
     }
 
     /* static */
-    int Task::computeTaskReadFreq(double srate_in) {
+    int NITask::computeTaskReadFreq(double srate_in) {
         int srate = ceil(srate_in); (void)srate;
         return DEF_TASK_READ_FREQ_HZ;
         /*
@@ -376,7 +373,7 @@ namespace DAQ
 
 namespace DAQ 
 {
-    void Task::daqThr()
+    void NITask::daqThr()
     {
         static QString fname("fakedaqdata.bin");
         char *e;
@@ -414,17 +411,17 @@ namespace DAQ
 			if (sleeptime > 0) 
 				usleep(sleeptime);
 			else
-				Warning() << "FakeDAQ Task::daqThr(). sleeptime (" << sleeptime << ") is less than 0!";
+				Warning() << "FakeDAQ NITask::daqThr(). sleeptime (" << sleeptime << ") is less than 0!";
         }
     }
 
-    void Task::setDO(bool onoff)
+    void NITask::setDO(bool onoff)
     {
         Warning() << "setDO(" << (onoff ? "on" : "off") << ") called (unimplemented in FAKEDAQ mode)";
     }
 
 
-    void Task::requestFastSettle() 
+    void NITask::requestFastSettle() 
     {
         Warning() << "requestFastSettle() unimplemented for FAKEDAQ mode!";
         emit(fastSettleCompleted());
@@ -603,7 +600,7 @@ namespace DAQ
     }
 
     /* static */
-    void Task::recomputeAOAITab(QVector<QPair<int, int> > & aoAITab, QString & aoChan, const Params & p)
+    void NITask::recomputeAOAITab(QVector<QPair<int, int> > & aoAITab, QString & aoChan, const Params & p)
     {
         aoAITab.clear();
         aoChan.clear();
@@ -628,7 +625,7 @@ namespace DAQ
         return chan*(DAQ::ModeNumIntans[m] * (dualDevMode ? 2 : 1)) + intan;
     }
     
-    bool Task::createAITasks() 
+    bool NITask::createAITasks() 
     {
         const DAQ::Params & p(params);
 
@@ -653,7 +650,7 @@ namespace DAQ
         return true;
     }
 
-    bool Task::startAITasks() 
+    bool NITask::startAITasks() 
     {
         const DAQ::Params & p(params);
         if ( DAQmxErrChkNoJump(DAQmxStartTask(taskHandle)) )
@@ -665,7 +662,7 @@ namespace DAQ
         return true;
     }
 
-    void Task::destroyAITasks()
+    void NITask::destroyAITasks()
     {
         if ( taskHandle != 0) {
             DAQmxStopTask (taskHandle);
@@ -680,7 +677,7 @@ namespace DAQ
     }
 
     // returns 0 if all ok, -1 if unrecoverable error, 1 if had "buffer overflow error" and tried did acq restart..
-    int Task::doAIRead(TaskHandle th, u64 samplesPerChan, std::vector<int16> & data, unsigned long oldS, int32 pointsToRead, int32 & pointsRead)
+    int NITask::doAIRead(TaskHandle th, u64 samplesPerChan, std::vector<int16> & data, unsigned long oldS, int32 pointsToRead, int32 & pointsRead)
     {
         const DAQ::Params & p(params);
         if (DAQmxErrChkNoJump (DAQmxReadBinaryI16(th,samplesPerChan,timeout,DAQmx_Val_GroupByScanNumber,&data[oldS],pointsToRead,&pointsRead,NULL))) {
@@ -712,7 +709,7 @@ namespace DAQ
         return 0;
     }
 
-    void Task::fudgeDataDueToReadRetry()
+    void NITask::fudgeDataDueToReadRetry()
     {
         const DAQ::Params & p (params);
         const double tNow = Util::getTime();
@@ -731,7 +728,7 @@ namespace DAQ
         lastEnq = tNow;
     }
 
-    void Task::daqThr()
+    void NITask::daqThr()
     {
         // Task parameters
         error = 0;
@@ -1145,7 +1142,7 @@ namespace DAQ
     }
     
     /*static*/
-    inline void Task::mergeDualDevData(std::vector<int16> & out,
+    inline void NITask::mergeDualDevData(std::vector<int16> & out,
                                 const std::vector<int16> & data, const std::vector<int16> & data2, 
                                 int NCHANS1, int NCHANS2, 
                                 int nExtraChans1, int nExtraChans2)
@@ -1164,7 +1161,7 @@ namespace DAQ
             Error() << "INTERNAL ERROR IN FUNCTION `mergeDualDevData()'!  The two device buffers data and data2 have differing numbers of scans! FIXME!  Aieeeee!!\n";
     }    
 
-    void Task::breakupDataIntoChunksAndEnqueue(std::vector<int16> & data, u64 sampCount, bool putFakeDataOnOverrun)
+    void NITask::breakupDataIntoChunksAndEnqueue(std::vector<int16> & data, u64 sampCount, bool putFakeDataOnOverrun)
     {
         int chunkSize = int(params.srate / computeTaskReadFreq(params.srate)) * params.nVAIChans, nchunk = 0, ct = 0;
         if (chunkSize < (int)params.nVAIChans) chunkSize = params.nVAIChans;
@@ -1190,7 +1187,7 @@ namespace DAQ
         data.clear();
     }
 
-    void Task::setDO(bool onoff)
+    void NITask::setDO(bool onoff)
     {
         const char *callStr = "";
 
@@ -1247,7 +1244,7 @@ namespace DAQ
         }
     }
 
-    void Task::requestFastSettle() 
+    void NITask::requestFastSettle() 
     {
         if (!muxMode) {
             Warning() << "Fast settle requested -- but not running in MUX mode!  FIXME!";
@@ -1265,15 +1262,6 @@ namespace DAQ
         }
     }
     
-    u64 Task::lastReadScan() const
-    {
-        u64 ret (0);
-        totalReadMut.lock();
-        ret = totalRead / numChans();
-        totalReadMut.unlock();
-        return ret;
-    }
-
     int32 DAQPvt::everyNSamples_func (TaskHandle taskHandle, int32 everyNsamplesEventType, uint32 nSamples, void *callbackData)
     {
         Task *daq = (Task *)callbackData;
@@ -1342,6 +1330,21 @@ namespace DAQ
         return unk;
     }
 
+	Task::Task(QObject *parent, const QString & name, unsigned max)
+		: QThread(parent), SampleBufQ(name, max), totalRead(0ULL)
+	{}
+	
+	Task::~Task() {}
+	
+	u64 Task::lastReadScan() const
+    {
+        u64 ret (0);
+        totalReadMut.lock();
+        ret = totalRead / numChans();
+        totalReadMut.unlock();
+        return ret;
+    }
+	
 } // end namespace DAQ
 
 //-- #pragma mark Windows Hacks

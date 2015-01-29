@@ -589,6 +589,7 @@ void MainApp::customEvent(QEvent *e) { ///< yes, we are implementing part of thi
             break;
         case E_StartACQ:
             {
+				doBugAcqInstead = false;
                 QString errTitle, errMsg, err;
                 if (! startAcq(errTitle, errMsg) ) {
                     err = errTitle + " " + errMsg;

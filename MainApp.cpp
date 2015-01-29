@@ -44,6 +44,7 @@
 #include "FileViewerWindow.h"
 #include <algorithm>
 #include "SpatialVisWindow.h"
+#include "Bug_ConfigDialog.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -83,7 +84,7 @@ namespace {
 /// if params.doPreJuly2011Demux is true, then does a noop and just passes scans along..
 class PostJuly2011Remuxer : public QThread, public SampleBufQ {
 public:
-	PostJuly2011Remuxer(const DAQ::Params & p, DAQ::Task *daqTask, QObject *parent = 0);
+	PostJuly2011Remuxer(const DAQ::Params & p, DAQ::NITask *daqTask, QObject *parent = 0);
 	~PostJuly2011Remuxer();	
 	void stop(); 
 	
@@ -93,13 +94,13 @@ protected:
 private:
 	volatile bool pleaseStop;
 	const DAQ::Params & p;
-	DAQ::Task *task;
+	DAQ::NITask *task;
 };
 
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-	: QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), spatialWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0)
+	: QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), spatialWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0), doBugAcqInstead(false)
 {
 	setApplicationName("SpikeGL");
 	setApplicationVersion(VERSION_STR);
@@ -119,6 +120,7 @@ MainApp::MainApp(int & argc, char ** argv)
     createAppIcon();
     
     configCtl = new ConfigureDialogController(this);
+	bugConfig = new Bug_ConfigDialog(this);
 
     installEventFilter(this); // filter our own events
 
@@ -272,6 +274,10 @@ bool MainApp::processKey(QKeyEvent *event)
 	case 'n':
 	case 'N':
 		newAcqAct->trigger();
+		return true;
+	case 'b':
+	case 'B':
+		bugAcqAct->trigger();
 		return true;
 	case 'o':
 	case 'O':
@@ -636,6 +642,8 @@ void MainApp::initActions()
             
     Connect( newAcqAct = new QAction("New Acquisition... &N", this),
              SIGNAL(triggered()), this, SLOT(newAcq()));
+    Connect( bugAcqAct = new QAction("New Bug Acquisition... &B", this),
+			SIGNAL(triggered()), this, SLOT(bugAcq()));
     Connect( stopAcq = new QAction("Stop Running Acquisition ESC", this),
              SIGNAL(triggered()), this, SLOT(maybeCloseCurrentIfRunning()) );
     stopAcq->setEnabled(false);
@@ -679,6 +687,13 @@ void MainApp::initActions()
 
 bool MainApp::startAcq(QString & errTitle, QString & errMsg) 
 {
+	if (doBugAcqInstead) { // guard for now.. since bug acq is unimplemented..
+		doBugAcqInstead = false; 
+		errTitle = "Unimplemented!";
+		errMsg = "Bug Acquisition Unimplemented!";
+		return false; 
+	} 
+	
 	QMutexLocker ml (&mut);
 	
     // NOTE: acq cannot be running here!
@@ -696,9 +711,9 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     pdWaitingForStimGL = false;
     warnedDropped = false;
     queuedParams.clear();
-    if (!configCtl) {
+    if (!configCtl || !bugConfig) {
         errTitle = "Internal Error";
-        errMsg = "configCtl pointer is NULL! Shouldn't happen!";
+        errMsg = "configCtl and/or bugConfig pointer is NULL! Shouldn't happen!";
         return false;
     }
     DAQ::Params & params(configCtl->acceptedParams);    
@@ -802,12 +817,13 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
             return false;
     }
     
-    task = new DAQ::Task(params, this);
+	DAQ::NITask *nitask;
+    task = nitask = new DAQ::NITask(params, this);
 	if (!params.doPreJuly2011IntanDemux && params.mode != DAQ::AIRegular) 
-		addtlDemuxTask = new PostJuly2011Remuxer(params, task, this);
+		addtlDemuxTask = new PostJuly2011Remuxer(params, nitask, this);
     taskReadTimer = new QTimer(this);
     Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
-    Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
+    Connect(nitask, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
     Connect(taskReadTimer, SIGNAL(timeout()), this, SLOT(taskReadFunc()));
     taskReadTimer->setSingleShot(false);
     
@@ -838,6 +854,25 @@ void MainApp::newAcq()
     int ret = configCtl->exec();
     noHotKeys = false;
     if (ret == QDialog::Accepted) {
+		doBugAcqInstead = false;
+		if (pregraphs.count() < maxPreGraphs) {
+			acqWaitingForPrecreate = true;
+			noHotKeys = true;
+			showPrecreateDialog();
+		} else 
+			startAcqWithPossibleErrDialog();
+	}
+}
+
+void MainApp::bugAcq()
+{
+	if (acqWaitingForPrecreate) return; ///< disable 'B' key or new app menu spamming...
+    if ( !maybeCloseCurrentIfRunning() ) return;
+    noHotKeys = true;
+    int ret = bugConfig->exec();
+    noHotKeys = false;
+    if (ret == QDialog::Accepted) {
+		doBugAcqInstead = true;
 		if (pregraphs.count() < maxPreGraphs) {
 			acqWaitingForPrecreate = true;
 			noHotKeys = true;
@@ -863,7 +898,8 @@ void MainApp::stopTask()
 	
     if (!task) return;
 	if (addtlDemuxTask) delete addtlDemuxTask, addtlDemuxTask = 0;
-    delete task, task = 0;	
+    delete task, task = 0;
+	doBugAcqInstead = false;
     fastSettleRunning = false;
     if (taskReadTimer) delete taskReadTimer, taskReadTimer = 0;
     if (graphsWindow) {
@@ -958,7 +994,7 @@ inline void ApplyNewIntanDemuxToScan(int16 *begin, const unsigned nchans_per_int
 }
 
 
-PostJuly2011Remuxer::PostJuly2011Remuxer(const DAQ::Params & p, DAQ::Task *task, QObject *parent)
+PostJuly2011Remuxer::PostJuly2011Remuxer(const DAQ::Params & p, DAQ::NITask *task, QObject *parent)
 : QThread(parent), SampleBufQ("PostJuly2011Remuxer", SAMPLE_BUF_Q_SIZE), pleaseStop(false), p(p), task(task) {}
 
 PostJuly2011Remuxer::~PostJuly2011Remuxer() { stop(); }
@@ -1821,15 +1857,19 @@ void MainApp::doFastSettle()
 {
     if (fastSettleRunning || !task) return;
     fastSettleRunning = true;
-    Connect(task, SIGNAL(fastSettleCompleted()), this, SLOT(fastSettleCompletion()));
-    task->requestFastSettle();
+	DAQ::NITask *nitask = dynamic_cast<DAQ::NITask *>(task);
+	if (nitask) {
+		Connect(nitask, SIGNAL(fastSettleCompleted()), this, SLOT(fastSettleCompletion()));
+		nitask->requestFastSettle();
+	}
 }
 
 void MainApp::fastSettleCompletion()
 {
     if (!fastSettleRunning) return;
     fastSettleRunning = false;
-    disconnect(task, SIGNAL(fastSettleCompleted()), this, SLOT(fastSettleCompletion()));
+	DAQ::NITask *nitask = dynamic_cast<DAQ::NITask *>(task);
+	if (nitask) disconnect(nitask, SIGNAL(fastSettleCompleted()), this, SLOT(fastSettleCompletion()));
 }
 
 void MainApp::gotFirstScan()

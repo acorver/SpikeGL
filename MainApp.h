@@ -27,6 +27,7 @@ class CommandConnection;
 class FileViewerWindow;
 class PostJuly2011Remuxer;
 class SpatialVisWindow;
+class Bug_ConfigDialog;
 
 #include <QApplication>
 #include <QColor>
@@ -196,6 +197,9 @@ public slots:
 
     /// new acquisition!
     void newAcq();
+	
+	/// new *bug3/telemetry* acquisition!
+	void bugAcq();
 
     /// check if everything is ok, ask user, then quit
     void maybeQuit();
@@ -296,6 +300,7 @@ private:
     
     mutable QMutex mut; ///< used to lock outDir for now
     ConfigureDialogController *configCtl;
+	Bug_ConfigDialog *bugConfig;
 
     ConsoleWindow *consoleWindow;
     bool debug, saveCBEnabled;
@@ -364,6 +369,7 @@ private:
 	bool acqWaitingForPrecreate;
 	
 	PostJuly2011Remuxer *addtlDemuxTask;
+	bool doBugAcqInstead;
 	
 public:
 
@@ -372,7 +378,7 @@ public:
         *quitAct, *toggleDebugAct, *toggleExcessiveDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
         *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct, *commandServerOptionsAct,
 		*showChannelSaveCBAct, *enableDSFacilityAct, *fileOpenAct, *tempFileSizeAct, *bringAllToFrontAct,
-	    *sortGraphsByElectrodeAct;
+	    *sortGraphsByElectrodeAct, *bugAcqAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon;

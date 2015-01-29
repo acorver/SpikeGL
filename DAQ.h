@@ -186,15 +186,38 @@ namespace DAQ
 
     class AOWriteThread;
 
-    /** This class represents 1 daq task, running in a separate thread.  
+	class Task : public QThread, public SampleBufQ
+	{
+		Q_OBJECT
+	public:
+		Task(QObject *parent, const QString & name, unsigned maxQSize);
+		virtual ~Task(); ///< default impl. does nothing.  probably should make it call stop() in a subclass..
+        virtual void stop() = 0;
+		
+        virtual unsigned numChans() const = 0;
+        virtual unsigned samplingRate() const = 0;
+		        
+        u64 lastReadScan() const;
+		
+	signals:
+        void bufferOverrun();
+        void gotFirstScan();
+		
+	protected:
+        u64 totalRead;
+        mutable QMutex totalReadMut;
+	};
+	
+	
+    /** This class represents 1 ni-based daq task, running in a separate thread.  
         Data is enqueued and other threads may be alerted via siganl/slot 
         mechanism when there is more data. */
-    class Task : public QThread, public SampleBufQ
+    class NITask : public Task
     {
         Q_OBJECT
     public:
-        Task(const Params & acqParams, QObject *parent = 0);
-        virtual ~Task();
+        NITask(const Params & acqParams, QObject *parent = 0);
+		~NITask(); ///< calls stop()
 
         void stop(); ///< stops and joins thr
 
@@ -206,16 +229,12 @@ namespace DAQ
 
         void setDO(bool onoff);
         
-        u64 lastReadScan() const;
-
     public slots:
         void requestFastSettle(); ///< task needs to be running and it will then be done synchronously with the task
 
     signals:
-        void bufferOverrun();
         void daqError(const QString &);
         void fastSettleCompleted();
-        void gotFirstScan();
 
     protected: 
         void run();  ///< reimplemented from QThread
@@ -229,9 +248,6 @@ namespace DAQ
         bool muxMode;
 
         void daqThr();
-
-        u64 totalRead;
-        mutable QMutex totalReadMut;
 
         friend struct DAQPvt;
 
@@ -271,6 +287,7 @@ namespace DAQ
         int doAIRead(TaskHandle th, u64 samplesPerChan, std::vector<int16> & data, unsigned long oldS, int32 pointsToRead, int32 & pointsRead);
 #endif
         void fudgeDataDueToReadRetry();
+		
 	};
 
 #ifdef HAVE_NIDAQmx
