@@ -337,7 +337,7 @@ namespace Bug3
                         if (line.StartsWith("snf="))
                         {
                             int snf = -1;
-                            try { snf = Convert.ToInt32(line.Substring(4)); }
+                            try { snf = Convert.ToInt32(line.Substring(4), System.Globalization.CultureInfo.InvariantCulture); }
                             catch { snf = -1; }
                             if (snf >= 0) b.ReportProgress(1, snf);
                             else b.ReportProgress(0, "PASS A POSITIVE INT: " + line);
@@ -346,7 +346,7 @@ namespace Bug3
                         else if (line.StartsWith("hpf="))
                         {
                             int hpf = -1;
-                            try { hpf = Convert.ToInt32(line.Substring(4)); }
+                            try { hpf = Convert.ToInt32(line.Substring(4), System.Globalization.CultureInfo.InvariantCulture); }
                             catch { hpf = -1; }
                             if (hpf >= 0) b.ReportProgress(2, hpf);
                             else b.ReportProgress(0, "PASS A POSITIVE INT: " + line);
@@ -981,7 +981,7 @@ namespace Bug3
             foreach (USBData data in plotQueue)
             {
                 double[,] array = null;
-                StringWriter writer = new StringWriter();
+                StringWriter writer = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
 
                 array = data.neuralData;
                 for (int i = 0; i < Constant.TotalNeuralChannels; ++i)

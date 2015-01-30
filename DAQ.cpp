@@ -1458,15 +1458,22 @@ namespace DAQ
 			p.kill();
 			return;
 		}
+		double t0 = getTime();
 		if (!p.waitForStarted(30000)) {
 			emit daqError("Bug3 slave process: startup timed out!");
 			p.kill();
 			return;
 		}
+		double tleft = 30.0-(getTime()-t0);
+		if (tleft < 2.0) tleft = 2.0;
 		Debug() << "Bug3 slave process started ok";
+		int state = 0;
+		quint64 nblocks = 0;
+		const int nstates = 36;
+		QMap<QString, QString> block;
 		while (!pleaseStop && p.state() != QProcess::NotRunning) {
 			if (p.state() == QProcess::Running) { 
-				if (!p.waitForReadyRead(2000)) {
+				if (!p.waitForReadyRead(static_cast<int>(tleft*1e3))) {
 					emit daqError("Bug3 slave process: timed out while waiting for data!");
 					p.kill();
 					return;
@@ -1476,6 +1483,22 @@ namespace DAQ
 					if (line.length() > 75) line = line.left(75) + "...";
 					if (line.length() > 3) { Debug() << "Bug3: " << line; }
 				}
+				if (state) {
+					// we are in parsing mode..
+					QStringList nv = line.split(QRegExp("[}{]"), QString::SkipEmptyParts);
+					if (nv.count() == 2) {
+						//Debug() << "Bug3: Got name=" << nv.first() << " v=" << nv.last().left(5) << "..." << nv.last().right(5);
+						block[nv.first()] = nv.last();
+						if (++state > nstates) {
+							// finished a scan...
+							++nblocks;
+							processBlock(block);
+							block.clear();
+							state = 0;
+						}
+					}
+				}
+				if (line.startsWith("---> Console")) { state=1; Debug() << "Bug3: Read " << nblocks << " blocks, ready to read new block..."; }
 			} else msleep (10); // sleep 10ms and try again..
 		}
 		if (p.state() == QProcess::Running) {
@@ -1486,6 +1509,72 @@ namespace DAQ
 		if (p.state() != QProcess::NotRunning) {
 			p.kill();
 			Debug() << "Bug3 slave process refuses to exit gracefully.. forcibly killed!";
+		}
+	}
+	
+	void BugTask::processBlock(const QMap<QString, QString> & blk)
+	{
+		static const double ADCStepNeural(2.5); // units = uV
+		static const double ADCStepEMG(0.025); // units = mV
+		static const double ADCOffset(1023.0);
+		static const int FramesPerBlock = 40;
+		static const int NeuralSamplesPerFrame = 16;
+		static const int TotalNeuralChans = 10;
+		const int nchans (numChans());
+		std::vector<int16> samps;
+		samps.resize(nchans * NeuralSamplesPerFrame * FramesPerBlock); // todo: fix to come from params?
+		totalReadMut.lock();
+		totalRead += samps.size(); // todo: fix
+		totalReadMut.unlock();
+		
+		// todo implement..
+		for (QMap<QString,QString>::const_iterator it = blk.begin(); it != blk.end(); ++it) {
+			const QString & k = it.key(), & v(it.value());
+			if (k.startsWith("NEU_")) {
+				QStringList knv = k.split("_");
+				int neur_chan = 0;
+				bool ok = false;
+				if (knv.count() == 2) {
+					neur_chan = knv.last().toInt(&ok);
+					if (neur_chan < 0 || neur_chan >= TotalNeuralChans) neur_chan = 0, ok = false;
+				} 
+				if (!ok) Warning() << "Bug3: Internal problem -- parse error on NEU_ key.";
+
+				QStringList nums = v.split(",");
+				Debug() << "Bug3: got " << nums.count() << " neural samples for NEU chan " << neur_chan << "..";
+				for (int frame = 0; frame < FramesPerBlock; ++frame) {
+					for (int neurix = 0; neurix < NeuralSamplesPerFrame; ++neurix) {
+						QString num = nums.empty() ? "0" : nums.front();
+						if (nums.empty()) Warning() << "Bug3: Internal problem -- ran out of neural samples in scan!";
+						else nums.pop_front();
+						ok = false;
+						double n = num.toDouble(&ok);
+						if (!ok) Error() << "Bug3: Internal error -- parse error while reading neuronal samples!";
+						// todo.. fix this.  wtf? can't think straight now...
+						int16 samp = n/ADCStepNeural + ADCOffset;
+						//samps[frame*NeuralSamplesPerFrame + neurix*nchans + neur_chan] = n/ADCStepNeural + ADCOffset;
+					}
+				}
+			} else if (k.startsWith("EMG_")) {
+				QStringList nums = v.split(",");
+				Debug() << "Bug3: got " << nums.count() << " EMG samples..";
+				for (int frame = 0; frame < FramesPerBlock; ++frame) {
+					for (int neurix = 0; neurix < NeuralSamplesPerFrame; ++neurix) {
+						QString num = nums.empty() ? "0" : nums.front();
+						if (nums.empty()) { 
+							//Warning() << "Bug3: Internal problem -- ran out of neural samples in scan!";
+						}
+						else nums.pop_front();
+						bool ok = false;
+						double n = num.toDouble(&ok);
+						if (!ok) Error() << "Bug3: Internal error -- parse error while reading neuronal samples!";
+						int16 samp = n/ADCStepEMG + ADCOffset;;
+						//samps[neurix*nchans + frame] = n/ADCStepEMG + ADCOffset;
+					}
+				}
+			} else if (k.startsWith("AUX_")) {				
+			} else if (k.startsWith("TTL_")) {
+			}
 		}
 	}
 	

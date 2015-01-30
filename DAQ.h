@@ -319,6 +319,8 @@ namespace DAQ
 		static QString exePath();
 		static QString exeName();
 		
+		void processBlock(const QMap<QString, QString> &);
+		
 		volatile bool pleaseStop;		
 	};
 	
