@@ -29,7 +29,16 @@ void Connect(QObject *srco, const QString & src, QObject *desto, const QString &
 {
     if (!QObject::connect(srco, src.toUtf8(), desto, dest.toUtf8(), Qt::QueuedConnection)) {
         QString tmp;
-        QMessageBox::critical(0, "Signal connection error", QString("Error connecting %1::%2 to %3::%4").arg( (tmp = srco->objectName()).isNull() ? "(unnamed)" : tmp ).arg(src.mid(1)).arg( (tmp = desto->objectName()).isNull() ? "(unnamed)" : tmp ).arg(dest.mid(1)));
+		QString msg = QString("Error connecting %1::%2 to %3::%4").arg( (tmp = srco->objectName()).isNull() ? "(unnamed)" : tmp ).arg(src.mid(1)).arg( (tmp = desto->objectName()).isNull() ? "(unnamed)" : tmp ).arg(dest.mid(1));
+		if (QThread::currentThread() == qApp->thread())
+			QMessageBox::critical(0, "Signal connection error", msg);
+		else { 
+			qCritical("Signal Connection Error: %s", msg.toUtf8().data());
+			Error() <<  "Signal Connection Error: " << msg;
+			double t0 = getTime();
+			while (getTime()-t0 < 2.0) 
+				QThread::yieldCurrentThread();
+		}
         QApplication::exit(1);
         // only reached if event loop is not running
         std::exit(1);

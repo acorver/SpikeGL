@@ -14,6 +14,7 @@
 #include <QStringList>
 #include <QVector>
 #include <QPair>
+#include <QProcess>
 #ifdef HAVE_NIDAQmx
 #include "NI/NIDAQmx.h"
 #endif
@@ -198,10 +199,15 @@ namespace DAQ
         virtual unsigned samplingRate() const = 0;
 		        
         u64 lastReadScan() const;
+	protected:
+		/// reimplemented from QThread, just calls daqThr
+        void run() { daqThr(); }  
+		virtual void daqThr() = 0; ///< reimplement this!
 		
 	signals:
         void bufferOverrun();
         void gotFirstScan();
+        void daqError(const QString &);
 		
 	protected:
         u64 totalRead;
@@ -216,7 +222,7 @@ namespace DAQ
     {
         Q_OBJECT
     public:
-        NITask(const Params & acqParams, QObject *parent = 0);
+        NITask(const Params & acqParams, QObject *parent);
 		~NITask(); ///< calls stop()
 
         void stop(); ///< stops and joins thr
@@ -233,12 +239,11 @@ namespace DAQ
         void requestFastSettle(); ///< task needs to be running and it will then be done synchronously with the task
 
     signals:
-        void daqError(const QString &);
         void fastSettleCompleted();
 
     protected: 
-        void run();  ///< reimplemented from QThread
         void overflowWarning(); ///< reimplemented from SampleBufQ
+		void daqThr(); ///< remplemented from DAQ::Task
 
     private:
 
@@ -246,8 +251,6 @@ namespace DAQ
         const Params & params;
         volatile unsigned fast_settle; ///< if >0, do fast settle
         bool muxMode;
-
-        void daqThr();
 
         friend struct DAQPvt;
 
@@ -295,6 +298,29 @@ namespace DAQ
 		static int32 everyNSamples_func (TaskHandle taskHandle, int32 everyNsamplesEventType, uint32 nSamples, void *callbackData); 
 	};
 #endif
+	
+	class BugTask : public Task {
+		Q_OBJECT
+	public:
+		BugTask(QObject * parent);
+		~BugTask(); ///< calls stop
+        void stop();
+		
+        unsigned numChans() const;
+        unsigned samplingRate() const;
+	protected:
+		void daqThr(); ///< Reimplemented from DAQ::Task
+	protected slots:
+		void slaveProcStateChanged(QProcess::ProcessState);
+	private:
+		bool setupExeDir(QString * err = 0) const;
+		/// returns a strig of the form "c:\temp\bug3_spikegl\"
+		static QString exeDir();
+		static QString exePath();
+		static QString exeName();
+		
+		volatile bool pleaseStop;		
+	};
 	
 }
 #endif

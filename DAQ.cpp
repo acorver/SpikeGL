@@ -20,6 +20,8 @@
 #include <QPair>
 #include <QSet>
 #include <QMutexLocker>
+#include <QProcess>
+#include <QProcessEnvironment>
 #include <math.h>
 #include "SampleBufQ.h"
 #include "MainApp.h"
@@ -324,11 +326,6 @@ namespace DAQ
             pleaseStop = false;
         }
         setDO(false); // assert DO low when stopped...
-    }
-
-    void NITask::run()
-    {
-        daqThr();
     }
 
     void NITask::overflowWarning() 
@@ -1332,9 +1329,11 @@ namespace DAQ
 
 	Task::Task(QObject *parent, const QString & name, unsigned max)
 		: QThread(parent), SampleBufQ(name, max), totalRead(0ULL)
-	{}
+	{
 	
-	Task::~Task() {}
+	}
+	
+	Task::~Task() { }
 	
 	u64 Task::lastReadScan() const
     {
@@ -1344,6 +1343,151 @@ namespace DAQ
         totalReadMut.unlock();
         return ret;
     }
+	
+	BugTask::BugTask(QObject *parent)
+	: Task(parent, "bug3_spikegl read task", SAMPLE_BUF_Q_SIZE)
+	{
+	}
+	
+	BugTask::~BugTask() { if (isRunning()) { stop(); wait(); } }
+	
+	void BugTask::stop() { pleaseStop = true; }
+	
+	unsigned BugTask::numChans() const { return 16; } // stub for now
+	unsigned BugTask::samplingRate() const { return 1000; } // stub for now
+
+	/* static */ QString BugTask::exeDir()
+	{
+		static QString ret("");
+		if (!ret.length()) {
+			QString tp(QDir::tempPath());
+			if (!tp.endsWith("/")) tp.append("/");
+			ret = tp + "bug3_SpikeGLv" + QString(VERSION_STR).right(8) + "/";			
+			Debug() << "Bug3 exedir = " << ret;
+		}
+		return ret;
+	}
+	
+	/* static */ QString BugTask::exePath() { static QString ret(""); if (!ret.length()) ret = exeDir() + exeName(); return ret; }
+	/* static */ QString BugTask::exeName() { return "bug3_spikegl.exe"; }
+	
+	bool BugTask::setupExeDir(QString *errOut) const
+	{
+		if (errOut) *errOut = "";
+		static QString exedir (BugTask::exeDir());
+		QDir().mkpath(exedir);
+		QDir d(exedir);
+		if (!d.exists()) { if (errOut) *errOut = QString("Could not create ") + exedir; return false; }
+		static QStringList files; 
+		if (files.empty()) {
+			files.push_back(QString(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/bin/Release/") + exeName());
+			files.push_back(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/bug3a_receiver_1.bit");
+			files.push_back(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/libFrontPanel-csharp.dll");
+			files.push_back(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/libFrontPanel-pinv.dll");
+		}
+		for (QStringList::const_iterator it = files.begin(); it != files.end(); ++it) {
+			const QString bn ((*it).split("/").last());
+			const QString dest (exedir + bn);
+			if (QFile::exists(dest) && !QFile::remove(dest)) {
+				if (errOut) *errOut = dest + " exists and cannot be removed.";
+				return false;
+			}
+			if (!QFile::copy(*it, dest)) {
+				if (errOut) *errOut = dest + " file create/write failed.";
+				return false;
+			}
+			QFile f(dest);
+			if (dest.endsWith(".exe") || dest.endsWith(".dll")) 
+				f.setPermissions(f.permissions()|QFile::ReadOwner|QFile::ExeOwner|QFile::ReadOther|QFile::ExeOther|QFile::ReadGroup|QFile::ExeGroup);
+			else
+				f.setPermissions(f.permissions()|QFile::ReadOwner|QFile::ReadOther|QFile::ReadGroup);
+		}
+		return true;
+	}
+	
+	void BugTask::slaveProcStateChanged(QProcess::ProcessState ps)
+	{
+		switch(ps) {
+			case QProcess::NotRunning:
+				Debug() << "Bug3 slave process got state change -> NotRunning";
+				if (isRunning() && !pleaseStop) {
+					emit daqError("Bug3 slave process died unexpectedly!");
+					pleaseStop = true;
+					Debug() << "Bug3 task thread still running but slave process died -- signaling BugTask::daqThr() to end as a result...";
+				} 
+				break;
+			case QProcess::Starting:
+				Debug() << "Bug3 slave process got state change -> Starting";
+				break;
+			case QProcess::Running:
+				Debug() << "Bug3 slave process got state change -> Running";
+				break;
+		}
+	}
+	
+	void BugTask::daqThr() 
+	{
+		pleaseStop = false;
+		QString err("");
+		if (!setupExeDir(&err)) {
+			emit daqError(err);
+			return;
+		}
+		QProcess p(this);
+		p.moveToThread(this);
+		QTextStream pio(&p);
+		static bool regd = false;
+		if (!regd) {
+			int id = qRegisterMetaType<QProcess::ProcessState>("QProcess::ProcessState");
+			(void) id;
+			regd = true;
+		}
+		Connect(&p, SIGNAL(stateChanged(QProcess::ProcessState)), this, SLOT(slaveProcStateChanged(QProcess::ProcessState)));		
+		p.setProcessChannelMode(QProcess::MergedChannels);
+		p.setWorkingDirectory(exeDir());
+		QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+		env.insert("BUG3_SPIKEGL_MODE", "yes");
+		p.setProcessEnvironment(env);
+#ifdef Q_OS_WINDOWS
+		p.start(exePath());
+#else
+		p.start("mono", QStringList()<<exePath());
+#endif
+		if (p.state() == QProcess::NotRunning) {
+			emit daqError("Bug3 slave process startup failed!");
+			p.kill();
+			return;
+		}
+		if (!p.waitForStarted(30000)) {
+			emit daqError("Bug3 slave process: startup timed out!");
+			p.kill();
+			return;
+		}
+		Debug() << "Bug3 slave process started ok";
+		while (!pleaseStop && p.state() != QProcess::NotRunning) {
+			if (p.state() == QProcess::Running) { 
+				if (!p.waitForReadyRead(2000)) {
+					emit daqError("Bug3 slave process: timed out while waiting for data!");
+					p.kill();
+					return;
+				}
+				QString line = pio.readLine(1024*1024); // todo: not block here forever!! Hmm.. should be handled by waitForReadyRead() above...?
+				if (excessiveDebug) {
+					if (line.length() > 75) line = line.left(75) + "...";
+					if (line.length() > 3) { Debug() << "Bug3: " << line; }
+				}
+			} else msleep (10); // sleep 10ms and try again..
+		}
+		if (p.state() == QProcess::Running) {
+			pio << "exit\r\n"; pio.flush();
+			Debug() << "Sent 'exit' cmd to bug3 slave process...";
+			p.waitForFinished(500); /// wait 500 msec for finish
+		}
+		if (p.state() != QProcess::NotRunning) {
+			p.kill();
+			Debug() << "Bug3 slave process refuses to exit gracefully.. forcibly killed!";
+		}
+	}
 	
 } // end namespace DAQ
 

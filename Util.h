@@ -7,16 +7,29 @@
 #include <QColor>
 #include <QTextStream>
 #include <vector>
-#ifdef Q_OS_WIN32
+#if defined(Q_OS_WIN32) || defined(Q_OS_WIN64)
 /* For Qt4 -> Qt5 compat */
 #  ifndef Q_OS_WIN
 #    define Q_OS_WIN
 #  endif
+#  ifndef Q_OS_WINDOWS
+#    define Q_OS_WINDOWS
+#  endif
 #  ifndef Q_WS_WIN
 #    define Q_WS_WIN
 #  endif
-#  ifndef Q_WS_WIN32
-#    define Q_WS_WIN32
+#  ifndef Q_WS_WINDOWS
+#    define Q_WS_WINDOWS
+#  endif
+#  if defined(Q_OS_WIN32)
+#    ifndef Q_WS_WIN32
+#      define Q_WS_WIN32
+#    endif
+#  endif
+#  if defined(Q_OS_WIN64)
+#    ifndef Q_WS_WIN64
+#      define Q_WS_WIN64
+#    endif
 #  endif
 #endif
 

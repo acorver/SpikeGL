@@ -691,6 +691,11 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 		doBugAcqInstead = false; 
 		errTitle = "Unimplemented!";
 		errMsg = "Bug Acquisition Unimplemented!";
+		static DAQ::BugTask *tmp = 0;
+		if (tmp) delete tmp;
+		tmp = new DAQ::BugTask(this);
+		Connect(tmp, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
+		tmp->start();
 		return false; 
 	} 
 	
@@ -823,7 +828,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 		addtlDemuxTask = new PostJuly2011Remuxer(params, nitask, this);
     taskReadTimer = new QTimer(this);
     Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
-    Connect(nitask, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
+    Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
     Connect(taskReadTimer, SIGNAL(timeout()), this, SLOT(taskReadFunc()));
     taskReadTimer->setSingleShot(false);
     
