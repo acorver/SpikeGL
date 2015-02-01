@@ -122,7 +122,7 @@ MainApp::MainApp(int & argc, char ** argv)
     createAppIcon();
     
     configCtl = new ConfigureDialogController(this);
-	bugConfig = new Bug_ConfigDialog(this);
+	bugConfig = new Bug_ConfigDialog(configCtl->acceptedParams, this);
 
     installEventFilter(this); // filter our own events
 
@@ -689,13 +689,14 @@ void MainApp::initActions()
 
 bool MainApp::startAcq(QString & errTitle, QString & errMsg) 
 {
-	if (doBugAcqInstead) { // guard for now.. since bug acq is unimplemented..
+	if (false && doBugAcqInstead) { // guard for now.. since bug acq is unimplemented..
 		doBugAcqInstead = false; 
 		errTitle = "Unimplemented!";
 		errMsg = "Bug Acquisition Unimplemented!";
 		static DAQ::BugTask *tmp = 0;
 		if (tmp) delete tmp;
-		tmp = new DAQ::BugTask(this);
+		bugConfig->acceptedParams.bug.enabled = true;
+		tmp = new DAQ::BugTask(bugConfig->acceptedParams, this);
 		Connect(tmp, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
 		tmp->start();
 		return false; 
@@ -723,7 +724,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         errMsg = "configCtl and/or bugConfig pointer is NULL! Shouldn't happen!";
         return false;
     }
-    DAQ::Params & params(configCtl->acceptedParams);    
+    DAQ::Params & params(doBugAcqInstead ? bugConfig->acceptedParams : configCtl->acceptedParams);    
     lastNPDSamples.clear();
     lastNPDSamples.reserve(params.pdThreshW);
     if (!params.stimGlTrigResave) {
@@ -824,9 +825,14 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
             return false;
     }
     
-	DAQ::NITask *nitask;
-    task = nitask = new DAQ::NITask(params, this);
-	if (!params.doPreJuly2011IntanDemux && params.mode != DAQ::AIRegular) 
+	DAQ::NITask *nitask = 0;
+	DAQ::BugTask *bugtask = 0;
+	if (!doBugAcqInstead) 
+		task = nitask = new DAQ::NITask(params, this);
+	else
+		task = bugtask = new DAQ::BugTask(params, this);
+	doBugAcqInstead = false;
+	if (nitask && !params.doPreJuly2011IntanDemux && params.mode != DAQ::AIRegular) 
 		addtlDemuxTask = new PostJuly2011Remuxer(params, nitask, this);
     taskReadTimer = new QTimer(this);
     Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));

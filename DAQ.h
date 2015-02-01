@@ -140,6 +140,17 @@ namespace DAQ
 		bool autoRetryOnAIOverrun; ///< if true, auto-restart the acquisition every time there is a buffer overrun error from the NI DAQ drivers. Note that if we get more than 2 failures in a 1s period, the acquisition is aborted anyway.
         int overrideGraphsPerTab; ///< if nonzero, the number of graphs per tab to display, 0 implies use mode-specific limits
 
+		struct Bug {
+			bool enabled; // if true, acquisition is in bug mode
+			int rate; // 0 = Low, 1 = Medium, 2 = High
+			int whichTTLs; // bitset of which TTLs to save/graph, TTLs from 1->12 maps to bits #0->11
+			int ttlTrig; // the TTL chanel to use for a trigger, or -1 if not using ttl to trigger
+			int clockEdge; // 0 = rising, 1 = falling
+			int hpf; // if nonzero, the high pass filter is enabled at set to filter past this many Hz
+			bool snf; // if true, use the software notch filter at 60Hz
+			void reset() { rate = 2; whichTTLs = 0; ttlTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false; }
+		} bug;
+		
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }
         void unlock() const { mutex.unlock(); }
@@ -298,11 +309,11 @@ namespace DAQ
 		static int32 everyNSamples_func (TaskHandle taskHandle, int32 everyNsamplesEventType, uint32 nSamples, void *callbackData); 
 	};
 #endif
-	
+		
 	class BugTask : public Task {
 		Q_OBJECT
 	public:
-		BugTask(QObject * parent);
+		BugTask(const Params & acqParams, QObject * parent);
 		~BugTask(); ///< calls stop
         void stop();
 		
@@ -320,6 +331,8 @@ namespace DAQ
 		static QString exeName();
 		
 		void processBlock(const QMap<QString, QString> &);
+		
+		const Params & params;
 		
 		volatile bool pleaseStop;		
 	};

@@ -1,5 +1,5 @@
 ﻿/*
- * Intan Insect Telemetry Receiver GUI for use with Intan 'Bug3' Chips
+ * Insect Telemetry Receiver GUI for use with Intan 'Bug3' Chips
  * Copyright (c) 2011 Intan Technologies, LLC  http://www.intantech.com
  * 
  * This software is provided 'as-is', without any express or implied 
@@ -49,12 +49,15 @@ namespace Bug3
     {
         // public variables
         public double[,] neuralData = new double[Constant.TotalNeuralChannels, Constant.NeuralSamplesPerFrame * Constant.FramesPerBlock];
+        public UInt16[,] neuralData16 = new UInt16[Constant.TotalNeuralChannels, Constant.NeuralSamplesPerFrame * Constant.FramesPerBlock];
         public double[,] EMGData = new double[Constant.TotalEMGChannels, Constant.FramesPerBlock];
+        public UInt16[,] EMGData16 = new UInt16[Constant.TotalEMGChannels, Constant.FramesPerBlock];
         public double[,] auxData = new double[Constant.TotalAuxChannels, Constant.FramesPerBlock];
-        public int[] chipID = new int[Constant.FramesPerBlock];
-        public int[] chipFrameCounter = new int[Constant.FramesPerBlock];
-        public int[] TTLInputs = new int[Constant.FramesPerBlock];
-        public int[] frameMarkerCorrelation = new int[Constant.FramesPerBlock];
+        public UInt16[,] auxData16 = new UInt16[Constant.TotalAuxChannels, Constant.FramesPerBlock];
+        public UInt16[] chipID = new UInt16[Constant.FramesPerBlock];
+        public UInt16[] chipFrameCounter = new UInt16[Constant.FramesPerBlock];
+        public UInt16[] TTLInputs = new UInt16[Constant.FramesPerBlock];
+        public UInt16[] frameMarkerCorrelation = new UInt16[Constant.FramesPerBlock];
         public int[] boardFrameCounter = new int[Constant.FramesPerBlock];
         public int[] boardFrameTimer = new int[Constant.FramesPerBlock];
         public double BER;
@@ -104,18 +107,23 @@ namespace Bug3
                     for (channel = minNeuralChannel; channel <= maxNeuralChannel; channel++)
                     {
                         neuralData[channel, indexNeural + i] =
-                            Constant.ADCStepNeural * (hammingDecoder.DecodeDataCountErrors(rawFrameBlock[index], out numBitErrors, ref bitErrorCount, ref wordErrorCount) - Constant.ADCOffset);
+                            Constant.ADCStepNeural * ((neuralData16[channel, indexNeural+i]=hammingDecoder.DecodeDataCountErrors(rawFrameBlock[index], out numBitErrors, ref bitErrorCount, ref wordErrorCount)) - Constant.ADCOffset);
                         if (numBitErrors == 2 && (indexNeural + i) > 0)
+                        {
                             neuralData[channel, indexNeural + i] = neuralData[channel, indexNeural + i - 1];
+                            neuralData16[channel, indexNeural + i] = neuralData16[channel, indexNeural + i - 1];
+                        }
                         index++;
                     }
                     for (channel = 0; channel < minNeuralChannel; channel++)
                     {
                         neuralData[channel, indexNeural + i] = 0.0;
+                        neuralData16[channel, indexNeural + i] = (UInt16)Constant.ADCOffset;
                     }
                     for (channel = maxNeuralChannel + 1; channel < Constant.TotalNeuralChannels; channel++)
                     {
                         neuralData[channel, indexNeural + i] = 0.0;
+                        neuralData16[channel, indexNeural + i] = (UInt16)Constant.ADCOffset;
                     }
                 }
                 indexNeural += Constant.NeuralSamplesPerFrame;
@@ -123,9 +131,12 @@ namespace Bug3
                 for (channel = 0; channel < Constant.TotalEMGChannels; channel++)
                 {
                     EMGData[channel, frame] =
-                        Constant.ADCStepEMG * (hammingDecoder.DecodeDataCountErrors(rawFrameBlock[index], out numBitErrors, ref bitErrorCount, ref wordErrorCount) - Constant.ADCOffset);
+                        Constant.ADCStepEMG * ((EMGData16[channel, frame]=hammingDecoder.DecodeDataCountErrors(rawFrameBlock[index], out numBitErrors, ref bitErrorCount, ref wordErrorCount)) - Constant.ADCOffset);
                     if (numBitErrors == 2 && frame > 0)
+                    {
                         EMGData[channel, frame] = EMGData[channel, frame - 1];
+                        EMGData16[channel, frame] = EMGData16[channel, frame - 1];
+                    }
                     index++;
                 }
 
@@ -144,6 +155,8 @@ namespace Bug3
 
                     if (numBitErrors == 2 && frame > 0)
                         auxData[channel, frame] = auxData[channel, frame - 1];
+
+                    auxData16[channel, frame] = (UInt16)(auxData[channel, frame] / Constant.ADCStep + Constant.ADCOffset);
 
                     index++;
                 }

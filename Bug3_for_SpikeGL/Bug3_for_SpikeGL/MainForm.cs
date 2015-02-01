@@ -980,10 +980,10 @@ namespace Bug3
             Console.WriteLine("---> Console data out called at time: " + (long)((System.DateTime.Now.Ticks - t0) / 1e4) + "ms plotQueue.Count=" + plotQueue.Count + " numPagesLeftInRAM=" + numPagesLeftInRAM);
             foreach (USBData data in plotQueue)
             {
-                double[,] array = null;
+                UInt16[,] array = null;
                 StringWriter writer = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
 
-                array = data.neuralData;
+                array = data.neuralData16;
                 for (int i = 0; i < Constant.TotalNeuralChannels; ++i)
                 {
                     writer.Write("NEU_{0:D}{{", i);
@@ -994,7 +994,7 @@ namespace Bug3
                     }
                     writer.WriteLine("}");
                 }
-                array = data.EMGData;
+                array = data.EMGData16;
                 for (int i = 0; i < Constant.TotalEMGChannels; ++i)
                 {
                     writer.Write("EMG_{0:D}{{", i);
@@ -1005,7 +1005,7 @@ namespace Bug3
                     }
                     writer.WriteLine("}");
                 }
-                array = data.auxData;
+                array = data.auxData16;
                 for (int i = 0; i < Constant.TotalAuxChannels; ++i)
                 {
                     writer.Write("AUX_{0:D}{{", i);
@@ -1029,36 +1029,36 @@ namespace Bug3
                     writer.WriteLine("}");
                 }
 
-                int[] intarr = null;
+                UInt16[] shortarr = null;
 
-                intarr = data.chipID;
+                shortarr = data.chipID;
                 writer.Write("CHIPID{");
                 for (int i = 0; i < Constant.FramesPerBlock; ++i)
                 {
                     if (i != 0) writer.Write(",");
-                    writer.Write(intarr[i]);
+                    writer.Write(shortarr[i]);
                 }
                 writer.WriteLine("}");
 
-                intarr = data.chipFrameCounter;
+                shortarr = data.chipFrameCounter;
                 writer.Write("CHIP_FC{");
                 for (int i = 0; i < Constant.FramesPerBlock; ++i)
                 {
                     if (i != 0) writer.Write(",");
-                    writer.Write(intarr[i]);
+                    writer.Write(shortarr[i]);
                 }
                 writer.WriteLine("}");
 
-                intarr = data.frameMarkerCorrelation;
+                shortarr = data.frameMarkerCorrelation;
                 writer.Write("FRAME_MARKER_COR{");
                 for (int i = 0; i < Constant.FramesPerBlock; ++i)
                 {
                     if (i != 0) writer.Write(",");
-                    writer.Write(intarr[i]);
+                    writer.Write(shortarr[i]);
                 }
                 writer.WriteLine("}");
 
-                intarr = data.boardFrameCounter;
+                int [] intarr = data.boardFrameCounter;
                 writer.Write("BOARD_FC{");
                 for (int i = 0; i < Constant.FramesPerBlock; ++i)
                 {

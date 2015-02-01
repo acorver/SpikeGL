@@ -1344,8 +1344,8 @@ namespace DAQ
         return ret;
     }
 	
-	BugTask::BugTask(QObject *parent)
-	: Task(parent, "bug3_spikegl read task", SAMPLE_BUF_Q_SIZE)
+	BugTask::BugTask(const DAQ::Params & p, QObject *parent)
+	: Task(parent, "bug3_spikegl read task", SAMPLE_BUF_Q_SIZE), params(p)
 	{
 	}
 	
@@ -1353,7 +1353,7 @@ namespace DAQ
 	
 	void BugTask::stop() { pleaseStop = true; }
 	
-	unsigned BugTask::numChans() const { return 16; } // stub for now
+	unsigned BugTask::numChans() const { return params.nVAIChans; } // stub for now
 	unsigned BugTask::samplingRate() const { return 1000; } // stub for now
 
 	/* static */ QString BugTask::exeDir()
@@ -1468,22 +1468,27 @@ namespace DAQ
 		if (tleft < 2.0) tleft = 2.0;
 		Debug() << "Bug3 slave process started ok";
 		int state = 0;
-		quint64 nblocks = 0;
+		quint64 nblocks = 0, nlines = 0;
 		const int nstates = 36;
 		QMap<QString, QString> block;
 		while (!pleaseStop && p.state() != QProcess::NotRunning) {
 			if (p.state() == QProcess::Running) { 
-				if (!p.waitForReadyRead(static_cast<int>(tleft*1e3))) {
-					emit daqError("Bug3 slave process: timed out while waiting for data!");
+				if (!p.waitForReadyRead(nlines ? 2000 : static_cast<int>(tleft*1e3))) {
+					emit(daqError("Bug3 slave process: timed out while waiting for data!"));
 					p.kill();
 					return;
 				}
 				QString line = pio.readLine(1024*1024); // todo: not block here forever!! Hmm.. should be handled by waitForReadyRead() above...?
 				if (excessiveDebug) {
-					if (line.length() > 75) line = line.left(75) + "...";
-					if (line.length() > 3) { Debug() << "Bug3: " << line; }
+					QString linecpy = line;
+					if (line.length() > 75) linecpy = linecpy.left(75) + "...";
+					if (linecpy.length() > 3) { Debug() << "Bug3: " << linecpy; }
 				}
-				if (state) {
+				if (line.startsWith("---> Console")) { 
+					++nlines;
+					state=1; Debug() << "Bug3: New block, current nblocks=" << nblocks; 
+				} else if (state) {
+					++nlines;
 					// we are in parsing mode..
 					QStringList nv = line.split(QRegExp("[}{]"), QString::SkipEmptyParts);
 					if (nv.count() == 2) {
@@ -1498,7 +1503,6 @@ namespace DAQ
 						}
 					}
 				}
-				if (line.startsWith("---> Console")) { state=1; Debug() << "Bug3: Read " << nblocks << " blocks, ready to read new block..."; }
 			} else msleep (10); // sleep 10ms and try again..
 		}
 		if (p.state() == QProcess::Running) {
@@ -1514,18 +1518,17 @@ namespace DAQ
 	
 	void BugTask::processBlock(const QMap<QString, QString> & blk)
 	{
-		static const double ADCStepNeural(2.5); // units = uV
-		static const double ADCStepEMG(0.025); // units = mV
-		static const double ADCOffset(1023.0);
+		//static const double ADCStepNeural(2.5); // units = uV
+		//static const double ADCStepEMG(0.025); // units = mV
+		static const int ADCOffset(1023);
 		static const int FramesPerBlock = 40;
 		static const int NeuralSamplesPerFrame = 16;
 		static const int TotalNeuralChans = 10;
+		static const int TotalEMGChans = 4;
+		static const int TotalAUXChans = 2;
 		const int nchans (numChans());
 		std::vector<int16> samps;
 		samps.resize(nchans * NeuralSamplesPerFrame * FramesPerBlock); // todo: fix to come from params?
-		totalReadMut.lock();
-		totalRead += samps.size(); // todo: fix
-		totalReadMut.unlock();
 		
 		// todo implement..
 		for (QMap<QString,QString>::const_iterator it = blk.begin(); it != blk.end(); ++it) {
@@ -1536,46 +1539,92 @@ namespace DAQ
 				bool ok = false;
 				if (knv.count() == 2) {
 					neur_chan = knv.last().toInt(&ok);
-					if (neur_chan < 0 || neur_chan >= TotalNeuralChans) neur_chan = 0, ok = false;
+					if (neur_chan < 0 || neur_chan >= TotalNeuralChans) { neur_chan = 0; ok = false; }
 				} 
-				if (!ok) Warning() << "Bug3: Internal problem -- parse error on NEU_ key.";
+				if (!ok) 
+					Warning() << "Bug3: Internal problem -- parse error on NEU_ key.";
 
 				QStringList nums = v.split(",");
 				Debug() << "Bug3: got " << nums.count() << " neural samples for NEU chan " << neur_chan << "..";
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
 					for (int neurix = 0; neurix < NeuralSamplesPerFrame; ++neurix) {
 						QString num = nums.empty() ? "0" : nums.front();
-						if (nums.empty()) Warning() << "Bug3: Internal problem -- ran out of neural samples in scan!";
+						if (nums.empty()) 
+							Warning() << "Bug3: Internal problem -- ran out of neural samples in frame!";
 						else nums.pop_front();
 						ok = false;
-						double n = num.toDouble(&ok);
-						if (!ok) Error() << "Bug3: Internal error -- parse error while reading neuronal samples!";
+						int samp = num.toUShort(&ok);
+						if (!ok) Error() << "Bug3: Internal error -- parse error while reading neuronal sample `" << num << "'";
 						// todo.. fix this.  wtf? can't think straight now...
-						int16 samp = n/ADCStepNeural + ADCOffset;
-						//samps[frame*NeuralSamplesPerFrame + neurix*nchans + neur_chan] = n/ADCStepNeural + ADCOffset;
+						samp = samp-ADCOffset; // incoming data is such that 0v = (int16)1023, which means negative values have a limited range.. normalize so that 0v = 0
+						samps[ frame*(NeuralSamplesPerFrame*nchans) + neurix*nchans + neur_chan ] = samp;
 					}
 				}
 			} else if (k.startsWith("EMG_")) {
+				QStringList knv = k.split("_");
+				int emg_chan = 0;
+				bool ok = false;
+				if (knv.count() == 2) {
+					emg_chan = knv.last().toInt(&ok);
+					if (emg_chan < 0 || emg_chan >= TotalEMGChans) { emg_chan = 0; ok = false; }
+				} 
+				if (!ok) Warning() << "Bug3: Internal problem -- parse error on EMG_ key.";
+
 				QStringList nums = v.split(",");
 				Debug() << "Bug3: got " << nums.count() << " EMG samples..";
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
-					for (int neurix = 0; neurix < NeuralSamplesPerFrame; ++neurix) {
-						QString num = nums.empty() ? "0" : nums.front();
-						if (nums.empty()) { 
-							//Warning() << "Bug3: Internal problem -- ran out of neural samples in scan!";
-						}
-						else nums.pop_front();
-						bool ok = false;
-						double n = num.toDouble(&ok);
-						if (!ok) Error() << "Bug3: Internal error -- parse error while reading neuronal samples!";
-						int16 samp = n/ADCStepEMG + ADCOffset;;
-						//samps[neurix*nchans + frame] = n/ADCStepEMG + ADCOffset;
+					QString num = nums.empty() ? "0" : nums.front();
+					if (nums.empty()) { 
+						Warning() << "Bug3: Internal problem -- ran out of EMG samples in frame!";
 					}
+					else nums.pop_front();
+					bool ok = false;
+					int samp = num.toUShort(&ok);
+					if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
+					samp = samp-ADCOffset; // normalize since incoming data is weird
+					for (int emgix = 0; emgix < NeuralSamplesPerFrame; ++emgix) { // need to produce 16 samples for each 1 emg sample read in order to match neuronal rate!						
+						samps[ frame*(NeuralSamplesPerFrame*nchans) + emgix*nchans + (TotalNeuralChans+emg_chan) ] = samp;
+					}
+
 				}
-			} else if (k.startsWith("AUX_")) {				
+			} else if (k.startsWith("AUX_")) {
+				QStringList knv = k.split("_");
+				int aux_chan = 0;
+				bool ok = false;
+				if (knv.count() == 2) {
+					aux_chan = knv.last().toInt(&ok);
+					if (aux_chan < 0 || aux_chan >= TotalAUXChans) { aux_chan = 0; ok = false; }
+				} 
+				if (!ok) Warning() << "Bug3: Internal problem -- parse error on EMG_ key.";
+				
+				QStringList nums = v.split(",");
+				Debug() << "Bug3: got " << nums.count() << " AUX samples..";
+				for (int frame = 0; frame < FramesPerBlock; ++frame) {
+					QString num = nums.empty() ? "0" : nums.front();
+					if (nums.empty()) { 
+						Warning() << "Bug3: Internal problem -- ran out of AUX samples in frame!";
+					}
+					else nums.pop_front();
+					bool ok = false;
+					int samp = num.toUShort(&ok);
+					if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
+					samp = samp-ADCOffset; // normalize since incoming data is weird
+					for (int auxix = 0; auxix < NeuralSamplesPerFrame; ++auxix) { // need to produce 16 samples for each 1 emg sample read in order to match neuronal rate!						
+						samps[ frame*(NeuralSamplesPerFrame*nchans) + auxix*nchans + (TotalNeuralChans+TotalEMGChans+aux_chan) ] = samp;
+					}
+					
+				}				
 			} else if (k.startsWith("TTL_")) {
+				// todo: support a subset of TTL chans...
 			}
 		}
+		
+		if (!totalRead) emit(gotFirstScan());
+		unsigned nsamps = samps.size();
+		enqueueBuffer(samps, totalRead);
+		totalReadMut.lock();
+		totalRead += nsamps; 
+		totalReadMut.unlock();
 	}
 	
 } // end namespace DAQ

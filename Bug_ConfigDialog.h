@@ -13,6 +13,7 @@
 #include <QObject>
 #include "SpikeGL.h"
 #include <QVector>
+#include "DAQ.h"
 
 class QSettings;
 class QDialog;
@@ -21,8 +22,10 @@ class Bug_ConfigDialog : public QObject
 {
     Q_OBJECT
 public:
-    Bug_ConfigDialog(QObject *parent);
+    Bug_ConfigDialog(DAQ::Params & params, QObject *parent);
     ~Bug_ConfigDialog();
+	
+	DAQ::Params & acceptedParams;
 	
     int exec();
 	
