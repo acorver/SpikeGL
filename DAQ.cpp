@@ -1354,7 +1354,7 @@ namespace DAQ
 	void BugTask::stop() { pleaseStop = true; }
 	
 	unsigned BugTask::numChans() const { return params.nVAIChans; } // stub for now
-	unsigned BugTask::samplingRate() const { return 1000; } // stub for now
+	unsigned BugTask::samplingRate() const { return params.srate; } // stub for now
 
 	/* static */ QString BugTask::exeDir()
 	{
