@@ -275,7 +275,7 @@ namespace Bug3
 
                 if (Params.guiHidden)
                 {
-                    Console.WriteLine(this.Text);
+                    Console.WriteLine("USRMSG: " + this.Text);
                 }
                 else if (MessageBox.Show("Intan Technologies USB device not found.  Click OK to run application with synthesized neural data for demonstration purposes.\n\nTo use the USB FPGA board click Cancel, load correct drivers and/or connect device to USB port, then restart application.",
                   "Intan USB Device Not Found", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) == DialogResult.Cancel)

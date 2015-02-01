@@ -689,19 +689,6 @@ void MainApp::initActions()
 
 bool MainApp::startAcq(QString & errTitle, QString & errMsg) 
 {
-	if (false && doBugAcqInstead) { // guard for now.. since bug acq is unimplemented..
-		doBugAcqInstead = false; 
-		errTitle = "Unimplemented!";
-		errMsg = "Bug Acquisition Unimplemented!";
-		static DAQ::BugTask *tmp = 0;
-		if (tmp) delete tmp;
-		bugConfig->acceptedParams.bug.enabled = true;
-		tmp = new DAQ::BugTask(bugConfig->acceptedParams, this);
-		Connect(tmp, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
-		tmp->start();
-		return false; 
-	} 
-	
 	QMutexLocker ml (&mut);
 	
     // NOTE: acq cannot be running here!
@@ -837,6 +824,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     taskReadTimer = new QTimer(this);
     Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
     Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
+    Connect(task, SIGNAL(daqWarning(const QString &)), this, SLOT(gotDaqWarning(const QString &)));
     Connect(taskReadTimer, SIGNAL(timeout()), this, SLOT(taskReadFunc()));
     taskReadTimer->setSingleShot(false);
     
@@ -963,6 +951,12 @@ void MainApp::gotDaqError(const QString & e)
     QMessageBox::critical(0, "DAQ Error", e);
     stopTask();
 }
+
+void MainApp::gotDaqWarning(const QString & e)
+{
+    QMessageBox::critical(0, "DAQ Warning", e);
+}
+
 
 /* static */
 void MainApp::xferWBToScans(WrapBuffer & preBuf, std::vector<int16> & scans, int & num, int skip)

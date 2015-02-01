@@ -219,6 +219,7 @@ namespace DAQ
         void bufferOverrun();
         void gotFirstScan();
         void daqError(const QString &);
+		void daqWarning(const QString &);
 		
 	protected:
         u64 totalRead;

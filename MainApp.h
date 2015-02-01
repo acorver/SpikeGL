@@ -228,6 +228,7 @@ protected slots:
 
     void gotBufferOverrun();
     void gotDaqError(const QString & e);
+    void gotDaqWarning(const QString & e);
     void taskReadFunc(); ///< called from a timer at 30Hz
 
     void sha1VerifySuccess();

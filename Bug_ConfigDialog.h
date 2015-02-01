@@ -43,14 +43,17 @@ public:
 	
 private:
 	
-   /* enum ValidationResult {
+   enum ValidationResult {
         AGAIN = -1,
         ABORT =  0,
         OK    =  1
     };
     
     ValidationResult validateForm(QString & errTitle, QString & errMsg, bool isGUI = false);
-	*/
+	
+	
+	void guiFromSettings(); 
+	
     QDialog *dialogW;
 };
 

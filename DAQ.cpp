@@ -1502,6 +1502,8 @@ namespace DAQ
 							state = 0;
 						}
 					}
+				} else if (!state && line.startsWith("USRMSG:")) {
+					emit(daqWarning(line.mid(7).trimmed()));
 				}
 			} else msleep (10); // sleep 10ms and try again..
 		}
