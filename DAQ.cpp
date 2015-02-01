@@ -1398,9 +1398,9 @@ namespace DAQ
 			}
 			QFile f(dest);
 			if (dest.endsWith(".exe") || dest.endsWith(".dll")) 
-				f.setPermissions(f.permissions()|QFile::ReadOwner|QFile::ExeOwner|QFile::ReadOther|QFile::ExeOther|QFile::ReadGroup|QFile::ExeGroup);
+                f.setPermissions(f.permissions()|QFile::ReadOwner|QFile::ExeOwner|QFile::WriteOwner|QFile::WriteOther|QFile::WriteGroup|QFile::ReadOther|QFile::ExeOther|QFile::ReadGroup|QFile::ExeGroup);
 			else
-				f.setPermissions(f.permissions()|QFile::ReadOwner|QFile::ReadOther|QFile::ReadGroup);
+                f.setPermissions(f.permissions()|QFile::ReadOwner|QFile::ReadOther|QFile::ReadGroup|QFile::WriteOwner|QFile::WriteOther|QFile::WriteGroup);
 		}
 		return true;
 	}
@@ -1473,7 +1473,8 @@ namespace DAQ
 		QMap<QString, QString> block;
 		while (!pleaseStop && p.state() != QProcess::NotRunning) {
 			if (p.state() == QProcess::Running) { 
-				if (!p.waitForReadyRead(nlines ? 2000 : static_cast<int>(tleft*1e3))) {
+                const int twait = nlines ? 5000 : static_cast<int>(tleft*1e3);
+                if (p.bytesAvailable() <= 0 && !p.waitForReadyRead(twait < 5000 ? 5000 : twait)) {
 					emit(daqError("Bug3 slave process: timed out while waiting for data!"));
 					p.kill();
 					return;
