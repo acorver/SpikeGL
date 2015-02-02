@@ -1425,6 +1425,7 @@ namespace DAQ
 		}
 	}
 	
+	
 	void BugTask::daqThr() 
 	{
 		pleaseStop = false;
@@ -1435,7 +1436,6 @@ namespace DAQ
 		}
 		QProcess p(this);
 		p.moveToThread(this);
-		QTextStream pio(&p);
 		static bool regd = false;
 		if (!regd) {
 			int id = qRegisterMetaType<QProcess::ProcessState>("QProcess::ProcessState");
@@ -1468,48 +1468,59 @@ namespace DAQ
 		if (tleft < 2.0) tleft = 2.0;
 		Debug() << "Bug3 slave process started ok";
 		int state = 0;
-		quint64 nblocks = 0, nlines = 0;
 		const int nstates = 36;
+		int tout_ct = 0;
+		quint64 nblocks = 0, nlines = 0;
 		QMap<QString, QString> block;
+		QByteArray data;
+		
+		data.reserve(4*1024*1024);
 		while (!pleaseStop && p.state() != QProcess::NotRunning) {
 			if (p.state() == QProcess::Running) { 
-                const int twait = nlines ? 5000 : static_cast<int>(tleft*1e3);
-                if (p.bytesAvailable() <= 0 && !p.waitForReadyRead(twait < 5000 ? 5000 : twait)) {
-					emit(daqError("Bug3 slave process: timed out while waiting for data!"));
+				qint64 n_avail = p.bytesAvailable();
+                if (n_avail == 0 && !p.waitForReadyRead(5000)) {
+					if (++tout_ct > 5) {
+						emit(daqError("Bug3 slave process: timed out while waiting for data!"));
+						p.kill();
+						return;
+					} else {
+						Warning() << "Bug3 slave process: read timed out, ct=" << tout_ct;
+						continue;
+					}
+				} else if (n_avail < 0) {
+					emit(daqError("Bug3 slave process: eof on stdout stream!"));
 					p.kill();
 					return;
 				}
-				QString line = pio.readLine(1024*1024); // todo: not block here forever!! Hmm.. should be handled by waitForReadyRead() above...?
-				if (excessiveDebug) {
-					QString linecpy = line;
-					if (line.length() > 75) linecpy = linecpy.left(75) + "...";
-					if (linecpy.length() > 3) { Debug() << "Bug3: " << linecpy; }
+				if (--tout_ct < 0) tout_ct = 0;
+				QByteArray buf = p.readAll();
+				if (!buf.size()) {
+					Warning() << "Bug3 slave process: read 0 bytes!";
+					continue;
 				}
-				if (line.startsWith("---> Console")) { 
-					++nlines;
-					state=1; Debug() << "Bug3: New block, current nblocks=" << nblocks; 
-				} else if (state) {
-					++nlines;
-					// we are in parsing mode..
-					QStringList nv = line.split(QRegExp("[}{]"), QString::SkipEmptyParts);
-					if (nv.count() == 2) {
-						//Debug() << "Bug3: Got name=" << nv.first() << " v=" << nv.last().left(5) << "..." << nv.last().right(5);
-						block[nv.first()] = nv.last();
-						if (++state > nstates) {
-							// finished a scan...
+				data.append(buf);
+				int consumed = 0;
+				for (int i = 0, l = 0; i < data.size(); ++i) {
+					if (data[i] == '\n') {
+						QString line = data.mid(l, i-l+1);
+						l = consumed = i+1;
+						processLine(line, block, nblocks, state, nlines); 
+						if (state > nstates) {
 							++nblocks;
 							processBlock(block);
 							block.clear();
 							state = 0;
 						}
 					}
-				} else if (!state && line.startsWith("USRMSG:")) {
-					emit(daqWarning(line.mid(7).trimmed()));
 				}
+				data.remove(0,consumed);
+				/*if (data.size()) {
+					Debug() << "Bug3 slave process: partial data left over " << data.size() << " bytes";
+				}*/
 			} else msleep (10); // sleep 10ms and try again..
 		}
 		if (p.state() == QProcess::Running) {
-			pio << "exit\r\n"; pio.flush();
+			p.write("exit\r\n");			
 			Debug() << "Sent 'exit' cmd to bug3 slave process...";
 			p.waitForFinished(500); /// wait 500 msec for finish
 		}
@@ -1517,6 +1528,34 @@ namespace DAQ
 			p.kill();
 			Debug() << "Bug3 slave process refuses to exit gracefully.. forcibly killed!";
 		}
+	}
+
+	void BugTask::processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines)
+	{
+		QString line = lineUntrimmed.trimmed();
+#if 0
+		if (excessiveDebug) {
+			QString linecpy = line;
+			if (line.length() > 75) linecpy = line.left(65) + "..." + line.right(10);
+			if (linecpy.length() > 3) { Debug() << "Bug3: " << linecpy; }
+		}
+#endif
+		if (line.startsWith("---> Console")) { 
+			++nlines;
+			state=1; 
+			Debug() << "Bug3: New block, current nblocks=" << nblocks; 
+		} else if (state) {
+			++nlines;
+			// we are in parsing mode..
+			QStringList nv = line.split(QRegExp("[}{]"), QString::SkipEmptyParts);
+			if (nv.count() == 2) {
+				//Debug() << "Bug3: Got name=" << nv.first() << " v=" << nv.last().left(5) << "..." << nv.last().right(5);
+				block[nv.first()] = nv.last();
+				++state;
+			}
+		} else if (!state && line.startsWith("USRMSG:")) {
+			emit(daqWarning(line.mid(7).trimmed()));
+		}		
 	}
 	
 	void BugTask::processBlock(const QMap<QString, QString> & blk)
@@ -1549,12 +1588,14 @@ namespace DAQ
 
 				QStringList nums = v.split(",");
 				Debug() << "Bug3: got " << nums.count() << " neural samples for NEU chan " << neur_chan << "..";
+				bool warned = false;
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
 					for (int neurix = 0; neurix < NeuralSamplesPerFrame; ++neurix) {
 						QString num = nums.empty() ? "0" : nums.front();
-						if (nums.empty()) 
-							Warning() << "Bug3: Internal problem -- ran out of neural samples in frame!";
-						else nums.pop_front();
+						if (nums.empty()) { 
+							if (!warned) Warning() << "Bug3: Internal problem -- ran out of neural samples in frame `" << v << "'";
+							warned = true;
+						} else nums.pop_front();
 						ok = false;
 						int samp = num.toUShort(&ok);
 						if (!ok) Error() << "Bug3: Internal error -- parse error while reading neuronal sample `" << num << "'";
@@ -1575,10 +1616,12 @@ namespace DAQ
 
 				QStringList nums = v.split(",");
 				Debug() << "Bug3: got " << nums.count() << " EMG samples..";
+				bool warned = false;
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
 					QString num = nums.empty() ? "0" : nums.front();
 					if (nums.empty()) { 
-						Warning() << "Bug3: Internal problem -- ran out of EMG samples in frame!";
+						if (!warned) Warning() << "Bug3: Internal problem -- ran out of EMG samples in frame `" << v << "'";
+						warned = true;
 					}
 					else nums.pop_front();
 					bool ok = false;
@@ -1599,13 +1642,14 @@ namespace DAQ
 					if (aux_chan < 0 || aux_chan >= TotalAUXChans) { aux_chan = 0; ok = false; }
 				} 
 				if (!ok) Warning() << "Bug3: Internal problem -- parse error on EMG_ key.";
-				
+				bool warned = false;
 				QStringList nums = v.split(",");
 				Debug() << "Bug3: got " << nums.count() << " AUX samples..";
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
 					QString num = nums.empty() ? "0" : nums.front();
 					if (nums.empty()) { 
-						Warning() << "Bug3: Internal problem -- ran out of AUX samples in frame!";
+						if (!warned) Warning() << "Bug3: Internal problem -- ran out of AUX samples in frame `" << v << "'";
+						warned = true;
 					}
 					else nums.pop_front();
 					bool ok = false;

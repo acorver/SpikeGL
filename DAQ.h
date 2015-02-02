@@ -331,6 +331,7 @@ namespace DAQ
 		static QString exePath();
 		static QString exeName();
 		
+		void processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines);
 		void processBlock(const QMap<QString, QString> &);
 		
 		const Params & params;
