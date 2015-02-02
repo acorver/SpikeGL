@@ -1496,7 +1496,7 @@ namespace DAQ
 		while (!pleaseStop && p.state() != QProcess::NotRunning) {
 			if (p.state() == QProcess::Running) { 
 				qint64 n_avail = p.bytesAvailable();
-                if (n_avail == 0 && !p.waitForReadyRead(5000)) {
+                if (n_avail == 0 && !p.waitForReadyRead(1000)) {
 					if (++tout_ct > 5) {
 						emit(daqError("Bug3 slave process: timed out while waiting for data!"));
 						p.kill();
@@ -1506,7 +1506,7 @@ namespace DAQ
 						continue;
 					}
 				} else if (n_avail < 0) {
-					emit(daqError("Bug3 slave process: eof on stdout stream!"));
+                    emit(daqError("Bug3 slave process: eof on stdin stream!"));
 					p.kill();
 					return;
 				}
@@ -1607,7 +1607,7 @@ namespace DAQ
 					Warning() << "Bug3: Internal problem -- parse error on NEU_ key.";
 
 				QStringList nums = v.split(",");
-				if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " neural samples for NEU chan " << neur_chan << "..";
+                //if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " neural samples for NEU chan " << neur_chan << "..";
 				bool warned = false;
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
 					for (int neurix = 0; neurix < NeuralSamplesPerFrame; ++neurix) {
@@ -1635,7 +1635,7 @@ namespace DAQ
 				if (!ok) Warning() << "Bug3: Internal problem -- parse error on EMG_ key.";
 
 				QStringList nums = v.split(",");
-				if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " EMG samples..";
+                //if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " EMG samples..";
 				bool warned = false;
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
 					QString num = nums.empty() ? "0" : nums.front();
@@ -1664,7 +1664,7 @@ namespace DAQ
 				if (!ok) Warning() << "Bug3: Internal problem -- parse error on AUX_ key.";
 				bool warned = false;
 				QStringList nums = v.split(",");
-				if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " AUX samples..";
+                //if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " AUX samples..";
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
 					QString num = nums.empty() ? "0" : nums.front();
 					if (nums.empty()) { 
@@ -1694,7 +1694,7 @@ namespace DAQ
 				if (params.bug.whichTTLs & (0x1<<ttl_chan)) {
 					bool warned = false;
 					QStringList nums = v.split(",");
-					if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " TTL samples..";
+                    //if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " TTL samples..";
 					for (int frame = 0; frame < FramesPerBlock; ++frame) {
 						QString num = nums.empty() ? "0" : nums.front();
 						if (nums.empty()) { 
