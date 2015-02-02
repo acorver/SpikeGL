@@ -702,6 +702,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
 	}
     
     DAQ::Params & p (acceptedParams);
+	p.bug.enabled = false;
     p.stimGlTrigResave = dialog->stimGLReopenCB->isChecked();
     p.outputFile = p.outputFileOrig = dialog->outputFileLE->text().trimmed();
 	p.cludgyFilenameCounterOverride = 1;

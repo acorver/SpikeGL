@@ -314,7 +314,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 				last_graph_num = gnum;
 				chks[num]->setChecked(p.demuxedBitMap.at(num));
 				chks[num]->setDisabled(isSaving);
-				chks[num]->setHidden(!mainApp()->isSaveCBEnabled() || p.mode == DAQ::AIRegular);
+				chks[num]->setHidden(!mainApp()->isSaveCBEnabled() /*|| (p.mode == DAQ::AIRegular && !p.bug.enabled)*/);
 				f->setParent(graphsWidget);
 				// do this for all the graphs.. disable vsync!
 				if (graphs[num]) graphs[num]->makeCurrent();
