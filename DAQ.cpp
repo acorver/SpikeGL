@@ -1434,8 +1434,8 @@ namespace DAQ
 			emit daqError(err);
 			return;
 		}
-		QProcess p(this);
-		p.moveToThread(this);
+        QProcess p(0); // Qt throws a warning if we create the process with "this" as its QObject parent because 'this' object lives in another thread. Weird.  No harm tho: note that even though the qprocess has no parent, it's ok, it will die anyway :)
+//		p.moveToThread(this);
 		static bool regd = false;
 		if (!regd) {
 			int id = qRegisterMetaType<QProcess::ProcessState>("QProcess::ProcessState");

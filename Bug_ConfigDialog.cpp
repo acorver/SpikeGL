@@ -16,14 +16,15 @@
 
 Bug_ConfigDialog::Bug_ConfigDialog(DAQ::Params & p, QObject *parent) : QObject(parent), acceptedParams(p)
 {
+    dialogW = new QDialog(0);
 	dialog = new Ui::Bug_ConfigDialog;
-	dialog->setupUi(dialogW = new QDialog(0));
+    dialog->setupUi(dialogW);
 }
 
 Bug_ConfigDialog::~Bug_ConfigDialog()
 {
-	delete dialog;
-	delete dialogW;
+    delete dialog;
+    delete dialogW;
 	dialog = 0;
 	dialogW = 0;
 }
@@ -76,15 +77,13 @@ int Bug_ConfigDialog::exec()
 				p.nVAIChans2 = 0;
 				p.aoPassthru = 0;
 				p.aiChannels2.clear();
-				p.aiString2.clear();
+                //p.aiString2.clear();
 				p.aiChannels.resize(p.nVAIChans);
 				p.subsetString = dialog->channelSubsetLE->text();
-				p.aiString = "";
+                //p.aiString = "";
 				p.demuxedBitMap.resize(p.nVAIChans); p.demuxedBitMap.fill(true);
-				for (int i = 0; i < (int)p.aiChannels.size(); ++i) {
+                for (int i = 0; i < (int)p.nVAIChans; ++i) {
 					p.aiChannels[i] = i;
-					if (i) p.aiString.append(",");
-					p.aiString.append(QString::number(i));
 				}
 				if (p.subsetString.compare("ALL", Qt::CaseInsensitive) != 0) {
 					QVector<unsigned> subsetChans;
