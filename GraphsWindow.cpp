@@ -931,7 +931,7 @@ void GraphsWindow::toggleSaveChecked(bool b)
 	// hide/unhide all graph save checkboxes..
 	const int n = chks.size();
 	for (int i = 0; i < n; ++i)
-		chks[i]->setDisabled(b || (params.mode == DAQ::AIRegular));
+        chks[i]->setDisabled(b);
 }
 
 void GraphsWindow::setToggleSaveChkBox(bool b)
