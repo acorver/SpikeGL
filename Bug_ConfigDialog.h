@@ -53,6 +53,7 @@ private:
 	
 	
 	void guiFromSettings(); 
+	void saveSettings();
 	
     QDialog *dialogW;
 };

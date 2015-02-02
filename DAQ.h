@@ -144,11 +144,12 @@ namespace DAQ
 			bool enabled; // if true, acquisition is in bug mode
 			int rate; // 0 = Low, 1 = Medium, 2 = High
 			int whichTTLs; // bitset of which TTLs to save/graph, TTLs from 1->12 maps to bits #0->11
-			int ttlTrig; // the TTL chanel to use for a trigger, or -1 if not using ttl to trigger
+			int ttlTrig, ttl2; // the TTL chanel to use for a trigger, or -1 if not using ttl to trigger
 			int clockEdge; // 0 = rising, 1 = falling
 			int hpf; // if nonzero, the high pass filter is enabled at set to filter past this many Hz
 			bool snf; // if true, use the software notch filter at 60Hz
-			void reset() { rate = 2; whichTTLs = 0; ttlTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false; }
+			int errTol; // out of 144, default is 6
+			void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = ttl2 = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false; }
 		} bug;
 		
         mutable QMutex mutex;

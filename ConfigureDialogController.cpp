@@ -852,7 +852,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     QString subsetString = dialog->channelSubsetLE->text().trimmed();	
 	if (!subsetString.size()) subsetString = "ALL";
 	const bool hasAllSubset =  !subsetString.compare("ALL", Qt::CaseInsensitive) || subsetString == "*";
-    if (p.mode != DAQ::AIRegular) {
+    if (true/*p.mode != DAQ::AIRegular*/) {
         subsetString = parseAIChanString(subsetString, subsetChans, &err, true);
         if (err && !hasAllSubset) {
             errTitle = "Channel subset error.";
@@ -861,7 +861,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
         }
     }
     p.demuxedBitMap.resize(p.nVAIChans);
-	if ((!subsetChans.count() && hasAllSubset) || p.mode == DAQ::AIRegular)
+	if ((!subsetChans.count() && hasAllSubset) /*|| p.mode == DAQ::AIRegular*/)
 			 p.demuxedBitMap.fill(true);
     else {
         p.demuxedBitMap.fill(false);
@@ -1098,6 +1098,14 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.resumeGraphSettings = settings.value("resumeGraphSettings", true).toBool();
 	p.autoRetryOnAIOverrun = settings.value("autoRetryOnAIOverrun", true).toBool();
     p.overrideGraphsPerTab = settings.value("overrideGraphsPerTab", 0).toUInt();
+	
+	p.bug.rate = settings.value("bug_rate", 2).toUInt();
+	p.bug.ttlTrig = settings.value("bug_ttlTrig", -1).toInt();
+	p.bug.ttl2 = settings.value("bug_ttl2", -1).toInt();
+	p.bug.clockEdge = settings.value("bug_clockEdge", 0).toInt();
+	p.bug.hpf = settings.value("bug_hpf", 0).toInt();
+	p.bug.snf = settings.value("bug_snf", false).toBool();	
+	p.bug.errTol = settings.value("bug_errTol", 6).toInt();
 }
 
 void ConfigureDialogController::loadSettings()
@@ -1178,7 +1186,16 @@ void ConfigureDialogController::saveSettings() const
 	settings.setValue("autoRetryOnAIOverrun", p.autoRetryOnAIOverrun);
     settings.setValue("overrideGraphsPerTab", p.overrideGraphsPerTab);
 
-    settings.endGroup();
+
+	settings.setValue("bug_rate", p.bug.rate);
+	settings.setValue("bug_ttlTrig", p.bug.ttlTrig);
+	settings.setValue("bug_ttl2", p.bug.ttl2);
+	settings.setValue("bug_clockEdge", p.bug.clockEdge);
+	settings.setValue("bug_hpf", p.bug.hpf);
+	settings.setValue("bug_snf", p.bug.snf);
+	settings.setValue("bug_errTol", p.bug.errTol);
+
+	settings.endGroup(); 
 }
 
 QString ConfigureDialogController::acqParamsToString() 

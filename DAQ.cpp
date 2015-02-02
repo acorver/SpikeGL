@@ -1447,6 +1447,21 @@ namespace DAQ
 		p.setWorkingDirectory(exeDir());
 		QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 		env.insert("BUG3_SPIKEGL_MODE", "yes");
+		switch (params.bug.rate) {
+			case 0:
+				env.insert("BUG3_DATA_RATE", "LOW");
+				break;
+			case 1:
+				env.insert("BUG3_DATA_RATE", "MEDIUM");
+				break;
+			default:
+				env.insert("BUG3_DATA_RATE", "HIGH");
+				break;
+		}
+		env.insert("BUG3_CHANGES_ON_CLOCK", QString::number(params.bug.clockEdge));
+		env.insert("BUG3_ERR_TOLERANCE", QString::number(params.bug.errTol));
+		if (params.bug.hpf > 0) env.insert("BUG3_HIGHPASS_FILTER_CUTOFF", QString::number(params.bug.hpf));
+		if (params.bug.snf) env.insert("BUG3_60HZ_NOTCH_FILTER", "yes");
 		p.setProcessEnvironment(env);
 #ifdef Q_OS_WINDOWS
 		p.start(exePath());
@@ -1474,6 +1489,9 @@ namespace DAQ
 		QMap<QString, QString> block;
 		QByteArray data;
 		
+		//QFile dump("test.out");
+		//dump.open(QIODevice::WriteOnly|QIODevice::Truncate);
+		
 		data.reserve(4*1024*1024);
 		while (!pleaseStop && p.state() != QProcess::NotRunning) {
 			if (p.state() == QProcess::Running) { 
@@ -1500,10 +1518,11 @@ namespace DAQ
 				}
 				data.append(buf);
 				int consumed = 0;
-				for (int i = 0, l = 0; i < data.size(); ++i) {
+				for (int i = (data.size()-buf.size()), l = 0; i < data.size(); ++i) {
 					if (data[i] == '\n') {
 						QString line = data.mid(l, i-l+1);
 						l = consumed = i+1;
+						//dump.write(line.toUtf8());
 						processLine(line, block, nblocks, state, nlines); 
 						if (state > nstates) {
 							++nblocks;
@@ -1514,9 +1533,9 @@ namespace DAQ
 					}
 				}
 				data.remove(0,consumed);
-				/*if (data.size()) {
+				if (excessiveDebug && data.size()) {
 					Debug() << "Bug3 slave process: partial data left over " << data.size() << " bytes";
-				}*/
+				}
 			} else msleep (10); // sleep 10ms and try again..
 		}
 		if (p.state() == QProcess::Running) {
@@ -1543,7 +1562,7 @@ namespace DAQ
 		if (line.startsWith("---> Console")) { 
 			++nlines;
 			state=1; 
-			Debug() << "Bug3: New block, current nblocks=" << nblocks; 
+			if (excessiveDebug) Debug() << "Bug3: New block, current nblocks=" << nblocks; 
 		} else if (state) {
 			++nlines;
 			// we are in parsing mode..
@@ -1568,6 +1587,7 @@ namespace DAQ
 		static const int TotalNeuralChans = 10;
 		static const int TotalEMGChans = 4;
 		static const int TotalAUXChans = 2;
+		static const int TotalTTLChans = 11;
 		const int nchans (numChans());
 		std::vector<int16> samps;
 		samps.resize(nchans * NeuralSamplesPerFrame * FramesPerBlock); // todo: fix to come from params?
@@ -1587,7 +1607,7 @@ namespace DAQ
 					Warning() << "Bug3: Internal problem -- parse error on NEU_ key.";
 
 				QStringList nums = v.split(",");
-				Debug() << "Bug3: got " << nums.count() << " neural samples for NEU chan " << neur_chan << "..";
+				if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " neural samples for NEU chan " << neur_chan << "..";
 				bool warned = false;
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
 					for (int neurix = 0; neurix < NeuralSamplesPerFrame; ++neurix) {
@@ -1615,7 +1635,7 @@ namespace DAQ
 				if (!ok) Warning() << "Bug3: Internal problem -- parse error on EMG_ key.";
 
 				QStringList nums = v.split(",");
-				Debug() << "Bug3: got " << nums.count() << " EMG samples..";
+				if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " EMG samples..";
 				bool warned = false;
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
 					QString num = nums.empty() ? "0" : nums.front();
@@ -1641,10 +1661,10 @@ namespace DAQ
 					aux_chan = knv.last().toInt(&ok);
 					if (aux_chan < 0 || aux_chan >= TotalAUXChans) { aux_chan = 0; ok = false; }
 				} 
-				if (!ok) Warning() << "Bug3: Internal problem -- parse error on EMG_ key.";
+				if (!ok) Warning() << "Bug3: Internal problem -- parse error on AUX_ key.";
 				bool warned = false;
 				QStringList nums = v.split(",");
-				Debug() << "Bug3: got " << nums.count() << " AUX samples..";
+				if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " AUX samples..";
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
 					QString num = nums.empty() ? "0" : nums.front();
 					if (nums.empty()) { 
@@ -1662,7 +1682,35 @@ namespace DAQ
 					
 				}				
 			} else if (k.startsWith("TTL_")) {
-				// todo: support a subset of TTL chans...
+				// don't grab all ttl chans here, since we only really support a subset of them
+				QStringList knv = k.split("_");
+				int ttl_chan = 0;
+				bool ok = false;
+				if (knv.count() == 2) {
+					ttl_chan = knv.last().toInt(&ok);
+					if (ttl_chan < 0 || ttl_chan >= TotalTTLChans) { ttl_chan = 0; ok = false; }
+				} 
+				if (!ok) Warning() << "Bug3: Internal problem -- parse error on TTL_ key.";
+				if (params.bug.whichTTLs & (0x1<<ttl_chan)) {
+					bool warned = false;
+					QStringList nums = v.split(",");
+					if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " TTL samples..";
+					for (int frame = 0; frame < FramesPerBlock; ++frame) {
+						QString num = nums.empty() ? "0" : nums.front();
+						if (nums.empty()) { 
+							if (!warned) Warning() << "Bug3: Internal problem -- ran out of TTL samples in frame `" << v << "'";
+							warned = true;
+						}
+						else nums.pop_front();
+						bool ok = false;
+						int samp = num.toUShort(&ok);
+						if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
+						if (samp) samp = 32767; // normalize high to maxV
+						for (int ix = 0; ix < NeuralSamplesPerFrame; ++ix) { // need to produce 16 samples for each 1 emg sample read in order to match neuronal rate!						
+							samps[ frame*(NeuralSamplesPerFrame*nchans) + ix*nchans + (TotalNeuralChans+TotalEMGChans+TotalAUXChans+ttl_chan) ] = samp;
+						}						
+					}				
+				}
 			}
 		}
 		

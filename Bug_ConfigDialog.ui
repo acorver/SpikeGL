@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>512</width>
-    <height>384</height>
+    <height>420</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,8 +29,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>328</x>
-     <y>344</y>
+     <x>331</x>
+     <y>376</y>
      <width>175</width>
      <height>32</height>
     </rect>
@@ -137,8 +137,8 @@
   <widget class="QCheckBox" name="disableGraphsChk">
    <property name="geometry">
     <rect>
-     <x>242</x>
-     <y>271</y>
+     <x>245</x>
+     <y>303</y>
      <width>261</width>
      <height>22</height>
     </rect>
@@ -245,8 +245,8 @@
   <widget class="QComboBox" name="clkEdgeCB">
    <property name="geometry">
     <rect>
-     <x>128</x>
-     <y>110</y>
+     <x>131</x>
+     <y>142</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -268,8 +268,8 @@
   <widget class="QLabel" name="clkEdgeLbl">
    <property name="geometry">
     <rect>
-     <x>3</x>
-     <y>110</y>
+     <x>6</x>
+     <y>142</y>
      <width>117</width>
      <height>22</height>
     </rect>
@@ -287,8 +287,8 @@
   <widget class="QLineEdit" name="channelSubsetLE">
    <property name="geometry">
     <rect>
-     <x>128</x>
-     <y>78</y>
+     <x>131</x>
+     <y>110</y>
      <width>366</width>
      <height>22</height>
     </rect>
@@ -303,8 +303,8 @@
   <widget class="QLabel" name="channelSubsetLabel">
    <property name="geometry">
     <rect>
-     <x>3</x>
-     <y>78</y>
+     <x>6</x>
+     <y>110</y>
      <width>117</width>
      <height>22</height>
     </rect>
@@ -322,8 +322,8 @@
   <widget class="QCheckBox" name="resumeGraphSettingsChk">
    <property name="geometry">
     <rect>
-     <x>242</x>
-     <y>303</y>
+     <x>245</x>
+     <y>335</y>
      <width>261</width>
      <height>22</height>
     </rect>
@@ -344,8 +344,8 @@
   <widget class="QComboBox" name="graphsPerTabCB">
    <property name="geometry">
     <rect>
-     <x>133</x>
-     <y>303</y>
+     <x>136</x>
+     <y>335</y>
      <width>102</width>
      <height>22</height>
     </rect>
@@ -398,8 +398,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="graphsPerTabLabel">
    <property name="geometry">
     <rect>
-     <x>6</x>
-     <y>303</y>
+     <x>9</x>
+     <y>335</y>
      <width>117</width>
      <height>22</height>
     </rect>
@@ -424,8 +424,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="errTolLbl">
    <property name="geometry">
     <rect>
-     <x>250</x>
-     <y>110</y>
+     <x>253</x>
+     <y>142</y>
      <width>180</width>
      <height>22</height>
     </rect>
@@ -443,8 +443,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QSpinBox" name="errTolSB">
    <property name="geometry">
     <rect>
-     <x>442</x>
-     <y>110</y>
+     <x>445</x>
+     <y>142</y>
      <width>53</width>
      <height>22</height>
     </rect>
@@ -465,8 +465,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QCheckBox" name="notchFilterChk">
    <property name="geometry">
     <rect>
-     <x>214</x>
-     <y>142</y>
+     <x>217</x>
+     <y>174</y>
      <width>286</width>
      <height>22</height>
     </rect>
@@ -478,8 +478,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QCheckBox" name="hpfChk">
    <property name="geometry">
     <rect>
-     <x>16</x>
-     <y>142</y>
+     <x>19</x>
+     <y>174</y>
      <width>171</width>
      <height>22</height>
     </rect>
@@ -497,8 +497,8 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="geometry">
     <rect>
-     <x>38</x>
-     <y>165</y>
+     <x>41</x>
+     <y>197</y>
      <width>68</width>
      <height>22</height>
     </rect>
@@ -522,8 +522,8 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="geometry">
     <rect>
-     <x>111</x>
-     <y>165</y>
+     <x>114</x>
+     <y>197</y>
      <width>32</width>
      <height>22</height>
     </rect>
@@ -538,8 +538,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="intanLbl">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>209</y>
+     <x>33</x>
+     <y>241</y>
      <width>208</width>
      <height>82</height>
     </rect>
@@ -557,8 +557,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
-     <x>176</x>
-     <y>179</y>
+     <x>179</x>
+     <y>211</y>
      <width>75</width>
      <height>75</height>
     </rect>
@@ -571,6 +571,98 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="scaledContents">
     <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="ttl2CB">
+   <property name="geometry">
+    <rect>
+     <x>362</x>
+     <y>78</y>
+     <width>87</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If enabled, additional TTL line to display/save (can't be the same as the TTL trigger line, if enabled).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <item>
+    <property name="text">
+     <string>Disabled</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 0</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 1</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 2</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 4</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 5</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 6</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 7</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 8</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 9</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 10</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>TTL 11</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLabel" name="ttlAddlLbl">
+   <property name="geometry">
+    <rect>
+     <x>271</x>
+     <y>78</y>
+     <width>79</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If enabled, additional TTL line to display/save (can't be the same as the TTL trigger line, if enabled).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Addt'l TTL:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
    </property>
   </widget>
  </widget>
