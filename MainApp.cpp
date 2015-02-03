@@ -834,9 +834,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	
 	if (bugtask) {
 		bugWindow = new Bug_Popout(bugtask,0);
-		bugWindow->setWindowTitle("Bug Acquisition Info");
 		bugWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
-		bugWindow->setWindowIcon(bugIcon);
 		bugWindow->installEventFilter(this);
 		windowMenuAdd(bugWindow);
 		if (!params.suppressGraphs) { bugWindow->show(); bugWindow->activateWindow(); }
