@@ -839,7 +839,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 		bugWindow->setWindowIcon(bugIcon);
 		bugWindow->installEventFilter(this);
 		windowMenuAdd(bugWindow);
-		if (!params.suppressGraphs) bugWindow->show();
+		if (!params.suppressGraphs) { bugWindow->show(); bugWindow->activateWindow(); }
 	}	
 	
 	
