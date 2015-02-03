@@ -28,6 +28,7 @@ class FileViewerWindow;
 class PostJuly2011Remuxer;
 class SpatialVisWindow;
 class Bug_ConfigDialog;
+class Bug_Popout;
 
 #include <QApplication>
 #include <QColor>
@@ -173,6 +174,9 @@ public:
 
 	/// Open a data file for perusal using the already-existing FileViewerWindow reuseWindow.  Called from File->Open slot for the file viewer window.
 	void fileOpen(FileViewerWindow *reuseWindow);
+	
+	DAQ::NITask * niTask() { return dynamic_cast<DAQ::NITask *>(task); }
+	DAQ::BugTask * bugTask() { return dynamic_cast<DAQ::BugTask *>(task); }
 
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
@@ -274,7 +278,7 @@ private:
     void initShortcuts(); 
     void loadSettings();
     void saveSettings();
-    void createAppIcon();
+    void createIcons();
     bool processKey(QKeyEvent *);
     void stopTask();
     bool setupStimGLIntegration(bool doQuitOnFail=true);
@@ -343,6 +347,7 @@ private:
     QTimer *taskReadTimer;
     GraphsWindow *graphsWindow;
 	SpatialVisWindow *spatialWindow;
+	Bug_Popout *bugWindow;
     Par2Window *par2Win;
     StimGL_SpikeGL_Integration::NotifyServer *notifyServer;
     CommandServer *commandServer;
@@ -382,7 +387,7 @@ public:
 	    *sortGraphsByElectrodeAct, *bugAcqAct;
 
 /// Appliction icon! Made public.. why the hell not?
-    QIcon appIcon;
+    QIcon appIcon, bugIcon;
 	
 /// Used by GraphsWindow to re-sort graphs according to current app state...
 	bool sortGraphsByElectrodeId;

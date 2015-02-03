@@ -46,6 +46,7 @@
 #include <algorithm>
 #include "SpatialVisWindow.h"
 #include "Bug_ConfigDialog.h"
+#include "Bug_Popout.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -101,7 +102,7 @@ private:
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-	: QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), spatialWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0), doBugAcqInstead(false)
+	: QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), spatialWindow(0), bugWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0), doBugAcqInstead(false)
 {
 	QLocale::setDefault(QLocale::c());
 	setApplicationName("SpikeGL");
@@ -119,7 +120,7 @@ MainApp::MainApp(int & argc, char ** argv)
 
     initActions();
 
-    createAppIcon();
+    createIcons();
     
     configCtl = new ConfigureDialogController(this);
 	bugConfig = new Bug_ConfigDialog(configCtl->acceptedParams, this);
@@ -303,7 +304,7 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
         if (k && !noHotKeys 
             && watched != helpWindow && (!helpWindow || !Util::objectHasAncestor(watched, helpWindow)) 
             && watched != par2Win && (!par2Win || !Util::objectHasAncestor(watched, par2Win)) 
-            && (watched == graphsWindow || watched == consoleWindow || (spatialWindow && watched == spatialWindow) || watched == consoleWindow->textEdit() || ((!graphsWindow || watched != graphsWindow->saveFileLineEdit()) && Util::objectHasAncestor(watched, graphsWindow)))) {
+            && (watched == graphsWindow || watched == consoleWindow || (spatialWindow && watched == spatialWindow) || (bugWindow && watched == bugWindow) || watched == consoleWindow->textEdit() || ((!graphsWindow || watched != graphsWindow->saveFileLineEdit()) && Util::objectHasAncestor(watched, graphsWindow)))) {
             if (processKey(k)) {
                 event->accept();
                 return true;
@@ -569,9 +570,10 @@ void MainApp::pickOutputDir()
     noHotKeys = false;
 }
 
-void MainApp::createAppIcon()
+void MainApp::createIcons()
 {
     appIcon.addPixmap(QPixmap(Icon_xpm));
+	bugIcon.addPixmap(QPixmap(QString(":/Bug3/dragonfly.png")));
 }
 
 void MainApp::hideUnhideConsole()
@@ -773,7 +775,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	spatialWindow->setWindowIcon(appIcon);
     spatialWindow->installEventFilter(this);
 	windowMenuAdd(spatialWindow);
-    
+	
 	Connect(spatialWindow, SIGNAL(channelsSelected(const QVector<unsigned> &)), graphsWindow, SLOT(highlightGraphsById(const QVector<unsigned> &)));
 	Connect(spatialWindow, SIGNAL(channelsOpened(const QVector<unsigned> &)), graphsWindow, SLOT(openGraphsById(const QVector<unsigned> &)));
 	Connect(graphsWindow, SIGNAL(tabChanged(int)), spatialWindow, SLOT(selectBlock(int)));
@@ -829,6 +831,18 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     taskReadTimer->setSingleShot(false);
     
     taskReadTimer->start(1000/DEF_TASK_READ_FREQ_HZ);
+	
+	if (bugtask) {
+		bugWindow = new Bug_Popout(bugtask,0);
+		bugWindow->setWindowTitle("Bug Acquisition Info");
+		bugWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
+		bugWindow->setWindowIcon(bugIcon);
+		bugWindow->installEventFilter(this);
+		windowMenuAdd(bugWindow);
+		if (!params.suppressGraphs) bugWindow->show();
+	}	
+	
+	
     stopAcq->setEnabled(true);
     aoPassthruAct->setEnabled(params.aoPassthru);
     Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));
@@ -899,6 +913,10 @@ void MainApp::stopTask()
 	
     if (!task) return;
 	if (addtlDemuxTask) delete addtlDemuxTask, addtlDemuxTask = 0;
+	if (bugWindow) {
+		windowMenuRemove(bugWindow);
+		delete bugWindow, bugWindow = 0;
+	}
     delete task, task = 0;
 	doBugAcqInstead = false;
     fastSettleRunning = false;

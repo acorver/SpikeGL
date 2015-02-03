@@ -316,6 +316,7 @@ namespace DAQ
 		Q_OBJECT
 	public:
 		
+		
 		// some useful constants for the bug3 USB-based acquisition
 		static const int ADCOffset = 1023;
 		static const int FramesPerBlock = 40;
@@ -331,6 +332,8 @@ namespace DAQ
 		static const double ADCStepAux = 0.0052;                // units = V
 		static const double ADCStep = 1.02 * 1.225 / 1024.0;    // units = V
 		static const int MaxMetaData = 120;
+		static const double MaxBER = -1.0;
+		static const double MinBER = -5.0;
 		
 		
 		BugTask(const Params & acqParams, QObject * parent);
@@ -340,6 +343,7 @@ namespace DAQ
         unsigned numChans() const;
         unsigned samplingRate() const;
 		
+		const Params::Bug & bugParams() const { return params.bug; }
 
 		struct BlockMetaData {
 			quint64 blockNum; ///< sequential number. incremented for each new block
@@ -359,10 +363,13 @@ namespace DAQ
 		};
 		
 		/// Retrieve up to the last 120 blocks of bit error rate and word error rate, etc.  The newest
-		/// block is always at the front of the list and the oldest at the back.
+		/// block is always at the end of the list and the oldest at the front.
 		/// These structs get enqueued and put into an internal buffer as the task reads from the 
-		/// bug3_spikegl.exe process. 
+		/// bug3_spikegl.exe process, with one BlockMetaData per "block" read from the slave process.
 		int popMetaData(std::list<BlockMetaData> & destination_list_is_cleared_before_filling);
+		
+		void setNotchFilter(bool enabled);
+		void setHPFilter(int val); ///<   <=0 == off, >0 = freq in Hz to high-pass filter
 						
 	protected:
 		void daqThr(); ///< Reimplemented from DAQ::Task
@@ -377,10 +384,13 @@ namespace DAQ
 		
 		void processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines);
 		void processBlock(const QMap<QString, QString> &, quint64 blockNum);
+		void pushCmd(const QString & cmd);
+		void processCmds(QProcess & p);
 		
 		const Params & params;
 		
 		std::list<BlockMetaData> metaData;
+		QStringList cmdQ; QMutex cmdQMut;
 		int metaDataCt;
 		QMutex metaMut;
 		

@@ -1540,6 +1540,9 @@ namespace DAQ
 				if (excessiveDebug && data.size()) {
 					Debug() << "Bug3 slave process: partial data left over " << data.size() << " bytes";
 				}
+				
+				processCmds(p); ///< commands get enqueued by setHpFilter() and setNotchFilter() calls from outside this thread, we forward them via stdin to the slave process
+				
 			} else msleep (10); // sleep 10ms and try again..
 		}
 		if (p.state() == QProcess::Running) {
@@ -1552,7 +1555,7 @@ namespace DAQ
 			Debug() << "Bug3 slave process refuses to exit gracefully.. forcibly killed!";
 		}
 	}
-
+	
 	void BugTask::processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines)
 	{
 		QString line = lineUntrimmed.trimmed();
@@ -1822,9 +1825,9 @@ namespace DAQ
 		totalRead += (quint64)samps.size(); 
 		totalReadMut.unlock();
 		metaMut.lock();
-		metaData.push_front(meta);
+		metaData.push_back(meta);
 		++metaDataCt;
-		while (metaDataCt > MaxMetaData) { metaData.pop_back(); --metaDataCt; }
+		while (metaDataCt > MaxMetaData) { metaData.pop_front(); --metaDataCt; }
 		metaMut.unlock();
 		if (!oldTotalRead) emit(gotFirstScan());
 		enqueueBuffer(samps, oldTotalRead);
@@ -1845,6 +1848,31 @@ namespace DAQ
 	BugTask::BlockMetaData::BlockMetaData(const BlockMetaData &o) { *this = o; }
 	BugTask::BlockMetaData & BugTask::BlockMetaData::operator=(const BlockMetaData & o) { ::memcpy(this, &o, sizeof(o)); return *this; }
 	
+	void BugTask::setNotchFilter(bool enabled)
+	{
+		pushCmd(QString("SNF=%1").arg(enabled ? "1" : "0"));
+	}
+	void BugTask::setHPFilter(int val) { ///<   <=0 == off, >0 = freq in Hz to high-pass filter
+		if (val < 0) val = 0;
+		pushCmd(QString("HPF=%1").arg(val));
+	}
+	void BugTask::pushCmd(const QString &c) {
+		cmdQMut.lock();
+		cmdQ.push_back(c);
+		cmdQMut.unlock();
+	}
+	void BugTask::processCmds(QProcess & p)
+	{
+		QStringList cmds;
+		cmdQMut.lock();
+		cmds = cmdQ;
+		cmdQ.clear();
+		cmdQMut.unlock();
+		for (QStringList::iterator it = cmds.begin(); it != cmds.end(); ++it) {
+			Debug() << "Bug3: sending command `" << *it << "'";
+			p.write(((*it) + "\r\n").toUtf8());
+		}		
+	}
 	
 } // end namespace DAQ
 

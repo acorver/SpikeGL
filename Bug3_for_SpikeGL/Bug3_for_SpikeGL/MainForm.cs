@@ -382,7 +382,7 @@ namespace Bug3
                         btnNotchFilter60Hz.Checked = false;
                         btnNotchFilterDisable.Checked = true;
                     }
-//                    Console.WriteLine("snf set to: " + (int)args.UserState);
+                    //Console.WriteLine("USRMSG: snf set to: " + (int)args.UserState);
                 }
                 else if (args.ProgressPercentage == 2) // hpf
                 {
@@ -396,7 +396,7 @@ namespace Bug3
                         chkEnableHPF.Checked = true;
                         txtHPF.Text = Convert.ToString(hpf);
                     }
-//                    Console.WriteLine("hpf set to: " + hpf);
+                    //Console.WriteLine("USRMSG: hpf set to: " + hpf);
                 }
             });
 
@@ -489,10 +489,9 @@ namespace Bug3
 
             USBData plotData;
 
-            plotData = plotQueue.Dequeue();
-            if (plotQueue.Count != 0)
+            plotData = plotQueue.Last();
+            if (plotQueue.Count != 1)
                 Debug.WriteLine("Plot falling behind!");
-            //plotQueue.Clear();
             plotData.CopyNeuralDataToArray(neuralData);
             plotData.CopyEMGDataToArray(EMGData);
             plotData.CopyTTLDataToArray(TTLData);
@@ -1100,7 +1099,8 @@ namespace Bug3
 
                 if (plotQueue.Count > 0)
                 {
-                    if (!Params.guiHidden) doPlot(numPagesLeftInRAM);
+                    
+                    doPlot(numPagesLeftInRAM); // NB: do the plot even if GUI hidden.. as it writes to the USB device in some cases!
                     if (Params.consoleData) doConsoleDataOutput(numPagesLeftInRAM);
                     plotQueue.Clear(); // must call this else data will leak..
                 }
