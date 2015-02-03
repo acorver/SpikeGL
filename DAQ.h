@@ -370,7 +370,10 @@ namespace DAQ
 		
 		void setNotchFilter(bool enabled);
 		void setHPFilter(int val); ///<   <=0 == off, >0 = freq in Hz to high-pass filter
-						
+			
+		/// returns the usb data block size, in samples, depending on HIGH, MEDIUM, LOW data rate
+		int  usbDataBlockSizeSamps() const;
+		
 	protected:
 		void daqThr(); ///< Reimplemented from DAQ::Task
 	protected slots:

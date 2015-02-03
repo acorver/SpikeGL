@@ -1434,6 +1434,16 @@ namespace DAQ
 		}
 	}
 	
+	int BugTask::usbDataBlockSizeSamps() const
+	{
+		int frameSize = 174;
+		switch (params.bug.rate) {
+			case 0: frameSize = 48; break;
+			case 1: frameSize = 96; break;
+			default: break;
+		}
+		return frameSize * FramesPerBlock;
+	}
 	
 	void BugTask::daqThr() 
 	{

@@ -19,7 +19,7 @@ Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
 	uiTimer = new QTimer(this);
 	Connect(uiTimer, SIGNAL(timeout()), this, SLOT(updateUI()));
 	lastStatusT = getTime();
-	lastStatusBlock = 0;
+	lastStatusBlock = -1;
 	lastRate = 0.;
 	uiTimer->start(100); // update every 100 ms
 }
@@ -69,7 +69,7 @@ void Bug_Popout::updateUI()
 			ui->falseLbl->setText(QString::number(meta.falseFrameCount));
 			ui->recVolLbl->setText(QString::number(avgPower/(double)nAvg,'f',3));
 			ui->berLbl->setText(QString::number(logBER,'3',4));
-			const quint64 samplesPerBlock = DAQ::BugTask::FramesPerBlock*DAQ::BugTask::NeuralSamplesPerFrame*DAQ::BugTask::TotalNeuralChans + DAQ::BugTask::FramesPerBlock*(task->numChans()-DAQ::BugTask::TotalNeuralChans);
+			const quint64 samplesPerBlock = task->usbDataBlockSizeSamps();
 			const double now = getTime(), diff = now - lastStatusT;
 			if (diff >= 1.0) {
 				lastRate = ((meta.blockNum-lastStatusBlock) * samplesPerBlock)/diff;
