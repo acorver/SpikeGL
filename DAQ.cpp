@@ -1344,6 +1344,15 @@ namespace DAQ
         return ret;
     }
 	
+
+    /*static*/ const double BugTask::SamplingRate = 16.0 / 0.0006144;
+    /*static*/ const double BugTask::ADCStepNeural = 2.5;                // units = uV
+    /*static*/ const double BugTask::ADCStepEMG = 0.025;                 // units = mV
+    /*static*/ const double BugTask::ADCStepAux = 0.0052;                // units = V
+    /*static*/ const double BugTask::ADCStep = 1.02 * 1.225 / 1024.0;    // units = V
+    /*static*/ const double BugTask::MaxBER = -1.0;
+    /*static*/ const double BugTask::MinBER = -5.0;
+
 	BugTask::BugTask(const DAQ::Params & p, QObject *parent)
 	: Task(parent, "bug3_spikegl read task", SAMPLE_BUF_Q_SIZE), params(p), metaDataCt(0)
 	{

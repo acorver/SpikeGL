@@ -326,14 +326,14 @@ namespace DAQ
 		static const int TotalAuxChans = 2;
 		static const int BaseNChans = TotalNeuralChans+TotalEMGChans+TotalAuxChans;
 		static const int TotalTTLChans = 11;
-		static const double SamplingRate = 16.0 / 0.0006144;
-		static const double ADCStepNeural = 2.5;                // units = uV
-		static const double ADCStepEMG = 0.025;                 // units = mV
-		static const double ADCStepAux = 0.0052;                // units = V
-		static const double ADCStep = 1.02 * 1.225 / 1024.0;    // units = V
+        static const double SamplingRate;// = 16.0 / 0.0006144;
+        static const double ADCStepNeural;// = 2.5;                // units = uV
+        static const double ADCStepEMG;// = 0.025;                 // units = mV
+        static const double ADCStepAux;// = 0.0052;                // units = V
+        static const double ADCStep;// = 1.02 * 1.225 / 1024.0;    // units = V
 		static const int MaxMetaData = 120;
-		static const double MaxBER = -1.0;
-		static const double MinBER = -5.0;
+        static const double MaxBER;// = -1.0;
+        static const double MinBER;// = -5.0;
 		
 		
 		BugTask(const Params & acqParams, QObject * parent);
