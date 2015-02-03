@@ -23,7 +23,7 @@
 #undef min
 #undef max
 #endif
-
+#include <list>
 
 namespace DAQ
 {
@@ -315,12 +315,55 @@ namespace DAQ
 	class BugTask : public Task {
 		Q_OBJECT
 	public:
+		
+		// some useful constants for the bug3 USB-based acquisition
+		static const int ADCOffset = 1023;
+		static const int FramesPerBlock = 40;
+		static const int NeuralSamplesPerFrame = 16;
+		static const int TotalNeuralChans = 10;
+		static const int TotalEMGChans = 4;
+		static const int TotalAuxChans = 2;
+		static const int BaseNChans = TotalNeuralChans+TotalEMGChans+TotalAuxChans;
+		static const int TotalTTLChans = 11;
+		static const double SamplingRate = 16.0 / 0.0006144;
+		static const double ADCStepNeural = 2.5;                // units = uV
+		static const double ADCStepEMG = 0.025;                 // units = mV
+		static const double ADCStepAux = 0.0052;                // units = V
+		static const double ADCStep = 1.02 * 1.225 / 1024.0;    // units = V
+		static const int MaxMetaData = 120;
+		
+		
+		
 		BugTask(const Params & acqParams, QObject * parent);
 		~BugTask(); ///< calls stop
         void stop();
 		
         unsigned numChans() const;
         unsigned samplingRate() const;
+		
+
+		struct BlockMetaData {
+			quint64 blockNum; ///< sequential number. incremented for each new block
+			int boardFrameCounter[FramesPerBlock];
+			int boardFrameTimer[FramesPerBlock];
+			int chipFrameCounter[FramesPerBlock];
+			quint16 chipID[FramesPerBlock];
+			quint16 frameMarkerCorrelation[FramesPerBlock];
+			int missingFrameCount;
+			int falseFrameCount;
+			double BER, WER; ///< bit error rate and word error rate
+			
+			BlockMetaData();
+			BlockMetaData(const BlockMetaData &o);
+			BlockMetaData & operator=(const BlockMetaData & o);
+		};
+		
+		/// Retrieve up to the last 120 blocks of bit error rate and word error rate, etc.  The newest
+		/// block is always at the front of the list and the oldest at the back.
+		/// These structs get enqueued and put into an internal buffer as the task reads from the 
+		/// bug3_spikegl.exe process. 
+		int popMetaData(std::list<BlockMetaData> & destination_list_is_cleared_before_filling);
+						
 	protected:
 		void daqThr(); ///< Reimplemented from DAQ::Task
 	protected slots:
@@ -333,9 +376,13 @@ namespace DAQ
 		static QString exeName();
 		
 		void processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines);
-		void processBlock(const QMap<QString, QString> &);
+		void processBlock(const QMap<QString, QString> &, quint64 blockNum);
 		
 		const Params & params;
+		
+		std::list<BlockMetaData> metaData;
+		int metaDataCt;
+		QMutex metaMut;
 		
 		volatile bool pleaseStop;		
 	};

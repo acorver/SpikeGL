@@ -1040,12 +1040,14 @@ namespace Bug3
                 }
                 writer.WriteLine("}");
 
-                shortarr = data.chipFrameCounter;
+                int[] intarr = null;
+
+                intarr = data.chipFrameCounter;
                 writer.Write("CHIP_FC{");
                 for (int i = 0; i < Constant.FramesPerBlock; ++i)
                 {
                     if (i != 0) writer.Write(",");
-                    writer.Write(shortarr[i]);
+                    writer.Write(intarr[i]);
                 }
                 writer.WriteLine("}");
 
@@ -1058,7 +1060,7 @@ namespace Bug3
                 }
                 writer.WriteLine("}");
 
-                int [] intarr = data.boardFrameCounter;
+                intarr = data.boardFrameCounter;
                 writer.Write("BOARD_FC{");
                 for (int i = 0; i < Constant.FramesPerBlock; ++i)
                 {

@@ -68,11 +68,11 @@ int Bug_ConfigDialog::exec()
 				p.resumeGraphSettings = dialog->resumeGraphSettingsChk->isChecked();
 				p.outputFile = dialog->outputFileLE->text();
 				p.mode = DAQ::AIRegular;
-				p.srate = 16.0 / 0.0006144;
+				p.srate = DAQ::BugTask::SamplingRate;
 				int nbits = 0;
 				for (int i = 0; i < 11; ++i)
 					nbits += ( (p.bug.whichTTLs >> i) & 0x1); // count number of ttls set 
-				p.nVAIChans = 16 + nbits;
+				p.nVAIChans = DAQ::BugTask::BaseNChans + nbits;
 				p.nVAIChans1 = p.nVAIChans;
 				p.nVAIChans2 = 0;
 				p.aoPassthru = 0;

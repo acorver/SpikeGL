@@ -1345,7 +1345,7 @@ namespace DAQ
     }
 	
 	BugTask::BugTask(const DAQ::Params & p, QObject *parent)
-	: Task(parent, "bug3_spikegl read task", SAMPLE_BUF_Q_SIZE), params(p)
+	: Task(parent, "bug3_spikegl read task", SAMPLE_BUF_Q_SIZE), params(p), metaDataCt(0)
 	{
 	}
 	
@@ -1428,6 +1428,11 @@ namespace DAQ
 	
 	void BugTask::daqThr() 
 	{
+		metaMut.lock();
+		metaData.clear();
+		metaDataCt = 0;
+		metaMut.unlock();
+		
 		pleaseStop = false;
 		QString err("");
 		if (!setupExeDir(&err)) {
@@ -1525,8 +1530,7 @@ namespace DAQ
 						//dump.write(line.toUtf8());
 						processLine(line, block, nblocks, state, nlines); 
 						if (state > nstates) {
-							++nblocks;
-							processBlock(block);
+							processBlock(block, nblocks++);
 							block.clear();
 							state = 0;
 						}
@@ -1577,17 +1581,10 @@ namespace DAQ
 		}		
 	}
 	
-	void BugTask::processBlock(const QMap<QString, QString> & blk)
+	void BugTask::processBlock(const QMap<QString, QString> & blk, quint64 blockNum)
 	{
-		//static const double ADCStepNeural(2.5); // units = uV
-		//static const double ADCStepEMG(0.025); // units = mV
-		static const int ADCOffset(1023);
-		static const int FramesPerBlock = 40;
-		static const int NeuralSamplesPerFrame = 16;
-		static const int TotalNeuralChans = 10;
-		static const int TotalEMGChans = 4;
-		static const int TotalAUXChans = 2;
-		static const int TotalTTLChans = 11;
+		BlockMetaData meta;
+		meta.blockNum = blockNum;
 		const int nchans (numChans());
 		std::vector<int16> samps;
 		samps.resize(nchans * NeuralSamplesPerFrame * FramesPerBlock); // todo: fix to come from params?
@@ -1659,7 +1656,7 @@ namespace DAQ
 				bool ok = false;
 				if (knv.count() == 2) {
 					aux_chan = knv.last().toInt(&ok);
-					if (aux_chan < 0 || aux_chan >= TotalAUXChans) { aux_chan = 0; ok = false; }
+					if (aux_chan < 0 || aux_chan >= TotalAuxChans) { aux_chan = 0; ok = false; }
 				} 
 				if (!ok) Warning() << "Bug3: Internal problem -- parse error on AUX_ key.";
 				bool warned = false;
@@ -1707,20 +1704,143 @@ namespace DAQ
 						if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
 						if (samp) samp = 32767; // normalize high to maxV
 						for (int ix = 0; ix < NeuralSamplesPerFrame; ++ix) { // need to produce 16 samples for each 1 emg sample read in order to match neuronal rate!						
-							samps[ frame*(NeuralSamplesPerFrame*nchans) + ix*nchans + (TotalNeuralChans+TotalEMGChans+TotalAUXChans+ttl_chan) ] = samp;
+							samps[ frame*(NeuralSamplesPerFrame*nchans) + ix*nchans + (TotalNeuralChans+TotalEMGChans+TotalAuxChans+ttl_chan) ] = samp;
 						}						
 					}				
 				}
+			} else if (k.startsWith("CHIPID")) {
+				QStringList nums = v.split(",");
+				bool warned = false;
+				//if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " chipIDs..";
+				for (int frame = 0; frame < FramesPerBlock; ++frame) {
+					QString num = nums.empty() ? "0" : nums.front();
+					if (nums.empty()) { 
+						if (!warned) Warning() << "Bug3: Internal problem -- ran out of chipID data in frame `" << v << "'";
+						warned = true;
+					}
+					else nums.pop_front();
+					bool ok = false;
+					quint16 chipid = num.toUShort(&ok);
+					if (!ok) Error() << "Bug3: Internal error -- parse error while reading chipID `" << num << "'";
+					meta.chipID[frame] = chipid;
+				}
+			} else if (k.startsWith("CHIP_FC")) {
+				QStringList nums = v.split(",");
+				bool warned = false;
+				//if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " chip_fcs..";
+				for (int frame = 0; frame < FramesPerBlock; ++frame) {
+					QString num = nums.empty() ? "0" : nums.front();
+					if (nums.empty()) { 
+						if (!warned) Warning() << "Bug3: Internal problem -- ran out of chip_fc data in frame `" << v << "'";
+						warned = true;
+					}
+					else nums.pop_front();
+					bool ok = false;
+					int chipfc = num.toInt(&ok);
+					if (!ok) Error() << "Bug3: Internal error -- parse error while reading chip_fc `" << num << "'";
+					meta.chipFrameCounter[frame] = chipfc;
+				}
+			} else if (k.startsWith("FRAME_MARKER_COR")) {
+				QStringList nums = v.split(",");
+				bool warned = false;
+				//if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " FMCorr..";
+				for (int frame = 0; frame < FramesPerBlock; ++frame) {
+					QString num = nums.empty() ? "0" : nums.front();
+					if (nums.empty()) { 
+						if (!warned) Warning() << "Bug3: Internal problem -- ran out of framemarker_corr data in frame `" << v << "'";
+						warned = true;
+					}
+					else nums.pop_front();
+					bool ok = false;
+					quint16 fmc  = num.toUShort(&ok);
+					if (!ok) Error() << "Bug3: Internal error -- parse error while reading fmcorr `" << num << "'";
+					meta.frameMarkerCorrelation[frame] = fmc;
+				}
+			} else if (k.startsWith("BOARD_FC")) {
+				QStringList nums = v.split(",");
+				bool warned = false;
+				//if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " board_fc..";
+				for (int frame = 0; frame < FramesPerBlock; ++frame) {
+					QString num = nums.empty() ? "0" : nums.front();
+					if (nums.empty()) { 
+						if (!warned) Warning() << "Bug3: Internal problem -- ran out of board_fc data in frame `" << v << "'";
+						warned = true;
+					}
+					else nums.pop_front();
+					bool ok = false;
+					int bfc  = num.toInt(&ok);
+					if (!ok) Error() << "Bug3: Internal error -- parse error while reading board_fc `" << num << "'";
+					meta.boardFrameCounter[frame] = bfc;
+				}
+			} else if (k.startsWith("BOARD_FRAME_TIMER")) {
+				QStringList nums = v.split(",");
+				bool warned = false;
+				//if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " board_frame_timer..";
+				for (int frame = 0; frame < FramesPerBlock; ++frame) {
+					QString num = nums.empty() ? "0" : nums.front();
+					if (nums.empty()) { 
+						if (!warned) Warning() << "Bug3: Internal problem -- ran out of board_ftimer data in frame `" << v << "'";
+						warned = true;
+					}
+					else nums.pop_front();
+					bool ok = false;
+					int bft  = num.toInt(&ok);
+					if (!ok) Error() << "Bug3: Internal error -- parse error while reading board_ftimer `" << num << "'";
+					meta.boardFrameTimer[frame] = bft;
+				}
+			} else if (k.startsWith("BER")) {
+				bool ok = false;
+				double n = v.toDouble(&ok);
+				if (!ok) Warning() << "Bug3: Internal problem -- error parsing BER `" << v << "'";
+				meta.BER = n;
+			} else if (k.startsWith("WER")) {
+				bool ok = false;
+				double n = v.toDouble(&ok);
+				if (!ok) Warning() << "Bug3: Internal problem -- error parsing WER `" << v << "'";
+				meta.WER = n;				
+			} else if (k.startsWith("MISSING_FC")) {
+				bool ok = false;
+				int n = v.toInt(&ok);
+				if (!ok) Warning() << "Bug3: Internal problem -- error parsing MISSING_FC `" << v << "'";
+				meta.missingFrameCount = n;								
+			} else if (k.startsWith("FALSE_FC")) {
+				bool ok = false;
+				int n = v.toInt(&ok);
+				if (!ok) Warning() << "Bug3: Internal problem -- error parsing FALSE_FC `" << v << "'";
+				meta.falseFrameCount = n;								
 			}
 		}
-		
-		if (!totalRead) emit(gotFirstScan());
-		unsigned nsamps = samps.size();
-		enqueueBuffer(samps, totalRead);
+		quint64 oldTotalRead = totalRead;
 		totalReadMut.lock();
-		totalRead += nsamps; 
+		totalRead += (quint64)samps.size(); 
 		totalReadMut.unlock();
+		metaMut.lock();
+		metaData.push_front(meta);
+		++metaDataCt;
+		while (metaDataCt > MaxMetaData) { metaData.pop_back(); --metaDataCt; }
+		metaMut.unlock();
+		if (!oldTotalRead) emit(gotFirstScan());
+		enqueueBuffer(samps, oldTotalRead);
 	}
+	
+	int BugTask::popMetaData(std::list<BlockMetaData> & out) 
+	{
+		out.clear();
+		metaMut.lock();
+		out.swap(metaData);
+		int ret = metaDataCt;
+		metaDataCt = 0;
+		metaMut.unlock();
+		return ret;
+	}
+	
+	BugTask::BlockMetaData::BlockMetaData() 
+	{
+		::memset(this, 0, sizeof(*this)); // zero out all data.. yay!
+	}
+	BugTask::BlockMetaData::BlockMetaData(const BlockMetaData &o) { *this = o; }
+	BugTask::BlockMetaData & BugTask::BlockMetaData::operator=(const BlockMetaData & o) { ::memcpy(this, &o, sizeof(o)); return *this; }
+	
 	
 } // end namespace DAQ
 

@@ -55,7 +55,7 @@ namespace Bug3
         public double[,] auxData = new double[Constant.TotalAuxChannels, Constant.FramesPerBlock];
         public UInt16[,] auxData16 = new UInt16[Constant.TotalAuxChannels, Constant.FramesPerBlock];
         public UInt16[] chipID = new UInt16[Constant.FramesPerBlock];
-        public UInt16[] chipFrameCounter = new UInt16[Constant.FramesPerBlock];
+        public int[] chipFrameCounter = new int[Constant.FramesPerBlock];
         public UInt16[] TTLInputs = new UInt16[Constant.FramesPerBlock];
         public UInt16[] frameMarkerCorrelation = new UInt16[Constant.FramesPerBlock];
         public int[] boardFrameCounter = new int[Constant.FramesPerBlock];
