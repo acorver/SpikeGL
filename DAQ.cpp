@@ -1662,6 +1662,7 @@ namespace DAQ
 				bool warned = false;
 				QStringList nums = v.split(",");
                 //if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " AUX samples..";
+				double avgVunreg = 0.0;
 				for (int frame = 0; frame < FramesPerBlock; ++frame) {
 					QString num = nums.empty() ? "0" : nums.front();
 					if (nums.empty()) { 
@@ -1673,11 +1674,17 @@ namespace DAQ
 					int samp = num.toUShort(&ok);
 					if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
 					samp = samp-ADCOffset; // normalize since incoming data is weird
-					for (int auxix = 0; auxix < NeuralSamplesPerFrame; ++auxix) { // need to produce 16 samples for each 1 emg sample read in order to match neuronal rate!						
+					for (int auxix = 0; auxix < NeuralSamplesPerFrame; ++auxix) { // need to produce 16 samples for each 1 emg sample read in order to match neuronal rate!	
 						samps[ frame*(NeuralSamplesPerFrame*nchans) + auxix*nchans + (TotalNeuralChans+TotalEMGChans+aux_chan) ] = samp;
 					}
-					
-				}				
+					if (aux_chan == 1)  avgVunreg += ADCStep * samp;
+				}
+				if (aux_chan == 1) {
+					avgVunreg = avgVunreg / (double)FramesPerBlock;
+					if (avgVunreg < 1.0) avgVunreg = 1.0;
+					if (avgVunreg > 5.0) avgVunreg = 5.0;
+					meta.avgVunreg = avgVunreg;
+				}
 			} else if (k.startsWith("TTL_")) {
 				// don't grab all ttl chans here, since we only really support a subset of them
 				QStringList knv = k.split("_");

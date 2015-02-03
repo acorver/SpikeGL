@@ -333,7 +333,6 @@ namespace DAQ
 		static const int MaxMetaData = 120;
 		
 		
-		
 		BugTask(const Params & acqParams, QObject * parent);
 		~BugTask(); ///< calls stop
         void stop();
@@ -352,6 +351,7 @@ namespace DAQ
 			int missingFrameCount;
 			int falseFrameCount;
 			double BER, WER; ///< bit error rate and word error rate
+			double avgVunreg; ///< computed value derived from the "AUX" voltage channel.  To save time we computer it on-the-fly as well
 			
 			BlockMetaData();
 			BlockMetaData(const BlockMetaData &o);
