@@ -1,4 +1,5 @@
 #include "Bug_Popout.h"
+#include "Util.h"
 
 
 Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
@@ -17,6 +18,9 @@ Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
 	
 	uiTimer = new QTimer(this);
 	Connect(uiTimer, SIGNAL(timeout()), this, SLOT(updateUI()));
+	lastStatusT = getTime();
+	lastStatusBlock = 0;
+	lastRate = 0.;
 	uiTimer->start(100); // update every 100 ms
 }
 
@@ -65,7 +69,14 @@ void Bug_Popout::updateUI()
 			ui->falseLbl->setText(QString::number(meta.falseFrameCount));
 			ui->recVolLbl->setText(QString::number(avgPower/(double)nAvg,'f',3));
 			ui->berLbl->setText(QString::number(logBER,'3',4));
-			ui->statusLabel->setText(QString("Read %1 USB blocks (%2 MegaSamples)").arg(meta.blockNum+1).arg((meta.blockNum*task->numChans()*DAQ::BugTask::FramesPerBlock*DAQ::BugTask::NeuralSamplesPerFrame)/1e6,3,'f',2));
+			const quint64 samplesPerBlock = DAQ::BugTask::FramesPerBlock*DAQ::BugTask::NeuralSamplesPerFrame*DAQ::BugTask::TotalNeuralChans + DAQ::BugTask::FramesPerBlock*(task->numChans()-DAQ::BugTask::TotalNeuralChans);
+			const double now = getTime(), diff = now - lastStatusT;
+			if (diff >= 1.0) {
+				lastRate = ((meta.blockNum-lastStatusBlock) * samplesPerBlock)/diff;
+				lastStatusT = now;
+				lastStatusBlock = meta.blockNum;
+			}
+			ui->statusLabel->setText(QString("Read %1 USB blocks (%2 MS) - %3 KS/sec").arg(meta.blockNum+1).arg((meta.blockNum*samplesPerBlock)/1e6,3,'f',2).arg(lastRate/1e3));
 		}
 		
 		metaData.pop_front();

@@ -22,6 +22,7 @@ private:
 	const DAQ::Params::Bug & p;
 	Ui::Bug_Popout *ui;
 	QTimer *uiTimer;
+	double lastStatusT; quint64 lastStatusBlock; double lastRate;
 };
 
 #endif
