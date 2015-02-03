@@ -1834,10 +1834,7 @@ namespace DAQ
 		return ret;
 	}
 	
-	BugTask::BlockMetaData::BlockMetaData() 
-	{
-		::memset(this, 0, sizeof(*this)); // zero out all data.. yay!
-	}
+	BugTask::BlockMetaData::BlockMetaData() { ::memset(this, 0, sizeof(*this)); /*zero out all data.. yay!*/ }
 	BugTask::BlockMetaData::BlockMetaData(const BlockMetaData &o) { *this = o; }
 	BugTask::BlockMetaData & BugTask::BlockMetaData::operator=(const BlockMetaData & o) { ::memcpy(this, &o, sizeof(o)); return *this; }
 	
