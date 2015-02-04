@@ -29,52 +29,6 @@
    <iconset resource="bug3.qrc">
     <normaloff>:/Bug3/dragonfly.png</normaloff>:/Bug3/dragonfly.png</iconset>
   </property>
-  <widget class="QGroupBox" name="errGB">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>10</y>
-     <width>151</width>
-     <height>341</height>
-    </rect>
-   </property>
-   <property name="title">
-    <string>&amp;&amp; Bit Error Rate</string>
-   </property>
-   <widget class="QWidget" name="errW" native="true">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>18</y>
-      <width>151</width>
-      <height>322</height>
-     </rect>
-    </property>
-   </widget>
-  </widget>
-  <widget class="QGroupBox" name="uvsGB">
-   <property name="geometry">
-    <rect>
-     <x>180</x>
-     <y>10</y>
-     <width>151</width>
-     <height>341</height>
-    </rect>
-   </property>
-   <property name="title">
-    <string>Unregulated Voltage Supply</string>
-   </property>
-   <widget class="QWidget" name="uvsW" native="true">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>18</y>
-      <width>151</width>
-      <height>322</height>
-     </rect>
-    </property>
-   </widget>
-  </widget>
   <widget class="QCheckBox" name="snfChk">
    <property name="geometry">
     <rect>
@@ -586,9 +540,9 @@
   <widget class="QLabel" name="wordLbl">
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>-1</x>
      <y>2</y>
-     <width>61</width>
+     <width>49</width>
      <height>20</height>
     </rect>
    </property>
@@ -658,6 +612,55 @@
    </property>
    <property name="text">
     <string>Word </string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QWidget" name="uvsW" native="true">
+   <property name="geometry">
+    <rect>
+     <x>180</x>
+     <y>28</y>
+     <width>151</width>
+     <height>322</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>180</x>
+     <y>2</y>
+     <width>171</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Unregulated Voltage Supply</string>
+   </property>
+  </widget>
+  <widget class="QWidget" name="errW" native="true">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>28</y>
+     <width>151</width>
+     <height>322</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_2">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>2</y>
+     <width>118</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>&amp; Bit Error Rates</string>
    </property>
   </widget>
  </widget>
