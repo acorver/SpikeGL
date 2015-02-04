@@ -203,7 +203,7 @@ void Bug_Graph::paintEvent(QPaintEvent *e)
 		const int ct = pts[plotNum].count();
 		if (ct > 0) {
 			int i = 0;
-			QPoint pbuf[ct];
+            QPoint *pbuf = new QPoint[ct];
 			for (QList<float>::iterator it = pts[plotNum].begin(); it != pts[plotNum].end(); ++it, ++i) {
 				const float x = float(i)/float(maxPts) + 1./float(maxPts*2);
 				const float y = *it;
@@ -214,6 +214,7 @@ void Bug_Graph::paintEvent(QPaintEvent *e)
 			QPen pen = p.pen(); pen.setColor(colors[plotNum]); pen.setWidth(0); // 'cosmetic' pen, using black
 			p.setPen(pen);
 			p.drawPoints(pbuf, ct);
+            delete pbuf;
 		}
 	}
 	p.end();
