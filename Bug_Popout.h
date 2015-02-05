@@ -23,7 +23,7 @@ public:
 	~Bug_Popout();
 
 	void plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_QWidget_update = true);
-	void writeMetaToDataFile(DataFile & dataFile, const DAQ::BugTask::BlockMetaData & meta);
+	void writeMetaToDataFile(DataFile & dataFile, const DAQ::BugTask::BlockMetaData & meta, int fudge_scanct = 0);
 	
 private slots:
 	void filterSettingsChanged();

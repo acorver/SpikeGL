@@ -175,9 +175,13 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     statusBar();
     resize(1024,768);
     graphCtls = addToolBar("Graph Controls");
-    graphCtls->addWidget(chanBut = new QPushButton("Sorting by Channel:", graphCtls));
-	chanBut->setToolTip("Click to toggle between sorting graphs by either electrode id or INTAN channel.");
-	Connect(chanBut, SIGNAL(clicked()), mainApp()->sortGraphsByElectrodeAct, SLOT(trigger()));
+	if (p.bug.enabled) {
+		graphCtls->addWidget(chanBut = new QPushButton("Channel:", graphCtls));
+	} else {
+		graphCtls->addWidget(chanBut = new QPushButton("Sorting by Channel:", graphCtls));
+		chanBut->setToolTip("Click to toggle between sorting graphs by either electrode id or INTAN channel.");
+		Connect(chanBut, SIGNAL(clicked()), mainApp()->sortGraphsByElectrodeAct, SLOT(trigger()));
+	}
     graphCtls->addWidget(chanLbl = new QLabel("", graphCtls));
     chanLbl->setMargin(5);
     chanLbl->setFont(QFont("Courier", 10, QFont::Bold));
@@ -345,10 +349,10 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 			}
 		}
 		if (tabWidget)
-			tabWidget->addTab(graphsWidget, QString("Elec. %1-%2").arg(first_graph_num).arg(last_graph_num));
+			tabWidget->addTab(graphsWidget, QString("%3 %1-%2").arg(first_graph_num).arg(last_graph_num).arg(p.bug.enabled ? "Graph" : "Elec."));
 		else if (stackedWidget) {
 			stackedWidget->addWidget(graphsWidget);
-			stackedCombo->addItem(QString("Electrode %1-%2").arg(first_graph_num).arg(last_graph_num));
+			stackedCombo->addItem(QString("%3 %1-%2").arg(first_graph_num).arg(last_graph_num).arg(p.bug.enabled ? "Graph" : "Electrode"));
 		}
 	}
 	
@@ -426,7 +430,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 
 	tabChange(0); // force correct graphs on screen!
 	
-	if (mainApp()->sortGraphsByElectrodeId) {
+	if (mainApp()->sortGraphsByElectrodeId()) {
 		// re-sort the graphs on-screen by electrode Id to restore previous state..
 		sortGraphsByElectrodeId();
 	}
@@ -641,7 +645,7 @@ void GraphsWindow::selectGraph(int num)
             chanLbl->setText(QString("I%1_C%2").arg(num/16 + 1).arg(num % 16 + 1));            
         }*/ else {
 			// otherwise MUX modes use the real mapping
-			if (mainApp()->sortGraphsByElectrodeId) { // show electorde number if in electrode sort mode
+			if (mainApp()->sortGraphsByElectrodeId()) { // show electorde number if in electrode sort mode
 				chanLbl->setText(QString("%1").arg(params.chanMap[num].electrodeId));				
 			} else {
 				chanLbl->setText(QString("I%1_C%2").arg(params.chanMap[num].intan).arg(params.chanMap[num].intanCh));
@@ -788,7 +792,7 @@ void GraphsWindow::updateMouseOver()
             chStr.sprintf("%d [I%u_C%u elec:%u]",num,desc.intan,desc.intanCh,desc.electrodeId);        
         }
     }
-    msg.sprintf("%s %s %s @ pos (%.4f s, %.4f %s) -- mean: %.4f %s rms: %.4f %s stdDev: %.4f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,rms,unit,stdev,unit);
+    msg.sprintf("%s %s %s @ pos (%.4f s, %.4f %s) -- mean: %.4f %s rms: %.4f %s stdDev: %.4f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode/trigger graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,rms,unit,stdev,unit);
     statusBar()->showMessage(msg);
 }
 
@@ -1028,7 +1032,7 @@ void GraphsWindow::retileGraphsAccordingToSorting() {
 
 			}
 		}
-		QString tabText = QString("Elec. %1-%2").arg(first_graph_num).arg(last_graph_num);
+		QString tabText = QString("%3 %1-%2").arg(first_graph_num).arg(last_graph_num).arg(params.bug.enabled ? "Chan." : "Elec.");
 		if (tabWidget)
 			tabWidget->setTabText(i, tabText);
 		else if (stackedWidget) {
@@ -1040,9 +1044,12 @@ void GraphsWindow::retileGraphsAccordingToSorting() {
 }
 
 void GraphsWindow::sortGraphsByElectrodeId() {
-	chanBut->setText("Sorting by Electrode:");
-	QMap<int,int> eid2graph;
 	DAQ::Params & p (params);
+	if (p.bug.enabled) {
+		chanBut->setText("Channel:");
+	} else
+		chanBut->setText("Sorting by Electrode:");
+	QMap<int,int> eid2graph;
 	const int cms = p.chanMap.size(), gs = graphs.size();
 	int i;
 	for (i = 0; i < cms; ++i) {
@@ -1066,7 +1073,10 @@ void GraphsWindow::sortGraphsByElectrodeId() {
 }
 
 void GraphsWindow::sortGraphsByIntan() {
-	chanBut->setText("Sorting by Channel:");
+	if (params.bug.enabled) {
+		chanBut->setText("Channel:");
+	} else
+		chanBut->setText("Sorting by Channel:");
 	const int gs = graphs.size(), cs = params.chanMap.size();
 	sorting.clear();
 	naming.clear();

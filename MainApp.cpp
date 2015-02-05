@@ -410,7 +410,7 @@ void MainApp::loadSettings()
 #endif
 	lastOpenFile = settings.value("lastFileOpenFile", "").toString();
 	
-	sortGraphsByElectrodeId = settings.value("sortGraphsByElectrodeId", false).toBool();
+	m_sortGraphsByElectrodeId = settings.value("sortGraphsByElectrodeId", false).toBool();
 	
     mut.unlock();
     {
@@ -440,7 +440,7 @@ void MainApp::saveSettings()
 	settings.setValue("dsFacilityEnabled", dsFacilityEnabled);
     settings.setValue("dsTemporaryFileSize", tmpDataFile.getTempFileSize());
 
-	settings.setValue("sortGraphsByElectrodeId", sortGraphsByElectrodeId);
+	settings.setValue("sortGraphsByElectrodeId", m_sortGraphsByElectrodeId);
 
     mut.lock();
     settings.setValue("outDir", outDir);
@@ -685,7 +685,7 @@ void MainApp::initActions()
 	
 	Connect( sortGraphsByElectrodeAct = new QAction("Sort graphs by Electrode", this), SIGNAL(triggered()), this, SLOT(optionsSortGraphsByElectrode()) );
 	sortGraphsByElectrodeAct->setCheckable(true);
-	sortGraphsByElectrodeAct->setChecked(sortGraphsByElectrodeId);
+	sortGraphsByElectrodeAct->setChecked(m_sortGraphsByElectrodeId);
 	
 }
 
@@ -1099,6 +1099,8 @@ void MainApp::putRestarts(const DAQ::Params & p, u64 firstSamp, u64 restartNumSc
     ts << "\n";
 }
 
+bool MainApp::sortGraphsByElectrodeId() const { return m_sortGraphsByElectrodeId || (configCtl && configCtl->acceptedParams.bug.enabled); }
+
 
 ///< called from a timer at 30Hz
 void MainApp::taskReadFunc() 
@@ -1159,7 +1161,10 @@ void MainApp::taskReadFunc()
                            || p.acqStartEndMode == DAQ::PDStartEnd) {
                     Status() << "Acquisition waiting for start trigger from photo-diode";
                 } else if (p.acqStartEndMode == DAQ::AITriggered) {
-                    Status() << "Acquisition waiting for start trigger from AI";
+					if (p.bug.enabled) 
+						Status() << "Acquisition watiing for start trigger from TTL line " << p.bug.ttlTrig;
+					else
+						Status() << "Acquisition waiting for start trigger from AI";
                 } 
             }
         } 
@@ -1216,20 +1221,22 @@ void MainApp::taskReadFunc()
 				if (triggerOffset > 0 && !scans_orig.size()) {
 					scans_orig.swap(scans);
 				}
+				int bugMetaFudge = 0;
 				if (triggerOffset && preBuf.size()) {
 					int num;
 					xferWBToScans(preBuf, scans, num, triggerOffset);
+					bugMetaFudge = num;
 				}
 				if (scans_orig.size()) {
 					scans.reserve(scanSz);
 					scans.insert(scans.end(), scans_orig.begin(), scans_orig.begin() + n);
 				}
+				if (bugWindow && bugMeta) 
+					bugWindow->writeMetaToDataFile(dataFile, *bugMeta, bugMetaFudge); // bugMetaFudge explanation: puts a scan offset in the table generated in the meta data so that the scans in the data file line up with the scans in the comments...
                 if (wasFakeData) {
                     // indicate bad data in output file..
                     dataFile.pushBadData(dataFile.scanCount(), fakeDataSz/p.nVAIChans);
                 }
-				if (bugWindow && bugMeta) 
-					bugWindow->writeMetaToDataFile(dataFile, *bugMeta); ///< NOTE!! Important to write this here before writing the actual scans since the meta data references scanCount(), which needs to be for all scans UP TO this meta data!
 				if (dataFile.numChans() != p.nVAIChans) {
 					const double ratio = dataFile.numChans() / double(p.nVAIChans ? p.nVAIChans : 1.);
 					scans_subsetted.resize(0);
@@ -1340,7 +1347,7 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp, i3
     case DAQ::PDStartEnd:
     case DAQ::PDStart:
 	case DAQ::AITriggered: {
-        // NB: photodiode channel is always the last channel
+        // NB: photodiode channel is always the last channel.. unless in bug mode then it can be any of the last few TTL lines
         const int sz = scans.size();
         if (p.idxOfPdChan < 0) {
             Error() << "INTERNAL ERROR, acqStartMode is PD based but no PD channel specified in DAQ params!";
@@ -2274,9 +2281,9 @@ void MainApp::bringAllToFront()
 
 void MainApp::optionsSortGraphsByElectrode()
 {
-	sortGraphsByElectrodeId = sortGraphsByElectrodeAct->isChecked();
+	m_sortGraphsByElectrodeId = sortGraphsByElectrodeAct->isChecked();
 	if (graphsWindow) {
-		if (sortGraphsByElectrodeId)
+		if (sortGraphsByElectrodeId())
 			graphsWindow->sortGraphsByElectrodeId();
 		else
 			graphsWindow->sortGraphsByIntan();

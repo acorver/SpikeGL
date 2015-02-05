@@ -1,6 +1,7 @@
 #include "Bug_Popout.h"
 #include "Util.h"
 #include <QPainter>
+#include "MainApp.h"
 
 Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
 : QWidget(parent), task(task), p(task->bugParams()), avgPower(0.0), nAvg(0)
@@ -19,6 +20,8 @@ Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
 	Connect(ui->hpfChk, SIGNAL(toggled(bool)), this, SLOT(filterSettingsChanged()));
 	Connect(ui->hpfSB, SIGNAL(valueChanged(int)), this, SLOT(filterSettingsChanged()));
 	
+	mainApp()->sortGraphsByElectrodeAct->setEnabled(false);
+	
 	lastStatusT = getTime();
 	lastStatusBlock = -1;
 	lastRate = 0.;
@@ -26,10 +29,11 @@ Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
 
 Bug_Popout::~Bug_Popout()
 {
+	mainApp()->sortGraphsByElectrodeAct->setEnabled(true);
 	delete ui; ui = 0;
 }
 
-void Bug_Popout::writeMetaToDataFile(DataFile &f, const DAQ::BugTask::BlockMetaData &m)
+void Bug_Popout::writeMetaToDataFile(DataFile &f, const DAQ::BugTask::BlockMetaData &m, int fudge)
 {
 	if (!seenMetaFiles.contains(f.metaFileName())) {
 		f.writeCommentToMetaFile("USB Bug3 \"Meta data\" is in the comments BELOW!! Format is as follows:");
@@ -57,8 +61,8 @@ void Bug_Popout::writeMetaToDataFile(DataFile &f, const DAQ::BugTask::BlockMetaD
       QString("%1 %2 %3 %4 %5 %6 %7 %8 %9 %10 %11 %12 %13 %14 %15 %16 %17 %18")
 	   .arg(m.blockNum)
  	   .arg(DAQ::BugTask::FramesPerBlock)
-	   .arg(f.scanCount())
-	   .arg(f.sampleCount())
+	   .arg(f.scanCount()+fudge)
+	   .arg(f.sampleCount()+fudge)
 	   .arg(DAQ::BugTask::SpikeGLScansPerBlock)
 	   .arg(m.boardFrameCounter[0])
 	   .arg(m.boardFrameCounter[DAQ::BugTask::FramesPerBlock-1])

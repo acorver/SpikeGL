@@ -375,7 +375,7 @@ private:
 	bool acqWaitingForPrecreate;
 	
 	PostJuly2011Remuxer *addtlDemuxTask;
-	bool doBugAcqInstead;
+	bool doBugAcqInstead, m_sortGraphsByElectrodeId;
 	
 public:
 
@@ -390,7 +390,7 @@ public:
     QIcon appIcon, bugIcon;
 	
 /// Used by GraphsWindow to re-sort graphs according to current app state...
-	bool sortGraphsByElectrodeId;
+	bool sortGraphsByElectrodeId() const; 
 };
 
 class HelpWindow : public QDialog

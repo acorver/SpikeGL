@@ -100,11 +100,14 @@ int Bug_ConfigDialog::exec()
 						}
 					}
 				}
+				
+				p.overrideGraphsPerTab = dialog->graphsPerTabCB->currentText().toUInt();
+
 				saveSettings();
 
 				// this stuff doesn't need to be saved since it's constant and will mess up regular acq "remembered" values
 				p.dev = "USB_Bug3";
-				p.nExtraChans1 = p.nVAIChans-DAQ::BugTask::TotalNeuralChans;
+				p.nExtraChans1 = 0;
 				p.nExtraChans2 = 0;
 				
 				p.extClock = true;
@@ -113,6 +116,10 @@ int Bug_ConfigDialog::exec()
 				p.isIndefinite = true;
 				p.isImmediate = true;
 				p.acqStartEndMode = DAQ::Immediate;
+				if (p.bug.ttlTrig > -1) {
+					p.acqStartEndMode = DAQ::AITriggered;
+					p.idxOfPdChan = DAQ::BugTask::BaseNChans + p.bug.ttlTrig;
+				}
 				p.usePD = 0;
 				p.dualDevMode = false;
 				p.stimGlTrigResave = false;
@@ -120,6 +127,7 @@ int Bug_ConfigDialog::exec()
 				p.aiTerm = DAQ::Default;
 				p.aiString = QString("0:%1").arg(p.nVAIChans-1);
 				p.range.min = (-32768*DAQ::BugTask::ADCStepNeural)/1e6 ; p.range.max = 32767*DAQ::BugTask::ADCStepNeural/1e6;
+
 				p.auxGain = .1;
 				
 			} else if (vr==AGAIN) {
@@ -149,6 +157,13 @@ void Bug_ConfigDialog::guiFromSettings()
 	}
 	dialog->notchFilterChk->setChecked(p.bug.snf);
 	dialog->errTolSB->setValue(p.bug.errTol);
+	for (int i = 1; i < dialog->graphsPerTabCB->count(); ++i) {
+        if (dialog->graphsPerTabCB->itemText(i).toUInt() == (unsigned)p.overrideGraphsPerTab) {
+            dialog->graphsPerTabCB->setCurrentIndex(i);
+            break;
+        }
+    }	
+
 }
 
 void Bug_ConfigDialog::saveSettings()
