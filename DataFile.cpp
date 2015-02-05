@@ -297,6 +297,13 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
 		params["pdPassThruToAO"] = dp.pdPassThruToAO;
 		params["pdStopTime"] = dp.pdStopTime;
     }
+    if (dp.bug.enabled) {
+        params["bug_errorTolerance"] = dp.bug.errTol;
+        params["bug_hpfilt"] = dp.bug.hpf;
+        params["bug_snfilt"] = dp.bug.snf;
+        params["bug_clockEdge"] = dp.bug.clockEdge;
+        params["bug_dataRate"] = dp.bug.rate;
+    }
     params["acqStartEndMode"] = DAQ::AcqStartEndModeToString(dp.acqStartEndMode);
     if (dp.demuxedBitMap.count(false)) {
         params["saveChannelSubset"] = dp.subsetString;
