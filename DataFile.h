@@ -107,6 +107,13 @@ public:
     /// the minimal write speed required in bytes/sec, based on sample rate
     double minimalWriteSpeedRequired() const { return nChans*sizeof(int16)*double(sRate); }
 
+	/// Add a comment to the meta file.  Comments will appear BEFORE all the name = value pairs in the file.
+	/// This was added on 2/5/2015 in order to support 'meta' data coming in from the bug3/telemetry USB-based
+	/// acquisition device.  Note that acquisitions using this method will produce LOTS of comments in the 
+	/// meta file, because they record the word error rate, bit error rate, and avg voltage per "block"
+	/// of data
+	void writeCommentToMetaFile(const QString & comment, bool prepend_hash_symbol = true);
+	
     /// STATIC METHODS
     static bool verifySHA1(const QString & filename); 
 

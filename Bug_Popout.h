@@ -8,8 +8,10 @@
 #include <QVector>
 #include <QRectF>
 #include <QColor>
+#include <QSet>
 #include "DAQ.h"
 #include "ui_Bug_Popout.h"
+#include "DataFile.h"
 
 class Bug_Graph;
 
@@ -20,8 +22,10 @@ public:
 	Bug_Popout(DAQ::BugTask *task, QWidget *parent = 0);
 	~Bug_Popout();
 
+	void plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_QWidget_update = true);
+	void writeMetaToDataFile(DataFile & dataFile, const DAQ::BugTask::BlockMetaData & meta);
+	
 private slots:
-	void updateUI();
 	void filterSettingsChanged();
 	
 private:
@@ -29,11 +33,13 @@ private:
 	
 	DAQ::BugTask *task;
 	const DAQ::Params::Bug & p;
+	double avgPower; int nAvg;
 	Ui::Bug_Popout *ui;
-	QTimer *uiTimer;
 	double lastStatusT; qint64 lastStatusBlock; double lastRate;
 	
 	Bug_Graph *vgraph, *errgraph;
+	
+	QSet<QString> seenMetaFiles; // used to detect when meta file changes so we can write a new header...
 };
 
 

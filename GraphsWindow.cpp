@@ -46,6 +46,11 @@ static const QIcon *playIcon(0), *pauseIcon(0), *windowFullScreenIcon(0), *windo
 static const QColor AuxGraphBGColor(0xa6, 0x69,0x3c, 0xff),
                     NormalGraphBGColor(0x2f, 0x4f, 0x4f, 0xff);
 
+static const QColor Bug_AuxGraphBGColor(0xa6, 0x69,0x3c, 0xff), 
+                    Bug_EMGGraphBGColor(0x2f, 0x2f, 0x4f, 0xff),
+					Bug_TTLGraphBGColor(0x2f, 0x2f, 0x2f, 0xff),
+					Bug_NeuralGraphBGColor(0x2f, 0x4f, 0x4f, 0xff);
+
 static void initIcons()
 {
     if (!playIcon) {
@@ -77,6 +82,18 @@ GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
 void GraphsWindow::setupGraph(int num, int firstExtraChan) 
 {
 	GLGraph *g = graphs[num];
+	QColor bgColor = NormalGraphBGColor;
+	if (params.bug.enabled) {
+		// bug mode!  use different color scheme...
+		if (DAQ::BugTask::isNeuralChan(num)) bgColor = Bug_NeuralGraphBGColor;
+		if (DAQ::BugTask::isEMGChan(num)) bgColor = Bug_EMGGraphBGColor;
+		if (DAQ::BugTask::isAuxChan(num)) bgColor = Bug_AuxGraphBGColor;
+		if (DAQ::BugTask::isTTLChan(num)) bgColor = Bug_TTLGraphBGColor;
+	} else {
+		// regular mode! use regular scheme...
+		//  is the photodiode channel?
+		if (num >= firstExtraChan) bgColor = AuxGraphBGColor;
+	}
 	if (g) {
 		graphs[num]->setObjectName(QString("GLGraph %1").arg(num));
 		Connect(graphs[num], SIGNAL(cursorOver(double,double)), this, SLOT(mouseOverGraph(double,double)));
@@ -86,19 +103,14 @@ void GraphsWindow::setupGraph(int num, int firstExtraChan)
         graphs[num]->setMouseTracking(true);
         graphs[num]->setCursor(Qt::CrossCursor);
 		graphs[num]->setTag(QVariant(num));
-		if (num >= firstExtraChan) {
-			// this is the photodiode channel
-			graphs[num]->bgColor() = AuxGraphBGColor;
-		} else {
-			graphs[num]->bgColor() = NormalGraphBGColor;
-		}
+		graphs[num]->bgColor() = bgColor;
 		graphStates[num] = g->getState();
 	} else {
 		GLGraphState s (graphs[0]->getState()); // inherit state from first graph..
 		
 		s.objectName = QString("GLGraph %1").arg(num);
 		s.tagData = QVariant(num);
-		s.bg_Color = (num >= firstExtraChan) ? AuxGraphBGColor : NormalGraphBGColor;
+		s.bg_Color = bgColor;
 		graphStates[num] = s;
 	}
 }
@@ -314,7 +326,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 				last_graph_num = gnum;
 				chks[num]->setChecked(p.demuxedBitMap.at(num));
 				chks[num]->setDisabled(isSaving);
-				chks[num]->setHidden(!mainApp()->isSaveCBEnabled() /*|| (p.mode == DAQ::AIRegular && !p.bug.enabled)*/);
+				chks[num]->setHidden(!mainApp()->isSaveCBEnabled());
 				f->setParent(graphsWidget);
 				// do this for all the graphs.. disable vsync!
 				if (graphs[num]) graphs[num]->makeCurrent();
@@ -433,7 +445,7 @@ GraphsWindow::~GraphsWindow()
 void GraphsWindow::hideUnhideSaveChannelCBs() 
 {
 	for (int num = 0; num < (int)chks.size(); ++num)
-		chks[num]->setHidden(!mainApp()->isSaveCBEnabled() || params.mode == DAQ::AIRegular);
+		chks[num]->setHidden(!mainApp()->isSaveCBEnabled());
 }
 
 void GraphsWindow::installEventFilter(QObject *obj)
@@ -617,7 +629,10 @@ void GraphsWindow::selectGraph(int num)
     graphFrames[old]->setFrameStyle(QFrame::StyledPanel|QFrame::Plain);
     selectedGraph = num;
     if (params.mode == DAQ::AIRegular) { // straight AI (no MUX)
-        chanLbl->setText(QString("AI%1").arg(num));        
+		if (params.bug.enabled)	// bug mode!
+			chanLbl->setText(DAQ::BugTask::getChannelName(num)); 
+		else // regular
+			chanLbl->setText(QString("AI%1").arg(num));        
     } else { // MUX mode
         if (isAuxChan(num)) {
             chanLbl->setText(QString("AUX%1").arg(int(num-(params.nVAIChans-(params.nExtraChans1+params.nExtraChans2))+1)));
@@ -761,7 +776,10 @@ void GraphsWindow::updateMouseOver()
     QString msg;
     QString chStr;
     if (params.mode == DAQ::AIRegular) {
-        chStr.sprintf("AI%d", num);
+		if (params.bug.enabled)
+			chStr = DAQ::BugTask::getChannelName(num);
+		else
+			chStr.sprintf("AI%d", num);
     } else { // MUX mode
         if (isAuxChan(num)) {
             chStr.sprintf("AUX%d",int(num-(params.nVAIChans-(params.nExtraChans1+params.nExtraChans2))+1));

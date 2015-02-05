@@ -3,6 +3,7 @@
 #include <QTextStream>
 #include <QRegExp>
 #include <QFile>
+#include "SpikeGL.h"
 
 void Params::fromString(const QString & instr)
 {
@@ -16,7 +17,7 @@ void Params::fromString(const QString & instr)
         line = line.trimmed();
         QRegExp re_comments("((;)|(#)|(//)).*");
         if (line.contains(re_comments)) {
-            Debug() << "Comment found and skipped: `" << re_comments.cap(0) << "'";
+            if (excessiveDebug) Debug() << "Comment found and skipped: `" << re_comments.cap(0) << "'";
             line.replace(re_comments, "");
             line = line.trimmed();
         }
@@ -58,10 +59,10 @@ bool Params::fromFile(const QString & fn)
     return true;
 }
 
-bool Params::toFile(const QString & fn) const
+bool Params::toFile(const QString & fn, bool append) const
 {
     QFile f(fn);
-    if (!f.open(QIODevice::WriteOnly|QIODevice::Text|QIODevice::Truncate)) return false;    
+    if (!f.open(QIODevice::WriteOnly|QIODevice::Text|(append ? QIODevice::Append : QIODevice::Truncate))) return false;    
     return (QTextStream(&f) << toString()).status() == QTextStream::Ok;
 }
 

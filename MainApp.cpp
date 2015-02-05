@@ -1037,7 +1037,8 @@ void PostJuly2011Remuxer::run()
 	u64 firstSamp;
     int fakeDataSz = -1;
 	while ( !pleaseStop ) {
-		while ( task && task->dequeueBuffer(scans, firstSamp, false, true, &fakeDataSz, false) ) {
+		QByteArray metaData;
+		while ( task && task->dequeueBuffer(scans, firstSamp, false, true, &fakeDataSz, false, &metaData) ) {
             if (fakeDataSz < 0) {
 
 			    // BEGIN the new post July 2011 demux... it's important we do this HERE before going any further..
@@ -1050,7 +1051,7 @@ void PostJuly2011Remuxer::run()
 			    // END post July 2011 demux
             }
 			// now, re-enque!
-            enqueueBuffer(scans, firstSamp,p.autoRetryOnAIOverrun,fakeDataSz > -1 ? fakeDataSz : 0);
+            enqueueBuffer(scans, firstSamp,p.autoRetryOnAIOverrun,fakeDataSz > -1 ? fakeDataSz : 0,metaData);
 		}
 		msleep(1000/DEF_TASK_READ_FREQ_HZ); // sleep 33 ms and try again since task wasn't ready?
 	}
@@ -1110,23 +1111,35 @@ void MainApp::taskReadFunc()
     bool needToStop = false;
     static double lastSBUpd = 0;
     const DAQ::Params & p (configCtl->acceptedParams);
-    int fakeDataSz = -1;
+    int dataQLeft, fakeDataSz = -1;
     while ((ct++ < ctMax || taskShouldStop) ///< on taskShouldStop, keep trying to empty queue!
            && !needToStop ) {
+		QByteArray metaData;
 		bool gotSomething = false;
+		dataQLeft = 0;
 		if (addtlDemuxTask) {
-			gotSomething = addtlDemuxTask->dequeueBuffer(scans, firstSamp,false,true,&fakeDataSz);
+			gotSomething = addtlDemuxTask->dequeueBuffer(scans, firstSamp,false,true,&fakeDataSz,true,&metaData);
+			dataQLeft = addtlDemuxTask->dataQueueSize();
 		} else if (task) {
-			gotSomething = task->dequeueBuffer(scans, firstSamp, false,true, &fakeDataSz);
+			gotSomething = task->dequeueBuffer(scans, firstSamp, false,true, &fakeDataSz,true,&metaData);
+			dataQLeft = task->dataQueueSize();
 		}
 		if (!gotSomething) break;
-
+		
         const bool wasFakeData = fakeDataSz > -1;
         // TODO XXX FIXME -- implement detection of fake data (DAQ restart!) properly
         if (wasFakeData) {
             putRestarts(p, firstSamp, u64(fakeDataSz/p.nVAIChans));
-        }
+		}
+		
+		const bool lastIter = !((ct < ctMax || taskShouldStop) && !needToStop);
+		const DAQ::BugTask::BlockMetaData *bugMeta = 0;
 
+		if (bugWindow && bugTask() && metaData.size() >= (int)sizeof(DAQ::BugTask::BlockMetaData) && !wasFakeData) {
+			bugMeta = reinterpret_cast<const DAQ::BugTask::BlockMetaData *>(metaData.constData());
+			bugWindow->plotMeta(*bugMeta, dataQLeft<=0 || lastIter ); ///< performance hack on the second param there..															 
+		}
+		
         tNow = getTime();
         lastScanSz = scans.size();
         scanCt = firstSamp/p.nVAIChans;
@@ -1215,6 +1228,8 @@ void MainApp::taskReadFunc()
                     // indicate bad data in output file..
                     dataFile.pushBadData(dataFile.scanCount(), fakeDataSz/p.nVAIChans);
                 }
+				if (bugWindow && bugMeta) 
+					bugWindow->writeMetaToDataFile(dataFile, *bugMeta); ///< NOTE!! Important to write this here before writing the actual scans since the meta data references scanCount(), which needs to be for all scans UP TO this meta data!
 				if (dataFile.numChans() != p.nVAIChans) {
 					const double ratio = dataFile.numChans() / double(p.nVAIChans ? p.nVAIChans : 1.);
 					scans_subsetted.resize(0);

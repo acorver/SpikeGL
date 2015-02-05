@@ -17,6 +17,7 @@
 
 class QSettings;
 class QDialog;
+class QCheckBox;
 
 class Bug_ConfigDialog : public QObject
 {
@@ -40,6 +41,8 @@ public:
     //void saveSettings() const;
 		
 //	protected slots:    
+private slots:
+	void ttlTrigCBChanged();
 	
 private:
 	
@@ -56,6 +59,7 @@ private:
 	void saveSettings();
 	
     QDialog *dialogW;
+	QCheckBox *ttls[DAQ::BugTask::TotalTTLChans];
 };
 
 

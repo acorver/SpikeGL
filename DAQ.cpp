@@ -290,6 +290,7 @@ namespace DAQ
 
     QString  GetProductName(const QString &dev)
     {
+		if (dev.compare("USB_Bug3", Qt::CaseInsensitive)==0) return "Intan USB Telemetry Receiver (Bug3)";
 #ifdef HAVE_NIDAQmx
         char buf[65536] = "Unknown";
         if (DAQmxFailed(DAQmxGetDevProductType(dev.toUtf8().constData(), buf, sizeof(buf)))) {
@@ -1087,7 +1088,6 @@ namespace DAQ
                 aoWriteThr->enqueueBuffer(aoData, aoSampCount);
                 aoSampCount += sz;
             }
-             
             
             breakupDataIntoChunksAndEnqueue(data, sampCount, p.autoRetryOnAIOverrun);
             lastEnq = lastReadTime;
@@ -1354,7 +1354,7 @@ namespace DAQ
     /*static*/ const double BugTask::MinBER = -5.0;
 
 	BugTask::BugTask(const DAQ::Params & p, QObject *parent)
-	: Task(parent, "bug3_spikegl read task", SAMPLE_BUF_Q_SIZE), params(p), metaDataCt(0)
+	: Task(parent, "bug3_spikegl read task", SAMPLE_BUF_Q_SIZE), params(p)
 	{
 	}
 	
@@ -1446,12 +1446,7 @@ namespace DAQ
 	}
 	
 	void BugTask::daqThr() 
-	{
-		metaMut.lock();
-		metaData.clear();
-		metaDataCt = 0;
-		metaMut.unlock();
-		
+	{		
 		pleaseStop = false;
 		QString err("");
 		if (!setupExeDir(&err)) {
@@ -1843,26 +1838,10 @@ namespace DAQ
 		totalReadMut.lock();
 		totalRead += (quint64)samps.size(); 
 		totalReadMut.unlock();
-		metaMut.lock();
-		metaData.push_back(meta);
-		++metaDataCt;
-		while (metaDataCt > MaxMetaData) { metaData.pop_front(); --metaDataCt; }
-		metaMut.unlock();
+		enqueueBuffer(samps, oldTotalRead, false, 0, QByteArray(reinterpret_cast<char *>(&meta),sizeof(meta)));
 		if (!oldTotalRead) emit(gotFirstScan());
-		enqueueBuffer(samps, oldTotalRead);
 	}
-	
-	int BugTask::popMetaData(std::list<BlockMetaData> & out) 
-	{
-		out.clear();
-		metaMut.lock();
-		out.swap(metaData);
-		int ret = metaDataCt;
-		metaDataCt = 0;
-		metaMut.unlock();
-		return ret;
-	}
-	
+		
 	BugTask::BlockMetaData::BlockMetaData() { ::memset(this, 0, sizeof(*this)); /*zero out all data.. yay!*/ }
 	BugTask::BlockMetaData::BlockMetaData(const BlockMetaData &o) { *this = o; }
 	BugTask::BlockMetaData & BugTask::BlockMetaData::operator=(const BlockMetaData & o) { ::memcpy(this, &o, sizeof(o)); return *this; }
@@ -1892,6 +1871,27 @@ namespace DAQ
 			p.write(((*it) + "\r\n").toUtf8());
 		}		
 	}
+	
+	/* static */ QString BugTask::getChannelName(unsigned num)
+	{
+		if (int(num) < TotalNeuralChans)
+			return QString("NEU%1").arg(num);
+		num -= TotalNeuralChans;
+		if (int(num) < TotalEMGChans)
+			return QString("EMG%1").arg(num);
+		num -= TotalEMGChans;
+		if (int(num) < TotalAuxChans)
+			return QString("AUX%1").arg(num);
+		num -= TotalAuxChans;
+		if (int(num) < TotalTTLChans)
+			return QString("TTL%1").arg(num);
+		return QString("UNK%1").arg(num);
+	}
+	
+	/* static */ bool BugTask::isNeuralChan(unsigned num) { return int(num) < TotalNeuralChans; }
+	/* static */ bool BugTask::isEMGChan(unsigned num) { return int(num) >= TotalNeuralChans && int(num) < TotalNeuralChans+TotalEMGChans; }
+	/* static */ bool BugTask::isAuxChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans; }
+	/* static */ bool BugTask::isTTLChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans+TotalAuxChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans+TotalTTLChans; }
 	
 } // end namespace DAQ
 

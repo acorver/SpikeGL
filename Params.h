@@ -45,8 +45,8 @@ public:
     QString toString() const;
     /// Reads the entire contents of file into memory as a QString then calls fromString() on this string.
     bool fromFile(const QString & fileName);
-    /// Writes the entire contents of the dictionary to a big string, which then gets saved to fileName
-    bool toFile(const QString & fileName) const;
+    /// Writes the entire contents of the dictionary to a big string, which then gets saved to fileName. Optionally filename is appended-to and not truncated!
+    bool toFile(const QString & fileName, bool appendDontTruncate = false) const;
 	
 };
 

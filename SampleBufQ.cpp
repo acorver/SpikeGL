@@ -26,7 +26,7 @@ void SampleBufQ::clear()
 }
 
 /// put data in buffer.  calls overflowWarning() if buffer overflows
-void SampleBufQ::enqueueBuffer(std::vector<int16> &src, u64 sampCount, bool putFakeDataOnOverrun, int fakeDataOverride)
+void SampleBufQ::enqueueBuffer(std::vector<int16> &src, u64 sampCount, bool putFakeDataOnOverrun, int fakeDataOverride, const QByteArray & metaData)
 {
         QMutexLocker l(&dataQMut);
 		SampleBuf buf;
@@ -37,17 +37,21 @@ void SampleBufQ::enqueueBuffer(std::vector<int16> &src, u64 sampCount, bool putF
 			if (putFakeDataOnOverrun) {
 				// overrun, indicate buffer is empty but should contain 'fake' data on dequeue
 				buf.fakeSize = fakeDataOverride ? fakeDataOverride : src.size();
+				buf.fakeMetaSize = metaData.size();
 			} else {
-		        dataQ.pop_front();        
+		        dataQ.pop_front();
 			}
         }
         buf.sampleCountOfFirstPoint = sampCount;
 		if (!buf.fakeSize) {
 			if (fakeDataOverride) {
 				buf.fakeSize = fakeDataOverride;
-			} else 
+				buf.fakeMetaSize = metaData.size();
+			} else {
 				src.swap(buf.data);
-		} 
+				buf.metaData = metaData;
+			}
+		}
         dataQ.push_back(buf);
 		src.clear();
         dataQCond.wakeOne();
@@ -65,7 +69,7 @@ bool SampleBufQ::waitForEmpty(int ms)
 }
 
     /// returns true if actual data was available -- in which case dest is swapped for a data buffer in the deque
-bool SampleBufQ::dequeueBuffer(std::vector<int16> & dest, u64 & sampCount, bool wait, bool err_prt, int *fakeDataSz, bool expandFakeData)
+bool SampleBufQ::dequeueBuffer(std::vector<int16> & dest, u64 & sampCount, bool wait, bool err_prt, int *fakeDataSz, bool expandFakeData, QByteArray *metaData)
 {
         bool ret = false, ok = false;
         dest.clear();
@@ -86,11 +90,15 @@ bool SampleBufQ::dequeueBuffer(std::vector<int16> & dest, u64 & sampCount, bool 
 				if (!buf.fakeSize) {
 					// real buffer, put data
 	                dest.swap(buf.data);
+					if (metaData) *metaData = buf.metaData;
 				} else {
 					// fake buffer, put fake 0x7fff data!
 					dest.clear();
-                    if (expandFakeData)
+					if (metaData) metaData->clear();
+                    if (expandFakeData) {
 					    dest.resize(buf.fakeSize,0x7fff);
+						if (metaData) metaData->fill(0,buf.fakeMetaSize);
+					}
 					if (fakeDataSz) *fakeDataSz = buf.fakeSize;
 				}
                 dataQ.pop_front();

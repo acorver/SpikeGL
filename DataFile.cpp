@@ -80,6 +80,7 @@ bool DataFile::closeAndFinalize()
 		params["sha1"] = sha.ReportHash().c_str();
 		params["fileTimeSecs"] = fileTimeSecs();
 		params["fileSizeBytes"] = dataFile.size();
+		params["createdBy"] = QString("%1").arg(VERSION_STR);
         if (badData.count()) {
             QString bdString;
             QTextStream ts(&bdString);
@@ -93,11 +94,11 @@ bool DataFile::closeAndFinalize()
         }
 		dataFile.close();
 		QString mf = metaFile.fileName();
-		metaFile.close(); // close it.. we never really wrote to it.. we just reserved it on the FS    
+		metaFile.close(); // close it.. we mostly reserved it in the FS.. however we did write to it if writeCommentToMetaFile() as called, otherwise we just reserved it on the FS    
 		writeRateAvg = 0.;
 		nWritesAvg = nWritesAvgMax = 0;
 		mode = Undefined;
-		return params.toFile(mf);
+		return params.toFile(mf,true /* append since we may have written comments to metafile!*/);
 	} 
 	return false; // not normally reached...
 }
@@ -145,6 +146,10 @@ bool DataFile::writeScans(const std::vector<int16> & scans, bool asynch)
 	return doFileWrite(scans);
 }
 
+void DataFile::writeCommentToMetaFile(const QString & cmt, bool prepend)
+{
+	metaFile.write(QString("%1%2%3").arg(prepend?QString("# "):QString("")).arg(cmt).arg(cmt.endsWith("\n")?QString(""):QString("\n")).toUtf8());
+}
 
 bool DataFile::doFileWrite(const std::vector<int16> & scans)
 {

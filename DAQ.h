@@ -143,13 +143,13 @@ namespace DAQ
 		struct Bug {
 			bool enabled; // if true, acquisition is in bug mode
 			int rate; // 0 = Low, 1 = Medium, 2 = High
-			int whichTTLs; // bitset of which TTLs to save/graph, TTLs from 1->12 maps to bits #0->11
-			int ttlTrig, ttl2; // the TTL chanel to use for a trigger, or -1 if not using ttl to trigger
+			int whichTTLs; // bitset of which TTLs to save/graph, TTLs from 1->11 maps to bits #0->10
+			int ttlTrig; // the TTL chanel to use for a trigger, or -1 if not using ttl to trigger
 			int clockEdge; // 0 = rising, 1 = falling
 			int hpf; // if nonzero, the high pass filter is enabled at set to filter past this many Hz
 			bool snf; // if true, use the software notch filter at 60Hz
 			int errTol; // out of 144, default is 6
-			void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = ttl2 = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false; }
+			void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false; }
 		} bug;
 		
         mutable QMutex mutex;
@@ -321,6 +321,7 @@ namespace DAQ
 		static const int ADCOffset = 1023;
 		static const int FramesPerBlock = 40;
 		static const int NeuralSamplesPerFrame = 16;
+		static const int SpikeGLScansPerBlock = (FramesPerBlock*NeuralSamplesPerFrame); // 640
 		static const int TotalNeuralChans = 10;
 		static const int TotalEMGChans = 4;
 		static const int TotalAuxChans = 2;
@@ -355,24 +356,24 @@ namespace DAQ
 			int missingFrameCount;
 			int falseFrameCount;
 			double BER, WER; ///< bit error rate and word error rate
-			double avgVunreg; ///< computed value derived from the "AUX" voltage channel.  To save time we computer it on-the-fly as well
+			double avgVunreg; ///< computed value derived from the "AUX" voltage channel.  Avg of all frames.  To save time we compute it on-the-fly as well.
 			
 			BlockMetaData();
 			BlockMetaData(const BlockMetaData &o);
 			BlockMetaData & operator=(const BlockMetaData & o);
 		};
-		
-		/// Retrieve up to the last 120 blocks of bit error rate and word error rate, etc.  The newest
-		/// block is always at the end of the list and the oldest at the front.
-		/// These structs get enqueued and put into an internal buffer as the task reads from the 
-		/// bug3_spikegl.exe process, with one BlockMetaData per "block" read from the slave process.
-		int popMetaData(std::list<BlockMetaData> & destination_list_is_cleared_before_filling);
-		
+				
 		void setNotchFilter(bool enabled);
 		void setHPFilter(int val); ///<   <=0 == off, >0 = freq in Hz to high-pass filter
 			
 		/// returns the usb data block size, in samples, depending on HIGH, MEDIUM, LOW data rate
 		int  usbDataBlockSizeSamps() const;
+		
+		static QString getChannelName(unsigned num); ///< returns UI-friendly name for a particular BUG channel
+		static bool isNeuralChan(unsigned num);
+		static bool isEMGChan(unsigned num);
+		static bool isAuxChan(unsigned num);
+		static bool isTTLChan(unsigned num);
 		
 	protected:
 		void daqThr(); ///< Reimplemented from DAQ::Task
@@ -392,10 +393,7 @@ namespace DAQ
 		
 		const Params & params;
 		
-		std::list<BlockMetaData> metaData;
 		QStringList cmdQ; QMutex cmdQMut;
-		int metaDataCt;
-		QMutex metaMut;
 		
 		volatile bool pleaseStop;		
 	};
