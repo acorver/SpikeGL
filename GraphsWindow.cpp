@@ -720,17 +720,22 @@ void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
     y += 1.;
     y /= 2.;
     // scale it to range..
-    const double gain = isAuxChan(num) ? 1. : params.auxGain;
-    y = (y*(params.range.max-params.range.min) + params.range.min) / gain;
+	DAQ::Range r = params.range;
+    double gain = isAuxChan(num) ? 1. : params.auxGain;
+	if (num < unsigned(params.customRanges.size())) r = params.customRanges[num], gain = 1.0;
+    y = (y*(r.max-r.min) + r.min) / gain;
     mean = graphStats[num].mean();
     stdev = graphStats[num].stdDev();
     rms = graphStats[num].rms();
-    mean = (((mean+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / gain;
-    stdev = (((stdev+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / gain;
-    rms = (((rms+1.)/2.)*(params.range.max-params.range.min) + params.range.min) / gain;
+    mean = (((mean+1.)/2.)*(r.max-r.min) + r.min) / gain;
+    stdev = (((stdev+1.)/2.)*(r.max-r.min) + r.min) / gain;
+    rms = (((rms+1.)/2.)*(r.max-r.min) + r.min) / gain;
     unit = "V";
+    // check for microvolt..
+    if ((((r.max-r.min) + r.min) / gain) < 0.001)
+        unit = "uV",y *= 1e6, mean *= 1e6, stdev *= 1e6, rms *= 1e6;  
     // check for millivolt..
-    if ((((params.range.max-params.range.min) + params.range.min) / gain) < 1.0)
+    else if ((((r.max-r.min) + r.min) / gain) < 1.0)
         unit = "mV",y *= 1000., mean *= 1000., stdev *= 1000., rms *= 1000.;  
 }
 

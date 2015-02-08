@@ -30,6 +30,7 @@ namespace DAQ
     struct Range {
         double min, max;
         Range() : min(0.), max(0.) {}
+		Range(double mn, double mx): min(mn), max(mx) {}
 		bool operator==(const Range &rhs) const { return min == rhs.min && max == rhs.max; }
 		bool operator!=(const Range &rhs) const { return !((*this) == rhs); }
     };
@@ -70,6 +71,7 @@ namespace DAQ
 		bool dualDevMode, secondDevIsAuxOnly;
         bool stimGlTrigResave;
         Range range;
+		QVector<Range> customRanges; ///< if this has a size, then it's a vector where each vai chan (demuxed) maps to a specific range for UI display!
         unsigned doCtlChan;
         QString doCtlChanString;
         Mode mode;

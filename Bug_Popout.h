@@ -50,6 +50,8 @@ public:
 	void setPlotColor(unsigned plotNum, const QColor & color);
 	void pushPoint(float y, unsigned plotNum = 0);
 	void setBGRects(const QList<QPair<QRectF,QColor> > & bgs);
+	void setPenWidth(float width_pix) { if (width_pix < 0.f) width_pix = 0.f; pen_width = width_pix; }
+	float penWidth() const { return pen_width; }
 	
 	const QList<QPair<QRectF, QColor> > & bgRects() const { return bgs; }
 	
@@ -57,6 +59,7 @@ protected:
 	void paintEvent(QPaintEvent *);
 private:
 	unsigned maxPts;
+	float pen_width;
 	QVector<QList<float> > pts;
 	QVector<QColor> colors;
 	QList<QPair<QRectF, QColor> > bgs;

@@ -213,6 +213,8 @@ bool DataFile::openForReWrite(const DataFile & other, const QString & filename, 
 	nChans = nOnChans;
 	sha.Reset();
 	sRate = other.sRate;
+	range = other.range;
+	customRanges = other.customRanges;
     writeRateAvg = 0.;
     nWritesAvg = 0;
     nWritesAvgMax = /*unsigned(sRate/10.)*/10;
@@ -278,8 +280,25 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     params["devProductName"] = DAQ::GetProductName(dp.dev);
     params["nChans"] = nChans;
     params["sRateHz"] = sRate;
-    params["rangeMin"] = dp.range.min;
-    params["rangeMax"] = dp.range.max;
+	range = dp.range;
+	customRanges = dp.customRanges;
+	if (customRanges.size()) {
+		QString s = "";
+		DAQ::Range r(1e9,-1e9);
+		for (int i = 0; i < customRanges.size(); ++i) {
+			if (i) s.append(",");
+			DAQ::Range & cr(customRanges[i]);
+			if (r.min > cr.min) r.min = cr.min;
+			if (r.max < cr.max) r.max = cr.max;
+			s.append(QString("%1:%2").arg(cr.min,0,'f',9).arg(cr.max,0,'f',9));
+		}
+		params["customRanges"] = s;
+		params["rangeMin"] = r.min;
+		params["rangeMax"] = r.max;
+	} else {
+		params["rangeMin"] = range.min;
+		params["rangeMax"] = range.max;
+	}
     params["acqMode"] = DAQ::ModeToString(dp.mode);
     params["extClock"] = dp.extClock;
     params["aiString"] = dp.aiString;
@@ -401,8 +420,23 @@ bool DataFile::openForRead(const QString & file_in)
 	nChans = params["nChans"].toUInt();
 	sRate = params["sRateHz"].toDouble();
 	scanCt = (fsize / (qint64)sizeof(int16)) / static_cast<qint64>(nChans);
-	rangeMinMax.first = params["rangeMin"].toDouble();
-	rangeMinMax.second = params["rangeMax"].toDouble();
+	range.min = params["rangeMin"].toDouble();
+	range.max = params["rangeMax"].toDouble();
+	customRanges.clear();
+	if (params.contains("customRanges")) {
+		QStringList sl = params["customRanges"].toString().split(",",QString::SkipEmptyParts);
+		for (QStringList::iterator it = sl.begin(); it != sl.end(); ++it) {
+			QStringList sl2 = (*it).split(":",QString::SkipEmptyParts);
+			if (sl2.count() == 2) {
+				double min = 0., max = 0.;
+				bool ok = true;
+				min = sl2.first().toDouble(&ok);
+				if (ok) max = sl2.last().toDouble(&ok);
+				if (ok) customRanges.push_back(DAQ::Range(min, max));
+			}
+		}
+	}
+
 	// remember channel ids
 	chanIds.clear();
 	bool parseError = true;

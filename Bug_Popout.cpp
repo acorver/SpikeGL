@@ -200,7 +200,7 @@ void Bug_Popout::setupGraphs()
 }
 
 Bug_Graph::Bug_Graph(QWidget *parent, unsigned nplots, unsigned maxPts)
-: QWidget(parent), maxPts(maxPts) 
+: QWidget(parent), maxPts(maxPts), pen_width(1.5f)
 {
 	if (nplots == 0) nplots = 1;
 	if (nplots > 10) nplots = 10;
@@ -250,7 +250,7 @@ void Bug_Graph::paintEvent(QPaintEvent *e)
 				pbuf[i].setY(y*height());
 			}
 			
-			QPen pen = p.pen(); pen.setColor(colors[plotNum]); pen.setWidth(0); // 'cosmetic' pen, using black
+			QPen pen = p.pen(); pen.setColor(colors[plotNum]); pen.setWidthF(pen_width); pen.setCapStyle(Qt::RoundCap);
 			p.setPen(pen);
 			p.drawPoints(pbuf, ct);
             delete pbuf;

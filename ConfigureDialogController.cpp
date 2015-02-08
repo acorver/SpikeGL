@@ -751,7 +751,6 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
 			/// overwrite path is the normal path...
 		}
 	}
-	
     p.dev = dev;
 	p.dev2 = dev2;
     QStringList rngs = dialog->aiRangeCB->currentText().split(" - ");
@@ -763,6 +762,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     }
     p.range.min = rngs.first().toDouble();
     p.range.max = rngs.last().toDouble();
+	p.customRanges.clear();
     p.mode = acqMode;
     p.srate = srate;
 	p.aoSrate = aoPassthru->srateSB->value();

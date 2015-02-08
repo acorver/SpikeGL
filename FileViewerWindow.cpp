@@ -730,8 +730,8 @@ QPair<double, double> FileViewerWindow::yVoltsAfterGain(int chan) const
 	QPair<double, double> ret;
 	if (chan < 0 || chan >= (int)graphParams.size()) return ret;
 	const double gain = graphParams[chan].gain;
-	ret.first = dataFile.rangeMin() / gain;
-	ret.second = dataFile.rangeMax() / gain;
+	ret.first = dataFile.rangeMin(chan) / gain;
+	ret.second = dataFile.rangeMax(chan) / gain;
 	return ret;
 }
 
