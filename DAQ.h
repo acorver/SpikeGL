@@ -91,6 +91,7 @@ namespace DAQ
         QMap<unsigned, unsigned> aoPassthruMap;
         QVector<unsigned> aoChannels; ///< the AO channels from the above map, plus possibly the photodiode-passthru channel
         QString aoPassthruString;
+		QVector<QString> chanDisplayNames; ///< this is for UI use mainly.. the display names associated with the channels.  This list is either empty (default) or has size nVAIChans
         /// etc...
 
         /// index into the acqStartEndCB in Ui::ConfigureDialog

@@ -214,7 +214,6 @@ bool DataFile::openForReWrite(const DataFile & other, const QString & filename, 
 	sha.Reset();
 	sRate = other.sRate;
 	range = other.range;
-	customRanges = other.customRanges;
     writeRateAvg = 0.;
     nWritesAvg = 0;
     nWritesAvgMax = /*unsigned(sRate/10.)*/10;
@@ -228,6 +227,7 @@ bool DataFile::openForReWrite(const DataFile & other, const QString & filename, 
 		else 
 			Error() << "INTERNAL ERROR: The chanNumSubset passet to DataFile::openForRead must be a subset of channel numbers (indices, not IDs) to use in the rewrite.";
 	}
+	customRanges = other.customRanges;
 	params["saveChannelSubset"] = ConfigureDialogController::generateAIChanString(chanIds);
 	params["nChans"] = nChans;
 	pd_chanId = other.pd_chanId;
@@ -286,11 +286,13 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
 		QString s = "";
 		DAQ::Range r(1e9,-1e9);
 		for (int i = 0; i < customRanges.size(); ++i) {
-			if (i) s.append(",");
-			DAQ::Range & cr(customRanges[i]);
-			if (r.min > cr.min) r.min = cr.min;
-			if (r.max < cr.max) r.max = cr.max;
-			s.append(QString("%1:%2").arg(cr.min,0,'f',9).arg(cr.max,0,'f',9));
+			if (dp.demuxedBitMap[i]) {
+				if (s.length()) s.append(",");
+				DAQ::Range & cr(customRanges[i]);
+				if (r.min > cr.min) r.min = cr.min;
+				if (r.max < cr.max) r.max = cr.max;
+				s.append(QString("%1:%2").arg(cr.min,0,'f',9).arg(cr.max,0,'f',9));
+			}
 		}
 		params["customRanges"] = s;
 		params["rangeMin"] = r.min;
@@ -329,6 +331,21 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     } else 
         params["saveChannelSubset"] = "ALL";
 	mode = Output;
+	
+	if (dp.chanDisplayNames.size()) {
+		QString str;
+		int i = 0;
+		for (QVector<QString>::const_iterator it = dp.chanDisplayNames.begin(); it < dp.chanDisplayNames.end(); ++it, ++i) {
+			if (dp.demuxedBitMap[i]) {
+				QString s(*it);
+				s.replace(",", "");
+				str = str + (str.length() ? "," : "") + s.trimmed();
+			}
+		}
+		params["chanDisplayNames"] = str;
+	}
+	//chanDisplayNames = dp.chanDisplayNames;
+	
     return true;
 }
 

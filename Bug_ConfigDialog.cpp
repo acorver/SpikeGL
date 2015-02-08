@@ -127,20 +127,23 @@ int Bug_ConfigDialog::exec()
 				p.aiTerm = DAQ::Default;
 				p.aiString = QString("0:%1").arg(p.nVAIChans-1);
 				p.customRanges.resize(p.nVAIChans);
+				p.chanDisplayNames.resize(p.nVAIChans);
 				DAQ::Range rminmax(1e9,-1e9);
 				for (unsigned i = 0; i < p.nVAIChans; ++i) {
 					DAQ::Range r;
-					if (i < unsigned(DAQ::BugTask::TotalNeuralChans)) 
+					if (i < unsigned(DAQ::BugTask::TotalNeuralChans)) {
 						r.min = ((-32768*DAQ::BugTask::ADCStepNeural)/1e6) , r.max = ((32767*DAQ::BugTask::ADCStepNeural)/1e6);
-					else if (i < (unsigned)DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans) 
+					} else if (i < (unsigned)DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans) {
 						r.min = ((-32768*DAQ::BugTask::ADCStepEMG)/1e3) , r.max = ((32767*DAQ::BugTask::ADCStepEMG)/1e3);
-					else if (i < (unsigned)DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans+DAQ::BugTask::TotalAuxChans)
+					} else if (i < (unsigned)DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans+DAQ::BugTask::TotalAuxChans) {
 						r.min = ((-32768*DAQ::BugTask::ADCStep)) , r.max = (32767*DAQ::BugTask::ADCStep);				
-					else // ttl lines
+					} else { // ttl lines
 						r.min = -5., r.max = 5.;
+					}
 					if (rminmax.min > r.min) rminmax.min = r.min;
 					if (rminmax.max < r.max) rminmax.max = r.max;
 					p.customRanges[i] = r;
+					p.chanDisplayNames[i] = DAQ::BugTask::getChannelName(i);
 				}
 				p.range = rminmax;
 				p.auxGain = 1.0;

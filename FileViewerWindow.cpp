@@ -816,7 +816,7 @@ void FileViewerWindow::mouseOverGraph(double x, double y)
 	y += 1.;
     y /= 2.;
 	const double gain = graphParams[num].gain;
-    y = (y*(dataFile.rangeMax()-dataFile.rangeMin()) + dataFile.rangeMin()) / gain;
+    y = (y*(dataFile.rangeMax(num)-dataFile.rangeMin(num)) + dataFile.rangeMin(num)) / gain;
 	mouseOverV = y;
 
 	// now, handle selection change
@@ -877,7 +877,7 @@ void FileViewerWindow::printStatusMessage()
 	// check for millivolt..
     const char *unit = "V";
 	const double gain = graphParams[num].gain;
-    if ((((dataFile.rangeMax()-dataFile.rangeMin()) + dataFile.rangeMin()) / gain) < 1.0)
+    if ((((dataFile.rangeMax(num)-dataFile.rangeMin(num)) + dataFile.rangeMin(num)) / gain) < 1.0)
         unit = "mV",y *= 1000.;
 	
     QString msg;
@@ -1190,9 +1190,9 @@ void FileViewerWindow::doExport(const ExportParams & p)
 		for (qint64 i = 0; i < nscans; ++i) {
 			
 			dataFile.readScans(scan, p.from+i, 1, p.chanSubset);
-			const double minR = dataFile.rangeMin(), maxR = dataFile.rangeMax();
 			const double smin = double(SHRT_MIN), usmax = double(USHRT_MAX);
 			for (int j = 0; j < scansz; ++j) {
+				const double minR = dataFile.rangeMin(j), maxR = dataFile.rangeMax(j);
 				double sampl = ( ((double(scan[j]) + (-smin))/(usmax+1.)) * (maxR-minR) ) + minR;
 				sampl /= graphParams[chansOn[j]].gain;
 				outs << sampl << ( j+1 < scansz ? "," : "");

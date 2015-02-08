@@ -763,6 +763,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     p.range.min = rngs.first().toDouble();
     p.range.max = rngs.last().toDouble();
 	p.customRanges.clear();
+	p.chanDisplayNames.clear();
     p.mode = acqMode;
     p.srate = srate;
 	p.aoSrate = aoPassthru->srateSB->value();

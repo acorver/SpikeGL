@@ -632,26 +632,27 @@ void GraphsWindow::selectGraph(int num)
     int old = selectedGraph;
     graphFrames[old]->setFrameStyle(QFrame::StyledPanel|QFrame::Plain);
     selectedGraph = num;
-    if (params.mode == DAQ::AIRegular) { // straight AI (no MUX)
-		if (params.bug.enabled)	// bug mode!
-			chanLbl->setText(DAQ::BugTask::getChannelName(num)); 
-		else // regular
-			chanLbl->setText(QString("AI%1").arg(num));        
-    } else { // MUX mode
-        if (isAuxChan(num)) {
-            chanLbl->setText(QString("AUX%1").arg(int(num-(params.nVAIChans-(params.nExtraChans1+params.nExtraChans2))+1)));
-        }/* else if (params.mode == DAQ::JFRCIntan32) {
-            // JFRC Intan 32 mode has a hard-coded mapping.. sorry, not elegant but expedient!
-            chanLbl->setText(QString("I%1_C%2").arg(num/16 + 1).arg(num % 16 + 1));            
-        }*/ else {
-			// otherwise MUX modes use the real mapping
-			if (mainApp()->sortGraphsByElectrodeId()) { // show electorde number if in electrode sort mode
-				chanLbl->setText(QString("%1").arg(params.chanMap[num].electrodeId));				
-			} else {
-				chanLbl->setText(QString("I%1_C%2").arg(params.chanMap[num].intan).arg(params.chanMap[num].intanCh));
+	if (num < params.chanDisplayNames.size()) {
+		chanLbl->setText(params.chanDisplayNames[num]);
+	} else {
+		if (params.mode == DAQ::AIRegular) { // straight AI (no MUX)
+				chanLbl->setText(QString("AI%1").arg(num));        
+		} else { // MUX mode
+			if (isAuxChan(num)) {
+				chanLbl->setText(QString("AUX%1").arg(int(num-(params.nVAIChans-(params.nExtraChans1+params.nExtraChans2))+1)));
+			}/* else if (params.mode == DAQ::JFRCIntan32) {
+				// JFRC Intan 32 mode has a hard-coded mapping.. sorry, not elegant but expedient!
+				chanLbl->setText(QString("I%1_C%2").arg(num/16 + 1).arg(num % 16 + 1));            
+			}*/ else {
+				// otherwise MUX modes use the real mapping
+				if (mainApp()->sortGraphsByElectrodeId()) { // show electorde number if in electrode sort mode
+					chanLbl->setText(QString("%1").arg(params.chanMap[num].electrodeId));				
+				} else {
+					chanLbl->setText(QString("I%1_C%2").arg(params.chanMap[num].intan).arg(params.chanMap[num].intanCh));
+				}
 			}
-        }
-    }
+		}
+	}
     graphFrames[num]->setFrameStyle(QFrame::Box|QFrame::Plain);
 
     updateGraphCtls();
@@ -784,19 +785,20 @@ void GraphsWindow::updateMouseOver()
     computeGraphMouseOverVars(num, y, mean, stdev, rms, unit);
     QString msg;
     QString chStr;
-    if (params.mode == DAQ::AIRegular) {
-		if (params.bug.enabled)
-			chStr = DAQ::BugTask::getChannelName(num);
-		else
-			chStr.sprintf("AI%d", num);
-    } else { // MUX mode
-        if (isAuxChan(num)) {
-            chStr.sprintf("AUX%d",int(num-(params.nVAIChans-(params.nExtraChans1+params.nExtraChans2))+1));
-        } else {
-			const ChanMapDesc & desc = params.chanMap[num];
-            chStr.sprintf("%d [I%u_C%u elec:%u]",num,desc.intan,desc.intanCh,desc.electrodeId);        
-        }
-    }
+	if (num < params.chanDisplayNames.size()) {
+		chStr = params.chanDisplayNames[num];
+	} else {
+		if (params.mode == DAQ::AIRegular) {
+				chStr.sprintf("AI%d", num);
+		} else { // MUX mode
+			if (isAuxChan(num)) {
+				chStr.sprintf("AUX%d",int(num-(params.nVAIChans-(params.nExtraChans1+params.nExtraChans2))+1));
+			} else {
+				const ChanMapDesc & desc = params.chanMap[num];
+				chStr.sprintf("%d [I%u_C%u elec:%u]",num,desc.intan,desc.intanCh,desc.electrodeId);        
+			}
+		}
+	}
     msg.sprintf("%s %s %s @ pos (%.4f s, %.4f %s) -- mean: %.4f %s rms: %.4f %s stdDev: %.4f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode/trigger graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,rms,unit,stdev,unit);
     statusBar()->showMessage(msg);
 }
