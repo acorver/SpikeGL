@@ -87,8 +87,8 @@
   <widget class="QLabel" name="acqRateLabel">
    <property name="geometry">
     <rect>
-     <x>3</x>
-     <y>46</y>
+     <x>5</x>
+     <y>173</y>
      <width>117</width>
      <height>22</height>
     </rect>
@@ -106,8 +106,8 @@
   <widget class="QComboBox" name="acqRateCB">
    <property name="geometry">
     <rect>
-     <x>128</x>
-     <y>46</y>
+     <x>130</x>
+     <y>173</y>
      <width>147</width>
      <height>22</height>
     </rect>
@@ -153,8 +153,8 @@
   <widget class="QLabel" name="ttlTrigLbl">
    <property name="geometry">
     <rect>
-     <x>280</x>
-     <y>46</y>
+     <x>282</x>
+     <y>173</y>
      <width>70</width>
      <height>22</height>
     </rect>
@@ -172,8 +172,8 @@
   <widget class="QComboBox" name="ttlTrigCB">
    <property name="geometry">
     <rect>
-     <x>362</x>
-     <y>46</y>
+     <x>364</x>
+     <y>173</y>
      <width>87</width>
      <height>22</height>
     </rect>
@@ -465,21 +465,21 @@ p, li { white-space: pre-wrap; }
   <widget class="QCheckBox" name="notchFilterChk">
    <property name="geometry">
     <rect>
-     <x>217</x>
-     <y>174</y>
-     <width>286</width>
+     <x>311</x>
+     <y>46</y>
+     <width>190</width>
      <height>22</height>
     </rect>
    </property>
    <property name="text">
-    <string>Enable Software Notch Filter (60 Hz) </string>
+    <string>Enable Notch Filter (60 Hz) </string>
    </property>
   </widget>
   <widget class="QCheckBox" name="hpfChk">
    <property name="geometry">
     <rect>
-     <x>19</x>
-     <y>174</y>
+     <x>17</x>
+     <y>46</y>
      <width>171</width>
      <height>22</height>
     </rect>
@@ -497,8 +497,8 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="geometry">
     <rect>
-     <x>41</x>
-     <y>197</y>
+     <x>197</x>
+     <y>46</y>
      <width>68</width>
      <height>22</height>
     </rect>
@@ -522,8 +522,8 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="geometry">
     <rect>
-     <x>114</x>
-     <y>197</y>
+     <x>270</x>
+     <y>46</y>
      <width>32</width>
      <height>22</height>
     </rect>
@@ -614,6 +614,196 @@ p, li { white-space: pre-wrap; }
      </rect>
     </property>
     <layout class="QHBoxLayout" name="ttlLayout"/>
+   </widget>
+  </widget>
+  <widget class="QGroupBox" name="trigParams">
+   <property name="geometry">
+    <rect>
+     <x>300</x>
+     <y>196</y>
+     <width>196</width>
+     <height>91</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>TTL Trig Params</string>
+   </property>
+   <widget class="QSpinBox" name="trigPre">
+    <property name="geometry">
+     <rect>
+      <x>83</x>
+      <y>21</y>
+      <width>92</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="font">
+     <font>
+      <family>MS Reference Sans Serif</family>
+      <pointsize>9</pointsize>
+     </font>
+    </property>
+    <property name="toolTip">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The amount of time in milliseconds to preamble and postamble the recording. The preamble applies to the first trigger pulse. The postamble applies to each individual recording file generated. This parameter ensures data files have a regular amount of leading whitespace before the trigger signal.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="maximum">
+     <number>9999</number>
+    </property>
+    <property name="value">
+     <number>10</number>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="trigStopTimeSB">
+    <property name="geometry">
+     <rect>
+      <x>110</x>
+      <y>62</y>
+      <width>79</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>MS Reference Sans Serif</family>
+      <pointsize>9</pointsize>
+     </font>
+    </property>
+    <property name="toolTip">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The time in seconds that the trigger signal needs to be off before the 'stop' condition is satisfied (and the acquisition is stopped).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="decimals">
+     <number>3</number>
+    </property>
+    <property name="value">
+     <double>0.500000000000000</double>
+    </property>
+   </widget>
+   <widget class="QLabel" name="trigWLbl">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>43</y>
+      <width>76</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="font">
+     <font>
+      <family>MS Reference Sans Serif</family>
+      <pointsize>8</pointsize>
+     </font>
+    </property>
+    <property name="toolTip">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The 'W' parameter used for threshold detection (in samples). This is the number of samples that the signal needs to be above/below threshold for a crossing to have occurred.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="whatsThis">
+     <string>The 'W' parameter used for threshold detection (in samples).  This is the number of samples that the signal needs to be above/below threshold for a crossing to have occurred.</string>
+    </property>
+    <property name="text">
+     <string>'W'</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="trigWSB">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>62</y>
+      <width>75</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="font">
+     <font>
+      <family>MS Reference Sans Serif</family>
+      <pointsize>9</pointsize>
+     </font>
+    </property>
+    <property name="toolTip">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The 'W' parameter used for threshold detection (in samples). This is the number of samples that the signal needs to be above/below threshold for a crossing to have occurred.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="whatsThis">
+     <string>The 'W' parameter used for threshold detection (in samples).  This is the number of samples that the signal needs to be above/below threshold for a crossing to have occurred.</string>
+    </property>
+    <property name="minimum">
+     <number>1</number>
+    </property>
+    <property name="maximum">
+     <number>999</number>
+    </property>
+    <property name="value">
+     <number>5</number>
+    </property>
+   </widget>
+   <widget class="QLabel" name="trigPrePostLbl">
+    <property name="geometry">
+     <rect>
+      <x>12</x>
+      <y>21</y>
+      <width>73</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>MS Reference Sans Serif</family>
+      <pointsize>8</pointsize>
+     </font>
+    </property>
+    <property name="toolTip">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The amount of time in milliseconds to preamble and postamble the recording. The preamble applies to the first trigger pulse. The postamble applies to each individual recording file generated. This parameter ensures data files have a regular amount of leading whitespace before the trigger signal.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="text">
+     <string>Pre/Post (ms):</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="trigStopTimeLbl">
+    <property name="geometry">
+     <rect>
+      <x>110</x>
+      <y>43</y>
+      <width>80</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>MS Reference Sans Serif</family>
+      <pointsize>8</pointsize>
+     </font>
+    </property>
+    <property name="toolTip">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The time in seconds that the trigger signal needs to be off before the 'stop' condition is satisfied (and the acquisition is stopped).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="text">
+     <string>Stop time (s):</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
    </widget>
   </widget>
  </widget>

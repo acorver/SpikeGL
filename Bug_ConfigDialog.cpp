@@ -61,6 +61,11 @@ int Bug_ConfigDialog::exec()
 				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
 					if (ttls[i]->isChecked()) p.bug.whichTTLs |= 0x1 << i;  
 				}
+				int ttlIdx = DAQ::BugTask::BaseNChans;
+				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
+					if (i == p.bug.ttlTrig) break;
+					if (p.bug.whichTTLs & (0x1<<i)) ++ttlIdx;
+				}
 				p.bug.clockEdge = dialog->clkEdgeCB->currentIndex();
 				p.bug.hpf = dialog->hpfChk->isChecked() ? dialog->hpfSB->value(): 0;
 				p.bug.snf = dialog->notchFilterChk->isChecked();
@@ -103,6 +108,23 @@ int Bug_ConfigDialog::exec()
 				
 				p.overrideGraphsPerTab = dialog->graphsPerTabCB->currentText().toUInt();
 
+				p.isIndefinite = true;
+				p.isImmediate = true;
+				p.acqStartEndMode = DAQ::Immediate;
+				p.usePD = 0;
+				if (p.bug.ttlTrig > -1) {
+					p.acqStartEndMode = DAQ::AITriggered;
+					p.idxOfPdChan = ttlIdx;
+					p.usePD = true;
+					p.pdChanIsVirtual = true;
+					p.pdChan = ttlIdx;
+					p.pdThresh = 2.5; // volts.. 
+					p.pdThreshW = static_cast<unsigned>(dialog->trigWSB->value());
+					p.pdPassThruToAO = -1;
+					p.pdStopTime = dialog->trigStopTimeSB->value();
+					p.silenceBeforePD = dialog->trigPre->value()/1000.;
+				}
+				
 				saveSettings();
 
 				// this stuff doesn't need to be saved since it's constant and will mess up regular acq "remembered" values
@@ -113,14 +135,6 @@ int Bug_ConfigDialog::exec()
 				p.extClock = true;
 				p.mode = DAQ::AIRegular;
 				p.aoPassthru = 0;
-				p.isIndefinite = true;
-				p.isImmediate = true;
-				p.acqStartEndMode = DAQ::Immediate;
-				if (p.bug.ttlTrig > -1) {
-					p.acqStartEndMode = DAQ::AITriggered;
-					p.idxOfPdChan = DAQ::BugTask::BaseNChans + p.bug.ttlTrig;
-				}
-				p.usePD = 0;
 				p.dualDevMode = false;
 				p.stimGlTrigResave = false;
 				p.srate = DAQ::BugTask::SamplingRate;
@@ -189,7 +203,11 @@ void Bug_ConfigDialog::guiFromSettings()
             break;
         }
     }	
-
+	
+	dialog->trigWSB->setValue(p.pdThreshW);
+	dialog->trigStopTimeSB->setValue(p.pdStopTime);
+	dialog->trigPre->setValue(p.silenceBeforePD*1000.);
+	dialog->trigParams->setEnabled(p.bug.ttlTrig >= 0);
 }
 
 void Bug_ConfigDialog::saveSettings()
@@ -228,4 +246,5 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
 	if (dialog->ttlTrigCB->currentIndex() > 0) {
 		ttls[dialog->ttlTrigCB->currentIndex()-1]->setEnabled(false);
 	}
+	dialog->trigParams->setEnabled(dialog->ttlTrigCB->currentIndex() != 0);
 }
