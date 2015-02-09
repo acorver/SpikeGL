@@ -1634,7 +1634,8 @@ namespace DAQ
 						int samp = num.toUShort(&ok);
 						if (!ok) Error() << "Bug3: Internal error -- parse error while reading neuronal sample `" << num << "'";
 						// todo.. fix this.  wtf? can't think straight now...
-						samp = samp-ADCOffset; // incoming data is such that 0v = (int16)1023, which means negative values have a limited range.. normalize so that 0v = 0
+						samp = samp-ADCOffset; // incoming data is such that 0v = (int16)1023, this is because incoming samples are 11-bit. normalize so that 0v = 0
+						samp = samp * int16(32); // promote to 16-bit
 						samps[ frame*(NeuralSamplesPerFrame*nchans) + neurix*nchans + neur_chan ] = samp;
 					}
 				}
@@ -1661,7 +1662,8 @@ namespace DAQ
 					bool ok = false;
 					int samp = num.toUShort(&ok);
 					if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
-					samp = samp-ADCOffset; // normalize since incoming data is weird
+					samp = samp-ADCOffset; // normalize since incoming data is weird 11 bit
+					samp = samp * int16(32); // promote to 16-bit
 					for (int emgix = 0; emgix < NeuralSamplesPerFrame; ++emgix) { // need to produce 16 samples for each 1 emg sample read in order to match neuronal rate!						
 						samps[ frame*(NeuralSamplesPerFrame*nchans) + emgix*nchans + (TotalNeuralChans+emg_chan) ] = samp;
 					}
@@ -1690,16 +1692,17 @@ namespace DAQ
 					bool ok = false;
 					int samp = num.toUShort(&ok);
 					if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
-					samp = samp-ADCOffset; // normalize since incoming data is weird
+					samp = samp-ADCOffset; // normalize since incoming data is 11-bit
+					if (aux_chan == 1)  avgVunreg += ADCStep * double(samp);
+					samp = samp * int16(32); // promote to 16-bit					
 					for (int auxix = 0; auxix < NeuralSamplesPerFrame; ++auxix) { // need to produce 16 samples for each 1 emg sample read in order to match neuronal rate!	
 						samps[ frame*(NeuralSamplesPerFrame*nchans) + auxix*nchans + (TotalNeuralChans+TotalEMGChans+aux_chan) ] = samp;
 					}
-					if (aux_chan == 1)  avgVunreg += ADCStep * samp;
 				}
 				if (aux_chan == 1) {
 					avgVunreg = avgVunreg / (double)FramesPerBlock;
-					if (avgVunreg < 1.0) avgVunreg = 1.0;
-					if (avgVunreg > 5.0) avgVunreg = 5.0;
+					if (avgVunreg < 0.0) avgVunreg = 0.0;
+					if (avgVunreg > 6.0) avgVunreg = 6.0;
 					meta.avgVunreg = avgVunreg;
 				}
 			} else if (k.startsWith("TTL_")) {

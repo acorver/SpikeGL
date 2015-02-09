@@ -132,12 +132,14 @@ int Bug_ConfigDialog::exec()
 				for (unsigned i = 0; i < p.nVAIChans; ++i) {
 					DAQ::Range r;
                     int chan_id_for_display = i;
-					if (i < unsigned(DAQ::BugTask::TotalNeuralChans)) {
-						r.min = ((-32768*DAQ::BugTask::ADCStepNeural)/1e6) , r.max = ((32767*DAQ::BugTask::ADCStepNeural)/1e6);
-					} else if (i < (unsigned)DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans) {
-						r.min = ((-32768*DAQ::BugTask::ADCStepEMG)/1e3) , r.max = ((32767*DAQ::BugTask::ADCStepEMG)/1e3);
+					if (i < unsigned(DAQ::BugTask::TotalNeuralChans)) { // NEU
+						r.min = -(2.3*2048/2.0)/1e6 /*-2.4/1e3*/, r.max = 2.3*2048/2.0/1e6/*2.4/1e3*/;
+					} else if (i < (unsigned)DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans) { //EMG
+						r.min = -(23.0*2048)/2.0/1e6 /*-24.0/1e3*/, r.max = (23.0*2048)/2.0/1e6/*24.0/1e3*/;
 					} else if (i < (unsigned)DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans+DAQ::BugTask::TotalAuxChans) {
-						r.min = ((-32768*DAQ::BugTask::ADCStep)) , r.max = (32767*DAQ::BugTask::ADCStep);				
+						//r.min = 1.2495+.62475, r.max = 1.2495*2;				
+						//r.min = -(2.4*2048)/2./1e3, r.max = (2.4*2048)/2./1e3;
+						r.min = DAQ::BugTask::ADCStep*1024., r.max = DAQ::BugTask::ADCStep*1024.+DAQ::BugTask::ADCStep*2048.;
 					} else { // ttl lines
 						r.min = -5., r.max = 5.;
                         // since ttl lines may be missing in channel set, renumber the ones that are missing for display purposes
