@@ -54,9 +54,9 @@ int Bug_ConfigDialog::exec()
 				p.bug.reset();
 				p.bug.enabled = true;
 				p.bug.rate = dialog->acqRateCB->currentIndex();
-				if (dialog->ttlTrigCB->currentIndex()) {
+                if (dialog->ttlTrigCB->currentIndex() > 0) {
 					p.bug.ttlTrig = dialog->ttlTrigCB->currentIndex()-1;
-					p.bug.whichTTLs |= 0x1 << p.bug.ttlTrig;
+                    p.bug.whichTTLs |= (0x1 << p.bug.ttlTrig);
 				}
 				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
 					if (ttls[i]->isChecked()) p.bug.whichTTLs |= 0x1 << i;  
@@ -131,6 +131,7 @@ int Bug_ConfigDialog::exec()
 				DAQ::Range rminmax(1e9,-1e9);
 				for (unsigned i = 0; i < p.nVAIChans; ++i) {
 					DAQ::Range r;
+                    int chan_id_for_display = i;
 					if (i < unsigned(DAQ::BugTask::TotalNeuralChans)) {
 						r.min = ((-32768*DAQ::BugTask::ADCStepNeural)/1e6) , r.max = ((32767*DAQ::BugTask::ADCStepNeural)/1e6);
 					} else if (i < (unsigned)DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans) {
@@ -139,11 +140,16 @@ int Bug_ConfigDialog::exec()
 						r.min = ((-32768*DAQ::BugTask::ADCStep)) , r.max = (32767*DAQ::BugTask::ADCStep);				
 					} else { // ttl lines
 						r.min = -5., r.max = 5.;
+                        // since ttl lines may be missing in channel set, renumber the ones that are missing for display purposes
+                        int lim = (int(i)-int(DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans+DAQ::BugTask::TotalAuxChans))+1;
+                        for (int j=0; j < lim && j < DAQ::BugTask::TotalTTLChans ; ++j)
+                            if (!(p.bug.whichTTLs & (0x1<<j))) ++chan_id_for_display, ++lim;
+
 					}
 					if (rminmax.min > r.min) rminmax.min = r.min;
 					if (rminmax.max < r.max) rminmax.max = r.max;
 					p.customRanges[i] = r;
-					p.chanDisplayNames[i] = DAQ::BugTask::getChannelName(i);
+                    p.chanDisplayNames[i] = DAQ::BugTask::getChannelName(chan_id_for_display);
 				}
 				p.range = rminmax;
 				p.auxGain = 1.0;

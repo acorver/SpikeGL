@@ -82,8 +82,8 @@ void Bug_Popout::writeMetaToDataFile(DataFile &f, const DAQ::BugTask::BlockMetaD
 
 void Bug_Popout::plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_update)
 {		
-	avgPower = (avgPower*double(nAvg) + meta.avgVunreg)/double(++nAvg);
-	if (nAvg > DAQ::BugTask::MaxMetaData) nAvg = DAQ::BugTask::MaxMetaData;
+    avgPower = (avgPower*double(nAvg) + meta.avgVunreg)/double(nAvg+1);
+    if (++nAvg > DAQ::BugTask::MaxMetaData) nAvg = DAQ::BugTask::MaxMetaData;
 
 	vgraph->pushPoint(1.0-((meta.avgVunreg-1.)/4.0));
 	

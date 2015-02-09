@@ -1713,6 +1713,13 @@ namespace DAQ
 				} 
 				if (!ok) Warning() << "Bug3: Internal problem -- parse error on TTL_ key.";
 				if (params.bug.whichTTLs & (0x1<<ttl_chan)) {
+                    int ttl_chan_translated = ttl_chan;
+                    for (int i = 0; i < TotalTTLChans && i < ttl_chan; ++i)
+                        // make the TTL line number -> our_channelid
+                        // (because TTL10 from bug3 may not always be our TTL10 if say the ttl chans we have on are like 0,1,3,5,10,
+                        // then TTL 10 is really 4 for us!
+                        if (!(params.bug.whichTTLs & (0x1<<i)))
+                            --ttl_chan_translated;
 					bool warned = false;
 					QStringList nums = v.split(",");
                     //if (excessiveDebug) Debug() << "Bug3: got " << nums.count() << " TTL samples..";
@@ -1728,7 +1735,7 @@ namespace DAQ
 						if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
 						if (samp) samp = 32767; // normalize high to maxV
 						for (int ix = 0; ix < NeuralSamplesPerFrame; ++ix) { // need to produce 16 samples for each 1 emg sample read in order to match neuronal rate!						
-							samps[ frame*(NeuralSamplesPerFrame*nchans) + ix*nchans + (TotalNeuralChans+TotalEMGChans+TotalAuxChans+ttl_chan) ] = samp;
+                            samps[ frame*(NeuralSamplesPerFrame*nchans) + ix*nchans + (TotalNeuralChans+TotalEMGChans+TotalAuxChans+ttl_chan_translated) ] = samp;
 						}						
 					}				
 				}
