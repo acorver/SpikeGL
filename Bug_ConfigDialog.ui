@@ -619,14 +619,14 @@ p, li { white-space: pre-wrap; }
   <widget class="QGroupBox" name="trigParams">
    <property name="geometry">
     <rect>
-     <x>300</x>
-     <y>196</y>
-     <width>196</width>
-     <height>91</height>
+     <x>310</x>
+     <y>201</y>
+     <width>184</width>
+     <height>93</height>
     </rect>
    </property>
    <property name="title">
-    <string>TTL Trig Params</string>
+    <string>Trigger Params</string>
    </property>
    <widget class="QSpinBox" name="trigPre">
     <property name="geometry">
@@ -634,7 +634,7 @@ p, li { white-space: pre-wrap; }
       <x>83</x>
       <y>21</y>
       <width>92</width>
-      <height>24</height>
+      <height>21</height>
      </rect>
     </property>
     <property name="sizePolicy">
@@ -664,7 +664,7 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>110</x>
       <y>62</y>
-      <width>79</width>
+      <width>63</width>
       <height>24</height>
      </rect>
     </property>
@@ -761,7 +761,7 @@ p, li { white-space: pre-wrap; }
       <x>12</x>
       <y>21</y>
       <width>73</width>
-      <height>24</height>
+      <height>19</height>
      </rect>
     </property>
     <property name="font">

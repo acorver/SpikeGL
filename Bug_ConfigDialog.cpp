@@ -17,6 +17,7 @@
 Bug_ConfigDialog::Bug_ConfigDialog(DAQ::Params & p, QObject *parent) : QObject(parent), acceptedParams(p)
 {
     dialogW = new QDialog(0);
+    dialogW->setAttribute(Qt::WA_DeleteOnClose, false);
 	dialog = new Ui::Bug_ConfigDialog;
     dialog->setupUi(dialogW);
 	Connect(dialog->ttlTrigCB, SIGNAL(currentIndexChanged(int)), this, SLOT(ttlTrigCBChanged()));
@@ -28,10 +29,9 @@ Bug_ConfigDialog::Bug_ConfigDialog(DAQ::Params & p, QObject *parent) : QObject(p
 
 Bug_ConfigDialog::~Bug_ConfigDialog()
 {
-    delete dialog;
-    delete dialogW;
-	dialog = 0;
-	dialogW = 0;
+    for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) delete ttls[i], ttls[i] = 0;
+    delete dialogW; dialogW = 0;
+    delete dialog; dialog = 0;
 }
 
 int Bug_ConfigDialog::exec() 
