@@ -107,8 +107,15 @@ void Bug_Popout::plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_up
 	}
 	
 	// graph voltages and bit/word error rate here..
-	errgraph->pushPoint(((-logBER)-1.)/4.0, 0);
-	errgraph->pushPoint(((-logWER)-1.)/4.0, 1);
+    float pt;
+    pt = ((-logBER)-1.)/4.0;
+    if (pt < 0.) pt = 0.f;
+    if (pt >= 1.) pt = .99f;
+    errgraph->pushPoint(pt, 0);
+    pt = ((-logWER)-1.)/4.0;
+    if (pt < 0.) pt = 0.f;
+    if (pt >= 1.) pt = .99f;
+    errgraph->pushPoint(pt, 1);
 
 //		Debug() << "logWER: " << logWER << " logBER: " << logBER;
 	
@@ -200,7 +207,7 @@ void Bug_Popout::setupGraphs()
 }
 
 Bug_Graph::Bug_Graph(QWidget *parent, unsigned nplots, unsigned maxPts)
-: QWidget(parent), maxPts(maxPts), pen_width(1.5f)
+: QWidget(parent), maxPts(maxPts), pen_width(2.0f)
 {
 	if (nplots == 0) nplots = 1;
 	if (nplots > 10) nplots = 10;
