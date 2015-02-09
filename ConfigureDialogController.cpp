@@ -893,6 +893,22 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
 	p.resumeGraphSettings = resumeGraphSettings;
 	p.autoRetryOnAIOverrun = dialog->autoRetryOnAIOverrunsChk->isChecked();
     p.overrideGraphsPerTab = dialog->graphsPerTabCB->currentText().toUInt();
+	
+	for (unsigned num = 0; num < p.nVAIChans; ++num) {
+		QString chStr;
+		if (p.mode == DAQ::AIRegular) {
+			chStr.sprintf("AI%d", num);
+		} else { // MUX mode
+			if (p.isAuxChan(num)) {
+				chStr.sprintf("AUX%d",int(num-(p.nVAIChans-(p.nExtraChans1+p.nExtraChans2))+1));
+			} else {
+				const ChanMapDesc & desc = p.chanMap[num];
+				chStr.sprintf("%d [I%u_C%u elec:%u]",num,desc.intan,desc.intanCh,desc.electrodeId);        
+			}
+		}
+		p.chanDisplayNames.push_back(chStr);
+	}
+	
     saveSettings();       
     
     return OK;

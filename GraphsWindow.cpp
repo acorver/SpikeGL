@@ -635,23 +635,8 @@ void GraphsWindow::selectGraph(int num)
 	if (num < params.chanDisplayNames.size()) {
 		chanLbl->setText(params.chanDisplayNames[num]);
 	} else {
-		if (params.mode == DAQ::AIRegular) { // straight AI (no MUX)
-				chanLbl->setText(QString("AI%1").arg(num));        
-		} else { // MUX mode
-			if (isAuxChan(num)) {
-				chanLbl->setText(QString("AUX%1").arg(int(num-(params.nVAIChans-(params.nExtraChans1+params.nExtraChans2))+1)));
-			}/* else if (params.mode == DAQ::JFRCIntan32) {
-				// JFRC Intan 32 mode has a hard-coded mapping.. sorry, not elegant but expedient!
-				chanLbl->setText(QString("I%1_C%2").arg(num/16 + 1).arg(num % 16 + 1));            
-			}*/ else {
-				// otherwise MUX modes use the real mapping
-				if (mainApp()->sortGraphsByElectrodeId()) { // show electorde number if in electrode sort mode
-					chanLbl->setText(QString("%1").arg(params.chanMap[num].electrodeId));				
-				} else {
-					chanLbl->setText(QString("I%1_C%2").arg(params.chanMap[num].intan).arg(params.chanMap[num].intanCh));
-				}
-			}
-		}
+		// not normally ever reached since params.chanDisplayNames should now *always* be well-defined!!
+		chanLbl->setText(QString("Ch %1").arg(num));        
 	}
     graphFrames[num]->setFrameStyle(QFrame::Box|QFrame::Plain);
 
@@ -708,11 +693,6 @@ void GraphsWindow::updateGraphCtls()
     }
 }
 
-bool GraphsWindow::isAuxChan(unsigned num) const
-{
-    return num >= (params.nVAIChans-(params.nExtraChans1+params.nExtraChans2));
-}
-
 void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
                                              double & mean, double & stdev,
 											 double & rms,
@@ -722,7 +702,7 @@ void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
     y /= 2.;
     // scale it to range..
 	DAQ::Range r = params.range;
-    double gain = isAuxChan(num) ? 1. : params.auxGain;
+    double gain = params.isAuxChan(num) ? 1. : params.auxGain;
 	if (num < unsigned(params.customRanges.size())) r = params.customRanges[num], gain = 1.0;
     y = (y*(r.max-r.min) + r.min) / gain;
     mean = graphStats[num].mean();
@@ -787,17 +767,8 @@ void GraphsWindow::updateMouseOver()
     QString chStr;
 	if (num < params.chanDisplayNames.size()) {
 		chStr = params.chanDisplayNames[num];
-	} else {
-		if (params.mode == DAQ::AIRegular) {
-				chStr.sprintf("AI%d", num);
-		} else { // MUX mode
-			if (isAuxChan(num)) {
-				chStr.sprintf("AUX%d",int(num-(params.nVAIChans-(params.nExtraChans1+params.nExtraChans2))+1));
-			} else {
-				const ChanMapDesc & desc = params.chanMap[num];
-				chStr.sprintf("%d [I%u_C%u elec:%u]",num,desc.intan,desc.intanCh,desc.electrodeId);        
-			}
-		}
+	} else { // not normally ever reached
+		chStr.sprintf("Ch %d", num);
 	}
     msg.sprintf("%s %s %s @ pos (%.4f s, %.4f %s) -- mean: %.4f %s rms: %.4f %s stdDev: %.4f %s",(isNowOver ? "Mouse over" : "Last mouse-over"),(num == pdChan ? "photodiode/trigger graph" : (num < firstExtraChan ? "demuxed graph" : "graph")),chStr.toUtf8().constData(),x,y,unit,mean,unit,rms,unit,stdev,unit);
     statusBar()->showMessage(msg);
@@ -1352,8 +1323,8 @@ void GraphsWindow::openGraphsById(const QVector<unsigned> & ids) ///< really jus
 		unsigned id = ids[0];
 		if (id < unsigned(graphs.size())) {
 			unsigned tab = id / NUM_GRAPHS_PER_GRAPH_TAB;
-            if (tabWidget && tab != tabWidget->currentIndex()) tabWidget->setCurrentIndex(tab);
-            else if (stackedCombo && tab != stackedCombo->currentIndex()) { stackedCombo->setCurrentIndex(tab); stackedWidget->setCurrentIndex(tab); }
+            if (tabWidget && int(tab) != tabWidget->currentIndex()) tabWidget->setCurrentIndex(tab);
+            else if (stackedCombo && int(tab) != stackedCombo->currentIndex()) { stackedCombo->setCurrentIndex(tab); stackedWidget->setCurrentIndex(tab); }
 			selectGraph(id);
 			show();
 			raise();

@@ -221,15 +221,26 @@ bool DataFile::openForReWrite(const DataFile & other, const QString & filename, 
 	// compute save channel subset fudge
 	const QVector<unsigned> ocid = other.channelIDs();
 	chanIds.clear();
+	customRanges.clear();
+	chanDisplayNames.clear();
+	QString crStr(""), cdnStr("");
 	foreach (unsigned i, chanNumSubset) {
-		if (i < unsigned(ocid.size()))
+		if (i < unsigned(ocid.size())) {
 			chanIds.push_back(ocid[i]);
-		else 
+			if (i < (unsigned)other.customRanges.size()) customRanges.push_back(other.customRanges[i]);
+			else customRanges.push_back(range);
+			if (i < (unsigned)other.chanDisplayNames.size()) chanDisplayNames.push_back(other.chanDisplayNames[i]);
+			else chanDisplayNames.push_back(QString("Ch ") + QString::number(i));
+			crStr.append(QString("%3%1:%2").arg(customRanges.back().min,0,'f',9).arg(customRanges.back().max,0,'f',9).arg(crStr.length() ? "," : ""));
+			if (cdnStr.length()) cdnStr.append(",");
+			cdnStr.append(QString(chanDisplayNames.back()).replace(",",""));
+		} else 
 			Error() << "INTERNAL ERROR: The chanNumSubset passet to DataFile::openForRead must be a subset of channel numbers (indices, not IDs) to use in the rewrite.";
 	}
-	customRanges = other.customRanges;
 	params["saveChannelSubset"] = ConfigureDialogController::generateAIChanString(chanIds);
 	params["nChans"] = nChans;
+	if (params.contains("chanDisplayNames")) params["chanDisplayNames"] = cdnStr;
+	if (params.contains("customRanges")) params["customRanges"] = crStr;
 	pd_chanId = other.pd_chanId;
 	
 	return true;
@@ -281,14 +292,15 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     params["nChans"] = nChans;
     params["sRateHz"] = sRate;
 	range = dp.range;
-	customRanges = dp.customRanges;
-	if (customRanges.size()) {
+	customRanges.clear();
+	if (dp.customRanges.size()) {
 		QString s = "";
 		DAQ::Range r(1e9,-1e9);
-		for (int i = 0; i < customRanges.size(); ++i) {
+		for (int i = 0; i < dp.customRanges.size(); ++i) {
 			if (dp.demuxedBitMap[i]) {
 				if (s.length()) s.append(",");
-				DAQ::Range & cr(customRanges[i]);
+				const DAQ::Range & cr(dp.customRanges[i]);
+				customRanges.push_back(cr);
 				if (r.min > cr.min) r.min = cr.min;
 				if (r.max < cr.max) r.max = cr.max;
 				s.append(QString("%1:%2").arg(cr.min,0,'f',9).arg(cr.max,0,'f',9));
@@ -332,6 +344,7 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
         params["saveChannelSubset"] = "ALL";
 	mode = Output;
 	
+	chanDisplayNames.clear();
 	if (dp.chanDisplayNames.size()) {
 		QString str;
 		int i = 0;
@@ -340,11 +353,11 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
 				QString s(*it);
 				s.replace(",", "");
 				str = str + (str.length() ? "," : "") + s.trimmed();
+				chanDisplayNames.push_back(*it);
 			}
 		}
 		params["chanDisplayNames"] = str;
 	}
-	//chanDisplayNames = dp.chanDisplayNames;
 	
     return true;
 }
@@ -453,6 +466,15 @@ bool DataFile::openForRead(const QString & file_in)
 			}
 		}
 	}
+	while (customRanges.size() < nChans) customRanges.push_back(range);
+	chanDisplayNames.clear();
+	if (params.contains("chanDisplayNames")) {
+		QStringList sl = params["chanDisplayNames"].toString().split(",",QString::SkipEmptyParts);
+		for (QStringList::iterator it = sl.begin(); it != sl.end(); ++it) {
+			chanDisplayNames.push_back((*it).trimmed());
+		}
+	}
+	while (chanDisplayNames.size() < nChans) chanDisplayNames.push_back(QString("Ch ") + QString::number(chanDisplayNames.size()));
 
 	// remember channel ids
 	chanIds.clear();

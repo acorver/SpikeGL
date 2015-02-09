@@ -159,6 +159,8 @@ namespace DAQ
         void lock() const { mutex.lock(); }
         void unlock() const { mutex.unlock(); }
 		
+		bool isAuxChan(unsigned num) const { return num >= (nVAIChans-(nExtraChans1+nExtraChans2)); }
+		
     };
 
     //-------- NI DAQmx helper methods -------------

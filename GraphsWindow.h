@@ -102,7 +102,6 @@ private:
                                    double & mean, double & stdev, double & rms,
                                    const char * & unit);
     static int parseGraphNum(QObject *gl_graph_instance);
-    bool isAuxChan(unsigned num) const;    
     void sharedCtor(DAQ::Params & p, bool isSaving);
 
 	void retileGraphsAccordingToSorting();

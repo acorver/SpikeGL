@@ -848,7 +848,8 @@ QString FileViewerWindow::generateGraphNameString(unsigned num, bool verbose) co
 	QString chStr;
 	const int chanId = dataFile.channelIDs()[num];
     if (dataFile.daqMode() == DAQ::AIRegular) {
-        chStr.sprintf("AI%d", chanId);
+		chStr = dataFile.channelDisplayName(num);
+//        chStr.sprintf("AI%d", chanId);
     } else { // MUX mode
 		const int m = dataFile.daqMode();
 		const int first_non_mux_id = dataFile.isDualDevMode() && !dataFile.secondDevIsAuxOnly() ? (DAQ::ModeNumIntans[m]*2 * DAQ::ModeNumChansPerIntan[m]) : (DAQ::ModeNumIntans[m] * DAQ::ModeNumChansPerIntan[m]);

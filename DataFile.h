@@ -92,6 +92,7 @@ public:
 	double fileTimeSecs() const { return double(scanCt) / double(sRate); }
 	double rangeMin(int i=-1) const { if (i >= 0 && i < customRanges.size()) return customRanges[i].min; return range.min; }
 	double rangeMax(int i=-1) const { if (i >= 0 && i < customRanges.size()) return customRanges[i].max; return range.max; }
+	QString channelDisplayName(int i) const { if (i>=0 && i < chanDisplayNames.size()) return chanDisplayNames[i]; return QString("Ch ") + QString::number(i); }
 	/// from meta file: based on the channel subset used for this data file, returns a list of the channel id's for all the channels in the data file
 	const QVector<unsigned> & channelIDs() const { return chanIds; }
 	int pdChanID() const { return pd_chanId; } ///< returns negative value if not using pd channel
@@ -138,6 +139,7 @@ private:
 	DAQ::Range range;
     QVector<DAQ::Range> customRanges;
 	QVector<unsigned> chanIds;
+	QVector<QString> chanDisplayNames;
 	int pd_chanId;
 	
 	/// member vars used for Output mode only
