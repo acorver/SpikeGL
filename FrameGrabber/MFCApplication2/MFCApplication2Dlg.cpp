@@ -248,6 +248,7 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
         if (size_t(pDlg->m_spikeGLFrameBuf.size()) >= len ) {
             xt = (XtCmdImg *)&(pDlg->m_spikeGLFrameBuf[0]);
             xt->init(width, height);
+            pXt = xt->img;
         }
     }
 
