@@ -49,7 +49,9 @@ struct XtCmd {
 };
 
 struct XtCmdImg : public XtCmd {
-    void init() { XtCmd::init(); cmd = XtCmd_Img; }
+    int w, h; ///< in px, the image is always 8bit (grayscale) 
+    unsigned char img[1];
+    void init() { XtCmd::init(); cmd = XtCmd_Img; w = h = 0;  }
     XtCmdImg() { init();  }
 };
 
