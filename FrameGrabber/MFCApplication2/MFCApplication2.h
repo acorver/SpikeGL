@@ -31,3 +31,5 @@ public:
 };
 
 extern MEAControl theApp;
+
+extern BOOL SpikeGL_Mode;

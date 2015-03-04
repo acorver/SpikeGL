@@ -8,6 +8,7 @@
 #include "SapClassBasic.h"
 #include "SapClassGui.h"
 #include "afxcmn.h"
+#include <vector>
 
 class MEAControlDlgAutoProxy;
 
@@ -59,6 +60,7 @@ public:
 	static void					Coreco_Image1_StatusCallback(SapAcqCallbackInfo *pInfo);
 	void						Coreco_Display_Source1_Image(imageRGB4P rgb4, CRect &dRect, bool flag);
 	int							m_RingBufferCounter;													//	Ring Buffer counter for Image Source 1 and Image Source 2
+    std::vector<BYTE>           m_spikeGLFrameBuf;
 
 // Dialog Data
 	enum { IDD = IDD_MFCAPPLICATION2_DIALOG };

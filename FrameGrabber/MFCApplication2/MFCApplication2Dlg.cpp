@@ -11,6 +11,8 @@
 #include "SapClassBasic.h"
 #include "SapClassGui.h"
 
+#include "XtCmd.h"
+
 #include <sys/stat.h>
 
 #ifdef _DEBUG
@@ -33,6 +35,7 @@ BYTE DataGridRaw[40][500];
 int  DataGrid[40][100];
 
 CEvent g_dataReady;			// set flag when both image sources are grabbing. 
+BOOL SpikeGL_Mode = 1;
 
 imageP AllocImageMemory(int w, int h, int s)
 {	uchar	*p;
@@ -156,7 +159,8 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 {
 	MEAControlDlg	*pDlg = (MEAControlDlg *)pInfo->GetContext();
 
-	BYTE			*pData, *pByte, *pRGB4;
+	BYTE			*pData, *pByte, *pRGB4, *pXt = 0;
+    XtCmdImg *xt = 0;
 //	WORD			*word;
 	BYTE			*pLine;
 	int				count;
@@ -168,6 +172,17 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 	int pitch	= pDlg->m_Buffers->GetPitch();				// pitch:	get number of bytes between two consecutive lines of all the buffer resource
 	int width	= pDlg->m_Buffers->GetWidth();				// width:	get the width (in pixel) of the image
 	int height	= pDlg->m_Buffers->GetHeight();				// Height:	get the height of the image
+
+    if (SpikeGL_Mode) {
+        size_t len = (sizeof(XtCmdImg)-1) + width*height;
+        if (size_t(pDlg->m_spikeGLFrameBuf.size()) < len) pDlg->m_spikeGLFrameBuf.resize(len);
+        if (size_t(pDlg->m_spikeGLFrameBuf.size()) >= len ) {
+            xt = (XtCmdImg *)&(pDlg->m_spikeGLFrameBuf[0]);
+            xt->init();
+            pXt = xt->data;
+            xt->len = width*height;
+        }
+    }
 
 	// ring buffer counter, keep track which buffer to read. 
 	pDlg->m_RingBufferCounter++;							// start camera #1 ring buffer counter, total ringbuffer for camera #1 is BSIZE=4.	
@@ -193,6 +208,7 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 			pRGB4++;									// increase address by 8 bit
 			pRGB4++;									// in case RGB, pixel data is two word (32-bit)
 			pLine++;									// increase address by 8 bit becasue 1 byte image
+            if (pXt) *pXt++ = *pByte; // for SpikeGL
 			pByte++;									// increase gray image address by 8 bit
 			DataGridRaw[i][j] = pLine[0];
 			temp.Format(_T("%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x"), DataGridRaw[0][0], DataGridRaw[0][1], DataGridRaw[0][2], DataGridRaw[0][3], DataGridRaw[0][4], DataGridRaw[0][5], DataGridRaw[0][6], DataGridRaw[0][7], DataGridRaw[0][8], DataGridRaw[0][9], DataGridRaw[0][10], DataGridRaw[0][11], DataGridRaw[0][12], DataGridRaw[0][13], DataGridRaw[0][14], DataGridRaw[0][15], DataGridRaw[0][16], DataGridRaw[0][17], DataGridRaw[0][18], DataGridRaw[0][19], DataGridRaw[0][20], DataGridRaw[0][21], DataGridRaw[0][22], DataGridRaw[0][23]);
@@ -202,6 +218,10 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 	}
 
 	g_dataReady.SetEvent();
+
+    // for SpikeGL
+    if (xt) xt->write(stdout);
+
 	// display image #1 
 	CRect rect(0, 0, width, height);
 	pDlg->Coreco_Display_Source1_Image(pDlg->m_DecodedRGB4[count], rect, 1); // show original image
