@@ -12,6 +12,7 @@
 
 class MEAControlDlgAutoProxy;
 
+class SpikeGLHandlerThread;
 
 	typedef struct				//	image data structure	 
 	{	int			width;		//	image width  (# cols) 
@@ -61,6 +62,7 @@ public:
 	void						Coreco_Display_Source1_Image(imageRGB4P rgb4, CRect &dRect, bool flag);
 	int							m_RingBufferCounter;													//	Ring Buffer counter for Image Source 1 and Image Source 2
     std::vector<BYTE>           m_spikeGLFrameBuf;
+    SpikeGLHandlerThread        *m_spikeGLThread;
 
 // Dialog Data
 	enum { IDD = IDD_MFCAPPLICATION2_DIALOG };

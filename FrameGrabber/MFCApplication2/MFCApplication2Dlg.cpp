@@ -12,8 +12,12 @@
 #include "SapClassGui.h"
 
 #include "XtCmd.h"
+#include "Thread.h"
 
 #include <sys/stat.h>
+
+#include <vector>
+#include <list>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -36,6 +40,71 @@ int  DataGrid[40][100];
 
 CEvent g_dataReady;			// set flag when both image sources are grabbing. 
 BOOL SpikeGL_Mode = 1;
+
+
+class SpikeGLHandlerThread : public Thread
+{
+public:
+    volatile bool pleaseStop;
+
+    SpikeGLHandlerThread() : pleaseStop(false), nwriteCmd(0) {}
+    ~SpikeGLHandlerThread();
+
+    bool pushCmd(const XtCmd *c);
+
+protected:
+    void threadFunc();
+private:
+    typedef std::list<std::vector<BYTE> > CmdList;
+    CmdList writeCmds; 
+    volatile int nwriteCmd;
+    Mutex mut;
+};
+
+SpikeGLHandlerThread::~SpikeGLHandlerThread()
+{
+    if (running) {
+        pleaseStop = true;
+        wait(200);
+    }
+}
+
+void SpikeGLHandlerThread::threadFunc()
+{
+    while (!pleaseStop) {
+        if (mut.lock(100)) {
+            CmdList my;
+            my.splice(my.begin(), writeCmds);
+            nwriteCmd = 0;
+            mut.unlock();
+            for (CmdList::iterator it = my.begin(); it != my.end(); ++it) {
+                XtCmd *c = (XtCmd *)&((*it)[0]);
+                if (!c->write(stdout)) {
+                    // todo.. handle error here...
+                }
+            }
+        }
+    }
+}
+
+bool SpikeGLHandlerThread::pushCmd(const XtCmd *c)
+{
+    if (mut.lock()) {
+        if (nwriteCmd >= 60) {
+            // todo.. handle command q overflow here!
+            mut.unlock();
+            return false;
+        }
+        writeCmds.push_back(std::vector<BYTE>());
+        ++nwriteCmd;
+        std::vector<BYTE> & v(writeCmds.back());
+        v.resize( c->len + (((char *)c->data) - (char *)c) );
+        ::memcpy(&v[0], c, v.size());
+        mut.unlock();
+        return true;
+    }
+    return false;
+}
 
 imageP AllocImageMemory(int w, int h, int s)
 {	uchar	*p;
@@ -220,7 +289,10 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 	g_dataReady.SetEvent();
 
     // for SpikeGL
-    if (xt) xt->write(stdout);
+    if (xt) {
+        if (!pDlg->m_spikeGLThread) { pDlg->m_spikeGLThread = new SpikeGLHandlerThread; pDlg->m_spikeGLThread->start(); }
+        if (!pDlg->m_spikeGLThread->pushCmd(xt)) { /* todo:.. handle error here!*/ }
+    }
 
 	// display image #1 
 	CRect rect(0, 0, width, height);
@@ -431,6 +503,7 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(MEAControlDlg::IDD, pParent)
 	, m_BuffBias_Value(0)
 {
+    m_spikeGLThread = 0;
 	EnableActiveAccessibility();
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_pAutoProxy = NULL;
@@ -452,6 +525,8 @@ MEAControlDlg::~MEAControlDlg()
 		if (m_DecodedRGB4[i])			FreeImageRGB4Memory(m_DecodedRGB4[i]);
 		m_DecodedRGB4[i] = 0;
 	}
+
+    if (m_spikeGLThread) delete m_spikeGLThread; m_spikeGLThread = 0;
 }
 
 void MEAControlDlg::DoDataExchange(CDataExchange* pDX)

@@ -25,8 +25,8 @@ struct XtCmd {
 
     bool write(FILE *f) const { 
         size_t n = len + (data - (unsigned char *)(this));
-        size_t r = fwrite(this, 1, n, f);
-        return r==n;
+        size_t r = fwrite(this, n, 1, f);
+        return r==1;
     }
 
     /// read data from file f and put it in output buffer "buf".  If buf is too small to fit the incoming data, buf is grown as needed to accomodate the incoming data (but is never shrunk!)
@@ -40,7 +40,7 @@ struct XtCmd {
             if (size_t(buf.size()) < size_t(fields[2] + n)) buf.resize(fields[2] + n);
             xt = (XtCmd *)&buf[0];
             xt->magic = fields[0]; xt->cmd = fields[1]; xt->len = fields[2];
-            if ( xt->len > 0 && ::fread(xt->data, 1, xt->len, f) != xt->len ) 
+            if ( xt->len > 0 && ::fread(xt->data, xt->len, 1, f) != 1 ) 
                  xt = 0; // error on read, make returned pointer null
         }
         return xt;
