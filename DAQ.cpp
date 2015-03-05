@@ -2038,7 +2038,7 @@ namespace DAQ
 			if (p.state() == QProcess::Running) { 
 				qint64 n_avail = p.bytesAvailable();
                 if (n_avail == 0 && !p.waitForReadyRead(1000)) {
-					if (++tout_ct > 5) {
+                    if (++tout_ct > 15 /* set this back down to 5.. right now it's high because we are testing */) {
 						emit(daqError("Framegrabber slave process: timed out while waiting for data!"));
 						p.kill();
 						return;

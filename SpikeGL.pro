@@ -19,7 +19,8 @@ HEADERS += SpikeGL.h DataFile.h Params.h sha1.h Util.h TypeDefs.h \
            ExportDialogController.h ClickableLabel.h GLSpatialVis.h \
            SpatialVisWindow.h \
            Bug_ConfigDialog.h Bug_Popout.h \
-           FG_ConfigDialog.h
+           FG_ConfigDialog.h \
+    FrameGrabber/MFCApplication2/XtCmd.h
 
 SOURCES += DataFile.cpp osdep.cpp Params.cpp sha1.cpp Util.cpp \
            MainApp.cpp ConsoleWindow.cpp main.cpp \
