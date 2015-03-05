@@ -882,6 +882,7 @@ void MainApp::newAcq()
     noHotKeys = false;
     if (ret == QDialog::Accepted) {
 		doBugAcqInstead = false;
+		doFGAcqInstead = false;
 		if (pregraphs.count() < maxPreGraphs) {
 			acqWaitingForPrecreate = true;
 			noHotKeys = true;
@@ -952,6 +953,7 @@ void MainApp::stopTask()
 	}
     delete task, task = 0;
 	doBugAcqInstead = false;
+	doFGAcqInstead = false;
     fastSettleRunning = false;
     if (taskReadTimer) delete taskReadTimer, taskReadTimer = 0;
     if (graphsWindow) {
