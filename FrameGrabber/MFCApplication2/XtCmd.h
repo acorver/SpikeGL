@@ -39,7 +39,7 @@ struct XtCmd {
         size_t r, n = sizeof(int) * 3;
         r = ::fread(&fields, n, 1, f);
         XtCmd *xt = 0;
-        if (r == 1 && fields[2] >= 0 && fields[0] == XT_CMD_MAGIC && fields[2] <= (1024 * 1024 * 10)) { // make sure everything is kosher with the input, and that len is less than 10MB (hard limit to prevent program crashes)
+        if (r == 1 && fields[2] >= 0 && fields[0] == int(XT_CMD_MAGIC) && fields[2] <= (1024 * 1024 * 10)) { // make sure everything is kosher with the input, and that len is less than 10MB (hard limit to prevent program crashes)
             if (size_t(buf.size()) < size_t(fields[2] + n)) buf.resize(fields[2] + n);
             xt = (XtCmd *)&buf[0];
             xt->magic = fields[0]; xt->cmd = fields[1]; xt->len = fields[2]; xt->param = 0;
@@ -54,8 +54,8 @@ struct XtCmd {
         for (int i = 0; int(i+sizeof(int)) <= bufsz; ++i) {
             int *bufi = (int *)&buf[i];
             int nrem = bufsz-i;
-            if (*bufi == XT_CMD_MAGIC) {
-                if (nrem < sizeof(XtCmd)) return 0; // don't have a full struct's full of data yet, return out of this safely
+            if (*bufi == int(XT_CMD_MAGIC)) {
+                if (nrem < (int)sizeof(XtCmd)) return 0; // don't have a full struct's full of data yet, return out of this safely
                 XtCmd *xt = (XtCmd *)bufi;
                 nrem -= offsetof(XtCmd,data);
                 if (xt->len <= nrem) { // make sure we have all the data in the buffer, and if so, update num_consumed and return the pointer to the data
