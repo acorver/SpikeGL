@@ -23,7 +23,7 @@ struct XtCmd {
         int param; ///< generic param plus also acts as padding... to make subclass members 32-bit word-aligned..
     };
 
-    void init() { magic = XT_CMD_MAGIC; len = 4; cmd = XtCmd_Noop; param = 0; }
+    void init() { magic = XT_CMD_MAGIC; len = sizeof(int); cmd = XtCmd_Noop; param = 0; }
     XtCmd() { init();  }
 
     bool write(FILE *f) const { 
