@@ -51,6 +51,7 @@ int Bug_ConfigDialog::exec()
 			vr = validateForm(errTit, errMsg);
 			if (vr == OK) {
 				DAQ::Params & p(acceptedParams);
+				p.fg.reset();
 				p.bug.reset();
 				p.bug.enabled = true;
 				p.bug.rate = dialog->acqRateCB->currentIndex();

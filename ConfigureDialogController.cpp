@@ -175,7 +175,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
         dialog->deviceCB->addItem(QString("%1 (%2)").arg(*it).arg(DAQ::GetProductName(*it)));
         dialog->deviceCB_2->addItem(QString("%1 (%2)").arg(*it).arg(DAQ::GetProductName(*it)));
         devNames.push_back(*it);
-    }    
+    }
     if ( dialog->deviceCB->count() ) // empty CB sometimes on missing AI??
         dialog->deviceCB->setCurrentIndex(sel);
     if ( dialog->deviceCB_2->count() ) // empty CB sometimes on missing AI??

@@ -1445,6 +1445,9 @@ namespace DAQ
 		return frameSize * FramesPerBlock;
 	}
 	
+	bool RegisteredQProcessProcessStateSignal = false;
+
+	
 	void BugTask::daqThr() 
 	{		
 		pleaseStop = false;
@@ -1455,11 +1458,10 @@ namespace DAQ
 		}
         QProcess p(0); // Qt throws a warning if we create the process with "this" as its QObject parent because 'this' object lives in another thread. Weird.  No harm tho: note that even though the qprocess has no parent, it's ok, it will die anyway :)
 //		p.moveToThread(this);
-		static bool regd = false;
-		if (!regd) {
+		if (!RegisteredQProcessProcessStateSignal) {
 			int id = qRegisterMetaType<QProcess::ProcessState>("QProcess::ProcessState");
 			(void) id;
-			regd = true;
+			RegisteredQProcessProcessStateSignal = true;
 		}
 		Connect(&p, SIGNAL(stateChanged(QProcess::ProcessState)), this, SLOT(slaveProcStateChanged(QProcess::ProcessState)));		
 		p.setProcessChannelMode(QProcess::MergedChannels);
@@ -1902,6 +1904,187 @@ namespace DAQ
 	/* static */ bool BugTask::isEMGChan(unsigned num) { return int(num) >= TotalNeuralChans && int(num) < TotalNeuralChans+TotalEMGChans; }
 	/* static */ bool BugTask::isAuxChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans; }
 	/* static */ bool BugTask::isTTLChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans+TotalAuxChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans+TotalTTLChans; }
+	
+	/*-------------------- Framegrabber Task --------------------------------*/
+	
+	/* static */ const double FGTask::SamplingRate = 28000; // wild guess for now?
+	unsigned FGTask::numChans() const { return params.nVAIChans; }
+    unsigned FGTask::samplingRate() const { return params.srate; }
+	
+	FGTask::FGTask(const Params & ap, QObject *parent)
+	: Task(parent, "framegrabber_spikegl read task", SAMPLE_BUF_Q_SIZE), params(ap)
+	{
+	}
+	
+	FGTask::~FGTask() { if (isRunning()) { stop(); wait(); } }
+	
+	void FGTask::stop() { pleaseStop = true; }
+	
+	void FGTask::slaveProcStateChanged(QProcess::ProcessState ps)
+	{
+		switch(ps) {
+			case QProcess::NotRunning:
+				Debug() << "Framegrabber slave process got state change -> NotRunning";
+				if (isRunning() && !pleaseStop) {
+					emit daqError("Framegrabber slave process died unexpectedly!");
+					pleaseStop = true;
+					Debug() << "FG task thread still running but slave process died -- signaling FGTask::daqThr() to end as a result...";
+				} 
+				break;
+			case QProcess::Starting:
+				Debug() << "Framegrabber slave process got state change -> Starting";
+				break;
+			case QProcess::Running:
+				Debug() << "Framegrabber slave process got state change -> Running";
+				break;
+		}
+	}
+	
+	/* static */ QString FGTask::exeDir()
+	{
+		static QString ret("");
+		if (!ret.length()) {
+			QString tp(QDir::tempPath());
+			if (!tp.endsWith("/")) tp.append("/");
+			ret = tp + "framegrabber_SpikeGLv" + QString(VERSION_STR).right(8) + "/";			
+			Debug() << "FG exedir = " << ret;
+		}
+		return ret;
+	}
+	
+	/* static */ QString FGTask::exePath() { static QString ret(""); if (!ret.length()) ret = exeDir() + exeName(); return ret; }
+	/* static */ QString FGTask::exeName() { return "MFCApplication2.exe"; }
+	
+	bool FGTask::setupExeDir(QString *errOut) const
+	{
+		if (errOut) *errOut = "";
+		static QString exedir (FGTask::exeDir());
+		QDir().mkpath(exedir);
+		QDir d(exedir);
+		if (!d.exists()) { if (errOut) *errOut = QString("Could not create ") + exedir; return false; }
+		static QStringList files; 
+		if (files.empty()) {
+			files.push_back(QString(":/FrameGrabber/FG_for_SpikeGL/bin/Release/") + exeName());
+			files.push_back(":/FrameGrabber/J_2000+_Electrode_8tap_8bit.ccf");
+		}
+		for (QStringList::const_iterator it = files.begin(); it != files.end(); ++it) {
+			const QString bn ((*it).split("/").last());
+			const QString dest (exedir + bn);
+			if (QFile::exists(dest) && !QFile::remove(dest)) {
+				if (errOut) *errOut = dest + " exists and cannot be removed.";
+				return false;
+			}
+			if (!QFile::copy(*it, dest)) {
+				if (errOut) *errOut = dest + " file create/write failed.";
+				return false;
+			}
+			QFile f(dest);
+			if (dest.endsWith(".exe") || dest.endsWith(".dll")) 
+                f.setPermissions(f.permissions()|QFile::ReadOwner|QFile::ExeOwner|QFile::WriteOwner|QFile::WriteOther|QFile::WriteGroup|QFile::ReadOther|QFile::ExeOther|QFile::ReadGroup|QFile::ExeGroup);
+			else
+                f.setPermissions(f.permissions()|QFile::ReadOwner|QFile::ReadOther|QFile::ReadGroup|QFile::WriteOwner|QFile::WriteOther|QFile::WriteGroup);
+		}
+		return true;
+	}
+	
+	
+	void FGTask::daqThr() 
+	{
+		pleaseStop = false;
+		QString err("");
+		if (!setupExeDir(&err)) {
+			emit daqError(err);
+			return;
+		}
+        QProcess p(0); // Qt throws a warning if we create the process with "this" as its QObject parent because 'this' object lives in another thread. Weird.  No harm tho: note that even though the qprocess has no parent, it's ok, it will die anyway :)
+		//		p.moveToThread(this);
+		if (!RegisteredQProcessProcessStateSignal) {
+			int id = qRegisterMetaType<QProcess::ProcessState>("QProcess::ProcessState");
+			(void) id;
+			RegisteredQProcessProcessStateSignal = true;
+		}
+		Connect(&p, SIGNAL(stateChanged(QProcess::ProcessState)), this, SLOT(slaveProcStateChanged(QProcess::ProcessState)));		
+		p.setProcessChannelMode(QProcess::MergedChannels);
+		p.setWorkingDirectory(exeDir());
+		QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+		//env.insert("BLAH", "yes");
+		p.setProcessEnvironment(env);
+#ifdef Q_OS_WINDOWS
+		p.start(exePath());
+#else
+		emit daqError("This platform does not support the framegrabber acquisition mode!");
+		return;
+#endif
+		if (p.state() == QProcess::NotRunning) {
+			emit daqError("Framegrabber slave process startup failed!");
+			p.kill();
+			return;
+		}
+		double t0 = getTime();
+		if (!p.waitForStarted(30000)) {
+			emit daqError("Framegrabber slave process: startup timed out!");
+			p.kill();
+			return;
+		}
+		double tleft = 30.0-(getTime()-t0);
+		if (tleft < 2.0) tleft = 2.0;
+		Debug() << "Framegrabber slave process started ok";
+		
+		int tout_ct = 0;
+		QByteArray data;
+		
+		while (!pleaseStop && p.state() != QProcess::NotRunning) {
+			if (p.state() == QProcess::Running) { 
+				qint64 n_avail = p.bytesAvailable();
+                if (n_avail == 0 && !p.waitForReadyRead(1000)) {
+					if (++tout_ct > 5) {
+						emit(daqError("Framegrabber slave process: timed out while waiting for data!"));
+						p.kill();
+						return;
+					} else {
+						Warning() << "Framegrabber slave process: read timed out, ct=" << tout_ct;
+						continue;
+					}
+				} else if (n_avail < 0) {
+                    emit(daqError("Framegrabber slave process: eof on stdin stream!"));
+					p.kill();
+					return;
+				}
+				if (--tout_ct < 0) tout_ct = 0;
+				QByteArray buf = p.readAll();
+				if (!buf.size()) {
+					Warning() << "Framegrabber slave process: read 0 bytes!";
+					continue;
+				}
+				data.append(buf);
+				int consumed = 0;
+				
+				// todo.. stuff here?
+				data.remove(0,consumed);
+				if (excessiveDebug && data.size()) {
+					Debug() << "Framegrabber slave process: partial data left over " << data.size() << " bytes";
+				}
+								
+			} else msleep (10); // sleep 10ms and try again..
+		}
+		if (p.state() == QProcess::Running) {
+			p.write("exit\r\n");			
+			Debug() << "Sent 'exit' cmd to framegrabber slave process...";
+			p.waitForFinished(500); /// wait 500 msec for finish
+		}
+		if (p.state() != QProcess::NotRunning) {
+			p.kill();
+			Debug() << "framegrabber slave process refuses to exit gracefully.. forcibly killed!";
+		}
+						
+	}
+	
+	/* static */
+	QString FGTask::getChannelName(unsigned num)
+	{ 
+		return QString("AD %1").arg(num); 
+	}
+	
 	
 } // end namespace DAQ
 

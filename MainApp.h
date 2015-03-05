@@ -29,6 +29,7 @@ class PostJuly2011Remuxer;
 class SpatialVisWindow;
 class Bug_ConfigDialog;
 class Bug_Popout;
+class FG_ConfigDialog;
 
 #include <QApplication>
 #include <QColor>
@@ -205,6 +206,9 @@ public slots:
 	/// new *bug3/telemetry* acquisition!
 	void bugAcq();
 
+	/// new *framegrabber* acquisition!
+	void fgAcq();
+
     /// check if everything is ok, ask user, then quit
     void maybeQuit();
     /// returns true if task was closed or it wasn't running, otherwise returns false if user opted to not quit running task
@@ -306,6 +310,8 @@ private:
     mutable QMutex mut; ///< used to lock outDir for now
     ConfigureDialogController *configCtl;
 	Bug_ConfigDialog *bugConfig;
+	FG_ConfigDialog *fgConfig;
+
 
     ConsoleWindow *consoleWindow;
     bool debug, saveCBEnabled;
@@ -375,7 +381,7 @@ private:
 	bool acqWaitingForPrecreate;
 	
 	PostJuly2011Remuxer *addtlDemuxTask;
-	bool doBugAcqInstead, m_sortGraphsByElectrodeId;
+	bool doBugAcqInstead, doFGAcqInstead, m_sortGraphsByElectrodeId;
 	
 public:
 
@@ -384,7 +390,7 @@ public:
         *quitAct, *toggleDebugAct, *toggleExcessiveDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
         *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct, *commandServerOptionsAct,
 		*showChannelSaveCBAct, *enableDSFacilityAct, *fileOpenAct, *tempFileSizeAct, *bringAllToFrontAct,
-	    *sortGraphsByElectrodeAct, *bugAcqAct;
+	    *sortGraphsByElectrodeAct, *bugAcqAct, *fgAcqAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon, bugIcon;

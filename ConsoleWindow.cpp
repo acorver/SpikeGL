@@ -26,6 +26,7 @@ ConsoleWindow::ConsoleWindow(QWidget *p, Qt::WindowFlags f)
 	m->addAction(app->fileOpenAct);
     m->addAction(app->newAcqAct);
     m->addAction(app->bugAcqAct);
+    m->addAction(app->fgAcqAct);
     m->addAction(app->stopAcq);
     m->addSeparator();
     m->addAction(app->quitAct);    

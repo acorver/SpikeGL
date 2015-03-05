@@ -47,6 +47,7 @@
 #include "SpatialVisWindow.h"
 #include "Bug_ConfigDialog.h"
 #include "Bug_Popout.h"
+#include "FG_ConfigDialog.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -124,6 +125,7 @@ MainApp::MainApp(int & argc, char ** argv)
     
     configCtl = new ConfigureDialogController(this);
 	bugConfig = new Bug_ConfigDialog(configCtl->acceptedParams, this);
+	fgConfig = new FG_ConfigDialog(configCtl->acceptedParams, this);
 
     installEventFilter(this); // filter our own events
 
@@ -281,6 +283,10 @@ bool MainApp::processKey(QKeyEvent *event)
 	case 'b':
 	case 'B':
 		bugAcqAct->trigger();
+		return true;
+	case 'f':
+	case 'F':
+		fgAcqAct->trigger();
 		return true;
 	case 'o':
 	case 'O':
@@ -648,6 +654,8 @@ void MainApp::initActions()
              SIGNAL(triggered()), this, SLOT(newAcq()));
     Connect( bugAcqAct = new QAction("New Bug Acquisition... &B", this),
 			SIGNAL(triggered()), this, SLOT(bugAcq()));
+    Connect( fgAcqAct = new QAction("New Framegrabber Acquisition... &F", this),
+			SIGNAL(triggered()), this, SLOT(fgAcq()));
     Connect( stopAcq = new QAction("Stop Running Acquisition ESC", this),
              SIGNAL(triggered()), this, SLOT(maybeCloseCurrentIfRunning()) );
     stopAcq->setEnabled(false);
@@ -708,12 +716,12 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     pdWaitingForStimGL = false;
     warnedDropped = false;
     queuedParams.clear();
-    if (!configCtl || !bugConfig) {
+    if (!configCtl || !bugConfig || !fgConfig) {
         errTitle = "Internal Error";
-        errMsg = "configCtl and/or bugConfig pointer is NULL! Shouldn't happen!";
+        errMsg = "configCtl and/or bugConfig and/or fgConfig pointer is NULL! Shouldn't happen!";
         return false;
     }
-    DAQ::Params & params(doBugAcqInstead ? bugConfig->acceptedParams : configCtl->acceptedParams);    
+    DAQ::Params & params(doBugAcqInstead ? bugConfig->acceptedParams : (doFGAcqInstead ? fgConfig->acceptedParams : configCtl->acceptedParams));    
     lastNPDSamples.clear();
     lastNPDSamples.reserve(params.pdThreshW);
     if (!params.stimGlTrigResave) {
@@ -816,11 +824,15 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     
 	DAQ::NITask *nitask = 0;
 	DAQ::BugTask *bugtask = 0;
-	if (!doBugAcqInstead) 
+	DAQ::FGTask *fgtask = 0;
+	if (!doBugAcqInstead && !doFGAcqInstead) 
 		task = nitask = new DAQ::NITask(params, this);
-	else
+	else if (doBugAcqInstead)
 		task = bugtask = new DAQ::BugTask(params, this);
+	else if (doFGAcqInstead)
+		task = fgtask = new DAQ::FGTask(params, this);
 	doBugAcqInstead = false;
+	doFGAcqInstead = false;
 	if (nitask && !params.doPreJuly2011IntanDemux && params.mode != DAQ::AIRegular) 
 		addtlDemuxTask = new PostJuly2011Remuxer(params, nitask, this);
     taskReadTimer = new QTimer(this);
@@ -894,6 +906,27 @@ void MainApp::bugAcq()
 			startAcqWithPossibleErrDialog();
 	}
 }
+
+/// new *framegrabber* acquisition!
+void MainApp::fgAcq()
+{
+	if (acqWaitingForPrecreate) return; ///< disable 'F' key or new app menu spamming...
+    if ( !maybeCloseCurrentIfRunning() ) return;
+    noHotKeys = true;
+    int ret = fgConfig->exec();
+    noHotKeys = false;
+    if (ret == QDialog::Accepted) {
+		doBugAcqInstead = false;
+		doFGAcqInstead = true;
+		if (pregraphs.count() < maxPreGraphs) {
+			acqWaitingForPrecreate = true;
+			noHotKeys = true;
+			showPrecreateDialog();
+		} else 
+			startAcqWithPossibleErrDialog();
+	}	
+}
+
 
 /// check if everything is ok, ask user, then quit
 void MainApp::maybeQuit()

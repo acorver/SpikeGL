@@ -65,7 +65,7 @@ namespace DAQ
     Mode StringToMode(const QString &);
 
     const QString & AcqStartEndModeToString(AcqStartEndMode m);
-
+	
     struct Params {
         QString outputFile, outputFileOrig, dev, dev2;
 		bool dualDevMode, secondDevIsAuxOnly;
@@ -154,6 +154,12 @@ namespace DAQ
 			int errTol; // out of 144, default is 6
 			void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false; }
 		} bug;
+		
+		struct FG { // framegrabber
+			bool enabled;
+			
+			void reset() { enabled = false; }
+		} fg;
 		
         mutable QMutex mutex;
         void lock() const { mutex.lock(); }
@@ -317,6 +323,8 @@ namespace DAQ
 	};
 #endif
 		
+	extern bool RegisteredQProcessProcessStateSignal;
+
 	class BugTask : public Task {
 		Q_OBJECT
 	public:
@@ -401,6 +409,36 @@ namespace DAQ
 		QStringList cmdQ; QMutex cmdQMut;
 		
 		volatile bool pleaseStop;		
+	};
+	
+	class FGTask : public Task {
+			Q_OBJECT
+	public:
+		FGTask(const Params & acqParams, QObject * parent);
+		~FGTask(); ///< calls stop
+        void stop();
+		
+        unsigned numChans() const;
+        unsigned samplingRate() const;
+		
+		static QString getChannelName(unsigned num);
+		
+		static const double SamplingRate;
+		static const int NumChans = 2304 /* 72 * 32 */;
+	protected:
+		void daqThr(); ///< Reimplemented from DAQ::Task
+	protected slots:
+		void slaveProcStateChanged(QProcess::ProcessState);
+	private:
+		const Params & params;
+		volatile bool pleaseStop;
+		
+		bool setupExeDir(QString * err = 0) const;
+		/// returns a strig of the form "c:\temp\fgrab_spikegl\"
+		static QString exeDir();
+		static QString exePath();
+		static QString exeName();
+		
 	};
 	
 }
