@@ -41,7 +41,8 @@ FORMS += ConfigureDialog.ui AcqPDParams.ui AcqTimedParams.ui Par2Window.ui \
 
 QT += opengl network svg
 
-RESOURCES += qled.qrc bug3.qrc
+RESOURCES += qled.qrc bug3.qrc \
+    framegrabber.qrc
 
 
 win32 {

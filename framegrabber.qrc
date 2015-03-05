@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/FG">
+        <file>FrameGrabber/J_2000+_Electrode_8tap_8bit.ccf</file>
+        <file>FrameGrabber/x64/Release/MFCApplication2.exe</file>
+        <file>FrameGrabber/x64/Release/SapClassGui75.NET_2013.dll</file>
+    </qresource>
+</RCC>

@@ -1907,7 +1907,7 @@ namespace DAQ
 	
 	/*-------------------- Framegrabber Task --------------------------------*/
 	
-	/* static */ const double FGTask::SamplingRate = 28000; // wild guess for now?
+    /* static */ const double FGTask::SamplingRate = 80000000.0 / 576.0; // wild guess for now?
 	unsigned FGTask::numChans() const { return params.nVAIChans; }
     unsigned FGTask::samplingRate() const { return params.srate; }
 	
@@ -1964,8 +1964,9 @@ namespace DAQ
 		if (!d.exists()) { if (errOut) *errOut = QString("Could not create ") + exedir; return false; }
 		static QStringList files; 
 		if (files.empty()) {
-			files.push_back(QString(":/FrameGrabber/FG_for_SpikeGL/bin/Release/") + exeName());
-			files.push_back(":/FrameGrabber/J_2000+_Electrode_8tap_8bit.ccf");
+            files.push_back(QString(":/FG/FrameGrabber/x64/Release/") + exeName());
+            files.push_back(":/FG/FrameGrabber/x64/Release/SapClassGui75.NET_2013.dll");
+            files.push_back(":/FG/FrameGrabber/J_2000+_Electrode_8tap_8bit.ccf");
 		}
 		for (QStringList::const_iterator it = files.begin(); it != files.end(); ++it) {
 			const QString bn ((*it).split("/").last());

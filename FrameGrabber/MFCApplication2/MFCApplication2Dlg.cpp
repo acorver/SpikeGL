@@ -2028,8 +2028,9 @@ void MEAControlDlg::OnBnClickedFramegrabberenable1()
 	if (m_FrameGrabberEnable.GetCheck())
 	{	m_FrameGrabberEnable.EnableWindow(false);	
 		//Coreco_Board_Setup("D:\\Project-Vitax-7\\ProjectBuildingDocumentation\\ProjectBoardTestProgram\\J_2000+_Electrode_8tap_8bit.ccf\0");
-        Coreco_Board_Setup("C:\\Users\\calin\\Desktop\\Src\\XTiumCL_Stuff\\J_2000+_Electrode_8tap_8bit.ccf\0");
-		Frame_Grabber_Enabled = 1;
+        //Coreco_Board_Setup("C:\\Users\\calin\\Desktop\\Src\\XTiumCL_Stuff\\J_2000+_Electrode_8tap_8bit.ccf\0");
+        Coreco_Board_Setup("J_2000+_Electrode_8tap_8bit.ccf\0");
+        Frame_Grabber_Enabled = 1;
 	}
 }
 

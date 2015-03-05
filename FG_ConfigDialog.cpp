@@ -19,7 +19,6 @@ FG_ConfigDialog::FG_ConfigDialog(DAQ::Params & params, QObject *parent)
 	dialogW->setAttribute(Qt::WA_DeleteOnClose, false);
 	dialog = new Ui::FG_ConfigDialog;
     dialog->setupUi(dialogW);
-	
 }
 
 FG_ConfigDialog::~FG_ConfigDialog()
@@ -27,6 +26,7 @@ FG_ConfigDialog::~FG_ConfigDialog()
 	delete dialogW; dialogW = 0;
 	delete dialog; dialog = 0;
 }
+
 
 int FG_ConfigDialog::exec()
 {

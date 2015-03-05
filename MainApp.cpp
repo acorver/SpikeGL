@@ -197,6 +197,8 @@ MainApp::~MainApp()
     saveSettings();
     delete par2Win, par2Win = 0;
     delete configCtl, configCtl = 0;
+    delete bugConfig, bugConfig = 0;
+    delete fgConfig, fgConfig = 0;
     delete sysTray, sysTray = 0;
     delete helpWindow, helpWindow = 0;
     delete pregraphDummyParent, pregraphDummyParent = 0;
