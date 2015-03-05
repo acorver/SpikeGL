@@ -27,7 +27,7 @@ struct XtCmd {
     XtCmd() { init();  }
 
     bool write(FILE *f) const { 
-        size_t n = len + (data - (unsigned char *)(this));
+        size_t n = len + offsetof(XtCmd, data);
         size_t r = fwrite(this, n, 1, f);
         return r==1;
     }
@@ -47,6 +47,25 @@ struct XtCmd {
                  xt = 0; // error on read, make returned pointer null
         }
         return xt;
+    }
+
+    static const XtCmd *parseBuf(const unsigned char *buf, int bufsz, int & num_consumed) {
+        num_consumed = 0;
+        for (int i = 0; int(i+sizeof(int)) <= bufsz; ++i) {
+            int *bufi = (int *)&buf[i];
+            int nrem = bufsz-i;
+            if (*bufi == XT_CMD_MAGIC) {
+                if (nrem < sizeof(XtCmd)) return 0; // don't have a full struct's full of data yet, return out of this safely
+                XtCmd *xt = (XtCmd *)bufi;
+                nrem -= offsetof(XtCmd,data);
+                if (xt->len <= nrem) { // make sure we have all the data in the buffer, and if so, update num_consumed and return the pointer to the data
+                   nrem -= xt->len;
+                   num_consumed = bufsz-nrem;
+                   return xt;
+                }
+            }
+        }
+        return 0; // if this is reached, num_consumed is 0 and the caller should call this function again later when more data arrives
     }
 
 };

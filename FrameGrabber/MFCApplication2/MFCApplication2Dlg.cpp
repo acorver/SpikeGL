@@ -19,6 +19,11 @@
 #include <vector>
 #include <list>
 
+#include <stdio.h>
+#include <fcntl.h>
+#include <io.h>
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -40,7 +45,7 @@ int  DataGrid[40][100];
 
 CEvent g_dataReady;			// set flag when both image sources are grabbing. 
 BOOL SpikeGL_Mode = 1;
-
+BOOL TESTING_SPIKEGL_INTEGRATION = 0;
 
 class SpikeGLHandlerThread : public Thread
 {
@@ -71,8 +76,20 @@ SpikeGLHandlerThread::~SpikeGLHandlerThread()
 
 void SpikeGLHandlerThread::threadFunc()
 {
+    _setmode(_fileno(stdout), O_BINARY);
     while (!pleaseStop) {
-        if (mut.lock(100)) {
+        if (TESTING_SPIKEGL_INTEGRATION) {
+            // for testing.. put fake frames 
+            static int iter = 0;
+            char buf[144 * 32 + sizeof(XtCmdImg) + 128];
+            XtCmdImg *xt = (XtCmdImg *)buf;
+            //::memset(xt->img, (iter % 2 ? 0x4f : 0), 144 * 32);
+            xt->init(144, 32);
+            for (int i = 0; i < 72 * 32; ++i) ((short *)xt->img)[i] = (short)(sinf(((iter+i)%2560)/2560.0f)*32768.f);
+            for (int i = 0; i < 20; ++i) xt->write(stdout);
+            Sleep(1);
+            ++iter;
+        } else if (mut.lock(100)) {
             CmdList my;
             my.splice(my.begin(), writeCmds);
             nwriteCmd = 0;
@@ -275,9 +292,9 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 			pRGB4[0] = pLine[0];						// B
 			pRGB4++;									// increase address by 8 bit
 			pRGB4++;									// in case RGB, pixel data is two word (32-bit)
-			pLine++;									// increase address by 8 bit becasue 1 byte image
-            if (pXt) *pXt++ = *pByte; // for SpikeGL
-			pByte++;									// increase gray image address by 8 bit
+            if (pXt) *pXt++ = *pLine; // for SpikeGL
+            pLine++;									// increase address by 8 bit becasue 1 byte image
+            pByte++;									// increase gray image address by 8 bit
 			DataGridRaw[i][j] = pLine[0];
 			temp.Format(_T("%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x"), DataGridRaw[0][0], DataGridRaw[0][1], DataGridRaw[0][2], DataGridRaw[0][3], DataGridRaw[0][4], DataGridRaw[0][5], DataGridRaw[0][6], DataGridRaw[0][7], DataGridRaw[0][8], DataGridRaw[0][9], DataGridRaw[0][10], DataGridRaw[0][11], DataGridRaw[0][12], DataGridRaw[0][13], DataGridRaw[0][14], DataGridRaw[0][15], DataGridRaw[0][16], DataGridRaw[0][17], DataGridRaw[0][18], DataGridRaw[0][19], DataGridRaw[0][20], DataGridRaw[0][21], DataGridRaw[0][22], DataGridRaw[0][23]);
 			pDlg->m_DataGridRaw1.SetWindowTextW(temp);
@@ -503,6 +520,10 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	, m_BuffBias_Value(0)
 {
     m_spikeGLThread = 0;
+    if (TESTING_SPIKEGL_INTEGRATION) {
+        m_spikeGLThread = new SpikeGLHandlerThread;
+        m_spikeGLThread->start();
+    }
 	EnableActiveAccessibility();
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_pAutoProxy = NULL;

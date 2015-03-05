@@ -92,7 +92,9 @@ int FG_ConfigDialog::exec()
 				p.usePD = 0;
 				
 				saveSettings();
-				
+
+                p.lowLatency = true; // we HAVE to do this for fg_mode, otherwise this never works right!
+
 				// this stuff doesn't need to be saved since it's constant and will mess up regular acq "remembered" values
 				p.dev = "XtiumCL PX4 Framegraber + INTAN";
 				p.nExtraChans1 = 0;

@@ -25,6 +25,7 @@
 #include <math.h>
 #include "SampleBufQ.h"
 #include "MainApp.h"
+#include "FrameGrabber/MFCApplication2/XtCmd.h"
 
 #define DAQmxErrChk(functionCall) do { if( DAQmxFailed(error=(functionCall)) ) { callStr = STR(functionCall); goto Error_Out; } } while (0)
 #define DAQmxErrChkNoJump(functionCall) ( DAQmxFailed(error=(functionCall)) && (callStr = STR(functionCall)) )
@@ -1512,9 +1513,10 @@ namespace DAQ
 		
 		//QFile dump("test.out");
 		//dump.open(QIODevice::WriteOnly|QIODevice::Truncate);
-		
+        int notRunningCt = 0;
+
 		data.reserve(4*1024*1024);
-		while (!pleaseStop && p.state() != QProcess::NotRunning) {
+        while (!pleaseStop /*&& p.state() != QProcess::NotRunning*/) {
 			if (p.state() == QProcess::Running) { 
 				qint64 n_avail = p.bytesAvailable();
                 if (n_avail == 0 && !p.waitForReadyRead(1000)) {
@@ -1559,7 +1561,15 @@ namespace DAQ
 				
 				processCmds(p); ///< commands get enqueued by setHpFilter() and setNotchFilter() calls from outside this thread, we forward them via stdin to the slave process
 				
-			} else msleep (10); // sleep 10ms and try again..
+            } else {
+                msleep(10); // sleep 10ms and try again..
+                if (++notRunningCt > 100) {
+                    emit daqError("Framegrabber slave process died unexpectedly!");
+                    p.kill();
+                    return;
+                }
+            }
+
 		}
 		if (p.state() == QProcess::Running) {
 			p.write("exit\r\n");			
@@ -1907,7 +1917,7 @@ namespace DAQ
 	
 	/*-------------------- Framegrabber Task --------------------------------*/
 	
-    /* static */ const double FGTask::SamplingRate = 80000000.0 / 576.0; // wild guess for now?
+    /* static */ const double FGTask::SamplingRate = /*100;*/ 20000.0; // 20kHz sampling rate!
 	unsigned FGTask::numChans() const { return params.nVAIChans; }
     unsigned FGTask::samplingRate() const { return params.srate; }
 	
@@ -2031,14 +2041,14 @@ namespace DAQ
 		if (tleft < 2.0) tleft = 2.0;
 		Debug() << "Framegrabber slave process started ok";
 		
-		int tout_ct = 0;
+        int tout_ct = 0, notRunningCt = 0;
 		QByteArray data;
 		
-		while (!pleaseStop && p.state() != QProcess::NotRunning) {
+        while (!pleaseStop/* && p.state() != QProcess::NotRunning*/) {
 			if (p.state() == QProcess::Running) { 
 				qint64 n_avail = p.bytesAvailable();
                 if (n_avail == 0 && !p.waitForReadyRead(1000)) {
-                    if (++tout_ct > 15 /* set this back down to 5.. right now it's high because we are testing */) {
+                    if (++tout_ct > 30 /* set this back down to 5.. right now it's high because we are testing */) {
 						emit(daqError("Framegrabber slave process: timed out while waiting for data!"));
 						p.kill();
 						return;
@@ -2061,23 +2071,71 @@ namespace DAQ
 				int consumed = 0;
 				
 				// todo.. stuff here?
+                {
+                    std::vector<const XtCmd *> cmds;
+                    cmds.reserve(16384);
+                    const XtCmd *xt = 0;
+                    int cons = 0, nscans = 0;
+                    unsigned char *pdata = (unsigned char *)data.data();
+                    while ((xt = XtCmd::parseBuf(pdata+consumed, data.size()-consumed, cons))) {
+                        consumed += cons;
+                        cmds.push_back(xt);
+                        if (xt->cmd == XtCmd_Img) ++nscans;
+                    }
+                    std::vector<int16> scans;
+                    scans.reserve(params.nVAIChans * nscans);
+                    for (std::vector<const XtCmd *>::iterator it = cmds.begin(); it != cmds.end(); ++it) {
+                        xt = *it;
+                        if (xt->cmd == XtCmd_Img) {
+                            const XtCmdImg *xi = (const XtCmdImg *)xt;
+                            //if (excessiveDebug) Debug() << "Got image of size " << xi->w << "x" << xi->h;
+                            if ((xi->w/2)*xi->h != (int)params.nVAIChans) {
+                                emit(daqError("Received image frame from slave process but it's not of the right size!"));
+                                p.kill();
+                                return;
+                            }
+                            scans.insert(scans.end(),(int16*)xi->img,((int16 *)xi->img)+params.nVAIChans);
+                        } else {
+                            // todo.. handle other cmds coming in?
+                        }
+                    }
+                    if (scans.size()) {
+                        quint64 oldTotalRead = totalRead;
+                        totalReadMut.lock();
+                        totalRead += (quint64)scans.size();
+                        totalReadMut.unlock();
+                        enqueueBuffer(scans, oldTotalRead, true);
+                        if (!oldTotalRead) emit(gotFirstScan());
+                    }
+                }
+
 				data.remove(0,consumed);
+
 				if (excessiveDebug && data.size()) {
 					Debug() << "Framegrabber slave process: partial data left over " << data.size() << " bytes";
 				}
 								
-			} else msleep (10); // sleep 10ms and try again..
+            } else {
+                msleep(10); // sleep 10ms and try again..
+                if (++notRunningCt > 100) {
+                    emit daqError("Framegrabber slave process died unexpectedly!");
+                    p.kill();
+                    return;
+                }
+            }
 		}
 		if (p.state() == QProcess::Running) {
-			p.write("exit\r\n");			
-			Debug() << "Sent 'exit' cmd to framegrabber slave process...";
-			p.waitForFinished(500); /// wait 500 msec for finish
+            //p.write("exit\r\n");
+            //Debug() << "Sent 'exit' cmd to framegrabber slave process...";
+            //p.waitForFinished(500); /// wait 500 msec for finish
 		}
 		if (p.state() != QProcess::NotRunning) {
 			p.kill();
 			Debug() << "framegrabber slave process refuses to exit gracefully.. forcibly killed!";
-		}
-						
+        }/* else if (totalRead==0) { // NotRunning and we never got a scan...
+            emit daqError("Framegrabber slave process died unexpectedly!");
+        }*/
+
 	}
 	
 	/* static */
