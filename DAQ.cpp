@@ -1345,56 +1345,37 @@ namespace DAQ
         return ret;
     }
 	
-
-    /*static*/ const double BugTask::SamplingRate = 16.0 / 0.0006144;
-    /*static*/ const double BugTask::ADCStepNeural = 2.5;                // units = uV
-    /*static*/ const double BugTask::ADCStepEMG = 0.025;                 // units = mV
-    /*static*/ const double BugTask::ADCStepAux = 0.0052;                // units = V
-    /*static*/ const double BugTask::ADCStep = 1.02 * 1.225 / 1024.0;    // units = V
-    /*static*/ const double BugTask::MaxBER = -1.0;
-    /*static*/ const double BugTask::MinBER = -5.0;
-
-	BugTask::BugTask(const DAQ::Params & p, QObject *parent)
-	: Task(parent, "bug3_spikegl read task", SAMPLE_BUF_Q_SIZE), params(p)
+	SubprocessTask::SubprocessTask(const DAQ::Params & p, QObject *parent,
+									   const QString & shortName,
+								   const QString & exeName)
+	: Task(parent, shortName + " DAQ task", SAMPLE_BUF_Q_SIZE), params(p),
+	  shortName(shortName), dirName(shortName + "_SpikeGLv" + QString(VERSION_STR).right(8)), exeName(exeName)
 	{
 	}
 	
-	BugTask::~BugTask() { if (isRunning()) { stop(); wait(); } }
+	SubprocessTask::~SubprocessTask() { if (isRunning()) { stop(); wait(); } }
 	
-	void BugTask::stop() { pleaseStop = true; }
+	void SubprocessTask::stop() { pleaseStop = true; }
 	
-    unsigned BugTask::numChans() const { return params.nVAIChans; }
-    unsigned BugTask::samplingRate() const { return params.srate; }
-
-	/* static */ QString BugTask::exeDir()
+	QString SubprocessTask::exeDir() const
 	{
-		static QString ret("");
-		if (!ret.length()) {
-			QString tp(QDir::tempPath());
-			if (!tp.endsWith("/")) tp.append("/");
-			ret = tp + "bug3_SpikeGLv" + QString(VERSION_STR).right(8) + "/";			
-			Debug() << "Bug3 exedir = " << ret;
-		}
+		QString tp(QDir::tempPath());
+		if (!tp.endsWith("/")) tp.append("/");
+		QString ret = tp + dirName + QString(VERSION_STR).right(8) + "/";			
+		Debug() << shortName << " exedir = " << ret;
 		return ret;
 	}
 	
-	/* static */ QString BugTask::exePath() { static QString ret(""); if (!ret.length()) ret = exeDir() + exeName(); return ret; }
-	/* static */ QString BugTask::exeName() { return "bug3_spikegl.exe"; }
+	QString SubprocessTask::exePath() const { return exeDir() + exeName; }
 	
-	bool BugTask::setupExeDir(QString *errOut) const
+	bool SubprocessTask::setupExeDir(QString *errOut) const
 	{
 		if (errOut) *errOut = "";
-		static QString exedir (BugTask::exeDir());
+		QString exedir (exeDir());
 		QDir().mkpath(exedir);
 		QDir d(exedir);
 		if (!d.exists()) { if (errOut) *errOut = QString("Could not create ") + exedir; return false; }
-		static QStringList files; 
-		if (files.empty()) {
-			files.push_back(QString(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/bin/Release/") + exeName());
-			files.push_back(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/bug3a_receiver_1.bit");
-			files.push_back(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/libFrontPanel-csharp.dll");
-			files.push_back(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/libFrontPanel-pinv.dll");
-		}
+		QStringList files = filesList();
 		for (QStringList::const_iterator it = files.begin(); it != files.end(); ++it) {
 			const QString bn ((*it).split("/").last());
 			const QString dest (exedir + bn);
@@ -1415,42 +1396,34 @@ namespace DAQ
 		return true;
 	}
 	
-	void BugTask::slaveProcStateChanged(QProcess::ProcessState ps)
+	void SubprocessTask::slaveProcStateChanged(QProcess::ProcessState ps)
 	{
 		switch(ps) {
 			case QProcess::NotRunning:
-				Debug() << "Bug3 slave process got state change -> NotRunning";
+				Debug() << shortName << " slave process got state change -> NotRunning";
 				if (isRunning() && !pleaseStop) {
-					emit daqError("Bug3 slave process died unexpectedly!");
+					emit daqError(shortName + " slave process died unexpectedly!");
 					pleaseStop = true;
-					Debug() << "Bug3 task thread still running but slave process died -- signaling BugTask::daqThr() to end as a result...";
+					Debug() << shortName << " task thread still running but slave process died -- signaling BugTask::daqThr() to end as a result...";
 				} 
 				break;
 			case QProcess::Starting:
-				Debug() << "Bug3 slave process got state change -> Starting";
+				Debug() << shortName << " slave process got state change -> Starting";
 				break;
 			case QProcess::Running:
-				Debug() << "Bug3 slave process got state change -> Running";
+				Debug() << shortName << " slave process got state change -> Running";
 				break;
 		}
 	}
 	
-	int BugTask::usbDataBlockSizeSamps() const
-	{
-		int frameSize = 174;
-		switch (params.bug.rate) {
-			case 0: frameSize = 48; break;
-			case 1: frameSize = 96; break;
-			default: break;
-		}
-		return frameSize * FramesPerBlock;
-	}
-	
-	bool RegisteredQProcessProcessStateSignal = false;
-
-	
-	void BugTask::daqThr() 
+	void SubprocessTask::daqThr() 
 	{		
+		if (!platformSupported()) {
+			emit daqError(QString("This platform does not support the ") + shortName + " acquisition mode!");
+			pleaseStop = true;
+			return;			
+		}
+		
 		pleaseStop = false;
 		QString err("");
 		if (!setupExeDir(&err)) {
@@ -1458,16 +1431,150 @@ namespace DAQ
 			return;
 		}
         QProcess p(0); // Qt throws a warning if we create the process with "this" as its QObject parent because 'this' object lives in another thread. Weird.  No harm tho: note that even though the qprocess has no parent, it's ok, it will die anyway :)
-//		p.moveToThread(this);
-		if (!RegisteredQProcessProcessStateSignal) {
+		//		p.moveToThread(this);
+		static bool RegisteredMetaType = false;
+		if (!RegisteredMetaType) {
 			int id = qRegisterMetaType<QProcess::ProcessState>("QProcess::ProcessState");
 			(void) id;
-			RegisteredQProcessProcessStateSignal = true;
+			RegisteredMetaType = true;
 		}
 		Connect(&p, SIGNAL(stateChanged(QProcess::ProcessState)), this, SLOT(slaveProcStateChanged(QProcess::ProcessState)));		
 		p.setProcessChannelMode(QProcess::MergedChannels);
 		p.setWorkingDirectory(exeDir());
 		QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+		setupEnv(env);
+		p.setProcessEnvironment(env);
+		if (!interpreter().length()) {
+			p.start(exePath());
+		} else  {
+			p.start(interpreter(), QStringList()<<exePath());
+		} 
+		if (p.state() == QProcess::NotRunning) {
+			emit daqError(shortName + " slave process startup failed!");
+			p.kill();
+			return;
+		}
+		double t0 = getTime();
+		if (!p.waitForStarted(30000)) {
+			emit daqError(shortName + " slave process: startup timed out!");
+			p.kill();
+			return;
+		}
+		double tleft = 30.0-(getTime()-t0);
+		if (tleft < 2.0) tleft = 2.0;
+		Debug() << shortName << " slave process started ok";
+		int tout_ct = 0;
+		QByteArray data;
+		
+        int notRunningCt = 0;
+		
+		data.reserve(4*1024*1024);
+        while (!pleaseStop /*&& p.state() != QProcess::NotRunning*/) {
+			if (p.state() == QProcess::Running) { 
+				qint64 n_avail = p.bytesAvailable();
+                if (n_avail == 0 && !p.waitForReadyRead(1000)) {
+					if (++tout_ct > readTimeoutMaxSecs()) {
+						emit(daqError(shortName + " slave process: timed out while waiting for data!"));
+						p.kill();
+						return;
+					} else {
+						Warning() << shortName << " slave process: read timed out, ct=" << tout_ct;
+						continue;
+					}
+				} else if (n_avail < 0) {
+                    emit(daqError(shortName + " slave process: eof on stdin stream!"));
+					p.kill();
+					return;
+				}
+				if (--tout_ct < 0) tout_ct = 0;
+				QByteArray buf = p.readAll();
+				if (!buf.size()) {
+					Warning() << shortName << " slave process: read 0 bytes!";
+					continue;
+				}
+				data.append(buf);
+				unsigned consumed = gotInput(data, buf, p);
+				data.remove(0,consumed);
+				if (excessiveDebug && data.size()) {
+					Debug() << shortName << " slave process: partial data left over " << data.size() << " bytes";
+				}
+				
+				processCmds(p);
+				
+            } else {
+                msleep(10); // sleep 10ms and try again..
+                if (++notRunningCt > 100) {
+                    emit daqError(shortName + " slave process died unexpectedly!");
+                    p.kill();
+                    return;
+                }
+            }
+			
+		}
+		if (p.state() == QProcess::Running) {
+			sendExitCommand(p);
+			Debug() << "Sent 'exit' cmd to " << shortName << " slave process...";
+			p.waitForFinished(500); /// wait 500 msec for finish
+		}
+		if (p.state() != QProcess::NotRunning) {
+			p.kill();
+			Debug() << shortName << " slave process refuses to exit gracefully.. forcibly killed!";
+		}
+	}
+	
+	void SubprocessTask::pushCmd(const QByteArray &c) {
+		cmdQMut.lock();
+		cmdQ.push_back(c);
+		cmdQMut.unlock();
+	}
+	
+	void SubprocessTask::processCmds(QProcess & p)
+	{
+		QList<QByteArray> cmds;
+		cmdQMut.lock();
+		cmds = cmdQ;
+		cmdQ.clear();
+		cmdQMut.unlock();
+		for (QList<QByteArray>::iterator it = cmds.begin(); it != cmds.end(); ++it) {
+			if (outputCmdsAreBinary()) {
+				Debug() << shortName << ": sending command of size " << (*it).size() << " bytes";				
+			} else {
+				Debug() << shortName << ": sending command `" << *it << "'";
+			}
+			p.write(*it);
+		}
+	}
+	
+
+    /*static*/ const double BugTask::SamplingRate = 16.0 / 0.0006144;
+    /*static*/ const double BugTask::ADCStepNeural = 2.5;                // units = uV
+    /*static*/ const double BugTask::ADCStepEMG = 0.025;                 // units = mV
+    /*static*/ const double BugTask::ADCStepAux = 0.0052;                // units = V
+    /*static*/ const double BugTask::ADCStep = 1.02 * 1.225 / 1024.0;    // units = V
+    /*static*/ const double BugTask::MaxBER = -1.0;
+    /*static*/ const double BugTask::MinBER = -5.0;
+
+	BugTask::BugTask(const DAQ::Params & p, QObject *parent)
+	: SubprocessTask(p, parent, "Bug3", "bug3_spikegl.exe")
+	{
+		state = 0; nblocks = 0; nlines = 0;
+	}
+		
+    unsigned BugTask::numChans() const { return params.nVAIChans; }
+    unsigned BugTask::samplingRate() const { return params.srate; }
+	
+	QStringList BugTask::filesList() const
+	{
+		QStringList files; 
+		files.push_back(QString(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/bin/Release/") + exeName);
+		files.push_back(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/bug3a_receiver_1.bit");
+		files.push_back(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/libFrontPanel-csharp.dll");
+		files.push_back(":/Bug3/Bug3_for_SpikeGL/Bug3_for_SpikeGL/libFrontPanel-pinv.dll");
+		return files;
+	}
+	
+	void BugTask::setupEnv(QProcessEnvironment & env) const
+	{
 		env.insert("BUG3_SPIKEGL_MODE", "yes");
 		switch (params.bug.rate) {
 			case 0:
@@ -1483,105 +1590,44 @@ namespace DAQ
 		env.insert("BUG3_CHANGES_ON_CLOCK", QString::number(params.bug.clockEdge));
 		env.insert("BUG3_ERR_TOLERANCE", QString::number(params.bug.errTol));
 		if (params.bug.hpf > 0) env.insert("BUG3_HIGHPASS_FILTER_CUTOFF", QString::number(params.bug.hpf));
-		if (params.bug.snf) env.insert("BUG3_60HZ_NOTCH_FILTER", "yes");
-		p.setProcessEnvironment(env);
-#ifdef Q_OS_WINDOWS
-		p.start(exePath());
-#else
-		p.start("mono", QStringList()<<exePath());
-#endif
-		if (p.state() == QProcess::NotRunning) {
-			emit daqError("Bug3 slave process startup failed!");
-			p.kill();
-			return;
-		}
-		double t0 = getTime();
-		if (!p.waitForStarted(30000)) {
-			emit daqError("Bug3 slave process: startup timed out!");
-			p.kill();
-			return;
-		}
-		double tleft = 30.0-(getTime()-t0);
-		if (tleft < 2.0) tleft = 2.0;
-		Debug() << "Bug3 slave process started ok";
-		int state = 0;
-		const int nstates = 36;
-		int tout_ct = 0;
-		quint64 nblocks = 0, nlines = 0;
-		QMap<QString, QString> block;
-		QByteArray data;
+		if (params.bug.snf) env.insert("BUG3_60HZ_NOTCH_FILTER", "yes");		
+	}
 		
-		//QFile dump("test.out");
-		//dump.open(QIODevice::WriteOnly|QIODevice::Truncate);
-        int notRunningCt = 0;
-
-		data.reserve(4*1024*1024);
-        while (!pleaseStop /*&& p.state() != QProcess::NotRunning*/) {
-			if (p.state() == QProcess::Running) { 
-				qint64 n_avail = p.bytesAvailable();
-                if (n_avail == 0 && !p.waitForReadyRead(1000)) {
-					if (++tout_ct > 5) {
-						emit(daqError("Bug3 slave process: timed out while waiting for data!"));
-						p.kill();
-						return;
-					} else {
-						Warning() << "Bug3 slave process: read timed out, ct=" << tout_ct;
-						continue;
-					}
-				} else if (n_avail < 0) {
-                    emit(daqError("Bug3 slave process: eof on stdin stream!"));
-					p.kill();
-					return;
-				}
-				if (--tout_ct < 0) tout_ct = 0;
-				QByteArray buf = p.readAll();
-				if (!buf.size()) {
-					Warning() << "Bug3 slave process: read 0 bytes!";
-					continue;
-				}
-				data.append(buf);
-				int consumed = 0;
-				for (int i = (data.size()-buf.size()), l = 0; i < data.size(); ++i) {
-					if (data[i] == '\n') {
-						QString line = data.mid(l, i-l+1);
-						l = consumed = i+1;
-						//dump.write(line.toUtf8());
-						processLine(line, block, nblocks, state, nlines); 
-						if (state > nstates) {
-							processBlock(block, nblocks++);
-							block.clear();
-							state = 0;
-						}
-					}
-				}
-				data.remove(0,consumed);
-				if (excessiveDebug && data.size()) {
-					Debug() << "Bug3 slave process: partial data left over " << data.size() << " bytes";
-				}
-				
-				processCmds(p); ///< commands get enqueued by setHpFilter() and setNotchFilter() calls from outside this thread, we forward them via stdin to the slave process
-				
-            } else {
-                msleep(10); // sleep 10ms and try again..
-                if (++notRunningCt > 100) {
-                    emit daqError("Framegrabber slave process died unexpectedly!");
-                    p.kill();
-                    return;
-                }
-            }
-
-		}
-		if (p.state() == QProcess::Running) {
-			p.write("exit\r\n");			
-			Debug() << "Sent 'exit' cmd to bug3 slave process...";
-			p.waitForFinished(500); /// wait 500 msec for finish
-		}
-		if (p.state() != QProcess::NotRunning) {
-			p.kill();
-			Debug() << "Bug3 slave process refuses to exit gracefully.. forcibly killed!";
-		}
+	void BugTask::sendExitCommand(QProcess & p) const 
+	{
+		p.write("exit\r\n");				
 	}
 	
+	int BugTask::usbDataBlockSizeSamps() const
+	{
+		int frameSize = 174;
+		switch (params.bug.rate) {
+			case 0: frameSize = 48; break;
+			case 1: frameSize = 96; break;
+			default: break;
+		}
+		return frameSize * FramesPerBlock;
+	}
+	
+	unsigned BugTask::gotInput(const QByteArray & data, const QByteArray & buf, QProcess & p) 
+	{
+		(void) p;
+		unsigned consumed = 0;
+		for (int i = (data.size()-buf.size()), l = 0; i < data.size(); ++i) {
+			if (data[i] == '\n') {
+				QString line = data.mid(l, i-l+1);
+				l = consumed = i+1;
+				processLine(line, block, nblocks, state, nlines); 
+				if (state > nstates) {
+					processBlock(block, nblocks++);
+					block.clear();
+					state = 0;
+				}
+			}
+		}
+		return consumed;
+	}
+			
 	void BugTask::processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines)
 	{
 		QString line = lineUntrimmed.trimmed();
@@ -1870,28 +1916,11 @@ namespace DAQ
 	
 	void BugTask::setNotchFilter(bool enabled)
 	{
-		pushCmd(QString("SNF=%1").arg(enabled ? "1" : "0"));
+		pushCmd(QString("SNF=%1\r\n").arg(enabled ? "1" : "0").toUtf8());
 	}
 	void BugTask::setHPFilter(int val) { ///<   <=0 == off, >0 = freq in Hz to high-pass filter
 		if (val < 0) val = 0;
-		pushCmd(QString("HPF=%1").arg(val));
-	}
-	void BugTask::pushCmd(const QString &c) {
-		cmdQMut.lock();
-		cmdQ.push_back(c);
-		cmdQMut.unlock();
-	}
-	void BugTask::processCmds(QProcess & p)
-	{
-		QStringList cmds;
-		cmdQMut.lock();
-		cmds = cmdQ;
-		cmdQ.clear();
-		cmdQMut.unlock();
-		for (QStringList::iterator it = cmds.begin(); it != cmds.end(); ++it) {
-			Debug() << "Bug3: sending command `" << *it << "'";
-			p.write(((*it) + "\r\n").toUtf8());
-		}		
+		pushCmd(QString("HPF=%1\r\n").arg(val).toUtf8());
 	}
 	
 	/* static */ QString BugTask::getChannelName(unsigned num)
@@ -1922,220 +1951,62 @@ namespace DAQ
     unsigned FGTask::samplingRate() const { return params.srate; }
 	
 	FGTask::FGTask(const Params & ap, QObject *parent)
-	: Task(parent, "framegrabber_spikegl read task", SAMPLE_BUF_Q_SIZE), params(ap)
+	: SubprocessTask(ap, parent, "Framegrabber", "MFCApplication2.exe")
 	{
 	}
-	
-	FGTask::~FGTask() { if (isRunning()) { stop(); wait(); } }
-	
-	void FGTask::stop() { pleaseStop = true; }
-	
-	void FGTask::slaveProcStateChanged(QProcess::ProcessState ps)
-	{
-		switch(ps) {
-			case QProcess::NotRunning:
-				Debug() << "Framegrabber slave process got state change -> NotRunning";
-				if (isRunning() && !pleaseStop) {
-					emit daqError("Framegrabber slave process died unexpectedly!");
-					pleaseStop = true;
-					Debug() << "FG task thread still running but slave process died -- signaling FGTask::daqThr() to end as a result...";
-				} 
-				break;
-			case QProcess::Starting:
-				Debug() << "Framegrabber slave process got state change -> Starting";
-				break;
-			case QProcess::Running:
-				Debug() << "Framegrabber slave process got state change -> Running";
-				break;
-		}
-	}
-	
-	/* static */ QString FGTask::exeDir()
-	{
-		static QString ret("");
-		if (!ret.length()) {
-			QString tp(QDir::tempPath());
-			if (!tp.endsWith("/")) tp.append("/");
-			ret = tp + "framegrabber_SpikeGLv" + QString(VERSION_STR).right(8) + "/";			
-			Debug() << "FG exedir = " << ret;
-		}
-		return ret;
-	}
-	
-	/* static */ QString FGTask::exePath() { static QString ret(""); if (!ret.length()) ret = exeDir() + exeName(); return ret; }
-	/* static */ QString FGTask::exeName() { return "MFCApplication2.exe"; }
-	
-	bool FGTask::setupExeDir(QString *errOut) const
-	{
-		if (errOut) *errOut = "";
-		static QString exedir (FGTask::exeDir());
-		QDir().mkpath(exedir);
-		QDir d(exedir);
-		if (!d.exists()) { if (errOut) *errOut = QString("Could not create ") + exedir; return false; }
-		static QStringList files; 
-		if (files.empty()) {
-            files.push_back(QString(":/FG/FrameGrabber/x64/Release/") + exeName());
-            files.push_back(":/FG/FrameGrabber/x64/Release/SapClassGui75.NET_2013.dll");
-            files.push_back(":/FG/FrameGrabber/J_2000+_Electrode_8tap_8bit.ccf");
-		}
-		for (QStringList::const_iterator it = files.begin(); it != files.end(); ++it) {
-			const QString bn ((*it).split("/").last());
-			const QString dest (exedir + bn);
-			if (QFile::exists(dest) && !QFile::remove(dest)) {
-				if (errOut) *errOut = dest + " exists and cannot be removed.";
-				return false;
-			}
-			if (!QFile::copy(*it, dest)) {
-				if (errOut) *errOut = dest + " file create/write failed.";
-				return false;
-			}
-			QFile f(dest);
-			if (dest.endsWith(".exe") || dest.endsWith(".dll")) 
-                f.setPermissions(f.permissions()|QFile::ReadOwner|QFile::ExeOwner|QFile::WriteOwner|QFile::WriteOther|QFile::WriteGroup|QFile::ReadOther|QFile::ExeOther|QFile::ReadGroup|QFile::ExeGroup);
-			else
-                f.setPermissions(f.permissions()|QFile::ReadOwner|QFile::ReadOther|QFile::ReadGroup|QFile::WriteOwner|QFile::WriteOther|QFile::WriteGroup);
-		}
-		return true;
-	}
-	
-	
-	void FGTask::daqThr() 
-	{
-		pleaseStop = false;
-		QString err("");
-		if (!setupExeDir(&err)) {
-			emit daqError(err);
-			return;
-		}
-        QProcess p(0); // Qt throws a warning if we create the process with "this" as its QObject parent because 'this' object lives in another thread. Weird.  No harm tho: note that even though the qprocess has no parent, it's ok, it will die anyway :)
-		//		p.moveToThread(this);
-		if (!RegisteredQProcessProcessStateSignal) {
-			int id = qRegisterMetaType<QProcess::ProcessState>("QProcess::ProcessState");
-			(void) id;
-			RegisteredQProcessProcessStateSignal = true;
-		}
-		Connect(&p, SIGNAL(stateChanged(QProcess::ProcessState)), this, SLOT(slaveProcStateChanged(QProcess::ProcessState)));		
-		p.setProcessChannelMode(QProcess::MergedChannels);
-		p.setWorkingDirectory(exeDir());
-		QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-		//env.insert("BLAH", "yes");
-		p.setProcessEnvironment(env);
-#ifdef Q_OS_WINDOWS
-		p.start(exePath());
-#else
-		emit daqError("This platform does not support the framegrabber acquisition mode!");
-		return;
-#endif
-		if (p.state() == QProcess::NotRunning) {
-			emit daqError("Framegrabber slave process startup failed!");
-			p.kill();
-			return;
-		}
-		double t0 = getTime();
-		if (!p.waitForStarted(30000)) {
-			emit daqError("Framegrabber slave process: startup timed out!");
-			p.kill();
-			return;
-		}
-		double tleft = 30.0-(getTime()-t0);
-		if (tleft < 2.0) tleft = 2.0;
-		Debug() << "Framegrabber slave process started ok";
 		
-        int tout_ct = 0, notRunningCt = 0;
-		QByteArray data;
+	QStringList FGTask::filesList() const 
+	{
+		QStringList files;
+		files.push_back(QString(":/FG/FrameGrabber/x64/Release/") + exeName);
+		files.push_back(":/FG/FrameGrabber/x64/Release/SapClassGui75.NET_2013.dll");
+		files.push_back(":/FG/FrameGrabber/J_2000+_Electrode_8tap_8bit.ccf");
+		return files;
+	}
 		
-        while (!pleaseStop/* && p.state() != QProcess::NotRunning*/) {
-			if (p.state() == QProcess::Running) { 
-				qint64 n_avail = p.bytesAvailable();
-                if (n_avail == 0 && !p.waitForReadyRead(1000)) {
-                    if (++tout_ct > 30 /* set this back down to 5.. right now it's high because we are testing */) {
-						emit(daqError("Framegrabber slave process: timed out while waiting for data!"));
-						p.kill();
-						return;
-					} else {
-						Warning() << "Framegrabber slave process: read timed out, ct=" << tout_ct;
-						continue;
-					}
-				} else if (n_avail < 0) {
-                    emit(daqError("Framegrabber slave process: eof on stdin stream!"));
+	
+	unsigned FGTask::gotInput(const QByteArray & data, const QByteArray & buf, QProcess & p) 
+	{
+		(void) buf;
+		unsigned consumed = 0;
+		
+		std::vector<const XtCmd *> cmds;
+		cmds.reserve(16384);
+		const XtCmd *xt = 0;
+		int cons = 0, nscans = 0;
+		unsigned char *pdata = (unsigned char *)data.data();
+		while ((xt = XtCmd::parseBuf(pdata+consumed, data.size()-consumed, cons))) {
+			consumed += cons;
+			cmds.push_back(xt);
+			if (xt->cmd == XtCmd_Img) ++nscans;
+		}
+		std::vector<int16> scans;
+		scans.reserve(params.nVAIChans * nscans);
+		for (std::vector<const XtCmd *>::iterator it = cmds.begin(); it != cmds.end(); ++it) {
+			xt = *it;
+			if (xt->cmd == XtCmd_Img) {
+				const XtCmdImg *xi = (const XtCmdImg *)xt;
+				//if (excessiveDebug) Debug() << "Got image of size " << xi->w << "x" << xi->h;
+				if ((xi->w/2)*xi->h != (int)params.nVAIChans) {
+					emit(daqError("Received image frame from slave process but it's not of the right size!"));
 					p.kill();
-					return;
+					return 0;
 				}
-				if (--tout_ct < 0) tout_ct = 0;
-				QByteArray buf = p.readAll();
-				if (!buf.size()) {
-					Warning() << "Framegrabber slave process: read 0 bytes!";
-					continue;
-				}
-				data.append(buf);
-				int consumed = 0;
-				
-				// todo.. stuff here?
-                {
-                    std::vector<const XtCmd *> cmds;
-                    cmds.reserve(16384);
-                    const XtCmd *xt = 0;
-                    int cons = 0, nscans = 0;
-                    unsigned char *pdata = (unsigned char *)data.data();
-                    while ((xt = XtCmd::parseBuf(pdata+consumed, data.size()-consumed, cons))) {
-                        consumed += cons;
-                        cmds.push_back(xt);
-                        if (xt->cmd == XtCmd_Img) ++nscans;
-                    }
-                    std::vector<int16> scans;
-                    scans.reserve(params.nVAIChans * nscans);
-                    for (std::vector<const XtCmd *>::iterator it = cmds.begin(); it != cmds.end(); ++it) {
-                        xt = *it;
-                        if (xt->cmd == XtCmd_Img) {
-                            const XtCmdImg *xi = (const XtCmdImg *)xt;
-                            //if (excessiveDebug) Debug() << "Got image of size " << xi->w << "x" << xi->h;
-                            if ((xi->w/2)*xi->h != (int)params.nVAIChans) {
-                                emit(daqError("Received image frame from slave process but it's not of the right size!"));
-                                p.kill();
-                                return;
-                            }
-                            scans.insert(scans.end(),(int16*)xi->img,((int16 *)xi->img)+params.nVAIChans);
-                        } else {
-                            // todo.. handle other cmds coming in?
-                        }
-                    }
-                    if (scans.size()) {
-                        quint64 oldTotalRead = totalRead;
-                        totalReadMut.lock();
-                        totalRead += (quint64)scans.size();
-                        totalReadMut.unlock();
-                        enqueueBuffer(scans, oldTotalRead, true);
-                        if (!oldTotalRead) emit(gotFirstScan());
-                    }
-                }
-
-				data.remove(0,consumed);
-
-				if (excessiveDebug && data.size()) {
-					Debug() << "Framegrabber slave process: partial data left over " << data.size() << " bytes";
-				}
-								
-            } else {
-                msleep(10); // sleep 10ms and try again..
-                if (++notRunningCt > 100) {
-                    emit daqError("Framegrabber slave process died unexpectedly!");
-                    p.kill();
-                    return;
-                }
-            }
+				scans.insert(scans.end(),(int16*)xi->img,((int16 *)xi->img)+params.nVAIChans);
+			} else {
+				// todo.. handle other cmds coming in?
+			}
 		}
-		if (p.state() == QProcess::Running) {
-            //p.write("exit\r\n");
-            //Debug() << "Sent 'exit' cmd to framegrabber slave process...";
-            //p.waitForFinished(500); /// wait 500 msec for finish
+		if (scans.size()) {
+			quint64 oldTotalRead = totalRead;
+			totalReadMut.lock();
+			totalRead += (quint64)scans.size();
+			totalReadMut.unlock();
+			enqueueBuffer(scans, oldTotalRead, true);
+			if (!oldTotalRead) emit(gotFirstScan());
 		}
-		if (p.state() != QProcess::NotRunning) {
-			p.kill();
-			Debug() << "framegrabber slave process refuses to exit gracefully.. forcibly killed!";
-        }/* else if (totalRead==0) { // NotRunning and we never got a scan...
-            emit daqError("Framegrabber slave process died unexpectedly!");
-        }*/
 
+		return consumed;
 	}
 	
 	/* static */

@@ -323,9 +323,52 @@ namespace DAQ
 	};
 #endif
 		
-	extern bool RegisteredQProcessProcessStateSignal;
-
-	class BugTask : public Task {
+	class SubprocessTask : public Task {
+			Q_OBJECT
+	public:
+		SubprocessTask(const Params & acqParams, QObject *parent, 
+					   const QString & shortName,
+					   const QString & exeName);
+		virtual ~SubprocessTask();
+		
+		void stop();
+	protected:
+		void daqThr(); ///< implemented from Task
+		
+		virtual unsigned gotInput(const QByteArray & allData, const QByteArray & mostRecentlyRead, QProcess & p) = 0; ///< return number of bytes consumed from data.  Data buffer will then have those bytes removed from beginning
+		virtual QStringList filesList() const = 0; ///< used to setup the exedir with the appropriate files in resources.  reimplement to return a list of resource paths to put into the exedir..
+		virtual void setupEnv(QProcessEnvironment & e) const { (void)e; } ///< called before the exe is about to be run. set up any needed environment parameters
+		virtual void sendExitCommand(QProcess & p) const { (void)p; }
+		virtual bool platformSupported() const { return true; }
+		virtual int readTimeoutMaxSecs() const { return 5; }
+		virtual bool outputCmdsAreBinary() const { return false; }
+#ifdef Q_OS_WINDOWS
+		virtual QString interpreter() const { return ""; } 
+#else
+		virtual QString interpreter() const { return "mono"; } 
+#endif
+		
+		volatile bool pleaseStop;
+		const Params & params;
+		QString shortName, dirName, exeName;
+		
+		void pushCmd(const QByteArray & cmd);
+		
+		
+	protected slots:
+		void slaveProcStateChanged(QProcess::ProcessState);
+		
+	private:
+		bool setupExeDir(QString * err = 0) const;
+		/// returns a strig of the form "c:\temp\bug3_spikegl\"
+		QString exeDir() const;
+		QString exePath() const;
+		
+		QList<QByteArray> cmdQ; QMutex cmdQMut;
+		void processCmds(QProcess & p);
+	};
+	
+	class BugTask : public SubprocessTask {
 		Q_OBJECT
 	public:
 		
@@ -351,8 +394,6 @@ namespace DAQ
 		
 		
 		BugTask(const Params & acqParams, QObject * parent);
-		~BugTask(); ///< calls stop
-        void stop();
 		
         unsigned numChans() const;
         unsigned samplingRate() const;
@@ -389,34 +430,25 @@ namespace DAQ
 		static bool isTTLChan(unsigned num);
 		
 	protected:
-		void daqThr(); ///< Reimplemented from DAQ::Task
-	protected slots:
-		void slaveProcStateChanged(QProcess::ProcessState);
+		unsigned gotInput(const QByteArray & data, const QByteArray & buf, QProcess & p); ///< return number of bytes consumed from data.  Data buffer will then have those bytes removed from beginning
+		QStringList filesList() const; ///< used to setup the exedir with the appropriate files in resources.  reimplement to return a list of resource paths to put into the exedir..
+		void setupEnv(QProcessEnvironment &) const; ///< called before the exe is about to be run. set up any needed environment parameters
+		void sendExitCommand(QProcess &p) const;
+
 	private:
-		bool setupExeDir(QString * err = 0) const;
-		/// returns a strig of the form "c:\temp\bug3_spikegl\"
-		static QString exeDir();
-		static QString exePath();
-		static QString exeName();
+		int state;
+		static const int nstates = 36;
+		quint64 nblocks, nlines;
+		QMap<QString, QString> block;
 		
 		void processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines);
-		void processBlock(const QMap<QString, QString> &, quint64 blockNum);
-		void pushCmd(const QString & cmd);
-		void processCmds(QProcess & p);
-		
-		const Params & params;
-		
-		QStringList cmdQ; QMutex cmdQMut;
-		
-		volatile bool pleaseStop;		
+		void processBlock(const QMap<QString, QString> &, quint64 blockNum);		
 	};
 	
-	class FGTask : public Task {
+	class FGTask : public SubprocessTask {
 			Q_OBJECT
 	public:
 		FGTask(const Params & acqParams, QObject * parent);
-		~FGTask(); ///< calls stop
-        void stop();
 		
         unsigned numChans() const;
         unsigned samplingRate() const;
@@ -426,18 +458,14 @@ namespace DAQ
 		static const double SamplingRate;
 		static const int NumChans = 2304 /* 72 * 32 */;
 	protected:
-		void daqThr(); ///< Reimplemented from DAQ::Task
-	protected slots:
-		void slaveProcStateChanged(QProcess::ProcessState);
+#ifndef Q_OS_WINDOWS
+		bool platformSupported() const { return false; }
+#endif
+		int readTimeoutMaxSecs() const { return 30; }
+		unsigned gotInput(const QByteArray & data, const QByteArray & buf, QProcess & p);
+		QStringList filesList() const;
+
 	private:
-		const Params & params;
-		volatile bool pleaseStop;
-		
-		bool setupExeDir(QString * err = 0) const;
-		/// returns a strig of the form "c:\temp\fgrab_spikegl\"
-		static QString exeDir();
-		static QString exePath();
-		static QString exeName();
 		
 	};
 	
