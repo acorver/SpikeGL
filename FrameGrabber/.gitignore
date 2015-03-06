@@ -2,4 +2,5 @@
 *.vcxproj.user
 *.opensdf
 *.user
+MFCApplication2.sdf
 ipch/
