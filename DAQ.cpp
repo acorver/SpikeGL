@@ -1564,7 +1564,7 @@ namespace DAQ
             } else {
                 msleep(10); // sleep 10ms and try again..
                 if (++notRunningCt > 100) {
-                    emit daqError("Framegrabber slave process died unexpectedly!");
+                    emit daqError("Bug3 slave process died unexpectedly!");
                     p.kill();
                     return;
                 }
