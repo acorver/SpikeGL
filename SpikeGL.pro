@@ -48,7 +48,7 @@ RESOURCES += qled.qrc bug3.qrc \
 
 win32 {
 #        LIBS += WS2_32.lib
-        LIBS += $${PWD}/NI/NIDAQmx.lib WS2_32.lib
+        LIBS += $${PWD}/NI/NIDAQmx.lib WS2_32.lib DelayImp.lib
 #        DEFINES += _CRT_SECURE_NO_WARNINGS
         DEFINES += HAVE_NIDAQmx _CRT_SECURE_NO_WARNINGS WIN32
 		RESOURCES += Resources.qrc
@@ -59,6 +59,7 @@ win32 {
         QMAKE_CXXFLAGS_RELEASE -= /O2 /O1 -O1 -O2
         QMAKE_CFLAGS_RELEASE += -arch:SSE2 -Oy -Ox
         QMAKE_CXXFLAGS_RELEASE += -arch:SSE2 -Oy -Ox
+        QMAKE_LFLAGS += /DELAYLOAD:"nicaiu.dll"
 }
 
 unix {

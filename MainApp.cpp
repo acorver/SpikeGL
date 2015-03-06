@@ -874,7 +874,7 @@ void MainApp::newAcq()
 	
     if ( !maybeCloseCurrentIfRunning() ) return;
     if (DAQ::ProbeAllAIChannels().empty()) {
-            QMessageBox::critical(0, "Analog Input Missing!", "Could not find any analog input channels on this system!  Therefore, data acquisition is unavailable!");
+            QMessageBox::critical(0, "NI-DAQ AI Channels Not Found", "NI-DAQ data acquisition is unavailable because no AI channels were found on this system.\n\nTo enable NI-DAQ Acquisitions:\n\t1. Make sure NIDAQmx is installed.\n\t2. Configure either a test device or a real device in NI MAX.");
             return;
     }
     noHotKeys = true;
