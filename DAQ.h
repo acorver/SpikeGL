@@ -328,16 +328,19 @@ namespace DAQ
 	public:
 		SubprocessTask(const Params & acqParams, QObject *parent, 
 					   const QString & shortName,
-					   const QString & exeName);
-		virtual ~SubprocessTask();
-		
-		void stop();
+                       const QString & exeName);
+        virtual ~SubprocessTask();
+
+        void stop();
 	protected:
 		void daqThr(); ///< implemented from Task
 		
-		virtual unsigned gotInput(const QByteArray & allData, const QByteArray & mostRecentlyRead, QProcess & p) = 0; ///< return number of bytes consumed from data.  Data buffer will then have those bytes removed from beginning
-		virtual QStringList filesList() const = 0; ///< used to setup the exedir with the appropriate files in resources.  reimplement to return a list of resource paths to put into the exedir..
-		virtual void setupEnv(QProcessEnvironment & e) const { (void)e; } ///< called before the exe is about to be run. set up any needed environment parameters
+         ///< return number of bytes consumed from data.  Data buffer will then have those bytes removed from beginning
+        virtual unsigned gotInput(const QByteArray & allData, const QByteArray & mostRecentlyRead, QProcess & p) { (void)allData; (void)mostRecentlyRead; (void)p; return 0; }
+        ///< used to setup the exedir with the appropriate files in resources.  reimplement to return a list of resource paths to put into the exedir..
+        virtual QStringList filesList() const { return QStringList(); }
+         ///< called before the exe is about to be run. set up any needed environment parameters
+        virtual void setupEnv(QProcessEnvironment & e) const { (void)e; }
 		virtual void sendExitCommand(QProcess & p) const { (void)p; }
 		virtual bool platformSupported() const { return true; }
 		virtual int readTimeoutMaxSecs() const { return 5; }
@@ -350,7 +353,7 @@ namespace DAQ
 		
 		volatile bool pleaseStop;
 		const Params & params;
-		QString shortName, dirName, exeName;
+        QString shortName, dirName, exeName, exeDir;
 		
 		void pushCmd(const QByteArray & cmd);
 		
@@ -361,7 +364,6 @@ namespace DAQ
 	private:
 		bool setupExeDir(QString * err = 0) const;
 		/// returns a strig of the form "c:\temp\bug3_spikegl\"
-		QString exeDir() const;
 		QString exePath() const;
 		
 		QList<QByteArray> cmdQ; QMutex cmdQMut;
@@ -394,6 +396,7 @@ namespace DAQ
 		
 		
 		BugTask(const Params & acqParams, QObject * parent);
+        ~BugTask();
 		
         unsigned numChans() const;
         unsigned samplingRate() const;
@@ -449,6 +452,7 @@ namespace DAQ
 			Q_OBJECT
 	public:
 		FGTask(const Params & acqParams, QObject * parent);
+        ~FGTask();
 		
         unsigned numChans() const;
         unsigned samplingRate() const;
@@ -457,6 +461,7 @@ namespace DAQ
 		
 		static const double SamplingRate;
 		static const int NumChans = 2304 /* 72 * 32 */;
+
 	protected:
 #ifndef Q_OS_WINDOWS
 		bool platformSupported() const { return false; }

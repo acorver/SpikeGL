@@ -1351,34 +1351,28 @@ namespace DAQ
 	: Task(parent, shortName + " DAQ task", SAMPLE_BUF_Q_SIZE), params(p),
 	  shortName(shortName), dirName(shortName + "_SpikeGLv" + QString(VERSION_STR).right(8)), exeName(exeName)
 	{
-	}
+        QString tp(QDir::tempPath());
+        if (!tp.endsWith("/")) tp.append("/");
+        exeDir = tp + dirName + "/";
+        Debug() << shortName << " exedir = " << exeDir;
+    }
 	
 	SubprocessTask::~SubprocessTask() { if (isRunning()) { stop(); wait(); } }
 	
 	void SubprocessTask::stop() { pleaseStop = true; }
-	
-	QString SubprocessTask::exeDir() const
-	{
-		QString tp(QDir::tempPath());
-		if (!tp.endsWith("/")) tp.append("/");
-		QString ret = tp + dirName + QString(VERSION_STR).right(8) + "/";			
-		Debug() << shortName << " exedir = " << ret;
-		return ret;
-	}
-	
-	QString SubprocessTask::exePath() const { return exeDir() + exeName; }
+		
+    QString SubprocessTask::exePath() const { return exeDir + exeName; }
 	
 	bool SubprocessTask::setupExeDir(QString *errOut) const
 	{
 		if (errOut) *errOut = "";
-		QString exedir (exeDir());
-		QDir().mkpath(exedir);
-		QDir d(exedir);
-		if (!d.exists()) { if (errOut) *errOut = QString("Could not create ") + exedir; return false; }
+        QDir().mkpath(exeDir);
+        QDir d(exeDir);
+        if (!d.exists()) { if (errOut) *errOut = QString("Could not create ") + exeDir; return false; }
 		QStringList files = filesList();
 		for (QStringList::const_iterator it = files.begin(); it != files.end(); ++it) {
 			const QString bn ((*it).split("/").last());
-			const QString dest (exedir + bn);
+            const QString dest (exeDir + bn);
 			if (QFile::exists(dest) && !QFile::remove(dest)) {
 				if (errOut) *errOut = dest + " exists and cannot be removed.";
 				return false;
@@ -1440,7 +1434,7 @@ namespace DAQ
 		}
 		Connect(&p, SIGNAL(stateChanged(QProcess::ProcessState)), this, SLOT(slaveProcStateChanged(QProcess::ProcessState)));		
 		p.setProcessChannelMode(QProcess::MergedChannels);
-		p.setWorkingDirectory(exeDir());
+        p.setWorkingDirectory(exeDir);
 		QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 		setupEnv(env);
 		p.setProcessEnvironment(env);
@@ -1539,7 +1533,7 @@ namespace DAQ
 			if (outputCmdsAreBinary()) {
 				Debug() << shortName << ": sending command of size " << (*it).size() << " bytes";				
 			} else {
-				Debug() << shortName << ": sending command `" << *it << "'";
+                Debug() << shortName << ": sending command `" << QString(*it).trimmed() << "'";
 			}
 			p.write(*it);
 		}
@@ -1559,7 +1553,9 @@ namespace DAQ
 	{
 		state = 0; nblocks = 0; nlines = 0;
 	}
-		
+
+    BugTask::~BugTask() {  if (isRunning()) { stop(); wait(); } }
+
     unsigned BugTask::numChans() const { return params.nVAIChans; }
     unsigned BugTask::samplingRate() const { return params.srate; }
 	
@@ -1954,7 +1950,8 @@ namespace DAQ
 	: SubprocessTask(ap, parent, "Framegrabber", "MFCApplication2.exe")
 	{
 	}
-		
+    FGTask::~FGTask() { if (isRunning()) { stop(); wait(); } }
+
 	QStringList FGTask::filesList() const 
 	{
 		QStringList files;
