@@ -532,7 +532,7 @@ void MainApp::about()
 {
     QMessageBox::about(consoleWindow, "About "APPNAME, 
                        VERSION_STR
-                       "\n\n(C) 2010-2014 Calin A. Culianu <calin.culianu@gmail.com>\n\n"
+                       "\n\n(C) 2010-2015 Calin A. Culianu <calin.culianu@gmail.com>\n\n"
                        "Developed for the Anthony Leonardo lab at\n"
                        "Janelia Farm Research Campus, HHMI\n\n"
                        "Software License: GPL v2 or later\n\n"
@@ -652,7 +652,7 @@ void MainApp::initActions()
     Connect(aboutQtAct = new QAction("About &Qt", this),
             SIGNAL(triggered()), this, SLOT(aboutQt()));
             
-    Connect( newAcqAct = new QAction("New Acquisition... &N", this),
+    Connect( newAcqAct = new QAction("New NI-DAQ Acquisition... &N", this),
              SIGNAL(triggered()), this, SLOT(newAcq()));
     Connect( bugAcqAct = new QAction("New Bug Acquisition... &B", this),
 			SIGNAL(triggered()), this, SLOT(bugAcq()));

@@ -14,7 +14,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Configure Acquisition</string>
+   <string>Configure NI-DAQ Acquisition</string>
   </property>
   <property name="windowIcon">
    <iconset>
