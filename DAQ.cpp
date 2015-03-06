@@ -292,6 +292,7 @@ namespace DAQ
     QString  GetProductName(const QString &dev)
     {
 		if (dev.compare("USB_Bug3", Qt::CaseInsensitive)==0) return "Intan USB Telemetry Receiver (Bug3)";
+		if (dev.compare("Framegrabber", Qt::CaseInsensitive)==0) return "XtiumCL PX4 + Camerialink to Intan";
 #ifdef HAVE_NIDAQmx
         char buf[65536] = "Unknown";
         if (DAQmxFailed(DAQmxGetDevProductType(dev.toUtf8().constData(), buf, sizeof(buf)))) {
