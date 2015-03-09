@@ -489,6 +489,56 @@ void ConfigureDialogController::aoPDPassthruUpdateLE()
     aoPassthru->aoPassthruLE->setText(le);
 }
 
+/* static */ int ConfigureDialogController::setFilenameTakingIntoAccountIncrementHack(DAQ::Params & p, DAQ::AcqStartEndMode acqStartEndMode, const QString & filename, QWidget *dialogW, bool isGUI)
+{
+    p.outputFile = p.outputFileOrig = filename.trimmed();
+	p.cludgyFilenameCounterOverride = 1;
+	
+	
+	QString numberless;
+	int number;
+	if ( (acqStartEndMode != DAQ::Immediate && acqStartEndMode != DAQ::Timed) 
+		&& chopNumberFromFilename(p.outputFile, numberless, number) ) {
+		int q = QMessageBox::question(dialogW, 
+									  QString("Resume filename counting?"), 
+									  QString("The specified output file:\n\n") + p.outputFile + "\n\nis of the form FILE_XX.bin, and you also specified a triggered recording setup.\nResume filename increment?\n\nIf you say yes, `" + numberless + "' is the file count basename and filenames will auto-append a number from _" + QString::number(number) + " onward, on trigger.\n\nIf you say no, the entire filename `" + p.outputFile + "' will be taken as the basename (and triggering will append a further _1, _2, etc to filenames!).",
+									  QMessageBox::Yes|QMessageBox::No,QMessageBox::Yes);
+		if (q == QMessageBox::Yes) {
+			p.outputFileOrig = numberless;
+			//if (p.stimGlTrigResave)
+			//	p.outputFile = numberless;
+			p.cludgyFilenameCounterOverride = number;
+		}
+	}
+	
+	if (!p.stimGlTrigResave && isGUI) {
+		// verify output file and if it exists, act appropriately
+		QString outFile = p.outputFile;
+		if (!QFileInfo(outFile).isAbsolute()) 
+			outFile = mainApp()->outputDirectory() + "/" + outFile; 
+		if (QFileInfo(outFile).exists()) {
+			// output file exists, ask user if they should overwrite, cancel, or auto-rename
+			QMessageBox *mb = new QMessageBox(dialogW);
+			mb->setText("The specified output file already exists.");
+			mb->setInformativeText("Do you want to overwrite it, auto-rename it, or go back and specify a new filename?");
+			// the 'roles' below seem to only affect formatting of the buttons..
+			QPushButton *cancelBut = mb->addButton("Go Back", QMessageBox::DestructiveRole);
+			QPushButton *renameBut = mb->addButton("Auto-Rename", QMessageBox::RejectRole);
+			QPushButton *overBut = mb->addButton("Overwrite", QMessageBox::AcceptRole);
+			mb->exec();
+			QAbstractButton * clicked = mb->clickedButton();
+			(void)overBut;
+			if (clicked == renameBut) {
+				p.outputFile = mainApp()->getNewDataFileName(QString::null);
+			} else if (clicked == cancelBut) {
+				return AGAIN;
+			}
+			/// overwrite path is the normal path...
+		}
+	}
+	return OK;
+}
+
 /** Validates the internal form.  If ok, saves form to settings as side-effect, otherwise if not OK, sets errTitle and errMsg.
  *  OK returned, form is ok, proceed -- form is saved to settings
  *  AGAIN returned, form is erroneous, but redo ok -- form is not saved, errTitle and errMsg set appropriately
@@ -704,52 +754,10 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     DAQ::Params & p (acceptedParams);
 	p.bug.enabled = false;
     p.stimGlTrigResave = dialog->stimGLReopenCB->isChecked();
-    p.outputFile = p.outputFileOrig = dialog->outputFileLE->text().trimmed();
-	p.cludgyFilenameCounterOverride = 1;
-	
-	
-	QString numberless;
-	int number;
-	if ( (acqStartEndMode != DAQ::Immediate && acqStartEndMode != DAQ::Timed) 
-		&& chopNumberFromFilename(p.outputFile, numberless, number) ) {
-			int q = QMessageBox::question(dialogW, 
-				QString("Resume filename counting?"), 
-				QString("The specified output file:\n\n") + p.outputFile + "\n\nis of the form FILE_XX.bin, and you also specified a triggered recording setup.\nResume filename increment?\n\nIf you say yes, `" + numberless + "' is the file count basename and filenames will auto-append a number from _" + QString::number(number) + " onward, on trigger.\n\nIf you say no, the entire filename `" + p.outputFile + "' will be taken as the basename (and triggering will append a further _1, _2, etc to filenames!).",
-				QMessageBox::Yes|QMessageBox::No,QMessageBox::Yes);
-			if (q == QMessageBox::Yes) {
-				p.outputFileOrig = numberless;
-				//if (p.stimGlTrigResave)
-				//	p.outputFile = numberless;
-				p.cludgyFilenameCounterOverride = number;
-			}
-	}
-
-	if (!p.stimGlTrigResave && isGUI) {
-		// verify output file and if it exists, act appropriately
-		QString outFile = p.outputFile;
-		if (!QFileInfo(outFile).isAbsolute()) 
-			outFile = mainApp()->outputDirectory() + "/" + outFile; 
-		if (QFileInfo(outFile).exists()) {
-			// output file exists, ask user if they should overwrite, cancel, or auto-rename
-			QMessageBox *mb = new QMessageBox(dialogW);
-			mb->setText("The specified output file already exists.");
-			mb->setInformativeText("Do you want to overwrite it, auto-rename it, or go back and specify a new filename?");
-			// the 'roles' below seem to only affect formatting of the buttons..
-			QPushButton *cancelBut = mb->addButton("Go Back", QMessageBox::DestructiveRole);
-			QPushButton *renameBut = mb->addButton("Auto-Rename", QMessageBox::RejectRole);
-			QPushButton *overBut = mb->addButton("Overwrite", QMessageBox::AcceptRole);
-			mb->exec();
-			QAbstractButton * clicked = mb->clickedButton();
-			(void)overBut;
-			if (clicked == renameBut) {
-				p.outputFile = mainApp()->getNewDataFileName(QString::null);
-			} else if (clicked == cancelBut) {
-				errTitle = QString::null;
-				errMsg = QString::null;
-				return AGAIN;
-			}
-			/// overwrite path is the normal path...
-		}
+	if (AGAIN == setFilenameTakingIntoAccountIncrementHack(p, acqStartEndMode, dialog->outputFileLE->text(), dialogW, isGUI)) {
+		errTitle = QString::null;
+		errMsg = QString::null;
+		return AGAIN;
 	}
     p.dev = dev;
 	p.dev2 = dev2;

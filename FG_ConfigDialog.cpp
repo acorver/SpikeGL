@@ -67,7 +67,6 @@ int FG_ConfigDialog::exec()
 			
 				p.suppressGraphs = false; //dialog->disableGraphsChk->isChecked();
 				p.resumeGraphSettings = false; //dialog->resumeGraphSettingsChk->isChecked();
-//				p.outputFile = dialog->outputFileLE->text();
 				
 				p.nVAIChans = 2304;
 				p.nVAIChans1 = p.nVAIChans;
@@ -104,6 +103,12 @@ int FG_ConfigDialog::exec()
 				p.isImmediate = true;
 				p.acqStartEndMode = DAQ::Immediate;
 				p.usePD = 0;
+				p.chanMap = ChanMap();
+				
+				if (AGAIN == ConfigureDialogController::setFilenameTakingIntoAccountIncrementHack(p, p.acqStartEndMode, dialog->outputFileLE->text(), dialogW)) {
+					vr = AGAIN;
+					continue;
+				}
 				
 				saveSettings();
 
@@ -118,7 +123,7 @@ int FG_ConfigDialog::exec()
 				p.mode = DAQ::AIRegular;
 				p.aoPassthru = 0;
 				p.dualDevMode = false;
-                p.stimGlTrigResave = true; // don't open file for now by default since it's huge
+                p.stimGlTrigResave = true; // HACK XXX don't open file for now by default since it's huge
 				p.srate = DAQ::FGTask::SamplingRate;
 				p.aiTerm = DAQ::Default;
 				p.aiString = QString("0:%1").arg(p.nVAIChans-1);

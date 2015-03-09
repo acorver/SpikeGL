@@ -87,7 +87,6 @@ int Bug_ConfigDialog::exec()
 				p.bug.errTol = dialog->errTolSB->value();
 				p.suppressGraphs = dialog->disableGraphsChk->isChecked();
 				p.resumeGraphSettings = dialog->resumeGraphSettingsChk->isChecked();
-				p.outputFile = dialog->outputFileLE->text();
 				
 				int nttls = 0;
 				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i)
@@ -127,6 +126,7 @@ int Bug_ConfigDialog::exec()
 				p.isImmediate = true;
 				p.acqStartEndMode = DAQ::Immediate;
 				p.usePD = 0;
+				p.chanMap = ChanMap();
 				if (p.bug.ttlTrig > -1) {
 					p.acqStartEndMode = DAQ::AITriggered;
 					p.idxOfPdChan = ttlIdx;
@@ -138,6 +138,11 @@ int Bug_ConfigDialog::exec()
 					p.pdPassThruToAO = -1;
 					p.pdStopTime = dialog->trigStopTimeSB->value();
 					p.silenceBeforePD = dialog->trigPre->value()/1000.;
+				}
+
+				if (AGAIN == ConfigureDialogController::setFilenameTakingIntoAccountIncrementHack(p, p.acqStartEndMode, dialog->outputFileLE->text(), dialogW)) {
+					vr = AGAIN;
+					continue;
 				}
 				
 				saveSettings();

@@ -1791,6 +1791,11 @@ namespace DAQ
 						bool ok = false;
 						int samp = num.toUShort(&ok);
 						if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
+
+						// TODO HACK BUG FIXME TESTING XXX
+						/*qint64 scan = totalRead/qint64(params.nVAIChans);
+						if (ttl_chan_translated == 0 && (scan>=96000 && scan <= 96100) || (scan>=48000 && scan <= 48100) ) samp = 1;
+						 */
 						if (samp) samp = 32767; // normalize high to maxV
 						for (int ix = 0; ix < NeuralSamplesPerFrame; ++ix) { // need to produce 16 samples for each 1 emg sample read in order to match neuronal rate!						
                             samps[ frame*(NeuralSamplesPerFrame*nchans) + ix*nchans + (TotalNeuralChans+TotalEMGChans+TotalAuxChans+ttl_chan_translated) ] = samp;
@@ -1891,11 +1896,15 @@ namespace DAQ
 				bool ok = false;
 				int n = v.toInt(&ok);
 				if (!ok) Warning() << "Bug3: Internal problem -- error parsing MISSING_FC `" << v << "'";
+				// TESTING HACK XXX TODO FIXME!
+//				if (Util::random() < .3 && totalRead < 10000000ULL) n = int(Util::random(0.,16.)) % 6;
 				meta.missingFrameCount = n;								
 			} else if (k.startsWith("FALSE_FC")) {
 				bool ok = false;
 				int n = v.toInt(&ok);
 				if (!ok) Warning() << "Bug3: Internal problem -- error parsing FALSE_FC `" << v << "'";
+				// TESTING HACK XXX TODO FIXME!
+//				if (Util::random() < .3 && totalRead < 10000000ULL) n = int(Util::random(0.,16.)) % 6;
 				meta.falseFrameCount = n;								
 			}
 		}

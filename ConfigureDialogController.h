@@ -47,6 +47,8 @@ public:
     static QString parseAIChanString(const QString & aichanstr, QVector<unsigned> & aiChannels_out, bool *parse_error = 0, bool emptyOk = false);
     static QMap<unsigned,unsigned> parseAOPassthruString(const QString & aochanstr, bool *parse_error = 0);
 	static QString generateAIChanString(const QVector<unsigned> & aiChans_sorted_ascending);
+    static bool chopNumberFromFilename(const QString & filename, QString & numberless, int & number);
+	static int setFilenameTakingIntoAccountIncrementHack(DAQ::Params & p, DAQ::AcqStartEndMode m, const QString & filename, QWidget *dialogW, bool isGUI=true);
 	
 protected slots:    
     void acqStartEndCBChanged();
@@ -70,7 +72,6 @@ private:
     void resetAOPassFromParams(Ui::AoPassThru *);
     static void paramsFromSettingsObject(DAQ::Params & p, const QSettings & settings);
 	void probeDAQHardware();
-    static bool chopNumberFromFilename(const QString & filename, QString & numberless, int & number);
 	
     enum ValidationResult {
         AGAIN = -1,

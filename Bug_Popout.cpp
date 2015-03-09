@@ -119,6 +119,39 @@ void Bug_Popout::plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_up
 
 //		Debug() << "logWER: " << logWER << " logBER: " << logBER;
 	
+	// colorize the BER/WER graph based on missing frame count
+	if (meta.missingFrameCount == 0 && meta.falseFrameCount == 0) { 
+		// do nothing special
+		errgraph->pushBar(QColor(0,0,0,0));
+	} else if (meta.missingFrameCount) {
+		// blue....
+		/*QList<QPair<QRectF, QColor> >  bgs (errgraph->bgRects());
+		 int i = 0;
+		 for (QList<QPair<QRectF, QColor> >::iterator it = bgs.begin(); it != bgs.end(); ++it, ++i) {
+		 QPair<QRectF, QColor> & pair(*it);
+		 pair.second = i%2 ? QColor(0,0,200,64) : QColor(0,0,64,64); // bright blue odd, dark blue even					
+		 }
+		 errgraph->setBGRects(bgs);
+		 */
+		int alpha = 32;
+		alpha += meta.missingFrameCount*16;
+		if (alpha > 255) alpha = 255;
+		errgraph->pushBar(QColor(0,0,200,alpha/*64*/));
+	} else if (meta.falseFrameCount) {
+		// pink...
+		/*QList<QPair<QRectF, QColor> >  bgs (errgraph->bgRects());
+		 int i = 0;
+		 for (QList<QPair<QRectF, QColor> >::iterator it = bgs.begin(); it != bgs.end(); ++it, ++i) {
+		 QPair<QRectF, QColor> & pair(*it);
+		 pair.second = i%2 ? QColor(200,0,0,64) : QColor(64,0,0,64); // bright pink odd, dark pink even					
+		 }
+		 errgraph->setBGRects(bgs);*/
+		int alpha = 32;
+		alpha += meta.falseFrameCount*16;
+		if (alpha > 255) alpha = 255;
+		errgraph->pushBar(QColor(200,0,0,alpha/*64*/));
+	}
+	
 	
 	if (call_update) { // last iteration, update the labels with the "most recent" info
 		ui->chipIdLbl->setText(QString::number(meta.chipID[DAQ::BugTask::FramesPerBlock-1]));
@@ -136,30 +169,6 @@ void Bug_Popout::plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_up
 		}
 		ui->statusLabel->setText(QString("Read %1 USB blocks (%2 MS) - %3 KS/sec").arg(meta.blockNum+1).arg((meta.blockNum*samplesPerBlock)/1e6,3,'f',2).arg(lastRate/1e3));
 		
-		
-		// colorize the BER/WER graph based on missing frame count
-		if (meta.missingFrameCount == 0 && meta.falseFrameCount == 0) { 
-			// do nothing special
-		} else if (meta.missingFrameCount) {
-			// blue....
-			QList<QPair<QRectF, QColor> >  bgs (errgraph->bgRects());
-			int i = 0;
-			for (QList<QPair<QRectF, QColor> >::iterator it = bgs.begin(); it != bgs.end(); ++it, ++i) {
-				QPair<QRectF, QColor> & pair(*it);
-				pair.second = i%2 ? QColor(0,0,200,64) : QColor(0,0,64,64); // bright blue odd, dark blue even					
-			}
-			errgraph->setBGRects(bgs);
-		} else if (meta.falseFrameCount) {
-			// pink...
-			QList<QPair<QRectF, QColor> >  bgs (errgraph->bgRects());
-			int i = 0;
-			for (QList<QPair<QRectF, QColor> >::iterator it = bgs.begin(); it != bgs.end(); ++it, ++i) {
-				QPair<QRectF, QColor> & pair(*it);
-				pair.second = i%2 ? QColor(200,0,0,64) : QColor(64,0,0,64); // bright pink odd, dark pink even					
-			}
-			errgraph->setBGRects(bgs);
-		}
-
 		errgraph->update();
 		vgraph->update();
 
@@ -212,7 +221,9 @@ Bug_Graph::Bug_Graph(QWidget *parent, unsigned nplots, unsigned maxPts)
 	if (nplots == 0) nplots = 1;
 	if (nplots > 10) nplots = 10;
 	pts.resize(nplots);
+	ptsCounts.resize(nplots);
 	colors.resize(nplots);
+	barsCount = 0;
 	for (int i = 0; i < (int)nplots; ++i)
 		colors[i] = QColor(0,0,0,255); // black
 }
@@ -221,7 +232,21 @@ void Bug_Graph::pushPoint(float y, unsigned plotNum)
 {
 	if (plotNum >= (unsigned)pts.size()) plotNum = pts.size()-1;
 	pts[plotNum].push_back(y);
-	while (pts[plotNum].count() > (int)maxPts) pts[plotNum].pop_front();
+	++ptsCounts[plotNum];
+	while (ptsCounts[plotNum] > maxPts) {
+		pts[plotNum].pop_front();
+		--ptsCounts[plotNum];
+	}
+}
+
+void Bug_Graph::pushBar(const QColor & c)
+{
+	bars.push_back(c);
+	++barsCount;
+	while (barsCount > maxPts) {
+		bars.pop_front();
+		--barsCount;
+	}
 }
 
 void Bug_Graph::setBGRects(const QList<QPair<QRectF,QColor> > & bgs_in)
@@ -245,22 +270,38 @@ void Bug_Graph::paintEvent(QPaintEvent *e)
 		p.fillRect(rt, c);
 	}
 	
+	const int w = width(), h = height();
+	
 	for (int plotNum = 0; plotNum < pts.size(); ++plotNum) {
-		const int ct = pts[plotNum].count();
+		const unsigned ct = ptsCounts[plotNum];
 		if (ct > 0) {
 			int i = 0;
             QPoint *pbuf = new QPoint[ct];
 			for (QList<float>::iterator it = pts[plotNum].begin(); it != pts[plotNum].end(); ++it, ++i) {
 				const float x = float(i)/float(maxPts) + 1./float(maxPts*2);
 				const float y = *it;
-				pbuf[i].setX(x*width());
-				pbuf[i].setY(y*height());
+				pbuf[i].setX(x*w);
+				pbuf[i].setY(y*h);
 			}
 			
 			QPen pen = p.pen(); pen.setColor(colors[plotNum]); pen.setWidthF(pen_width); pen.setCapStyle(Qt::RoundCap);
 			p.setPen(pen);
 			p.drawPoints(pbuf, ct);
             delete pbuf;
+		}
+	}
+	
+	if (barsCount > 0) {
+		QPen pen = p.pen();
+		pen.setWidthF(1.25f);
+		pen.setCapStyle(Qt::RoundCap);
+		int i = 0;
+		for (QList<QColor>::iterator it = bars.begin(); it != bars.end() && i < int(barsCount); ++it, ++i) {
+			const float x = float(i)/float(maxPts) + 1./float(maxPts*2);
+			pen.setColor(*it);
+			p.setPen(pen);
+			float pos = x*w;
+			p.drawLine(QPointF(pos, 0.f), QPointF(pos, float(h)));
 		}
 	}
 	p.end();
