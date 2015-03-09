@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Configure Framegraber Acquisition</string>
+   <string>Configure Framegrabber Acquisition</string>
   </property>
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
