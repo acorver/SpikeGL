@@ -33,7 +33,8 @@ public:
     Ui::FG_ConfigDialog *dialog; 
 			
     bool isDialogVisible() const { return dialogW->isVisible(); }
-
+private slots:
+	void browseButClicked();
 private:
 	
    enum ValidationResult {

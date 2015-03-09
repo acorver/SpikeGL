@@ -43,6 +43,7 @@ public:
 //	protected slots:    
 private slots:
 	void ttlTrigCBChanged();
+	void browseButClicked();
 	
 private:
 	

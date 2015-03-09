@@ -9,6 +9,7 @@
 
 #include <QDialog>
 #include <QMessageBox>
+#include <QFileDialog>
 #include "Bug_ConfigDialog.h"
 #include "Util.h"
 #include "MainApp.h"
@@ -21,6 +22,7 @@ Bug_ConfigDialog::Bug_ConfigDialog(DAQ::Params & p, QObject *parent) : QObject(p
 	dialog = new Ui::Bug_ConfigDialog;
     dialog->setupUi(dialogW);
 	Connect(dialog->ttlTrigCB, SIGNAL(currentIndexChanged(int)), this, SLOT(ttlTrigCBChanged()));
+	Connect(dialog->browseBut, SIGNAL(clicked()), this, SLOT(browseButClicked()));
 	for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
 		ttls[i] = new QCheckBox(QString::number(i), dialog->ttlW);
 		dialog->ttlLayout->addWidget(ttls[i]);
@@ -32,6 +34,18 @@ Bug_ConfigDialog::~Bug_ConfigDialog()
     for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) delete ttls[i], ttls[i] = 0;
     delete dialogW; dialogW = 0;
     delete dialog; dialog = 0;
+}
+
+void Bug_ConfigDialog::browseButClicked()
+{
+    QString fn = QFileDialog::getSaveFileName(dialogW, "Select output file", dialog->outputFileLE->text());
+    if (fn.length()) {
+		QFileInfo fi(fn);
+		QString suff = fi.suffix();
+		if (!suff.startsWith(".")) suff = QString(".") + suff;
+		if (suff.toLower() != ".bin") fn += ".bin";
+		dialog->outputFileLE->setText(fn);
+	}
 }
 
 int Bug_ConfigDialog::exec() 

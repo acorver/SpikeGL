@@ -11,6 +11,7 @@
 #include "MainApp.h"
 #include "ConfigureDialogController.h"
 #include <QMessageBox>
+#include <QFileDialog>
 
 FG_ConfigDialog::FG_ConfigDialog(DAQ::Params & params, QObject *parent)
 : QObject(parent), acceptedParams(params)
@@ -19,12 +20,25 @@ FG_ConfigDialog::FG_ConfigDialog(DAQ::Params & params, QObject *parent)
 	dialogW->setAttribute(Qt::WA_DeleteOnClose, false);
 	dialog = new Ui::FG_ConfigDialog;
     dialog->setupUi(dialogW);
+	Connect(dialog->browseBut, SIGNAL(clicked()), this, SLOT(browseButClicked()));
 }
 
 FG_ConfigDialog::~FG_ConfigDialog()
 {
 	delete dialogW; dialogW = 0;
 	delete dialog; dialog = 0;
+}
+
+void FG_ConfigDialog::browseButClicked()
+{
+    QString fn = QFileDialog::getSaveFileName(dialogW, "Select output file", dialog->outputFileLE->text());
+    if (fn.length()) {
+		QFileInfo fi(fn);
+		QString suff = fi.suffix();
+		if (!suff.startsWith(".")) suff = QString(".") + suff;
+		if (suff.toLower() != ".bin") fn += ".bin";
+		dialog->outputFileLE->setText(fn);
+	}
 }
 
 
@@ -104,7 +118,7 @@ int FG_ConfigDialog::exec()
 				p.mode = DAQ::AIRegular;
 				p.aoPassthru = 0;
 				p.dualDevMode = false;
-				p.stimGlTrigResave = false;
+                p.stimGlTrigResave = true; // don't open file for now by default since it's huge
 				p.srate = DAQ::FGTask::SamplingRate;
 				p.aiTerm = DAQ::Default;
 				p.aiString = QString("0:%1").arg(p.nVAIChans-1);
@@ -143,10 +157,14 @@ FG_ConfigDialog::validateForm(QString & errTitle, QString & errMsg, bool isGUI)
 
 void FG_ConfigDialog::guiFromSettings()
 {
+	DAQ::Params & p(acceptedParams);
+	
+	dialog->outputFileLE->setText(p.outputFile);
 }
 
 void FG_ConfigDialog::saveSettings()
 {
+	mainApp()->configureDialogController()->saveSettings();
 }
 
 
