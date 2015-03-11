@@ -57,9 +57,10 @@ public:
     ~SpikeGLHandlerThread();
 
     bool pushCmd(const XtCmd *c);
-    bool pushConsoleMsg(const std::string & msg, XtCmdConsoleMsg mtype=XtCmdConsoleMsg::Normal);
+    bool pushConsoleMsg(const std::string & msg, int mtype=XtCmdConsoleMsg::Normal);
     bool pushConsoleDebug(const std::string & msg) { return pushConsoleMsg(msg, XtCmdConsoleMsg::Debug); }
     bool pushConsoleError(const std::string & msg) { return pushConsoleMsg(msg, XtCmdConsoleMsg::Error); }
+    bool pushConsoleWarning(const std::string & msg) { return pushConsoleMsg(msg, XtCmdConsoleMsg::Warning); }
 
 protected:
     void threadFunc();

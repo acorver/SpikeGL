@@ -2019,8 +2019,19 @@ namespace DAQ
             } else if (xt->cmd == XtCmd_ConsoleMessage) {
 				XtCmdConsoleMsg *xm = (XtCmdConsoleMsg *)xt; 
                 QString msg(xm->msg);
-				if (xm->isDebug) Debug() << shortName << ": " << msg.trimmed();
-				else Log() << shortName << ": " << msg.trimmed();
+				msg = msg.trimmed();
+				switch (xm->msgType) {
+					case XtCmdConsoleMsg::Error:
+						Error() << shortName << ": " << msg; 
+						emit(daqError(shortName + " slave process: " + msg));
+						break;
+					case XtCmdConsoleMsg::Warning:
+						Warning() << shortName << ": " << msg; break;
+					case XtCmdConsoleMsg::Debug:
+						Warning() << shortName << ": " << msg; break;
+					default:
+						Log() << shortName << ": " << msg; break;
+				}
 			} else {
 				// todo.. handle other cmds coming in?
 			}
