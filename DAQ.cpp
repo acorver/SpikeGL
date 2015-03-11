@@ -1792,14 +1792,13 @@ namespace DAQ
 						bool ok = false;
 						int samp = num.toUShort(&ok);
 						if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
-#undef BUG3_TTL_TESTING /* define this to turn below code on.. */
-#ifdef BUG3_TTL_TESTING
+#if 1 // BUG3_TTL_TESTING
 						// TODO HACK BUG FIXME TESTING XXX
 						///*
 						if (ttl_chan_translated == 0) {
 							qint64 scan = qint64(blockNum)*qint64(SpikeGLScansPerBlock) + qint64(frame*NeuralSamplesPerFrame);
 							const qint64 sr = params.srate;
-							static const qint64 ttlWSamps = sr/1000;
+							static const qint64 ttlWSamps = 640*2;
 							static const qint64 everyNSecs = 2;
 							
 							if (scan>sr*everyNSecs) {

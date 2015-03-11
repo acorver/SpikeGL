@@ -320,7 +320,6 @@ private:
     QString outDir, lastOpenFile;
     QString sb_String;
     int sb_Timeout;
-    bool warnedDropped;
     QSystemTrayIcon *sysTray;
     
     struct GenericServerParams {
@@ -347,7 +346,7 @@ private:
     DAQ::Task *task;
     bool taskWaitingForTrigger, taskWaitingForStop, 
         taskShouldStop; ///< used for StimGL trigger to stop the task when the queue empties
-    i64 scan0Fudge, scanCt, startScanCt, stopScanCt, lastScanSz, stopRecordAtSamp;
+    i64 scanCt, startScanCt, stopScanCt, lastScanSz, stopRecordAtSamp;
     DataFile_Fn_Shm dataFile; ///< the OUTPUT save file (this member var never used for input)
     std::vector<int16> lastNPDSamples;
     QTimer *taskReadTimer;

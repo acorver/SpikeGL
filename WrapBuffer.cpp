@@ -43,10 +43,9 @@ unsigned WrapBuffer::putData(const void *data, unsigned nBytes)
     const int siz = capacity();
     if (nBytes >= unsigned(siz)) {
         int diff = nBytes - siz;
-        nBytes = siz;
         head = 0;
-        len = nBytes;
-        memcpy(&buf[0], ((const char *)data)+diff, nBytes);
+        len = siz;
+        memcpy(&buf[0], ((const char *)data)+diff, siz);
     } else { // copying in < size of buffer, but may need to clobber stuff at beginning to make room at end..
         int newSize = len + nBytes;
         if (newSize > siz) { // wrap it, clobbering stuff at head to make room for new data

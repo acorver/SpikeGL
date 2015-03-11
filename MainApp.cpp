@@ -709,14 +709,12 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         errMsg = "The acquisition is already running.  Please stop it first.";
         return false;
     }
-    scan0Fudge = 0;
     scanCt = 0;
     lastScanSz = 0;
 	stopRecordAtSamp = -1;
     tNow = getTime();
     taskShouldStop = false;
     pdWaitingForStimGL = false;
-    warnedDropped = false;
     queuedParams.clear();
     if (!configCtl || !bugConfig || !fgConfig) {
         errTitle = "Internal Error";
@@ -973,7 +971,6 @@ void MainApp::stopTask()
     stopAcq->setEnabled(false);
     aoPassthruAct->setEnabled(false);
     taskWaitingForTrigger = false;
-    scan0Fudge = 0;
 	stopRecordAtSamp = -1;
     updateWindowTitles();
 	if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
@@ -1015,6 +1012,7 @@ void MainApp::gotDaqWarning(const QString & e)
 /* static */
 void MainApp::xferWBToScans(WrapBuffer & preBuf, std::vector<int16> & scans, int & num, int skip)
 {
+	if (scans.capacity() < preBuf.size()) scans.reserve(preBuf.size());
     void *ptr=0;
     unsigned lenBytes=0, lenElems = 0;
     preBuf.dataPtr2(ptr, lenBytes);
@@ -1184,11 +1182,12 @@ void MainApp::taskReadFunc()
         lastScanSz = scans.size();
         scanCt = firstSamp/p.nVAIChans;
 		i32 triggerOffset = 0;
+		int prebufCopied = 0;
 		
         if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
             if (!detectTriggerEvent(scans, firstSamp, triggerOffset))
                 preBuf.putData(&scans[0], scans.size()*sizeof(scans[0])); // save data to pre-buffer ringbuffer if not triggered yet
-            if (tNow-lastSBUpd > 0.25) { // every 1/4th of a second
+            if (taskWaitingForTrigger && tNow-lastSBUpd > 0.25) { // every 1/4th of a second
                 if (p.acqStartEndMode == DAQ::Timed) {
                     Status() << "Acquisition will auto-start in " << (startScanCt-scanCt)/p.srate << " seconds.";
                     lastSBUpd = tNow;
@@ -1210,14 +1209,7 @@ void MainApp::taskReadFunc()
         preBuf2.putData(&scans[0], scans.size()*sizeof(scans[0]));
 
 		// not an 'else' because both 'if' clauses are true on first trigger		
-        if (!taskWaitingForTrigger) { // task not waiting from trigger, normal acq..
-            //if (preBuf.size()) {
-				//int added;
-                //xferWBToScans(preBuf, scans, firstSamp, scan0Fudge, added);
-				//prebufScansAdded = 0; // HACK TODO FIXME XXX
-            //} 
- 
-            const u64 fudgedFirstSamp = firstSamp - scan0Fudge;            
+        if (!taskWaitingForTrigger) { // task not waiting from trigger, normal acq.. 
             const u64 scanSz = scans.size();
 
 			if ((p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::Bug3TTLTriggered) && !dataFile.isOpen()) {
@@ -1229,22 +1221,11 @@ void MainApp::taskReadFunc()
 				updateWindowTitles();
 			}
 			
-            if (!dataFile.isOpen() && p.acqStartEndMode != DAQ::AITriggered && p.acqStartEndMode != DAQ::Bug3TTLTriggered ) 
-				scan0Fudge = firstSamp + scanSz;
-
             if (!needToStop && !taskShouldStop && taskWaitingForStop) {
                 needToStop = detectStopTask(scans, firstSamp);
             }
 			
             if (dataFile.isOpen()) {
-                if (!warnedDropped && fudgedFirstSamp != dataFile.scanCount()*u64(p.nVAIChans)) {
-                    QString e = QString("Dropped scans?  Datafile scan count (%1) and daq task scan count (%2) disagree! (fudge=%3) (%4)").arg(dataFile.sampleCount()).arg(firstSamp).arg(scan0Fudge).arg(dataFile.fileName());
-                    Debug() << e;
-                    warnedDropped = true;
-                    //stopTask();
-                    //QMessageBox::critical(0, "DAQ Error", e);
-                    //return;
-                }
 				std::vector<int16> scans_orig;
 				bool doStopRecord = false;
 				i64 n = scanSz;
@@ -1260,12 +1241,11 @@ void MainApp::taskReadFunc()
 				}
 				int bugMetaFudge = 0;
 				if (triggerOffset && preBuf.size()) {
-					int num;
-					xferWBToScans(preBuf, scans, num, triggerOffset);
-					bugMetaFudge = num;
+					//xferWBToScans(preBuf, scans, prebufCopied, triggerOffset);
+					bugMetaFudge = prebufCopied;
 				}
-				if (scans_orig.size()) {
-					scans.reserve(scanSz);
+				if (scans_orig.size() && n > 0) {
+					scans.reserve(scans.size()+n);
 					scans.insert(scans.end(), scans_orig.begin(), scans_orig.begin() + n);
 				}
 				if (bugWindow && bugMeta) 
@@ -1288,8 +1268,9 @@ void MainApp::taskReadFunc()
 					dataFile.writeScans(scans_subsetted, true);
 				} else
 					dataFile.writeScans(scans, true);
-				// and.. swap back if we have anything in scans_full
-				if (scans_orig.size()) scans.swap(scans_orig);
+				// and.. swap back if we have anything in scans_orig
+				if (scans_orig.size()) 
+					scans.swap(scans_orig);
 				if (doStopRecord) {
 					if (!p.stimGlTrigResave && p.acqStartEndMode != DAQ::AITriggered && p.acqStartEndMode != DAQ::Bug3TTLTriggered) 
 						needToStop = true;
@@ -1313,14 +1294,7 @@ void MainApp::taskReadFunc()
 			qFillPct3 = dataFile.isOpen() ? dataFile.pendingWriteQFillPct() : 0.;			
 			qFillPct = MAX(qFillPct,qFillPct2);
 			qFillPct = MAX(qFillPct,qFillPct3);
-/*            if (graphsWindow && !graphsWindow->isHidden()) {            
-                if (qFillPct > 49.9) {
-                    Warning() << "Some scans were dropped from graphing due to DAQ task queue limit being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
-                } else { 
-                    graphsWindow->putScans(scans, firstSamp);
-                }
-            }
-  */          
+			
             if (tNow-lastSBUpd > 0.25) { // every 1/4th of a second
                 QString taskEndStr = "";
                 if (taskWaitingForStop && p.acqStartEndMode == DAQ::Timed) {
@@ -1348,7 +1322,7 @@ void MainApp::taskReadFunc()
 			SampleBufQ *buf = *it; 
 			Warning() << "The buffer: `" << (*it)->name << "' is " << double((buf->dataQueueSize()/double(buf->dataQueueMaxSize))*100.) << "% full! System too slow for the specified acquisition?";
 		}
-		
+				
 		// SPATIAL VIS TESTING 
 		if (spatialWindow && !spatialWindow->isHidden()) {
             if (!daqIsOver && qFillPct <= 70.0)
@@ -1359,7 +1333,7 @@ void MainApp::taskReadFunc()
             if (daqIsOver || qFillPct > 70.0) {
                 Warning() << "Some scans were dropped from graphing due to queue limits being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
              } else { 
-                graphsWindow->putScans(scans, firstSamp);
+				 graphsWindow->putScans(scans, firstSamp);
              }
         }
         
@@ -1398,7 +1372,8 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp, i3
                 if (lastNPDSamples.size() >= p.pdThreshW) {
                     triggered = true, lastNPDSamples.clear();
                     pdOffTimeSamps = p.srate * p.pdStopTime * p.nVAIChans;
-                    lastSeenPD = firstSamp + u64(i);
+					while (pdOffTimeSamps%p.nVAIChans) ++pdOffTimeSamps;
+                    lastSeenPD = firstSamp + u64(i-p.idxOfPdChan);
                     // we triggered, so save offset of where we triggered
                     triggerOffset = static_cast<i32>(i-int(p.idxOfPdChan));
                     i = sz; // break out of loop
@@ -1425,9 +1400,6 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp, i3
     }
 	if (graphsWindow) graphsWindow->setPDTrig(triggered);
     
-    //scan0Fudge = firstSamp + scans.size();
-    scan0Fudge = firstSamp;
-
     return triggered;
 }
 
@@ -1454,7 +1426,7 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
             const int16 samp = scans[i];
             if (samp > p.pdThresh) {
                 if (lastNPDSamples.size() >= p.pdThreshW) 
-                    lastSeenPD = firstSamp+u64(i), lastNPDSamples.clear();
+                    lastSeenPD = firstSamp+u64(i-p.idxOfPdChan)/*, lastNPDSamples.clear()*/;
                 else 
                     lastNPDSamples.push_back(samp);
             } else
@@ -1462,7 +1434,7 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
         }
         if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps) { // timeout PD after X scans..
 			if (dataFile.isOpen()) {
-				stopRecordAtSamp = (lastSeenPD-i64(p.idxOfPdChan)) + preBuf.capacity() /**< NB: preBuf.capacity() is the amount of silence time before/after PD, sample-aligned! */;
+				stopRecordAtSamp = lastSeenPD + MAX(preBuf.capacity(),pdOffTimeSamps) /**< NB: preBuf.capacity() is the amount of silence time before/after PD, scan-aligned! */;
 				taskWaitingForStop = false;
 			} else {
 				Warning() << "PD/AI un-trig but datafile not open!  This is not really well-defined, but stopping task anyway.";
@@ -1848,7 +1820,6 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
 				Error() << "Got 'plugin started' message from StimGL, but we were in the post-untrigger window state!  Make sure that the time between loops of StimGL is >= " << p.pdStopTime+p.silenceBeforePD << "s! Forcibly closing the datafile...";
 				stopRecordAtSamp = -1;
 			}
-			scan0Fudge += dataFile.sampleCount();
 			Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
 			dataFile.closeAndFinalize();			
         }
@@ -1870,7 +1841,6 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
         && taskWaitingForTrigger 
         && (p.acqStartEndMode == DAQ::StimGLStart || p.acqStartEndMode == DAQ::StimGLStartEnd)) {
         Log() << "Triggered start by Stim GL plugin `" << plugin << "'";
-        scan0Fudge = scanCt*p.nVAIChans + lastScanSz;
         triggerTask();
         ignored = false;
     }
@@ -1990,7 +1960,6 @@ void MainApp::toggleSave(bool s)
         }
         if (!queuedParams.isEmpty()) stimGL_SaveParams("", queuedParams);
         Log() << "Save file: " << dataFile.fileName() << " opened from GUI.";
-        scan0Fudge = scanCt*p.nVAIChans + lastScanSz;
         //graphsWindow->clearGraph(-1);
         updateWindowTitles();
     } else if (!s && dataFile.isOpen()) {
