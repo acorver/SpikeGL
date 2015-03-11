@@ -57,7 +57,9 @@ public:
     ~SpikeGLHandlerThread();
 
     bool pushCmd(const XtCmd *c);
-    bool pushConsoleMsg(const std::string & msg, bool debug=false);
+    bool pushConsoleMsg(const std::string & msg, XtCmdConsoleMsg mtype=XtCmdConsoleMsg::Normal);
+    bool pushConsoleDebug(const std::string & msg) { return pushConsoleMsg(msg, XtCmdConsoleMsg::Debug); }
+    bool pushConsoleError(const std::string & msg) { return pushConsoleMsg(msg, XtCmdConsoleMsg::Error); }
 
 protected:
     void threadFunc();
@@ -126,13 +128,15 @@ bool SpikeGLHandlerThread::pushCmd(const XtCmd *c)
     return false;
 }
 
-bool SpikeGLHandlerThread::pushConsoleMsg(const std::string & str, bool debug)
+bool SpikeGLHandlerThread::pushConsoleMsg(const std::string & str, int mtype)
 {
-    XtCmdConsoleMsg *xt = XtCmdConsoleMsg::allocInit(str,debug);
+    XtCmdConsoleMsg *xt = XtCmdConsoleMsg::allocInit(str, mtype);
     bool ret = pushCmd(xt);
     free(xt);
     return ret;
 }
+
+
 
 imageP AllocImageMemory(int w, int h, int s)
 {	uchar	*p;
@@ -545,7 +549,6 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 void MEAControlDlg::handleSpikeGLEnvParms()
 {
 	char *envstr = (char *)getenv("SPIKEGL_PARMS");
-	SpikeGLComParams & cp(m_spikeGLComParams);
 	
 	if (envstr) {
 		m_visible = FALSE;
@@ -1347,7 +1350,7 @@ void MEAControlDlg::OnBnClickedOpen()
 
 	status = 0;
 	status = SetupUart();
-	const char * msgstr = 0;
+	const char * msgstr = 0; bool haveErr = false;
 	if (status == 0)
 	{	m_Port1Message.AddString(CString(msgstr="COM2 Ready"));
 		GetDlgItem(Port1_Open)->EnableWindow(FALSE);
@@ -1361,11 +1364,15 @@ void MEAControlDlg::OnBnClickedOpen()
 		if (status == 2) m_Port1Message.AddString(CString(msgstr="SetCommState Failed"));
 		if (status == 3) m_Port1Message.AddString(CString(msgstr="SetCommTimeouts Failed"));
 		if (status == 4) m_Port1Message.AddString(CString(msgstr="Clearing The Port Failed"));
+		haveErr = true;
 		GetDlgItem(Port1_Open)->EnableWindow(TRUE);
 		Serial_OK = 0;
 	}
 	
-	if (msgstr && m_spikeGLThread) m_spikeGLThread->pushConsoleMsg(msgstr);
+	if (msgstr && m_spikeGLThread) {
+		if (haveErr) m_spikeGLThread->pushConsoleError(msgstr); 
+		else m_spikeGLThread->pushConsoleMsg(msgstr);
+	}
 }
 
 // Clear Port #1 Monitor Window
@@ -1393,7 +1400,7 @@ void MEAControlDlg::FPGA_Protocol_Construction(int CMD_Code, int Value_1, INT32 
 
 	// sent message to FPGA
 	len = strlen(str);
-    if (m_spikeGLThread) m_spikeGLThread->pushConsoleMsg(std::string("FPGA -> UART: ") + str, true);
+    if (m_spikeGLThread) m_spikeGLThread->pushConsoleDebug(std::string("FPGA -> UART: ") + str);
     
 	status = WriteUart((unsigned char *)str, (int)len);
 }

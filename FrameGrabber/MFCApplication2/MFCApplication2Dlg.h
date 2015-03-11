@@ -72,14 +72,7 @@ public:
 
 private:
 	BOOL m_visible;
-	
-	struct SpikeGLComParams {
-		bool valid;
-		int com,speed,bits,parity/*0=N,1=O,-1=E*/,stop;
-		SpikeGLComParams() : valid(true),com(2),speed(115200),bits(8),parity(0),stop(1) {}
-	};
-	SpikeGLComParams m_spikeGLComParams;
-	
+		
 	void handleSpikeGLEnvParms();
 
 // Implementation

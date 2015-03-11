@@ -91,7 +91,7 @@ struct XtCmdImg : public XtCmd {
 };
 
 struct XtCmdConsoleMsg : public XtCmd {
-	int isDebug;
+	bool isDebug, isError;
 	union {
 		char msg[1];
 		int padding2;
@@ -104,9 +104,15 @@ struct XtCmdConsoleMsg : public XtCmd {
         return ret;
     }
 
-    void init(const std::string & message, bool isDebugMessage=false) {
+    void init(const std::string & message, bool isDebugMessage=false, bool isErrorMessage=false) {
         XtCmd::init();
-		isDebug = isDebugMessage;
+		if (isErrorMessage) {
+			isDebug = false;
+			isError = true;
+		} else {
+			isDebug = isDebugMessage;
+			isError = false;
+		}
         cmd = XtCmd_ConsoleMessage;
         len = static_cast<int>(message.length()+1+(sizeof(XtCmdConsoleMsg)-sizeof(XtCmd)));
         ::memcpy(msg, &message[0], message.length());
