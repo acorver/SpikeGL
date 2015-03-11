@@ -4,12 +4,14 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
+#include <string>
 
 #define XT_CMD_MAGIC 0xf33d0a76
 
 enum XtCmds {
     XtCmd_Null = 0, XtCmd_Noop = XtCmd_Null,
     XtCmd_Img, // got image from subprocess -> SpikeGL
+    XtCmd_ConsoleMessage, // basically ends up in SpikeGL's console
 
     XtCmd_N // num commands in enum
 };
@@ -88,5 +90,20 @@ struct XtCmdImg : public XtCmd {
     XtCmdImg() { init(0,0);  }
 };
 
+struct XtCmdConsoleMsg : public XtCmd {
+    static XtCmdConsoleMsg *allocInit(const std::string & message) {
+        void *mem = malloc(sizeof(XtCmdConsoleMsg)+message.length());
+        XtCmdConsoleMsg *ret = (XtCmdConsoleMsg *)mem;
+        if (ret) ret->init(message);
+        return ret;
+    }
 
+    void init(const std::string & message) {
+        XtCmd::init();
+        cmd = XtCmd_ConsoleMessage;
+        len = static_cast<int>(message.length())+1;
+        ::memcpy(data, &message[0], message.length());
+        data[message.length()] = 0;
+    }
+};
 #endif

@@ -56,6 +56,7 @@ public:
     ~SpikeGLHandlerThread();
 
     bool pushCmd(const XtCmd *c);
+    bool pushConsoleMsg(const std::string & msg);
 
 protected:
     void threadFunc();
@@ -100,6 +101,7 @@ void SpikeGLHandlerThread::threadFunc()
                     // todo.. handle error here...
                 }
             }
+            fflush(stdout);
         }
     }
 }
@@ -121,6 +123,14 @@ bool SpikeGLHandlerThread::pushCmd(const XtCmd *c)
         return true;
     }
     return false;
+}
+
+bool SpikeGLHandlerThread::pushConsoleMsg(const std::string & str)
+{
+    XtCmdConsoleMsg *xt = XtCmdConsoleMsg::allocInit(str);
+    bool ret = pushCmd(xt);
+    free(xt);
+    return ret;
 }
 
 imageP AllocImageMemory(int w, int h, int s)
@@ -306,7 +316,6 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 
     // for SpikeGL
     if (xt) {
-        if (!pDlg->m_spikeGLThread) { pDlg->m_spikeGLThread = new SpikeGLHandlerThread; pDlg->m_spikeGLThread->start(); }
         if (!pDlg->m_spikeGLThread->pushCmd(xt)) { /* todo:.. handle error here!*/ }
     }
 
@@ -520,7 +529,7 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	, m_BuffBias_Value(0)
 {
     m_spikeGLThread = 0;
-    if (TESTING_SPIKEGL_INTEGRATION) {
+    if (SpikeGL_Mode) {
         m_spikeGLThread = new SpikeGLHandlerThread;
         m_spikeGLThread->start();
     }
@@ -1303,7 +1312,7 @@ void MEAControlDlg::OnBnClickedClearportmonitor()
 void MEAControlDlg::FPGA_Protocol_Construction(int CMD_Code, int Value_1, INT32 Value_2)
 {	CString	protocol;
 	int		status;
-	char    str[20];
+	char    str[256];
 	size_t		len;
 
 	sprintf_s(str, "%c%02d%05d%06d\n\r", '~', CMD_Code, Value_1, Value_2);
@@ -1315,6 +1324,8 @@ void MEAControlDlg::FPGA_Protocol_Construction(int CMD_Code, int Value_1, INT32 
 
 	// sent message to FPGA
 	len = strlen(str);
+    if (m_spikeGLThread) m_spikeGLThread->pushConsoleMsg(std::string("FPGA -> UART: ") + str);
+    
 	status = WriteUart((unsigned char *)str, (int)len);
 }
 

@@ -2001,7 +2001,7 @@ namespace DAQ
 		while ((xt = XtCmd::parseBuf(pdata+consumed, data.size()-consumed, cons))) {
 			consumed += cons;
 			cmds.push_back(xt);
-			if (xt->cmd == XtCmd_Img) ++nscans;
+			if (xt->cmd == XtCmd_Img) ++nscans;            
 		}
 		std::vector<int16> scans;
 		scans.reserve(params.nVAIChans * nscans);
@@ -2016,6 +2016,9 @@ namespace DAQ
 					return 0;
 				}
 				scans.insert(scans.end(),(int16*)xi->img,((int16 *)xi->img)+params.nVAIChans);
+            } else if (xt->cmd == XtCmd_ConsoleMessage) {
+                QString msg((char *)xt->data);
+                Debug() << shortName << ": " << msg.trimmed();
 			} else {
 				// todo.. handle other cmds coming in?
 			}
