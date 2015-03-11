@@ -22,7 +22,8 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <io.h>
-
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -528,14 +529,64 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(MEAControlDlg::IDD, pParent)
 	, m_BuffBias_Value(0)
 {
+	m_visible = TRUE;
     m_spikeGLThread = 0;
-    if (SpikeGL_Mode) {
-        m_spikeGLThread = new SpikeGLHandlerThread;
-        m_spikeGLThread->start();
-    }
 	EnableActiveAccessibility();
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_pAutoProxy = NULL;
+	
+	if (SpikeGL_Mode) {
+       m_spikeGLThread = new SpikeGLHandlerThread;
+        m_spikeGLThread->start();
+		handleSpikeGLEnvParms();
+    }	
+}
+
+void MEAControlDlg::handleSpikeGLEnvParms()
+{
+	char *envstr = (char *)getenv("SPIKEGL_PARMS");
+	SpikeGLComParams & cp(m_spikeGLComParams);
+	
+	if (envstr) {
+		m_visible = FALSE;
+		char *e = strdup(envstr);
+		int i = 0;
+		for (char *pe, p = e; *p && i<5; p=pe+1, ++i) {
+			pe=strchr(p,',');
+			if (!pe) pe=p+strlen(p);
+			*pe = 0;
+			int num = 0;
+			static const int speeds[] = { 230400, 115200, 57600, 38400, 28800, 19200, 9600, 4800, 2400, 0 };
+			if (sscanf(p,"%d",&num)==1) {
+				switch (i) {
+					case 0: // COM
+						index0 = num > 0 && num <= 4 ? num : index0;
+						break;
+					case 1: // speed
+						if (num>0) {
+							bool found = false;
+							for (int j = 0; speeds[j] && !found; ++j)
+								if (num==speeds[j]) index1=j, found = true;
+						}
+						break;
+					case 2: // bits
+						if (num==8) index2=0; else if (num==7) index2=1;
+						break;
+					case 3: // parity
+						index3 = num >= 0 && num <= 2 ? num : index3;
+						break;
+					case 4: // stop
+						index4 = num >= 0 && num <= 1 ? num : index4;
+						break;
+					case 5: // flow control
+						index5 = num >= 0 && num <= 2 ? num : index5;
+						break;
+				}
+			}
+		}
+		free(e);
+	}
+	
 }
 
 MEAControlDlg::~MEAControlDlg()
@@ -755,6 +806,16 @@ BEGIN_MESSAGE_MAP(MEAControlDlg, CDialogEx)
 	ON_BN_CLICKED(FrameGrabberEnable1, &MEAControlDlg::OnBnClickedFramegrabberenable1)
 	
 END_MESSAGE_MAP()
+
+
+void MEAControlDlg::OnWindowPosChanging(WINDOWPOS* lpwndpos)
+{
+	if (!m_visible) {
+		lpwndpos->flags &= ~SWP_SHOWWINDOW;
+	}
+	
+	CDialogEx::OnWindowPosChanging(lpwndpos);
+}
 
 
 // If you add a minimize button to your dialog, you will need the code below
