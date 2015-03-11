@@ -560,7 +560,7 @@ void MEAControlDlg::handleSpikeGLEnvParms()
 			if (sscanf(p,"%d",&num)==1) {
 				switch (i) {
 					case 0: // COM
-						index0 = num > 0 && num <= 4 ? num : index0;
+						index0 = num >= 1 && num <= 4 ? num : index0;
 						break;
 					case 1: // speed
 						if (num>0) {
