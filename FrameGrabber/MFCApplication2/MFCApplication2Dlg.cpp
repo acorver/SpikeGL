@@ -549,9 +549,9 @@ void MEAControlDlg::handleSpikeGLEnvParms()
 	
 	if (envstr) {
 		m_visible = FALSE;
-		char *e = strdup(envstr);
+		char *e = _strdup(envstr);
 		int i = 0;
-		for (char *pe, p = e; *p && i<5; p=pe+1, ++i) {
+		for (char *pe, *p = e; *p && i<5; p=pe+1, ++i) {
 			pe=strchr(p,',');
 			if (!pe) pe=p+strlen(p);
 			*pe = 0;
@@ -1035,7 +1035,11 @@ UINT Background_Update(LPVOID pParam)
 	// Thread related 
 	DWORD_PTR oldmask = SetThreadAffinityMask(GetCurrentThread(), 2);
 
-	if (oldmask == 0) pDlg->m_Port1Message.AddString(CString("No Background Update"));// exit(0);
+    const char *str = 0;
+    if (oldmask == 0) {
+        pDlg->m_Port1Message.AddString(CString(str = "No Background Update"));// exit(0);
+        if (pDlg->m_spikeGLThread) pDlg->m_spikeGLThread->pushConsoleMsg(str);
+    }
 
 	while (::WaitForSingleObject(g_terminate, 0) != WAIT_OBJECT_0)		// terminate this thread when program exits
 	{	current_tick = GetTickCount();
@@ -1044,7 +1048,8 @@ UINT Background_Update(LPVOID pParam)
 		{	last_tick = current_tick;
 			if (Serial_OK == 1)
 				if (ReadUart(Return_Text) != 0)
-				{	pDlg->m_Port1Message.AddString(CString(buf3));// exit(0);
+				{	pDlg->m_Port1Message.AddString(CString(str=buf3));// exit(0);
+                    if (pDlg->m_spikeGLThread) pDlg->m_spikeGLThread->pushConsoleMsg(str);
 					pDlg->m_Port1Message.SetTopIndex(pDlg->m_Port1Message.GetCount() - 1);
 					d.Format(_T("%d"), R_Data2);
 					pDlg->m_Data_A.SetWindowTextW(d); // SetWindowTextW(d);
@@ -1342,7 +1347,7 @@ void MEAControlDlg::OnBnClickedOpen()
 
 	status = 0;
 	status = SetupUart();
-	std::string msgstr("");
+	const char * msgstr = 0;
 	if (status == 0)
 	{	m_Port1Message.AddString(CString(msgstr="COM2 Ready"));
 		GetDlgItem(Port1_Open)->EnableWindow(FALSE);
@@ -1360,7 +1365,7 @@ void MEAControlDlg::OnBnClickedOpen()
 		Serial_OK = 0;
 	}
 	
-	if (msgstr.length() && m_spikeGLThread) m_spikeGLThread->pushConsoleMsg(msgstr);
+	if (msgstr && m_spikeGLThread) m_spikeGLThread->pushConsoleMsg(msgstr);
 }
 
 // Clear Port #1 Monitor Window
