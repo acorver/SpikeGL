@@ -1241,7 +1241,7 @@ void MainApp::taskReadFunc()
 				}
 				int bugMetaFudge = 0;
 				if (triggerOffset && preBuf.size()) {
-					//xferWBToScans(preBuf, scans, prebufCopied, triggerOffset);
+					xferWBToScans(preBuf, scans, prebufCopied, triggerOffset);
 					bugMetaFudge = prebufCopied;
 				}
 				if (scans_orig.size() && n > 0) {

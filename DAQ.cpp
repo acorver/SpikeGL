@@ -1792,7 +1792,7 @@ namespace DAQ
 						bool ok = false;
 						int samp = num.toUShort(&ok);
 						if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
-#if 1 // BUG3_TTL_TESTING
+#if 0 // BUG3_TTL_TESTING
 						// TODO HACK BUG FIXME TESTING XXX
 						///*
 						if (ttl_chan_translated == 0) {
