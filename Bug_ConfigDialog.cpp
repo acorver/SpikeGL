@@ -128,7 +128,8 @@ int Bug_ConfigDialog::exec()
 				p.usePD = 0;
 				p.chanMap = ChanMap();
 				if (p.bug.ttlTrig > -1) {
-					p.acqStartEndMode = DAQ::AITriggered;
+					p.acqStartEndMode = DAQ::Bug3TTLTriggered;
+					p.isImmediate = false;
 					p.idxOfPdChan = ttlIdx;
 					p.usePD = true;
 					p.pdChanIsVirtual = true;

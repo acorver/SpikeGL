@@ -47,6 +47,7 @@ namespace DAQ
            the Ui::ConfigureDialog form */
         Immediate=0, PDStartEnd, PDStart, Timed, StimGLStartEnd, StimGLStart, 
 		AITriggered, /* use physical AI line for triggering */
+		Bug3TTLTriggered, /* identical in behavior to PDStart above, but different UI messaging */
         N_AcqStartEndModes
     };
 
@@ -336,7 +337,7 @@ namespace DAQ
 		void daqThr(); ///< implemented from Task
 		
          ///< return number of bytes consumed from data.  Data buffer will then have those bytes removed from beginning
-        virtual unsigned gotInput(const QByteArray & allData, const QByteArray & mostRecentlyRead, QProcess & p) { (void)allData; (void)mostRecentlyRead; (void)p; return 0; }
+        virtual unsigned gotInput(const QByteArray & allData, unsigned lastReadNBytes, QProcess & p) { (void)allData; (void)lastReadNBytes; (void)p; return 0; }
         ///< used to setup the exedir with the appropriate files in resources.  reimplement to return a list of resource paths to put into the exedir..
         virtual QStringList filesList() const { return QStringList(); }
          ///< called before the exe is about to be run. set up any needed environment parameters
@@ -433,7 +434,7 @@ namespace DAQ
 		static bool isTTLChan(unsigned num);
 		
 	protected:
-		unsigned gotInput(const QByteArray & data, const QByteArray & buf, QProcess & p); ///< return number of bytes consumed from data.  Data buffer will then have those bytes removed from beginning
+		unsigned gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p); ///< return number of bytes consumed from data.  Data buffer will then have those bytes removed from beginning
 		QStringList filesList() const; ///< used to setup the exedir with the appropriate files in resources.  reimplement to return a list of resource paths to put into the exedir..
 		void setupEnv(QProcessEnvironment &) const; ///< called before the exe is about to be run. set up any needed environment parameters
 		void sendExitCommand(QProcess &p) const;
@@ -442,6 +443,7 @@ namespace DAQ
 		int state;
 		static const int nstates = 36;
 		quint64 nblocks, nlines;
+		qint64 debugTTLStart;
 		QMap<QString, QString> block;
 		
 		void processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines);
@@ -467,7 +469,7 @@ namespace DAQ
 		bool platformSupported() const { return false; }
 #endif
 		int readTimeoutMaxSecs() const { return 30; }
-		unsigned gotInput(const QByteArray & data, const QByteArray & buf, QProcess & p);
+		unsigned gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p);
 		QStringList filesList() const;
 
 	private:

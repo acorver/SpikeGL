@@ -1320,7 +1320,7 @@ namespace DAQ
     }
 
 
-    static const QString acqStartEndModes[] = { "Immediate", "PDStartEnd", "PDStart", "Timed", "StimGLStartEnd", "StimGLStart", "AITriggered", QString::null };
+    static const QString acqStartEndModes[] = { "Immediate", "PDStartEnd", "PDStart", "Timed", "StimGLStartEnd", "StimGLStart", "AITriggered", "Bug3TTLTriggered", QString::null };
     
     const QString & AcqStartEndModeToString(AcqStartEndMode m) {
         if (m >= 0 && m < N_AcqStartEndModes) 
@@ -1488,7 +1488,7 @@ namespace DAQ
 					continue;
 				}
 				data.append(buf);
-				unsigned consumed = gotInput(data, buf, p);
+				unsigned consumed = gotInput(data, buf.size(), p);
 				data.remove(0,consumed);
 				if (excessiveDebug && data.size()) {
 					Debug() << shortName << " slave process: partial data left over " << data.size() << " bytes";
@@ -1553,6 +1553,7 @@ namespace DAQ
 	: SubprocessTask(p, parent, "Bug3", "bug3_spikegl.exe")
 	{
 		state = 0; nblocks = 0; nlines = 0;
+		debugTTLStart = 0;
 	}
 
     BugTask::~BugTask() {  if (isRunning()) { stop(); wait(); } }
@@ -1606,11 +1607,11 @@ namespace DAQ
 		return frameSize * FramesPerBlock;
 	}
 	
-	unsigned BugTask::gotInput(const QByteArray & data, const QByteArray & buf, QProcess & p) 
+	unsigned BugTask::gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p) 
 	{
 		(void) p;
 		unsigned consumed = 0;
-		for (int i = (data.size()-buf.size()), l = 0; i < data.size(); ++i) {
+		for (int i = (data.size()-lastReadNBytes), l = 0; i < data.size(); ++i) {
 			if (data[i] == '\n') {
 				QString line = data.mid(l, i-l+1);
 				l = consumed = i+1;
@@ -1791,11 +1792,27 @@ namespace DAQ
 						bool ok = false;
 						int samp = num.toUShort(&ok);
 						if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
-
+#undef BUG3_TTL_TESTING /* define this to turn below code on.. */
+#ifdef BUG3_TTL_TESTING
 						// TODO HACK BUG FIXME TESTING XXX
-						/*qint64 scan = totalRead/qint64(params.nVAIChans);
-						if (ttl_chan_translated == 0 && (scan>=96000 && scan <= 96100) || (scan>=48000 && scan <= 48100) ) samp = 1;
-						 */
+						///*
+						if (ttl_chan_translated == 0) {
+							qint64 scan = qint64(blockNum)*qint64(SpikeGLScansPerBlock) + qint64(frame*NeuralSamplesPerFrame);
+							const qint64 sr = params.srate;
+							static const qint64 ttlWSamps = sr/1000;
+							static const qint64 everyNSecs = 2;
+							
+							if (scan>sr*everyNSecs) {
+								if (scan>(debugTTLStart+sr*everyNSecs)) 
+									debugTTLStart = scan;
+							
+								if (scan<debugTTLStart+ttlWSamps)
+									samp = 1;
+								else samp = 0;
+							}
+						}
+						//*/
+#endif
 						if (samp) samp = 32767; // normalize high to maxV
 						for (int ix = 0; ix < NeuralSamplesPerFrame; ++ix) { // need to produce 16 samples for each 1 emg sample read in order to match neuronal rate!						
                             samps[ frame*(NeuralSamplesPerFrame*nchans) + ix*nchans + (TotalNeuralChans+TotalEMGChans+TotalAuxChans+ttl_chan_translated) ] = samp;
@@ -1972,9 +1989,9 @@ namespace DAQ
 	}
 		
 	
-	unsigned FGTask::gotInput(const QByteArray & data, const QByteArray & buf, QProcess & p) 
+	unsigned FGTask::gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p) 
 	{
-		(void) buf;
+		(void) lastReadNBytes;
 		unsigned consumed = 0;
 		
 		std::vector<const XtCmd *> cmds;

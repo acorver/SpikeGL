@@ -754,7 +754,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     preBuf2.clear();
     preBuf2.reserve(0);
     if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd
-						 || params.acqStartEndMode == DAQ::AITriggered)) {
+						 || params.acqStartEndMode == DAQ::AITriggered || params.acqStartEndMode == DAQ::Bug3TTLTriggered)) {
         const double sil = params.silenceBeforePD > 0. ? params.silenceBeforePD : DEFAULT_PD_SILENCE;
         if (params.stimGlTrigResave) pdWaitingForStimGL = true;
         int szSamps = params.nVAIChans*params.srate*sil;
@@ -816,6 +816,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         case DAQ::StimGLStartEnd:
         case DAQ::StimGLStart:
 		case DAQ::AITriggered:
+		case DAQ::Bug3TTLTriggered:
             taskWaitingForTrigger = true; break;
         default:
             errTitle = "Internal Error";
@@ -1197,10 +1198,9 @@ void MainApp::taskReadFunc()
                 } else if (p.acqStartEndMode == DAQ::PDStart
                            || p.acqStartEndMode == DAQ::PDStartEnd) {
                     Status() << "Acquisition waiting for start trigger from photo-diode";
+                } else if (p.acqStartEndMode == DAQ::Bug3TTLTriggered) {
+                    Status() << "Acquisition waiting for start trigger from Bug3 TTL line " << p.bug.ttlTrig;
                 } else if (p.acqStartEndMode == DAQ::AITriggered) {
-					if (p.bug.enabled) 
-						Status() << "Acquisition watiing for start trigger from TTL line " << p.bug.ttlTrig;
-					else
 						Status() << "Acquisition waiting for start trigger from AI";
                 } 
             }
@@ -1220,7 +1220,7 @@ void MainApp::taskReadFunc()
             const u64 fudgedFirstSamp = firstSamp - scan0Fudge;            
             const u64 scanSz = scans.size();
 
-			if (p.acqStartEndMode == DAQ::AITriggered && !dataFile.isOpen()) {
+			if ((p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::Bug3TTLTriggered) && !dataFile.isOpen()) {
 				// HACK!
 				QString fn = getNewDataFileName();
 				if (!dataFile.openForWrite(p, fn)) {
@@ -1229,7 +1229,7 @@ void MainApp::taskReadFunc()
 				updateWindowTitles();
 			}
 			
-            if (!dataFile.isOpen() && p.acqStartEndMode != DAQ::AITriggered ) 
+            if (!dataFile.isOpen() && p.acqStartEndMode != DAQ::AITriggered && p.acqStartEndMode != DAQ::Bug3TTLTriggered ) 
 				scan0Fudge = firstSamp + scanSz;
 
             if (!needToStop && !taskShouldStop && taskWaitingForStop) {
@@ -1291,13 +1291,13 @@ void MainApp::taskReadFunc()
 				// and.. swap back if we have anything in scans_full
 				if (scans_orig.size()) scans.swap(scans_orig);
 				if (doStopRecord) {
-					if (!p.stimGlTrigResave && p.acqStartEndMode != DAQ::AITriggered) 
+					if (!p.stimGlTrigResave && p.acqStartEndMode != DAQ::AITriggered && p.acqStartEndMode != DAQ::Bug3TTLTriggered) 
 						needToStop = true;
                     Debug() << "Post-untrigger window detection: Closing datafile because passed samp# stopRecordAtSamp=" << stopRecordAtSamp;
                     dataFile.closeAndFinalize();
                     stopRecordAtSamp = -1;
                     updateWindowTitles();    
-				    if (p.stimGlTrigResave || p.acqStartEndMode == DAQ::AITriggered) {
+				    if (p.stimGlTrigResave || p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::Bug3TTLTriggered) {
 						taskWaitingForTrigger = true;
 						preBuf = preBuf2; // we will get a re-trigger soon, so preBuffer the scans we had previously..
 						updateWindowTitles();        
@@ -1383,6 +1383,7 @@ bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp, i3
         break;
     case DAQ::PDStartEnd:
     case DAQ::PDStart:
+	case DAQ::Bug3TTLTriggered:
 	case DAQ::AITriggered: {
         // NB: photodiode channel is always the last channel.. unless in bug mode then it can be any of the last few TTL lines
         const int sz = scans.size();
@@ -1441,6 +1442,7 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
             Log() << "Triggered stop because acquisition duration has fully elapsed.";
         }
         break;
+	case DAQ::Bug3TTLTriggered:
 	case DAQ::AITriggered: 
     case DAQ::PDStartEnd: {
         if (p.idxOfPdChan < 0) {
@@ -1496,6 +1498,7 @@ void MainApp::triggerTask()
         case DAQ::PDStartEnd:             
         case DAQ::StimGLStartEnd:
 		case DAQ::AITriggered: 
+		case DAQ::Bug3TTLTriggered:
             taskWaitingForStop = true; 
             Log() << "Acquisition triggered";
             break;
@@ -1856,7 +1859,7 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
             Log() << "Data file: " << dataFile.fileName() << " opened by StimulateOpenGL.";
         }
 
-       if (p.acqStartEndMode == DAQ::PDStart || p.acqStartEndMode == DAQ::PDStartEnd) {
+		if (p.acqStartEndMode == DAQ::PDStart || p.acqStartEndMode == DAQ::PDStartEnd) {
            taskWaitingForTrigger = true; // turns on the detect trigger code again, so we can get a constant-offset PD signal
            pdWaitingForStimGL = false;
        }           

@@ -384,7 +384,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	stimTrigLed = new QLed;
 	bool modeCaresAboutSGL = false, modeCaresAboutPD = false;
 	switch(p.acqStartEndMode) {
-		case DAQ::AITriggered: 
+		case DAQ::AITriggered:
+		case DAQ::Bug3TTLTriggered:
 			modeCaresAboutPD = true, modeCaresAboutSGL = false; 
 			break;
 		case DAQ::PDStart:
