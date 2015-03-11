@@ -63,17 +63,17 @@ public:
 	int							m_RingBufferCounter;													//	Ring Buffer counter for Image Source 1 and Image Source 2
     std::vector<BYTE>           m_spikeGLFrameBuf;
     SpikeGLHandlerThread        *m_spikeGLThread;
+    BOOL m_visible;
 
 // Dialog Data
 	enum { IDD = IDD_MFCAPPLICATION2_DIALOG };
 
-	protected:
+protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
 
-private:
-	BOOL m_visible;
-		
+private:		
 	void handleSpikeGLEnvParms();
+    int SetupUart();
 
 // Implementation
 protected:

@@ -1236,20 +1236,22 @@ int configuretimeout(void)
 }
 
 // Open RS232
-int SetupUart(void)
+int MEAControlDlg::SetupUart()
 {	LPCTSTR str;
 
 	str = PortNum;
 	hPort1 = CreateFile(str, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if (hPort1 == INVALID_HANDLE_VALUE)
-	{	MessageBox (NULL, L"Port Open Failed" ,L"Error", MB_OK);
+	{	
+        if (m_visible) ::MessageBox (NULL, L"Port Open Failed" ,L"Error", MB_OK);
 		return 1;
 	}
 	
 	Port1DCB.DCBlength = sizeof(DCB);			//Initialize the DCBlength member. 
 	if (GetCommState(hPort1, &Port1DCB) == 0)	// Get the default port setting information.
-	{	MessageBox(NULL, L"(GetCommState Failed)", L"Error", MB_OK);
+    {
+        if (m_visible) ::MessageBox(NULL, L"(GetCommState Failed)", L"Error", MB_OK);
 		CloseHandle(hPort1);
 		return 2;
 	}
@@ -1259,21 +1261,24 @@ int SetupUart(void)
 
 	//Re-configure the port with the new DCB structure. 
 	if (!SetCommState(hPort1, &Port1DCB))
-	{	MessageBox (NULL, L"1.Could not create the read thread.(SetCommState Failed)" ,L"Error", MB_OK);
+    {
+        if (m_visible) ::MessageBox(NULL, L"1.Could not create the read thread.(SetCommState Failed)", L"Error", MB_OK);
 		CloseHandle(hPort1);
 		return 2;
 	}
 
 	// Set the time-out parameters for all read and write operations on the port. 
 	if (!SetCommTimeouts(hPort1, &CommTimeouts))
-	{	MessageBox (NULL, L"Could not create the read thread.(SetCommTimeouts Failed)" ,L"Error", MB_OK);
+    {
+        if (m_visible) ::MessageBox(NULL, L"Could not create the read thread.(SetCommTimeouts Failed)", L"Error", MB_OK);
 		CloseHandle(hPort1);
 		return 3;
 	}
 
 	// Clear the port of any existing data. 
 	if (PurgeComm(hPort1, PURGE_TXCLEAR | PURGE_RXCLEAR) == 0)
-	{	MessageBox (NULL, L"Clearing The Port Failed" ,L"Message", MB_OK);
+    {
+        if (m_visible) ::MessageBox(NULL, L"Clearing The Port Failed", L"Message", MB_OK);
 		CloseHandle(hPort1);
 		return 4;
 	}

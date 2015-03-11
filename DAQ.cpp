@@ -2028,7 +2028,7 @@ namespace DAQ
 					case XtCmdConsoleMsg::Warning:
 						Warning() << shortName << ": " << msg; break;
 					case XtCmdConsoleMsg::Debug:
-						Warning() << shortName << ": " << msg; break;
+                        Debug() << shortName << ": " << msg; break;
 					default:
 						Log() << shortName << ": " << msg; break;
 				}

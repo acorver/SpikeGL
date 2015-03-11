@@ -98,14 +98,14 @@ struct XtCmdConsoleMsg : public XtCmd {
 		int padding2;
 	};
 	
-    static XtCmdConsoleMsg *allocInit(const std::string & message, MsgType mtype) {
+    static XtCmdConsoleMsg *allocInit(const std::string & message, int mtype) {
         void *mem = malloc(sizeof(XtCmdConsoleMsg)+message.length()+1);
         XtCmdConsoleMsg *ret = (XtCmdConsoleMsg *)mem;
         if (ret) ret->init(message,mtype);
         return ret;
     }
 
-    void init(const std::string & message, MsgType mtype=Normal) {
+    void init(const std::string & message, int mtype=Normal) {
         XtCmd::init();
 		msgType = mtype;
         cmd = XtCmd_ConsoleMessage;
