@@ -91,19 +91,26 @@ struct XtCmdImg : public XtCmd {
 };
 
 struct XtCmdConsoleMsg : public XtCmd {
-    static XtCmdConsoleMsg *allocInit(const std::string & message) {
-        void *mem = malloc(sizeof(XtCmdConsoleMsg)+message.length());
+	int isDebug;
+	union {
+		char msg[1];
+		int padding2;
+	};
+	
+    static XtCmdConsoleMsg *allocInit(const std::string & message, bool debug=false) {
+        void *mem = malloc(sizeof(XtCmdConsoleMsg)+message.length()+1);
         XtCmdConsoleMsg *ret = (XtCmdConsoleMsg *)mem;
-        if (ret) ret->init(message);
+        if (ret) ret->init(message,debug);
         return ret;
     }
 
-    void init(const std::string & message) {
+    void init(const std::string & message, bool isDebugMessage=false) {
         XtCmd::init();
+		isDebug = isDebugMessage;
         cmd = XtCmd_ConsoleMessage;
-        len = static_cast<int>(message.length())+1;
-        ::memcpy(data, &message[0], message.length());
-        data[message.length()] = 0;
+        len = static_cast<int>(message.length()+1+(sizeof(XtCmdConsoleMsg)-sizeof(XtCmd)));
+        ::memcpy(msg, &message[0], message.length());
+        msg[message.length()] = 0;
     }
 };
 #endif

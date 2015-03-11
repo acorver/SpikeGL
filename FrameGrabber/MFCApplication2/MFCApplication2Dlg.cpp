@@ -57,7 +57,7 @@ public:
     ~SpikeGLHandlerThread();
 
     bool pushCmd(const XtCmd *c);
-    bool pushConsoleMsg(const std::string & msg);
+    bool pushConsoleMsg(const std::string & msg, bool debug=false);
 
 protected:
     void threadFunc();
@@ -126,9 +126,9 @@ bool SpikeGLHandlerThread::pushCmd(const XtCmd *c)
     return false;
 }
 
-bool SpikeGLHandlerThread::pushConsoleMsg(const std::string & str)
+bool SpikeGLHandlerThread::pushConsoleMsg(const std::string & str, bool debug)
 {
-    XtCmdConsoleMsg *xt = XtCmdConsoleMsg::allocInit(str);
+    XtCmdConsoleMsg *xt = XtCmdConsoleMsg::allocInit(str,debug);
     bool ret = pushCmd(xt);
     free(xt);
     return ret;
@@ -1342,8 +1342,9 @@ void MEAControlDlg::OnBnClickedOpen()
 
 	status = 0;
 	status = SetupUart();
+	std::string msgstr("");
 	if (status == 0)
-	{	m_Port1Message.AddString(CString("COM2 Ready"));
+	{	m_Port1Message.AddString(CString(msgstr="COM2 Ready"));
 		GetDlgItem(Port1_Open)->EnableWindow(FALSE);
 		Serial_OK = 1;
 		// LED Control 
@@ -1351,13 +1352,15 @@ void MEAControlDlg::OnBnClickedOpen()
 		Control_On();
 	}
 	else
-	{	if (status == 1) m_Port1Message.AddString(CString("Port1 Open Failed"));
-		if (status == 2) m_Port1Message.AddString(CString("SetCommState Failed"));
-		if (status == 3) m_Port1Message.AddString(CString("SetCommTimeouts Failed"));
-		if (status == 4) m_Port1Message.AddString(CString("Clearing The Port Failed"));
+	{	if (status == 1) m_Port1Message.AddString(CString(msgstr="Port1 Open Failed"));
+		if (status == 2) m_Port1Message.AddString(CString(msgstr="SetCommState Failed"));
+		if (status == 3) m_Port1Message.AddString(CString(msgstr="SetCommTimeouts Failed"));
+		if (status == 4) m_Port1Message.AddString(CString(msgstr="Clearing The Port Failed"));
 		GetDlgItem(Port1_Open)->EnableWindow(TRUE);
 		Serial_OK = 0;
 	}
+	
+	if (msgstr.length() && m_spikeGLThread) m_spikeGLThread->pushConsoleMsg(msgstr);
 }
 
 // Clear Port #1 Monitor Window
@@ -1385,7 +1388,7 @@ void MEAControlDlg::FPGA_Protocol_Construction(int CMD_Code, int Value_1, INT32 
 
 	// sent message to FPGA
 	len = strlen(str);
-    if (m_spikeGLThread) m_spikeGLThread->pushConsoleMsg(std::string("FPGA -> UART: ") + str);
+    if (m_spikeGLThread) m_spikeGLThread->pushConsoleMsg(std::string("FPGA -> UART: ") + str, true);
     
 	status = WriteUart((unsigned char *)str, (int)len);
 }

@@ -2017,8 +2017,10 @@ namespace DAQ
 				}
 				scans.insert(scans.end(),(int16*)xi->img,((int16 *)xi->img)+params.nVAIChans);
             } else if (xt->cmd == XtCmd_ConsoleMessage) {
-                QString msg((char *)xt->data);
-                Debug() << shortName << ": " << msg.trimmed();
+				XtCmdConsoleMsg *xm = (XtCmdConsoleMsg *)xt; 
+                QString msg(xm->msg);
+				if (xm->isDebug) Debug() << shortName << ": " << msg.trimmed();
+				else Log() << shortName << ": " << msg.trimmed();
 			} else {
 				// todo.. handle other cmds coming in?
 			}
