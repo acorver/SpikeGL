@@ -344,6 +344,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
     C_filename[199] = 0;
 	if (stat(C_filename, &stFileInfo) != 0)
 	{	MessageBox(CString("Cannot Find Camera Description File, Application Abort"), CString("Error Messgae"));
+		exit(1);
 		return false;						// couldn't find the camera ccf file.
 	}
 	else
