@@ -287,10 +287,10 @@ private:
     void stopTask();
     bool setupStimGLIntegration(bool doQuitOnFail=true);
     bool setupCommandServer(bool doQuitOnFail=true);
-    bool detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp, i32 & triggerOffset);
+    bool detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp, i32 & triggerOffset);
     void triggerTask();
     bool detectStopTask(const std::vector<int16> & scans, u64 firstSamp);
-    static void xferWBToScans(WrapBuffer & wb, std::vector<int16> & scans, int & numAdded, int skip);
+    static void prependPrebufToScans(const WrapBuffer & wb, std::vector<int16> & scans, int & numAdded, int skip);
     void precreateOneGraph(bool noGLGraph = false);
     bool startAcq(QString & errTitle, QString & errMsg);
 	void showPrecreateDialog();
@@ -359,7 +359,7 @@ private:
     bool fastSettleRunning;
     QDialog *helpWindow;
 
-    WrapBuffer preBuf, preBuf2;
+    WrapBuffer preBuf;
     bool noHotKeys, pdWaitingForStimGL;	
     bool dsFacilityEnabled;
     

@@ -1792,7 +1792,7 @@ namespace DAQ
 						bool ok = false;
 						int samp = num.toUShort(&ok);
 						if (!ok) Error() << "Bug3: Internal error -- parse error while reading emg sample `" << num << "'";
-#if 0 // BUG3_TTL_TESTING
+#if 1 // BUG3_TTL_TESTING
 						// TODO HACK BUG FIXME TESTING XXX
 						///*
 						if (ttl_chan_translated == 0) {
@@ -1924,10 +1924,11 @@ namespace DAQ
 				meta.falseFrameCount = n;								
 			}
 		}
-		quint64 oldTotalRead = totalRead;
 		totalReadMut.lock();
+		quint64 oldTotalRead = totalRead;
 		totalRead += (quint64)samps.size(); 
 		totalReadMut.unlock();
+		Debug() << "Enq: " << samps.size() << " samps, firstSamp: " << oldTotalRead;
 		enqueueBuffer(samps, oldTotalRead, false, 0, QByteArray(reinterpret_cast<char *>(&meta),sizeof(meta)));
 		if (!oldTotalRead) emit(gotFirstScan());
 	}
@@ -2045,8 +2046,8 @@ namespace DAQ
 			}
 		}
 		if (scans.size()) {
-			quint64 oldTotalRead = totalRead;
 			totalReadMut.lock();
+			quint64 oldTotalRead = totalRead;
 			totalRead += (quint64)scans.size();
 			totalReadMut.unlock();
 			enqueueBuffer(scans, oldTotalRead, true);

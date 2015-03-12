@@ -749,8 +749,6 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     
     preBuf.clear();
     preBuf.reserve(0);
-    preBuf2.clear();
-    preBuf2.reserve(0);
     if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd
 						 || params.acqStartEndMode == DAQ::AITriggered || params.acqStartEndMode == DAQ::Bug3TTLTriggered)) {
         const double sil = params.silenceBeforePD > 0. ? params.silenceBeforePD : DEFAULT_PD_SILENCE;
@@ -760,11 +758,9 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         if (szSamps % params.nVAIChans) 
             szSamps += params.nVAIChans - szSamps%params.nVAIChans;
         preBuf.reserve(szSamps*sizeof(int16));
-        preBuf2.reserve(szSamps*sizeof(int16));
 		char *mem = new char[preBuf.capacity()];
 		memset(mem, 0, preBuf.capacity());
 		preBuf.putData(mem, preBuf.capacity());
-		preBuf2.putData(mem, preBuf2.capacity());
 		delete [] mem;
     }
     
@@ -1010,12 +1006,12 @@ void MainApp::gotDaqWarning(const QString & e)
 
 
 /* static */
-void MainApp::xferWBToScans(WrapBuffer & preBuf, std::vector<int16> & scans, int & num, int skip)
+void MainApp::prependPrebufToScans(const WrapBuffer & preBuf, std::vector<int16> & scans, int & num, int skip)
 {
 	if (scans.capacity() < preBuf.size()) scans.reserve(preBuf.size());
     void *ptr=0;
     unsigned lenBytes=0, lenElems = 0;
-    preBuf.dataPtr2(ptr, lenBytes);
+    preBuf.dataPtr1(ptr, lenBytes);
 	lenElems = lenBytes / sizeof(int16);
 	num = 0;
     if (ptr && skip < (int)lenElems) {
@@ -1024,14 +1020,13 @@ void MainApp::xferWBToScans(WrapBuffer & preBuf, std::vector<int16> & scans, int
     }
 	skip -= lenElems;
 	if (skip < 0) skip = 0;
-    preBuf.dataPtr1(ptr, lenBytes);
+    preBuf.dataPtr2(ptr, lenBytes);
 	lenElems = lenBytes / sizeof(int16);
     if (ptr && skip < (int)lenElems) {
-        scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr) + skip, reinterpret_cast<int16 *>(ptr)+skip+(lenElems-skip));
+        scans.insert(scans.begin()+num, reinterpret_cast<int16 *>(ptr) + skip, reinterpret_cast<int16 *>(ptr)+skip+(lenElems-skip));
 		num += lenElems - skip;
     }
 	skip -= lenElems;
-    preBuf.clear();  
 }
 
 
@@ -1164,6 +1159,8 @@ void MainApp::taskReadFunc()
 		}
 		if (!gotSomething) break;
 		
+		Debug() << "Deq: " << scans.size() << " samps, firstSamp: " << firstSamp;
+
         const bool wasFakeData = fakeDataSz > -1;
         // TODO XXX FIXME -- implement detection of fake data (DAQ restart!) properly
         if (wasFakeData) {
@@ -1185,8 +1182,7 @@ void MainApp::taskReadFunc()
 		int prebufCopied = 0;
 		
         if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
-            if (!detectTriggerEvent(scans, firstSamp, triggerOffset))
-                preBuf.putData(&scans[0], scans.size()*sizeof(scans[0])); // save data to pre-buffer ringbuffer if not triggered yet
+            detectTriggerEvent(scans, firstSamp, triggerOffset); // may set taskWaitingForTrigger...
             if (taskWaitingForTrigger && tNow-lastSBUpd > 0.25) { // every 1/4th of a second
                 if (p.acqStartEndMode == DAQ::Timed) {
                     Status() << "Acquisition will auto-start in " << (startScanCt-scanCt)/p.srate << " seconds.";
@@ -1204,9 +1200,6 @@ void MainApp::taskReadFunc()
                 } 
             }
         } 
-
-        // normally always pre-buffer the scans in case we get a re-trigger event
-        preBuf2.putData(&scans[0], scans.size()*sizeof(scans[0]));
 
 		// not an 'else' because both 'if' clauses are true on first trigger		
         if (!taskWaitingForTrigger) { // task not waiting from trigger, normal acq.. 
@@ -1226,13 +1219,13 @@ void MainApp::taskReadFunc()
             }
 			
             if (dataFile.isOpen()) {
-				std::vector<int16> scans_orig;
 				bool doStopRecord = false;
+				std::vector<int16> scans_orig;
 				i64 n = scanSz;
-				if (stopRecordAtSamp > -1 && (doStopRecord = (i64(firstSamp + scanSz) >= stopRecordAtSamp))) {
+				 if (stopRecordAtSamp > -1 && (doStopRecord = (i64(firstSamp + scanSz) >= stopRecordAtSamp))) {
 					// ok, scheduled a stop, make scans be the subset of scans we want to keep for the datafile, and save the full scan to scans_full
 					scans_orig.swap(scans);
-					n = stopRecordAtSamp - firstSamp;
+					n = i64(stopRecordAtSamp) - i64(firstSamp);
 					if (n < 0) n = 0;
 					else if (n > i64(scanSz)) n = scanSz;
 				}
@@ -1241,7 +1234,7 @@ void MainApp::taskReadFunc()
 				}
 				int bugMetaFudge = 0;
 				if (triggerOffset && preBuf.size()) {
-					xferWBToScans(preBuf, scans, prebufCopied, triggerOffset);
+					prependPrebufToScans(preBuf, scans, prebufCopied, triggerOffset);
 					bugMetaFudge = prebufCopied;
 				}
 				if (scans_orig.size() && n > 0) {
@@ -1280,7 +1273,6 @@ void MainApp::taskReadFunc()
                     updateWindowTitles();    
 				    if (p.stimGlTrigResave || p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::Bug3TTLTriggered) {
 						taskWaitingForTrigger = true;
-						preBuf = preBuf2; // we will get a re-trigger soon, so preBuffer the scans we had previously..
 						updateWindowTitles();        
 					}
 				}
@@ -1334,8 +1326,12 @@ void MainApp::taskReadFunc()
                 Warning() << "Some scans were dropped from graphing due to queue limits being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
              } else { 
 				 graphsWindow->putScans(scans, firstSamp);
+				 Debug() << "graphsWindow->putScans(" << scans.size() <<" scans,firstSamp=" << firstSamp << ")";
              }
         }
+		
+		// normally *always* pre-buffer the scans since we may need them at any time on a re-trigger event
+        preBuf.putData(&scans[0], scans.size()*sizeof(scans[0]));
         
     }
 	
@@ -1344,7 +1340,7 @@ void MainApp::taskReadFunc()
 }
 		   
 
-bool MainApp::detectTriggerEvent(std::vector<int16> & scans, u64 & firstSamp, i32 & triggerOffset)
+bool MainApp::detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp, i32 & triggerOffset)
 {
 	triggerOffset = 0;
     bool triggered = false;
@@ -1426,7 +1422,7 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
             const int16 samp = scans[i];
             if (samp > p.pdThresh) {
                 if (lastNPDSamples.size() >= p.pdThreshW) 
-                    lastSeenPD = firstSamp+u64(i-p.idxOfPdChan)/*, lastNPDSamples.clear()*/;
+                    lastSeenPD = firstSamp+u64(i-p.idxOfPdChan), lastNPDSamples.clear();
                 else 
                     lastNPDSamples.push_back(samp);
             } else
@@ -1898,7 +1894,6 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
     }
     if (task && p.stimGlTrigResave && p.acqStartEndMode == DAQ::PDStart) {
         taskWaitingForTrigger = true;
-        preBuf = preBuf2; // we will get a re-trigger soon, so preBuffer the scans we had previously..
         pdWaitingForStimGL = true;
         updateWindowTitles();        
         ignored = false;        
