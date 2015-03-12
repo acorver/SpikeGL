@@ -343,7 +343,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	strncpy_s(C_filename, Coreco_FileName, 200);
     C_filename[199] = 0;
 	if (stat(C_filename, &stFileInfo) != 0)
-	{	MessageBox(CString("Cannot Find Camera Description File, Application Abort"), CString("Error Messgae"));
+	{	MessageBox(CString("Cannot Find Camera Description File, Application Abort"), CString("Error Message"));
 		exit(1);
 		return false;						// couldn't find the camera ccf file.
 	}
@@ -463,7 +463,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 		if (m_DecodedByte[i])		FreeImageMemory(m_DecodedByte[i]);
 		m_DecodedByte[i] = AllocImageMemory(m_Buffers->GetWidth(), m_Buffers->GetHeight(), 4);
 		if (!m_DecodedByte[i])
-		{	MessageBox(CString("Cannot Allocate Coreca Gray Scale Buffer, Application Abort"), CString("Coreco Error Messgae"));
+		{	MessageBox(CString("Cannot Allocate Coreca Gray Scale Buffer, Application Abort"), CString("Coreco Error Message"));
 			exit(1);
 			return false;
 		}
@@ -472,7 +472,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 		if (m_DecodedRGB4[i])		FreeImageRGB4Memory(m_DecodedRGB4[i]);
 		m_DecodedRGB4[i] = AllocImageRGB4Memory(m_Buffers->GetWidth(), m_Buffers->GetHeight());
 		if (!m_DecodedRGB4[i])
-		{	MessageBox(CString("Cannot Allocate Coreca RGB Buffer, Application Abort"), CString("Coreco Error Messgae"));
+		{	MessageBox(CString("Cannot Allocate Coreca RGB Buffer, Application Abort"), CString("Coreco Error Message"));
 			exit(1);
 			return false;
 		}
@@ -495,7 +495,6 @@ HANDLE			hPort1;
 int				configure(void);
 int				CloseUart(void);
 int				WriteUart(unsigned char *, int);
-int				ReadUart(int);
 int				Serial_OK = -1;
 char			buf3[100], lastError[1024];
 byte			buf2[100];
@@ -590,8 +589,12 @@ void MEAControlDlg::handleSpikeGLEnvParms()
 			}
 		}
 		free(e);
-	}
-	
+		configure();
+		OnBnClickedOpen(); // may throw error
+		Sleep(10);
+		m_FrameGrabberEnable.SetCheck(1);
+		OnBnClickedFramegrabberenable1();
+	}	
 }
 
 MEAControlDlg::~MEAControlDlg()
@@ -1192,6 +1195,7 @@ int configure(void)
 		default:	break;
 	}
 	PortConfig.Format(_T("%s %d, %d, %s, %s"), PortNum, Port1DCB.BaudRate, Port1DCB.ByteSize, str, str1);
+	if (m_SpikeGLThread) m_SpikeGLThread->pushConsoleMsg((LPCTSTR)PortConfig);
 	return 1;
 }
 
@@ -1320,8 +1324,8 @@ void GetData(void)
 }
 
 // Read from RS232
-int ReadUart(int len)
-{	DWORD		dwRead;
+int MEAControlDlg::ReadUart(int len)
+{	DWORD		dwRead = 0;
 	BOOL		fWaitingOnRead = FALSE;
 	OVERLAPPED	osReader = { 0 };
 	unsigned long	retlen = 0;
@@ -1329,12 +1333,22 @@ int ReadUart(int len)
 
 	// Create the overlapped event. Must be closed before exiting to avoid a handle leak.
 	osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-	if (osReader.hEvent == NULL)	MessageBox(NULL, L"Error in creating Overlapped event", L"Error", MB_OK);
+	if (osReader.hEvent == NULL) {
+		if (m_visible || !m_SpikeGLThread) ::MessageBox(NULL, L"Error in creating Overlapped event", L"Error", MB_OK); 
+		else m_SpkeGLThread->pushConsoleError("ReadUart: Error in creating Overlapped event");
+		return 0;
+	}
+		
 
 	if (!fWaitingOnRead)
 	{	if (!ReadFile(hPort1, buf2, len, &dwRead, &osReader))
 		{	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)lastError, 1024, NULL);
-			MessageBox(NULL, (LPWSTR)lastError, L"MESSAGE", MB_OK);
+			if (m_visible || !m_SpikeGLThread)	::MessageBox(NULL, (LPWSTR)lastError, L"MESSAGE", MB_OK);
+			else {
+				char myerr[512];
+				::wcstombs(myerr, (LPWSTR)lastError, 512);
+				m_spikeGLThread->pushConsoleError(myerr);
+			}
 		}
 		else
 		{	for (i = 0; i <= 50; i++)	buf3[i] = 0;
