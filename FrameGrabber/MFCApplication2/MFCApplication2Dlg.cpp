@@ -558,21 +558,16 @@ void MEAControlDlg::handleSpikeGLEnvParms()
 			if (!pe) pe=p+strlen(p);
 			*pe = 0;
 			int num = 0;
-			static const int speeds[] = { 230400, 115200, 57600, 38400, 28800, 19200, 9600, 4800, 2400, 0 };
 			if (sscanf(p,"%d",&num)==1) {
 				switch (i) {
 					case 0: // COM
-						index0 = num >= 1 && num <= 4 ? num : index0;
+						index0 = num >= 0 && num <= 3 ? num : index0;
 						break;
 					case 1: // speed
-						if (num>0) {
-							bool found = false;
-							for (int j = 0; speeds[j] && !found; ++j)
-								if (num==speeds[j]) index1=j, found = true;
-						}
+                        index1 = num >= 0 && num <= 8 ? num : index1;
 						break;
 					case 2: // bits
-						if (num==8) index2=0; else if (num==7) index2=1;
+                        index2 = num >= 0 && num <= 1 ? num : index2;
 						break;
 					case 3: // parity
 						index3 = num >= 0 && num <= 2 ? num : index3;
@@ -588,11 +583,17 @@ void MEAControlDlg::handleSpikeGLEnvParms()
 		}
 		free(e);
 		configure();
-		OnBnClickedOpen(); // may throw error
-		Sleep(10);
-		m_FrameGrabberEnable.SetCheck(1);
-		OnBnClickedFramegrabberenable1();
 	}	
+}
+
+void MEAControlDlg::doSpikeGLAutoStart()
+{
+    OnBnClickedOpen(); // may throw error
+    Sleep(100);
+    if (Serial_OK) {
+        m_FrameGrabberEnable.SetCheck(1);
+        OnBnClickedFramegrabberenable1();
+    }
 }
 
 MEAControlDlg::~MEAControlDlg()
@@ -926,6 +927,7 @@ BOOL MEAControlDlg::OnInitDialog()
 	index4 = 0;
 	m_GetPort1StopBit.SetCurSel(0);
 	index5 = 0;
+    handleSpikeGLEnvParms();
     configure();
 
 	// Background Data Update Thread
@@ -939,8 +941,9 @@ BOOL MEAControlDlg::OnInitDialog()
 
 	Register_Reset();
 
-    handleSpikeGLEnvParms();
     m_Port1Format.SetWindowTextW(PortConfig);   //  SetWindowTextW(PortConfig);
+
+    if (SpikeGL_Mode && !m_visible) doSpikeGLAutoStart();
 
 	return TRUE;			// return TRUE  unless you set the focus to a control
 }

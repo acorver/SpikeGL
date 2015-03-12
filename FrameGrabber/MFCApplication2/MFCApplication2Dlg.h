@@ -77,6 +77,7 @@ protected:
 
 private:		
 	void handleSpikeGLEnvParms();
+    void doSpikeGLAutoStart();
 
 // Implementation
 protected:
