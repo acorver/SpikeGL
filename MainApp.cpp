@@ -856,7 +856,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     task->start();
 	if (addtlDemuxTask)	addtlDemuxTask->start();
     updateWindowTitles();
-    Systray() << "DAQ task starting up ...";
+    //Systray() << "DAQ task starting up ...";
     Status() << "DAQ task starting up ...";
     Log() << "DAQ task starting up ...";
     
@@ -970,7 +970,7 @@ void MainApp::stopTask()
 	stopRecordAtSamp = -1;
     updateWindowTitles();
 	if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
-    Systray() << "Acquisition stopped";
+    //Systray() << "Acquisition stopped";
 }
 
 bool MainApp::maybeCloseCurrentIfRunning() 
@@ -1159,7 +1159,7 @@ void MainApp::taskReadFunc()
 		}
 		if (!gotSomething) break;
 		
-		Debug() << "Deq: " << scans.size() << " samps, firstSamp: " << firstSamp;
+		//Debug() << "Deq: " << scans.size() << " samps, firstSamp: " << firstSamp;
 
         const bool wasFakeData = fakeDataSz > -1;
         // TODO XXX FIXME -- implement detection of fake data (DAQ restart!) properly
@@ -1326,7 +1326,7 @@ void MainApp::taskReadFunc()
                 Warning() << "Some scans were dropped from graphing due to queue limits being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
              } else { 
 				 graphsWindow->putScans(scans, firstSamp);
-				 Debug() << "graphsWindow->putScans(" << scans.size() <<" scans,firstSamp=" << firstSamp << ")";
+				 //Debug() << "graphsWindow->putScans(" << scans.size() <<" scans,firstSamp=" << firstSamp << ")";
              }
         }
 		
@@ -1459,7 +1459,7 @@ void MainApp::triggerTask()
     if (task && taskWaitingForTrigger) {
         taskWaitingForTrigger = false;
         updateWindowTitles();
-        Systray() << "Acquisition triggered ON";
+        //Systray() << "Acquisition triggered ON";
         Status() << "Task triggered";
         DAQ::Params & p(configCtl->acceptedParams);
         switch (p.acqStartEndMode) {
@@ -1925,11 +1925,11 @@ void MainApp::fastSettleCompletion()
 void MainApp::gotFirstScan()
 {
     if (taskWaitingForTrigger) {
-        Systray() << "Acquisition waiting ...";
+        //Systray() << "Acquisition waiting ...";
         Status() << "Task initiated, waiting for trigger event";
         Log() << "Acquisition initiated, waiting for trigger event";
     } else {
-        Systray() << "Acquisition started";
+        //Systray() << "Acquisition started";
         Status() << "Task started";
         Log() << "Acquisition started.";
     }
