@@ -65,6 +65,10 @@ public:
     SpikeGLHandlerThread        *m_spikeGLThread;
     BOOL m_visible;
 
+    int SetupUart();
+    int ReadUart(int);
+    int	configure();
+
 // Dialog Data
 	enum { IDD = IDD_MFCAPPLICATION2_DIALOG };
 
@@ -73,7 +77,6 @@ protected:
 
 private:		
 	void handleSpikeGLEnvParms();
-    int SetupUart();
 
 // Implementation
 protected:

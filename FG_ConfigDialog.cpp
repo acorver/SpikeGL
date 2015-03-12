@@ -64,6 +64,11 @@ int FG_ConfigDialog::exec()
 
 				// todo.. form-specific stuff here which affects p.fg struct...
 				// ...
+                p.fg.baud = dialog->baud->currentIndex();
+                p.fg.com = dialog->com->currentIndex();
+                p.fg.bits = dialog->bits->currentIndex();
+                p.fg.parity = dialog->parity->currentIndex();
+                p.fg.stop = dialog->stop->currentIndex();
 			
 				p.suppressGraphs = false; //dialog->disableGraphsChk->isChecked();
 				p.resumeGraphSettings = false; //dialog->resumeGraphSettingsChk->isChecked();
@@ -165,6 +170,11 @@ void FG_ConfigDialog::guiFromSettings()
 	DAQ::Params & p(acceptedParams);
 	
 	dialog->outputFileLE->setText(p.outputFile);
+    dialog->baud->setCurrentIndex(p.fg.baud);
+    dialog->com->setCurrentIndex(p.fg.com);
+    dialog->bits->setCurrentIndex(p.fg.bits);
+    dialog->parity->setCurrentIndex(p.fg.parity);
+    dialog->stop->setCurrentIndex(p.fg.stop);
 }
 
 void FG_ConfigDialog::saveSettings()

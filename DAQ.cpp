@@ -1987,7 +1987,15 @@ namespace DAQ
 		return files;
 	}
 		
-	
+    void FGTask::setupEnv(QProcessEnvironment & e) const
+    {
+        const DAQ::Params & p(params);
+        e.insert("SPIKEGL_PARMS",
+                 QString("%1,%2,%3,%4,%5")
+                 .arg(p.fg.com).arg(p.fg.baud).arg(p.fg.bits).arg(p.fg.parity).arg(p.fg.stop)
+                 );
+    }
+
 	unsigned FGTask::gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p) 
 	{
 		(void) lastReadNBytes;

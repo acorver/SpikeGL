@@ -492,7 +492,6 @@ CString			PortConfig, PortNum;
 DCB				Port1DCB;
 COMMTIMEOUTS	CommTimeouts;
 HANDLE			hPort1;
-int				configure(void);
 int				CloseUart(void);
 int				WriteUart(unsigned char *, int);
 int				Serial_OK = -1;
@@ -534,7 +533,7 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(MEAControlDlg::IDD, pParent)
 	, m_BuffBias_Value(0)
 {
-	m_visible = TRUE;
+	m_visible = !SpikeGL_Mode || !::getenv("SPIKEGL_PARMS");
     m_spikeGLThread = 0;
 	EnableActiveAccessibility();
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
@@ -543,7 +542,6 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	if (SpikeGL_Mode) {
        m_spikeGLThread = new SpikeGLHandlerThread;
         m_spikeGLThread->start();
-		handleSpikeGLEnvParms();
     }	
 }
 
@@ -751,6 +749,7 @@ BEGIN_MESSAGE_MAP(MEAControlDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_WM_CTLCOLOR()
+    ON_WM_WINDOWPOSCHANGING()
 	ON_BN_CLICKED(IDCANCEL,			&MEAControlDlg::OnBnClickedCancel)
 	ON_CBN_SELCHANGE(Port1_Sel,		&MEAControlDlg::OnCbnSelchangeSel)
 	ON_CBN_SELCHANGE(Port1_Buad,	&MEAControlDlg::OnCbnSelchangeBuad)
@@ -926,9 +925,8 @@ BOOL MEAControlDlg::OnInitDialog()
 	m_GetPort1Parity.SetCurSel(0);
 	index4 = 0;
 	m_GetPort1StopBit.SetCurSel(0);
-	configure();
-	index4 = 0;
-	m_Port1Format.SetWindowTextW(PortConfig);   //  SetWindowTextW(PortConfig);
+	index5 = 0;
+    configure();
 
 	// Background Data Update Thread
 	CWinThread* BackGroundUpDate = AfxBeginThread(Background_Update, this, THREAD_PRIORITY_LOWEST);	// Create a New Thread -> FusionProc
@@ -940,6 +938,9 @@ BOOL MEAControlDlg::OnInitDialog()
 	m_IntanOperationMode.SetCurSel(0); 
 
 	Register_Reset();
+
+    handleSpikeGLEnvParms();
+    m_Port1Format.SetWindowTextW(PortConfig);   //  SetWindowTextW(PortConfig);
 
 	return TRUE;			// return TRUE  unless you set the focus to a control
 }
@@ -1055,7 +1056,7 @@ UINT Background_Update(LPVOID pParam)
 		if (current_tick - last_tick >= 100)
 		{	last_tick = current_tick;
 			if (Serial_OK == 1)
-				if (ReadUart(Return_Text) != 0)
+				if (pDlg->ReadUart(Return_Text) != 0)
 				{	pDlg->m_Port1Message.AddString(CString(str=buf3));// exit(0);
                     if (pDlg->m_spikeGLThread) pDlg->m_spikeGLThread->pushConsoleMsg(str);
 					pDlg->m_Port1Message.SetTopIndex(pDlg->m_Port1Message.GetCount() - 1);
@@ -1113,7 +1114,7 @@ UINT Background_Update(LPVOID pParam)
 //	Serial Communication Subroutine
 //		Serial Port Configuration, Buad Rate, Data Length, Parity and Stop bit
 //**************************************************************************************************
-int configure(void)
+int MEAControlDlg::configure(void)
 {	CString str, str1;
 
 	// Change the DCB structure settings
@@ -1195,7 +1196,11 @@ int configure(void)
 		default:	break;
 	}
 	PortConfig.Format(_T("%s %d, %d, %s, %s"), PortNum, Port1DCB.BaudRate, Port1DCB.ByteSize, str, str1);
-	if (m_SpikeGLThread) m_SpikeGLThread->pushConsoleMsg((LPCTSTR)PortConfig);
+    if (m_spikeGLThread) {
+        char converted[512];
+        wcstombs(converted, PortConfig, 512);
+        m_spikeGLThread->pushConsoleMsg(converted);
+    }
 	return 1;
 }
 
@@ -1334,8 +1339,8 @@ int MEAControlDlg::ReadUart(int len)
 	// Create the overlapped event. Must be closed before exiting to avoid a handle leak.
 	osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (osReader.hEvent == NULL) {
-		if (m_visible || !m_SpikeGLThread) ::MessageBox(NULL, L"Error in creating Overlapped event", L"Error", MB_OK); 
-		else m_SpkeGLThread->pushConsoleError("ReadUart: Error in creating Overlapped event");
+		if (m_visible || !m_spikeGLThread) ::MessageBox(NULL, L"Error in creating Overlapped event", L"Error", MB_OK); 
+		else m_spikeGLThread->pushConsoleError("ReadUart: Error in creating Overlapped event");
 		return 0;
 	}
 		
@@ -1343,7 +1348,7 @@ int MEAControlDlg::ReadUart(int len)
 	if (!fWaitingOnRead)
 	{	if (!ReadFile(hPort1, buf2, len, &dwRead, &osReader))
 		{	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)lastError, 1024, NULL);
-			if (m_visible || !m_SpikeGLThread)	::MessageBox(NULL, (LPWSTR)lastError, L"MESSAGE", MB_OK);
+			if (m_visible || !m_spikeGLThread)	::MessageBox(NULL, (LPWSTR)lastError, L"MESSAGE", MB_OK);
 			else {
 				char myerr[512];
 				::wcstombs(myerr, (LPWSTR)lastError, 512);

@@ -158,8 +158,8 @@ namespace DAQ
 		
 		struct FG { // framegrabber
 			bool enabled;
-			
-			void reset() { enabled = false; }
+            int com,baud,bits,parity,stop;
+            void reset() { enabled = false; com=1,baud=1,bits=0,parity=0,stop=0; }
 		} fg;
 		
         mutable QMutex mutex;
@@ -468,6 +468,7 @@ namespace DAQ
 #ifndef Q_OS_WINDOWS
 		bool platformSupported() const { return false; }
 #endif
+        void setupEnv(QProcessEnvironment & e) const;
 		int readTimeoutMaxSecs() const { return 30; }
 		unsigned gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p);
 		QStringList filesList() const;

@@ -1131,6 +1131,12 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.bug.hpf = settings.value("bug_hpf", 0).toInt();
 	p.bug.snf = settings.value("bug_snf", false).toBool();	
 	p.bug.errTol = settings.value("bug_errTol", 6).toInt();
+
+    p.fg.baud = settings.value("fg_baud", 1).toInt();
+    p.fg.com = settings.value("fg_com", 1).toInt();
+    p.fg.bits = settings.value("fg_bits", 0).toInt();
+    p.fg.stop = settings.value("fg_stop", 0).toInt();
+    p.fg.parity = settings.value("fg_parity", 0).toInt();
 }
 
 void ConfigureDialogController::loadSettings()
@@ -1219,6 +1225,12 @@ void ConfigureDialogController::saveSettings() const
 	settings.setValue("bug_hpf", p.bug.hpf);
 	settings.setValue("bug_snf", p.bug.snf);
 	settings.setValue("bug_errTol", p.bug.errTol);
+
+    settings.setValue("fg_baud", p.fg.baud);
+    settings.setValue("fg_com", p.fg.com);
+    settings.setValue("fg_bits", p.fg.bits);
+    settings.setValue("fg_stop", p.fg.stop);
+    settings.setValue("fg_parity", p.fg.parity);
 
 	settings.endGroup(); 
 }
