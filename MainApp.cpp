@@ -1422,7 +1422,7 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
             const int16 samp = scans[i];
             if (samp > p.pdThresh) {
                 if (lastNPDSamples.size() >= p.pdThreshW) 
-                    lastSeenPD = firstSamp+u64(i-p.idxOfPdChan), lastNPDSamples.clear();
+                    lastSeenPD = firstSamp+u64(i-p.idxOfPdChan)/*, lastNPDSamples.clear()*/;
                 else 
                     lastNPDSamples.push_back(samp);
             } else
