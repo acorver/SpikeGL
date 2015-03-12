@@ -1008,7 +1008,7 @@ void MainApp::gotDaqWarning(const QString & e)
 /* static */
 void MainApp::prependPrebufToScans(const WrapBuffer & preBuf, std::vector<int16> & scans, int & num, int skip)
 {
-	if (scans.capacity() < preBuf.size()) scans.reserve(preBuf.size());
+    if (scans.capacity() < (preBuf.size()/sizeof(int16))) scans.reserve(preBuf.size()/sizeof(int16));
     void *ptr=0;
     unsigned lenBytes=0, lenElems = 0;
     preBuf.dataPtr1(ptr, lenBytes);
@@ -1430,7 +1430,7 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
         }
         if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps) { // timeout PD after X scans..
 			if (dataFile.isOpen()) {
-				stopRecordAtSamp = lastSeenPD + MAX(preBuf.capacity(),pdOffTimeSamps) /**< NB: preBuf.capacity() is the amount of silence time before/after PD, scan-aligned! */;
+                stopRecordAtSamp = lastSeenPD + MAX((preBuf.capacity()/sizeof(int16)),pdOffTimeSamps) /**< NB: preBuf.capacity() is the amount of silence time before/after PD, scan-aligned! */;
 				taskWaitingForStop = false;
 			} else {
 				Warning() << "PD/AI un-trig but datafile not open!  This is not really well-defined, but stopping task anyway.";
