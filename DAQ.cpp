@@ -2052,13 +2052,22 @@ namespace DAQ
 					default:
                         Log() << shortName << ": " << msg;
                         if (msg == "Ready." && !sentFGCmd) {
-                            XtCmd x;
+                            XtCmdFPGAProto p;
+							XtCmd x;
+							
+							// Digital output cmd... necessary or not?
+							p.init(2,0,0); 
+							pushCmd(p);
+							
+							// grab frames.. does stuff with Sapera API in the slave process
                             x.init();
                             x.cmd = XtCmd_GrabFrames;
                             pushCmd(x);
-                            XtCmdFPGAProto p;
-                            p.init(6, 0, 0); // start continuous ADC
+							
+							// start continuous ADC
+                            p.init(6, 0, 0); 
                             pushCmd(p);
+							
                             sentFGCmd = true;
                         }
                         break;

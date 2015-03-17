@@ -1018,7 +1018,7 @@ UINT Background_Update(LPVOID pParam)
         if (Serial_OK == 1) {
             if (pDlg->ReadUart(Return_Text) != 0) {
                 str = buf3;
-                if (pDlg->m_spikeGL) pDlg->m_spikeGL->pushConsoleMsg(std::string("(Background_Update) ") + str);
+                if (pDlg->m_spikeGL) pDlg->m_spikeGL->pushConsoleDebug(std::string("(Background Update) ") + str);
                 if (pDlg->m_visible) {
                     pDlg->m_Port1Message.AddString(CString(str));// exit(0);
                     pDlg->m_Port1Message.SetTopIndex(pDlg->m_Port1Message.GetCount() - 1);
