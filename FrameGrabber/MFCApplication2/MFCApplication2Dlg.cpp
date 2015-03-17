@@ -234,9 +234,11 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
         if (!pDlg->m_spikeGL->pushCmd(xt)) { /* todo:.. handle error here!*/ }
     }
 
-	// display image #1 
-	CRect rect(0, 0, width, height);
-	pDlg->Coreco_Display_Source1_Image(pDlg->m_DecodedRGB4[count], rect, 1); // show original image
+    if (pDlg->m_visible) {
+        // display image #1 
+        CRect rect(0, 0, width, height);
+        pDlg->Coreco_Display_Source1_Image(pDlg->m_DecodedRGB4[count], rect, 1); // show original image
+    }
 }
 
 bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
@@ -1076,7 +1078,7 @@ UINT Background_Update(LPVOID pParam)
 //	Serial Communication Subroutine
 //		Serial Port Configuration, Buad Rate, Data Length, Parity and Stop bit
 //**************************************************************************************************
-int MEAControlDlg::configure(void)
+int MEAControlDlg::configure(bool prt)
 {	CString str, str1;
 
 	// Change the DCB structure settings
@@ -1158,7 +1160,7 @@ int MEAControlDlg::configure(void)
 		default:	break;
 	}
 	PortConfig.Format(_T("%s %d, %d, %s, %s"), PortNum, Port1DCB.BaudRate, Port1DCB.ByteSize, str, str1);
-    if (m_spikeGL) {
+    if (m_spikeGL && prt) {
         char converted[512];
         wcstombs(converted, PortConfig, 512);
         m_spikeGL->pushConsoleMsg(converted);
@@ -1227,7 +1229,7 @@ int MEAControlDlg::SetupUart()
 		CloseHandle(hPort1);
 		return 2;
 	}
-	configure();	
+	configure(true);	
 	GetCommTimeouts(hPort1, &CommTimeouts);
 	configuretimeout();
 

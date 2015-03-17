@@ -68,7 +68,7 @@ public:
 
     int SetupUart();
     int ReadUart(int);
-    int	configure();
+    int	configure(bool printMsgs = false);
 
 // Dialog Data
 	enum { IDD = IDD_MFCAPPLICATION2_DIALOG };
