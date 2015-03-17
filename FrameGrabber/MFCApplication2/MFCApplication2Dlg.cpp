@@ -451,7 +451,7 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	m_pAutoProxy = NULL;
 	
 	if (SpikeGL_Mode) {
-        m_spikeGLIn = new SpikeGLInputThread;
+        m_spikeGLIn = new SpikeGLInputThread(static_cast<HWND>(*this));
         m_spikeGL = new SpikeGLOutThread;
         m_spikeGLIn->start();
         m_spikeGL->start();
@@ -778,6 +778,7 @@ BEGIN_MESSAGE_MAP(MEAControlDlg, CDialogEx)
 	ON_BN_CLICKED(ContinuousADC,	&MEAControlDlg::OnBnClickedContinuousadc)
 	ON_BN_CLICKED(FrameGrabberEnable1, &MEAControlDlg::OnBnClickedFramegrabberenable1)
     ON_MESSAGE(WM_KICKIDLE, SpikeGLIdleHandler)
+    ON_MESSAGE(GOT_NEW_SPIKEGL_INPUT_MSG, SpikeGLIdleHandler)
 END_MESSAGE_MAP()
 
 

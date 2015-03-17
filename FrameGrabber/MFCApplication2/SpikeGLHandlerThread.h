@@ -43,13 +43,16 @@ protected:
     void threadFunc();
 };
 
+#define GOT_NEW_SPIKEGL_INPUT_MSG (WM_APP+16)
 class SpikeGLInputThread : public SpikeGLHandlerThread
 {
 public:
-    SpikeGLInputThread() {}
+    SpikeGLInputThread(HWND hw) : hwnd(hw) {}
     ~SpikeGLInputThread();
 protected:
     void threadFunc();
+private:
+    HWND hwnd;
 };
 
 #endif
