@@ -1474,6 +1474,7 @@ namespace DAQ
 						return;
 					} else {
 						Warning() << shortName << " slave process: read timed out, ct=" << tout_ct;
+                        processCmds(p);
 						continue;
 					}
 				} else if (n_avail < 0) {
@@ -1485,6 +1486,7 @@ namespace DAQ
 				QByteArray buf = p.readAll();
 				if (!buf.size()) {
 					Warning() << shortName << " slave process: read 0 bytes!";
+                    processCmds(p);
 					continue;
 				}
 				data.append(buf);
@@ -1976,6 +1978,7 @@ namespace DAQ
 	FGTask::FGTask(const Params & ap, QObject *parent)
 	: SubprocessTask(ap, parent, "Framegrabber", "MFCApplication2.exe")
 	{
+        sentFGCmd = false;
 	}
     FGTask::~FGTask() { if (isRunning()) { stop(); wait(); } }
 
@@ -1988,6 +1991,14 @@ namespace DAQ
 		return files;
 	}
 		
+    void FGTask::sendExitCommand(QProcess & p) const
+    {
+        XtCmd xt;
+        xt.init();
+        xt.cmd = XtCmd_Exit;
+        p.write((const char *)&xt, sizeof(xt));
+    }
+
     void FGTask::setupEnv(QProcessEnvironment & e) const
     {
         const DAQ::Params & p(params);
@@ -2039,7 +2050,18 @@ namespace DAQ
 					case XtCmdConsoleMsg::Debug:
                         Debug() << shortName << ": " << msg; break;
 					default:
-						Log() << shortName << ": " << msg; break;
+                        Log() << shortName << ": " << msg;
+                        if (msg == "Ready." && !sentFGCmd) {
+                            XtCmdFPGAProto p;
+                            p.init(6, 0, 0);
+                            pushCmd(p);
+                            XtCmd x;
+                            x.init();
+                            x.cmd = XtCmd_GrabFrames;
+                            pushCmd(x);
+                            sentFGCmd = true;
+                        }
+                        break;
 				}
 			} else {
 				// todo.. handle other cmds coming in?
@@ -2063,6 +2085,13 @@ namespace DAQ
 		return QString("AD %1").arg(num); 
 	}
 	
+    void FGTask::pushCmd(const XtCmd * c)
+    {
+        if (!c) return;
+        QByteArray b((char *)c, sizeof(*c) - sizeof(int) + c->len);
+        SubprocessTask::pushCmd(b);
+    }
+
 	
 } // end namespace DAQ
 

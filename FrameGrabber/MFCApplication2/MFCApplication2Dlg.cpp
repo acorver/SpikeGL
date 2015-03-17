@@ -13,12 +13,13 @@
 
 #include "XtCmd.h"
 #include "Thread.h"
+#include "SpikeGLHandlerThread.h"
 
-#include <sys/stat.h>
 
 #include <vector>
 #include <list>
 
+#include <sys/stat.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <io.h>
@@ -46,98 +47,6 @@ int  DataGrid[40][100];
 
 CEvent g_dataReady;			// set flag when both image sources are grabbing. 
 BOOL SpikeGL_Mode = 1;
-BOOL TESTING_SPIKEGL_INTEGRATION = 0;
-
-class SpikeGLHandlerThread : public Thread
-{
-public:
-    volatile bool pleaseStop;
-
-    SpikeGLHandlerThread() : pleaseStop(false), nwriteCmd(0) {}
-    ~SpikeGLHandlerThread();
-
-    bool pushCmd(const XtCmd *c);
-    bool pushConsoleMsg(const std::string & msg, int mtype=XtCmdConsoleMsg::Normal);
-    bool pushConsoleDebug(const std::string & msg) { return pushConsoleMsg(msg, XtCmdConsoleMsg::Debug); }
-    bool pushConsoleError(const std::string & msg) { return pushConsoleMsg(msg, XtCmdConsoleMsg::Error); }
-    bool pushConsoleWarning(const std::string & msg) { return pushConsoleMsg(msg, XtCmdConsoleMsg::Warning); }
-
-protected:
-    void threadFunc();
-private:
-    typedef std::list<std::vector<BYTE> > CmdList;
-    CmdList writeCmds; 
-    volatile int nwriteCmd;
-    Mutex mut;
-};
-
-SpikeGLHandlerThread::~SpikeGLHandlerThread()
-{
-    if (running) {
-        pleaseStop = true;
-        wait(200);
-    }
-}
-
-void SpikeGLHandlerThread::threadFunc()
-{
-    _setmode(_fileno(stdout), O_BINARY);
-    while (!pleaseStop) {
-        if (TESTING_SPIKEGL_INTEGRATION) {
-            // for testing.. put fake frames 
-            static int iter = 0;
-            char buf[144 * 32 + sizeof(XtCmdImg) + 128];
-            XtCmdImg *xt = (XtCmdImg *)buf;
-            //::memset(xt->img, (iter % 2 ? 0x4f : 0), 144 * 32);
-            xt->init(144, 32);
-            for (int i = 0; i < 72 * 32; ++i) ((short *)xt->img)[i] = (short)(sinf(((iter+i)%2560)/2560.0f)*32768.f);
-            for (int i = 0; i < 20; ++i) xt->write(stdout);
-            Sleep(1);
-            ++iter;
-        } else if (mut.lock(100)) {
-            CmdList my;
-            my.splice(my.begin(), writeCmds);
-            nwriteCmd = 0;
-            mut.unlock();
-            for (CmdList::iterator it = my.begin(); it != my.end(); ++it) {
-                XtCmd *c = (XtCmd *)&((*it)[0]);
-                if (!c->write(stdout)) {
-                    // todo.. handle error here...
-                }
-            }
-            fflush(stdout);
-        }
-    }
-}
-
-bool SpikeGLHandlerThread::pushCmd(const XtCmd *c)
-{
-    if (mut.lock()) {
-        if (nwriteCmd >= 60) {
-            // todo.. handle command q overflow here!
-            mut.unlock();
-            return false;
-        }
-        writeCmds.push_back(std::vector<BYTE>());
-        ++nwriteCmd;
-        std::vector<BYTE> & v(writeCmds.back());
-        v.resize( c->len + (((char *)c->data) - (char *)c) );
-        ::memcpy(&v[0], c, v.size());
-        mut.unlock();
-        return true;
-    }
-    return false;
-}
-
-bool SpikeGLHandlerThread::pushConsoleMsg(const std::string & str, int mtype)
-{
-    XtCmdConsoleMsg *xt = XtCmdConsoleMsg::allocInit(str, mtype);
-    bool ret = pushCmd(xt);
-    free(xt);
-    return ret;
-}
-
-
 
 imageP AllocImageMemory(int w, int h, int s)
 {	uchar	*p;
@@ -322,7 +231,7 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 
     // for SpikeGL
     if (xt) {
-        if (!pDlg->m_spikeGLThread->pushCmd(xt)) { /* todo:.. handle error here!*/ }
+        if (!pDlg->m_spikeGL->pushCmd(xt)) { /* todo:.. handle error here!*/ }
     }
 
 	// display image #1 
@@ -534,14 +443,16 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	, m_BuffBias_Value(0)
 {
 	m_visible = !SpikeGL_Mode || !::getenv("SPIKEGL_PARMS");
-    m_spikeGLThread = 0;
+    m_spikeGL = 0; m_spikeGLIn = 0;
 	EnableActiveAccessibility();
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_pAutoProxy = NULL;
 	
 	if (SpikeGL_Mode) {
-       m_spikeGLThread = new SpikeGLHandlerThread;
-        m_spikeGLThread->start();
+        m_spikeGLIn = new SpikeGLInputThread;
+        m_spikeGL = new SpikeGLOutThread;
+        m_spikeGLIn->start();
+        m_spikeGL->start();
     }	
 }
 
@@ -586,14 +497,65 @@ void MEAControlDlg::handleSpikeGLEnvParms()
 	}	
 }
 
+LRESULT MEAControlDlg::SpikeGLIdleHandler(WPARAM p1, LPARAM p2)
+{
+    (void)p1, (void)p2;
+    if (!m_spikeGLIn) return FALSE;
+    int fail = 0;
+    while (m_spikeGLIn->cmdQSize() && fail < 10) {
+        std::vector<BYTE> buf;
+        XtCmd *xt;
+        if ((xt = m_spikeGLIn->popCmd(buf, 10))) {
+            // todo.. handle commands here...
+            handleSpikeGLCommand(xt);
+        }
+        else ++fail;
+
+    }
+    if (!m_spikeGLIn->cmdQSize()) Sleep(5); // idle throttle...
+    return TRUE; // returning true makes this function be called repeatedly on idle..
+}
+
+
+void MEAControlDlg::handleSpikeGLCommand(XtCmd *xt)
+{
+    (void)xt;
+    switch (xt->cmd) {
+    case XtCmd_Exit:
+        m_spikeGL->pushConsoleDebug("Got exit command.. exiting gracefully...");
+        exit(1);
+        break;
+    case XtCmd_Test:
+        m_spikeGL->pushConsoleDebug("Got 'TEST' command, replying with this debug message!");
+        break;
+    case XtCmd_GrabFrames:
+        m_spikeGL->pushConsoleDebug("Got 'GrabFrames' command");
+        if (Serial_OK) {
+            m_FrameGrabberEnable.SetCheck(1);
+            OnBnClickedFramegrabberenable1();
+            m_spikeGL->pushConsoleMsg("GrabFrames command executed");
+        } else {
+            m_spikeGL->pushConsoleError("GrabFrames command failed, serial port not OK");
+        }
+        break;
+    case XtCmd_FPGAProto: {
+        XtCmdFPGAProto *x = (XtCmdFPGAProto *)xt;
+        if (x->len >= 16) {
+            m_spikeGL->pushConsoleDebug("Got 'FPGAProto' command");
+            FPGA_Protocol_Construction(x->cmd_code, x->value1, x->value2);
+        }
+    }
+        break;
+    default: // ignore....?
+        break;
+    }
+}
+
 void MEAControlDlg::doSpikeGLAutoStart()
 {
     OnBnClickedOpen(); // may throw error
     Sleep(100);
-    if (Serial_OK) {
-        m_FrameGrabberEnable.SetCheck(1);
-        OnBnClickedFramegrabberenable1();
-    }
+    m_spikeGL->pushConsoleMsg("Ready.");
 }
 
 MEAControlDlg::~MEAControlDlg()
@@ -613,7 +575,8 @@ MEAControlDlg::~MEAControlDlg()
 		m_DecodedRGB4[i] = 0;
 	}
 
-    if (m_spikeGLThread) delete m_spikeGLThread; m_spikeGLThread = 0;
+    if (m_spikeGL) delete m_spikeGL; m_spikeGL = 0;
+    // if (m_spikeGLIn) delete m_spikeGLIn; m_spikeGLIn = 0; // may hang due to crappy impl...
 }
 
 void MEAControlDlg::DoDataExchange(CDataExchange* pDX)
@@ -812,7 +775,7 @@ BEGIN_MESSAGE_MAP(MEAControlDlg, CDialogEx)
 	ON_BN_CLICKED(AmpPowerS8,		&MEAControlDlg::OnBnClickedAmppowers8)
 	ON_BN_CLICKED(ContinuousADC,	&MEAControlDlg::OnBnClickedContinuousadc)
 	ON_BN_CLICKED(FrameGrabberEnable1, &MEAControlDlg::OnBnClickedFramegrabberenable1)
-	
+    ON_MESSAGE(WM_KICKIDLE, SpikeGLIdleHandler)
 END_MESSAGE_MAP()
 
 
@@ -1050,7 +1013,7 @@ UINT Background_Update(LPVOID pParam)
     const char *str = 0;
     if (oldmask == 0) {
         pDlg->m_Port1Message.AddString(CString(str = "No Background Update"));// exit(0);
-        if (pDlg->m_spikeGLThread) pDlg->m_spikeGLThread->pushConsoleMsg(str);
+        if (pDlg->m_spikeGL) pDlg->m_spikeGL->pushConsoleMsg(str);
     }
 
 	while (::WaitForSingleObject(g_terminate, 0) != WAIT_OBJECT_0)		// terminate this thread when program exits
@@ -1061,7 +1024,7 @@ UINT Background_Update(LPVOID pParam)
 			if (Serial_OK == 1)
 				if (pDlg->ReadUart(Return_Text) != 0)
 				{	pDlg->m_Port1Message.AddString(CString(str=buf3));// exit(0);
-                    if (pDlg->m_spikeGLThread) pDlg->m_spikeGLThread->pushConsoleMsg(str);
+                    if (pDlg->m_spikeGL) pDlg->m_spikeGL->pushConsoleMsg(str);
 					pDlg->m_Port1Message.SetTopIndex(pDlg->m_Port1Message.GetCount() - 1);
 					d.Format(_T("%d"), R_Data2);
 					pDlg->m_Data_A.SetWindowTextW(d); // SetWindowTextW(d);
@@ -1199,10 +1162,10 @@ int MEAControlDlg::configure(void)
 		default:	break;
 	}
 	PortConfig.Format(_T("%s %d, %d, %s, %s"), PortNum, Port1DCB.BaudRate, Port1DCB.ByteSize, str, str1);
-    if (m_spikeGLThread) {
+    if (m_spikeGL) {
         char converted[512];
         wcstombs(converted, PortConfig, 512);
-        m_spikeGLThread->pushConsoleMsg(converted);
+        m_spikeGL->pushConsoleMsg(converted);
     }
 	return 1;
 }
@@ -1342,8 +1305,8 @@ int MEAControlDlg::ReadUart(int len)
 	// Create the overlapped event. Must be closed before exiting to avoid a handle leak.
 	osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (osReader.hEvent == NULL) {
-		if (m_visible || !m_spikeGLThread) ::MessageBox(NULL, L"Error in creating Overlapped event", L"Error", MB_OK); 
-		else m_spikeGLThread->pushConsoleError("ReadUart: Error in creating Overlapped event");
+		if (m_visible || !m_spikeGL) ::MessageBox(NULL, L"Error in creating Overlapped event", L"Error", MB_OK); 
+		else m_spikeGL->pushConsoleError("ReadUart: Error in creating Overlapped event");
 		return 0;
 	}
 		
@@ -1351,11 +1314,11 @@ int MEAControlDlg::ReadUart(int len)
 	if (!fWaitingOnRead)
 	{	if (!ReadFile(hPort1, buf2, len, &dwRead, &osReader))
 		{	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)lastError, 1024, NULL);
-			if (m_visible || !m_spikeGLThread)	::MessageBox(NULL, (LPWSTR)lastError, L"MESSAGE", MB_OK);
+			if (m_visible || !m_spikeGL)	::MessageBox(NULL, (LPWSTR)lastError, L"MESSAGE", MB_OK);
 			else {
 				char myerr[512];
 				::wcstombs(myerr, (LPWSTR)lastError, 512);
-				m_spikeGLThread->pushConsoleError(myerr);
+				m_spikeGL->pushConsoleError(myerr);
 			}
 		}
 		else
@@ -1398,9 +1361,9 @@ void MEAControlDlg::OnBnClickedOpen()
 		Serial_OK = 0;
 	}
 	
-	if (msgstr && m_spikeGLThread) {
-		if (haveErr) m_spikeGLThread->pushConsoleError(msgstr); 
-		else m_spikeGLThread->pushConsoleMsg(msgstr);
+	if (msgstr && m_spikeGL) {
+		if (haveErr) m_spikeGL->pushConsoleError(msgstr); 
+		else m_spikeGL->pushConsoleMsg(msgstr);
 	}
 }
 
@@ -1429,9 +1392,15 @@ void MEAControlDlg::FPGA_Protocol_Construction(int CMD_Code, int Value_1, INT32 
 
 	// sent message to FPGA
 	len = strlen(str);
-    if (m_spikeGLThread) m_spikeGLThread->pushConsoleDebug(std::string("FPGA -> UART: ") + str);
     
 	status = WriteUart((unsigned char *)str, (int)len);
+    if (m_spikeGL) {
+        if (status)
+            m_spikeGL->pushConsoleDebug(std::string("UART Write: ") + str);
+        else
+            m_spikeGL->pushConsoleDebug(std::string("UART Write Error: ") + str);
+    }
+
 }
 
 //**************************************************************************************************

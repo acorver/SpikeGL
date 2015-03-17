@@ -36,6 +36,18 @@
 
 #include <afxsock.h>            // MFC socket extensions
 
+#include <afxpriv.h> // private mfc stuff?
+
+#include <sys/stat.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <io.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <vector>
+#include <list>
+
 
 
 

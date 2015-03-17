@@ -25,6 +25,8 @@
 #endif
 #include <list>
 
+struct XtCmd;
+
 namespace DAQ
 {
     struct Range {
@@ -464,7 +466,10 @@ namespace DAQ
 		static const double SamplingRate;
 		static const int NumChans = 2304 /* 72 * 32 */;
 
-	protected:
+        void pushCmd(const XtCmd * c);
+        void pushCmd(const XtCmd & c) { pushCmd(&c); }
+
+    protected:
 #ifndef Q_OS_WINDOWS
 		bool platformSupported() const { return false; }
 #endif
@@ -472,9 +477,11 @@ namespace DAQ
 		int readTimeoutMaxSecs() const { return 30; }
 		unsigned gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p);
 		QStringList filesList() const;
+        void sendExitCommand(QProcess & p) const;
+        bool outputCmdsAreBinary() const { return true; }
 
 	private:
-		
+        bool sentFGCmd;
 	};
 	
 }

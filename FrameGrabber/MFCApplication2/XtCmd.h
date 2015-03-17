@@ -10,9 +10,12 @@
 
 enum XtCmds {
     XtCmd_Null = 0, XtCmd_Noop = XtCmd_Null,
+    XtCmd_Test, // test command. does nothing but used to test communication
     XtCmd_Img, // got image from subprocess -> SpikeGL
     XtCmd_ConsoleMessage, // basically ends up in SpikeGL's console
-
+    XtCmd_Exit, // sent from SpikeGL -> slave app to tell it to exit gracefully...
+    XtCmd_GrabFrames, // sent from SpikeGL-> slave app, tell it to start grabbing frames..
+    XtCmd_FPGAProto, // sent from SpikeGL -> slave app to do low-level FPGA protocol commands
     XtCmd_N // num commands in enum
 };
 
@@ -112,6 +115,17 @@ struct XtCmdConsoleMsg : public XtCmd {
         len = static_cast<int>(message.length()+1+(sizeof(XtCmdConsoleMsg)-sizeof(XtCmd)));
         ::memcpy(msg, &message[0], message.length());
         msg[message.length()] = 0;
+    }
+};
+
+struct XtCmdFPGAProto : public XtCmd {
+    int cmd_code, value1, value2;
+
+    void init(int cmdCode, int v1, int v2) {
+        XtCmd::init();
+        cmd = XtCmd_FPGAProto;
+        len = static_cast<int>((sizeof(XtCmdFPGAProto) - sizeof(XtCmd)) + sizeof(int));
+        cmd_code = cmdCode; value1 = v1; value2 = v2;
     }
 };
 #endif

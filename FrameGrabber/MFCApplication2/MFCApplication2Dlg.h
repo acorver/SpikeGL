@@ -10,9 +10,9 @@
 #include "afxcmn.h"
 #include <vector>
 
+#include "SpikeGLHandlerThread.h"
 class MEAControlDlgAutoProxy;
 
-class SpikeGLHandlerThread;
 
 	typedef struct				//	image data structure	 
 	{	int			width;		//	image width  (# cols) 
@@ -62,7 +62,8 @@ public:
 	void						Coreco_Display_Source1_Image(imageRGB4P rgb4, CRect &dRect, bool flag);
 	int							m_RingBufferCounter;													//	Ring Buffer counter for Image Source 1 and Image Source 2
     std::vector<BYTE>           m_spikeGLFrameBuf;
-    SpikeGLHandlerThread        *m_spikeGLThread;
+    SpikeGLOutThread        *m_spikeGL;
+    SpikeGLInputThread *m_spikeGLIn;
     BOOL m_visible;
 
     int SetupUart();
@@ -78,6 +79,7 @@ protected:
 private:		
 	void handleSpikeGLEnvParms();
     void doSpikeGLAutoStart();
+    void handleSpikeGLCommand(XtCmd *);
 
 // Implementation
 protected:
@@ -171,7 +173,10 @@ public:
 	afx_msg void OnBnClickedOut16();
 	
 	afx_msg void OnWindowPosChanging(WINDOWPOS* lpwndpos);
-	
+
+    // added by Calin, idle handler to read spikegl commands in main thread...
+    afx_msg LRESULT SpikeGLIdleHandler(WPARAM, LPARAM);
+
 	CButton m_Intan1A;
 	CButton m_Intan2A;
 	CButton m_Intan3A;
