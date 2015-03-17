@@ -2066,7 +2066,7 @@ namespace DAQ
 							
 							// start continuous ADC
                             p.init(6, 0, 0); 
-                            pushCmd(p);
+                            pushCmd(p); pushCmd(p); // do this twice?!
 							
                             sentFGCmd = true;
                         }

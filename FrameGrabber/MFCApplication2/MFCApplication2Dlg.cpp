@@ -514,8 +514,8 @@ LRESULT MEAControlDlg::SpikeGLIdleHandler(WPARAM p1, LPARAM p2)
         else ++fail;
 
     }
-    if (!m_spikeGLIn->cmdQSize()) Sleep(5); // idle throttle...
-    return TRUE; // returning true makes this function be called repeatedly on idle..
+    //if (!m_spikeGLIn->cmdQSize()) Sleep(5); // idle throttle...
+    return m_spikeGLIn->cmdQSize(); // returning true makes this function be called repeatedly on idle..
 }
 
 
