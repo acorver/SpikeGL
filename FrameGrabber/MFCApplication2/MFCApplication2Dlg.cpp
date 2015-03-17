@@ -872,6 +872,9 @@ BOOL MEAControlDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
+    // Background Data Update Thread
+    CWinThread* BackGroundUpDate = AfxBeginThread(Background_Update, this, THREAD_PRIORITY_NORMAL);	// Create a New Thread -> FusionProc
+
 	// Set the icon for this dialog.  The framework does this automatically
 	//  when the application's main window is not a dialog
 	SetIcon(m_hIcon, TRUE);			// Set big icon
@@ -892,9 +895,6 @@ BOOL MEAControlDlg::OnInitDialog()
 	index5 = 0;
     handleSpikeGLEnvParms();
     configure();
-
-	// Background Data Update Thread
-	CWinThread* BackGroundUpDate = AfxBeginThread(Background_Update, this, THREAD_PRIORITY_LOWEST);	// Create a New Thread -> FusionProc
 		 
 	OnBnClickedReset();				// LED Control	
 	Control_Off();					// control display disable	
@@ -1001,8 +1001,6 @@ CEvent g_terminate;
 
 UINT Background_Update(LPVOID pParam)
 {
-	static int	current_tick;
-	static int	last_tick = 0;
 	CString	d;
 	CString temp;
 
@@ -1011,67 +1009,65 @@ UINT Background_Update(LPVOID pParam)
 	DWORD_PTR oldmask = SetThreadAffinityMask(GetCurrentThread(), 2);
 
     const char *str = 0;
-    if (oldmask == 0) {
-        pDlg->m_Port1Message.AddString(CString(str = "No Background Update"));// exit(0);
-        if (pDlg->m_spikeGL) pDlg->m_spikeGL->pushConsoleMsg(str);
-    }
+    if (pDlg->m_spikeGL) pDlg->m_spikeGL->pushConsoleDebug("Background update thread started.");
 
-	while (::WaitForSingleObject(g_terminate, 0) != WAIT_OBJECT_0)		// terminate this thread when program exits
-	{	current_tick = GetTickCount();
-		// image display is always set to 30 frames per second
-		if (current_tick - last_tick >= 100)
-		{	last_tick = current_tick;
-			if (Serial_OK == 1)
-				if (pDlg->ReadUart(Return_Text) != 0)
-				{	pDlg->m_Port1Message.AddString(CString(str=buf3));// exit(0);
-                    if (pDlg->m_spikeGL) pDlg->m_spikeGL->pushConsoleMsg(str);
-					pDlg->m_Port1Message.SetTopIndex(pDlg->m_Port1Message.GetCount() - 1);
-					d.Format(_T("%d"), R_Data2);
-					pDlg->m_Data_A.SetWindowTextW(d); // SetWindowTextW(d);
-					d.Format(_T("%d"), R_Data3);
-					pDlg->m_Data_B.SetWindowTextW(d); // SetWindowTextW(d);
-					pDlg->SPI_Test_Display();
-				}
-			//-----------------------------------------------------------------------------------------
-			// Update Clock, Frame and Line Signals 
-			//-----------------------------------------------------------------------------------------
-			if (Frame_Grabber_Enabled == 1)
-			{
-				pDlg->m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk1Present, &PixelCLKSignal1);
-				if (PixelCLKSignal1)
-					pDlg->m_ClockSignal1.SetCheck(TRUE);
-				else
-					pDlg->m_ClockSignal1.SetCheck(FALSE);
+    while (::WaitForSingleObject(g_terminate, 0) != WAIT_OBJECT_0)		// terminate this thread when program exits
+    {
+        if (Serial_OK == 1) {
+            if (pDlg->ReadUart(Return_Text) != 0) {
+                str = buf3;
+                if (pDlg->m_spikeGL) pDlg->m_spikeGL->pushConsoleMsg(std::string("(Background_Update) ") + str);
+                if (pDlg->m_visible) {
+                    pDlg->m_Port1Message.AddString(CString(str));// exit(0);
+                    pDlg->m_Port1Message.SetTopIndex(pDlg->m_Port1Message.GetCount() - 1);
+                    d.Format(_T("%d"), R_Data2);
+                    pDlg->m_Data_A.SetWindowTextW(d); // SetWindowTextW(d);
+                    d.Format(_T("%d"), R_Data3);
+                    pDlg->m_Data_B.SetWindowTextW(d); // SetWindowTextW(d);
+                    pDlg->SPI_Test_Display();
+                }
+            }
+        }
+		//-----------------------------------------------------------------------------------------
+		// Update Clock, Frame and Line Signals 
+		//-----------------------------------------------------------------------------------------
+        if (pDlg->m_visible && Frame_Grabber_Enabled == 1) {
+            pDlg->m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk1Present, &PixelCLKSignal1);
+            if (PixelCLKSignal1)
+                pDlg->m_ClockSignal1.SetCheck(TRUE);
+            else
+                pDlg->m_ClockSignal1.SetCheck(FALSE);
 
-				pDlg->m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk2Present, &PixelCLKSignal2);
-				if (PixelCLKSignal2)
-					pDlg->m_ClockSignal2.SetCheck(TRUE);
-				else
-					pDlg->m_ClockSignal2.SetCheck(FALSE);
+            pDlg->m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk2Present, &PixelCLKSignal2);
+            if (PixelCLKSignal2)
+                pDlg->m_ClockSignal2.SetCheck(TRUE);
+            else
+                pDlg->m_ClockSignal2.SetCheck(FALSE);
 
-				pDlg->m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk3Present, &PixelCLKSignal3);
-				if (PixelCLKSignal3)
-					pDlg->m_Clocksignal3.SetCheck(TRUE);
-				else
-					pDlg->m_Clocksignal3.SetCheck(FALSE);
+            pDlg->m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk3Present, &PixelCLKSignal3);
+            if (PixelCLKSignal3)
+                pDlg->m_Clocksignal3.SetCheck(TRUE);
+            else
+                pDlg->m_Clocksignal3.SetCheck(FALSE);
 
-				pDlg->m_Acq->GetSignalStatus(SapAcquisition::SignalHSyncPresent, &HSyncSignal);
-				if (HSyncSignal)
-					pDlg->m_LineSignal.SetCheck(TRUE);
-				else
-					pDlg->m_LineSignal.SetCheck(FALSE);
+            pDlg->m_Acq->GetSignalStatus(SapAcquisition::SignalHSyncPresent, &HSyncSignal);
+            if (HSyncSignal)
+                pDlg->m_LineSignal.SetCheck(TRUE);
+            else
+                pDlg->m_LineSignal.SetCheck(FALSE);
 
-				pDlg->m_Acq->GetSignalStatus(SapAcquisition::SignalVSyncPresent, &VSyncSignal);
-				if (VSyncSignal)
-					pDlg->m_FrameSignal.SetCheck(TRUE);
-				else
-					pDlg->m_FrameSignal.SetCheck(FALSE);
-				//-----------------------------------------------------------------------------------------
-				//temp.Format(_T("%d"), &DataGridRaw[0][0]);
-				//pDlg->m_DataGridRaw1.SetWindowTextW(temp);
-			}
-		}
+            pDlg->m_Acq->GetSignalStatus(SapAcquisition::SignalVSyncPresent, &VSyncSignal);
+            if (VSyncSignal)
+                pDlg->m_FrameSignal.SetCheck(TRUE);
+            else
+                pDlg->m_FrameSignal.SetCheck(FALSE);
+            //-----------------------------------------------------------------------------------------
+            //temp.Format(_T("%d"), &DataGridRaw[0][0]);
+            //pDlg->m_DataGridRaw1.SetWindowTextW(temp);
+        }
+        Sleep(100);
 	}
+    //if (pDlg->m_spikeGL) pDlg->m_spikeGL->pushConsoleDebug("Background update thread ended.");
 	return 0;
 }
 
@@ -1312,23 +1308,24 @@ int MEAControlDlg::ReadUart(int len)
 		
 
 	if (!fWaitingOnRead)
-	{	if (!ReadFile(hPort1, buf2, len, &dwRead, &osReader))
-		{	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)lastError, 1024, NULL);
-			if (m_visible || !m_spikeGL)	::MessageBox(NULL, (LPWSTR)lastError, L"MESSAGE", MB_OK);
-			else {
-				char myerr[512];
-				::wcstombs(myerr, (LPWSTR)lastError, 512);
-				m_spikeGL->pushConsoleError(myerr);
-			}
-		}
-		else
-		{	for (i = 0; i <= 50; i++)	buf3[i] = 0;
+    {
+        if (!ReadFile(hPort1, buf2, len, &dwRead, &osReader))	{
+            FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)lastError, 1024, NULL);
+            if (m_visible || !m_spikeGL)	::MessageBox(NULL, (LPWSTR)lastError, L"MESSAGE", MB_OK);
+            else if (m_spikeGL) {
+                char myerr[512];
+                ::wcstombs(myerr, (LPWSTR)lastError, 512);
+                m_spikeGL->pushConsoleError(myerr);
+            }
+        } else {
+            for (i = 0; i <= 50; i++)	buf3[i] = 0;
 			sprintf_s(buf3, "%s\n\r", buf2);			
 			GetData();
 			for (i = 0; i <= 50; i++)	buf2[i] = 0;
 		}
 	}
 
+    CloseHandle(osReader.hEvent);
 
 	if (dwRead > 0)
 		return (int)dwRead;	//MessageBox (NULL, L"Read DATA Success" ,L"Success", MB_OK);//If we have data//return the length

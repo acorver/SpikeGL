@@ -2052,13 +2052,13 @@ namespace DAQ
 					default:
                         Log() << shortName << ": " << msg;
                         if (msg == "Ready." && !sentFGCmd) {
-                            XtCmdFPGAProto p;
-                            p.init(6, 0, 0);
-                            pushCmd(p);
                             XtCmd x;
                             x.init();
                             x.cmd = XtCmd_GrabFrames;
                             pushCmd(x);
+                            XtCmdFPGAProto p;
+                            p.init(6, 0, 0); // start continuous ADC
+                            pushCmd(p);
                             sentFGCmd = true;
                         }
                         break;
