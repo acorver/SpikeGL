@@ -47,7 +47,6 @@ int  DataGrid[40][100];
 
 CEvent g_dataReady;			// set flag when both image sources are grabbing. 
 BOOL SpikeGL_Mode = 1;
-#define GOT_NEW_SPIKEGL_INPUT_MSG (WM_APP+171)
 
 imageP AllocImageMemory(int w, int h, int s)
 {	uchar	*p;
@@ -438,6 +437,16 @@ int				LED_CtlCode;
 // Digital Output Control Code
 int				DigitalOut_Code;
 
+/* static */ MEAControlDlg * MEAControlDlg::instance = 0;
+/* static */ UINT_PTR MEAControlDlg::timerId = 0;
+
+VOID CALLBACK timerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
+{
+    (void)hwnd; (void)uMsg; (void)idEvent; (void)dwTime;
+    MEAControlDlg *dlg = MEAControlDlg::instance;
+    if (!dlg) return;
+    dlg->SpikeGLIdleHandler(0, 0);
+}
 
 IMPLEMENT_DYNAMIC(MEAControlDlg, CDialogEx);
 
@@ -452,11 +461,18 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	m_pAutoProxy = NULL;
 	
 	if (SpikeGL_Mode) {
-        m_spikeGLIn = new SpikeGLInputThread(static_cast<HWND>(*this), GOT_NEW_SPIKEGL_INPUT_MSG);
+        m_spikeGLIn = new SpikeGLInputThread;
         m_spikeGL = new SpikeGLOutThread;
         m_spikeGLIn->start();
         m_spikeGL->start();
     }
+    if (!timerId) {
+        timerId = ::SetTimer(NULL, NULL, 100, timerProc);
+        if (!timerId) {
+            m_spikeGL->pushConsoleError("Could not create timer in MFCApplication constructor!");
+        }
+    }
+    instance = this;
 }
 
 void MEAControlDlg::handleSpikeGLEnvParms()
@@ -515,7 +531,7 @@ LRESULT MEAControlDlg::SpikeGLIdleHandler(WPARAM p1, LPARAM p2)
         else ++fail;
 
     }
-    return (m_spikeGLIn->cmdQSize() ? TRUE : FALSE); // returning true makes this function be called repeatedly on idle..
+    return TRUE;
 }
 
 
@@ -533,9 +549,13 @@ void MEAControlDlg::handleSpikeGLCommand(XtCmd *xt)
     case XtCmd_GrabFrames:
         m_spikeGL->pushConsoleDebug("Got 'GrabFrames' command");
         if (Serial_OK) {
-            m_FrameGrabberEnable.SetCheck(1);
-            OnBnClickedFramegrabberenable1();
-            m_spikeGL->pushConsoleMsg("GrabFrames command executed");
+            if (!Frame_Grabber_Enabled) {
+                m_FrameGrabberEnable.SetCheck(1);
+                OnBnClickedFramegrabberenable1();
+                m_spikeGL->pushConsoleMsg("GrabFrames command executed");
+            } else {
+                m_spikeGL->pushConsoleWarning("GrabFrames command ignored, since Sapera frame grab already running");
+            }
         } else {
             m_spikeGL->pushConsoleError("GrabFrames command failed, serial port not OK");
         }
@@ -579,6 +599,9 @@ MEAControlDlg::~MEAControlDlg()
 
     if (m_spikeGL) delete m_spikeGL; m_spikeGL = 0;
     // if (m_spikeGLIn) delete m_spikeGLIn; m_spikeGLIn = 0; // may hang due to crappy impl...
+    if (timerId) KillTimer(timerId);
+    timerId = 0;
+    instance = 0;
 }
 
 void MEAControlDlg::DoDataExchange(CDataExchange* pDX)
@@ -777,8 +800,6 @@ BEGIN_MESSAGE_MAP(MEAControlDlg, CDialogEx)
 	ON_BN_CLICKED(AmpPowerS8,		&MEAControlDlg::OnBnClickedAmppowers8)
 	ON_BN_CLICKED(ContinuousADC,	&MEAControlDlg::OnBnClickedContinuousadc)
 	ON_BN_CLICKED(FrameGrabberEnable1, &MEAControlDlg::OnBnClickedFramegrabberenable1)
-    ON_MESSAGE(WM_KICKIDLE, SpikeGLIdleHandler)
-    ON_MESSAGE(GOT_NEW_SPIKEGL_INPUT_MSG, SpikeGLIdleHandler)
 END_MESSAGE_MAP()
 
 

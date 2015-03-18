@@ -849,6 +849,11 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 		if (!params.suppressGraphs) { bugWindow->show(); bugWindow->activateWindow(); }
 	}	
 	
+    if (fgtask) { // HACK, testing for now!!
+        delete acqStartingDialog; acqStartingDialog = 0;
+        fgtask->dialogW->show();
+        fgtask->dialogW->activateWindow();
+    }
 	
     stopAcq->setEnabled(true);
     aoPassthruAct->setEnabled(params.aoPassthru);

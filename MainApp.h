@@ -176,8 +176,13 @@ public:
 	/// Open a data file for perusal using the already-existing FileViewerWindow reuseWindow.  Called from File->Open slot for the file viewer window.
 	void fileOpen(FileViewerWindow *reuseWindow);
 	
-	DAQ::NITask * niTask() { return dynamic_cast<DAQ::NITask *>(task); }
-	DAQ::BugTask * bugTask() { return dynamic_cast<DAQ::BugTask *>(task); }
+    DAQ::NITask * niTask() { return (!task ? 0 : dynamic_cast<DAQ::NITask *>(task)); }
+    DAQ::BugTask * bugTask() { return (!task ? 0 : dynamic_cast<DAQ::BugTask *>(task)); }
+    DAQ::FGTask * fgTask() { return (!task ? 0 : dynamic_cast<DAQ::FGTask *>(task)); }
+
+    // WindowMenu stuff
+    void windowMenuRemove(QWidget *w);
+    void windowMenuAdd(QWidget *w);
 
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
@@ -297,10 +302,6 @@ private:
 	void precreateDone();
 	void startAcqWithPossibleErrDialog();
 	
-	// WindowMenu stuff
-	void windowMenuRemove(QWidget *w);
-	void windowMenuAdd(QWidget *w);
-
     void putRestarts(const DAQ::Params & p, u64 firstSamp, u64 restartSize) const;
 	
     QMap<QString, QVariant> queuedParams;    

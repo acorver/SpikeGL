@@ -1979,8 +1979,23 @@ namespace DAQ
 	: SubprocessTask(ap, parent, "Framegrabber", "MFCApplication2.exe")
 	{
         sentFGCmd = false;
-	}
-    FGTask::~FGTask() { if (isRunning()) { stop(); wait(); } }
+        dialogW = new QDialog(0,Qt::CustomizeWindowHint|Qt::Dialog|Qt::WindowTitleHint);
+        dialog = new Ui::FG_Controls;
+        dialog->setupUi(dialogW);
+        Connect(dialog->calibAdcBut, SIGNAL(clicked()), this, SLOT(calibClicked()));
+        Connect(dialog->setupRegsBut, SIGNAL(clicked()), this, SLOT(setupRegsClicked()));
+        Connect(dialog->contAdcBut, SIGNAL(clicked()), this, SLOT(contAdcClicked()));
+        Connect(dialog->grabFramesBut, SIGNAL(clicked()), this, SLOT(grabFramesClicked()));
+        Connect(this, SIGNAL(gotMsg(QString,QColor)), this, SLOT(appendTE(QString,QColor)));
+        dialogW->show();
+        mainApp()->windowMenuAdd(dialogW);
+    }
+    FGTask::~FGTask() {
+        if (isRunning()) { stop(); wait(); }
+        mainApp()->windowMenuRemove(dialogW);
+        delete dialog; dialog = 0;
+        delete dialogW; dialogW = 0;
+    }
 
 	QStringList FGTask::filesList() const 
 	{
@@ -2040,38 +2055,33 @@ namespace DAQ
 				XtCmdConsoleMsg *xm = (XtCmdConsoleMsg *)xt; 
                 QString msg(xm->msg);
 				msg = msg.trimmed();
+                QColor c = QColor(Qt::black);
 				switch (xm->msgType) {
 					case XtCmdConsoleMsg::Error:
+                        c = QColor(Qt::red);
 						Error() << shortName << ": " << msg; 
 						emit(daqError(shortName + " slave process: " + msg));
 						break;
 					case XtCmdConsoleMsg::Warning:
-						Warning() << shortName << ": " << msg; break;
+                        c = QColor(Qt::magenta);
+                        Warning() << shortName << ": " << msg; break;
 					case XtCmdConsoleMsg::Debug:
+                        c = QColor(Qt::blue);
                         Debug() << shortName << ": " << msg; break;
 					default:
                         Log() << shortName << ": " << msg;
                         if (msg == "Ready." && !sentFGCmd) {
                             XtCmdFPGAProto p;
-							XtCmd x;
 							
 							// Digital output cmd... necessary or not?
 							p.init(2,0,0); 
 							pushCmd(p);
-							
-							// grab frames.. does stuff with Sapera API in the slave process
-                            x.init();
-                            x.cmd = XtCmd_GrabFrames;
-                            pushCmd(x);
-							
-							// start continuous ADC
-                            p.init(6, 0, 0); 
-                            pushCmd(p); pushCmd(p); // do this twice?!
-							
                             sentFGCmd = true;
                         }
+
                         break;
 				}
+                emit gotMsg(msg,c);
 			} else {
 				// todo.. handle other cmds coming in?
 			}
@@ -2099,6 +2109,41 @@ namespace DAQ
         if (!c) return;
         QByteArray b((char *)c, sizeof(*c) - sizeof(int) + c->len);
         SubprocessTask::pushCmd(b);
+    }
+
+    void FGTask::appendTE(const QString &s, const QColor &color)
+    {
+        QColor origColor = dialog->textEdit->textColor();
+        dialog->textEdit->moveCursor(QTextCursor::End);
+        dialog->textEdit->setTextColor(color);
+        dialog->textEdit->append(s);
+        dialog->textEdit->moveCursor(QTextCursor::End);
+        dialog->textEdit->ensureCursorVisible();
+        dialog->textEdit->setTextColor(origColor);
+    }
+
+    void FGTask::calibClicked() {
+        appendTE("Calib clicked.", QColor(Qt::gray));
+    }
+
+    void FGTask::setupRegsClicked() {
+        appendTE("Setup regs clicked.", QColor(Qt::gray));
+    }
+
+    void FGTask::contAdcClicked() {
+        appendTE("Cont ADC clicked.", QColor(Qt::gray));
+        XtCmdFPGAProto p;
+        p.init(6,0,0);
+        pushCmd(p);
+    }
+
+    void FGTask::grabFramesClicked() {
+        appendTE("Grab frames clicked.", QColor(Qt::gray));
+        XtCmd x;
+        // grab frames.. does stuff with Sapera API in the slave process
+        x.init();
+        x.cmd = XtCmd_GrabFrames;
+        pushCmd(x);
     }
 
 	

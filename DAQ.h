@@ -24,7 +24,7 @@
 #undef max
 #endif
 #include <list>
-
+#include "ui_FG_Controls.h"
 struct XtCmd;
 
 namespace DAQ
@@ -454,7 +454,7 @@ namespace DAQ
 	
 	class FGTask : public SubprocessTask {
 			Q_OBJECT
-	public:
+	public:        
 		FGTask(const Params & acqParams, QObject * parent);
         ~FGTask();
 		
@@ -469,19 +469,35 @@ namespace DAQ
         void pushCmd(const XtCmd * c);
         void pushCmd(const XtCmd & c) { pushCmd(&c); }
 
+        QDialog *dialogW;
+
     protected:
 #ifndef Q_OS_WINDOWS
 		bool platformSupported() const { return false; }
 #endif
         void setupEnv(QProcessEnvironment & e) const;
-		int readTimeoutMaxSecs() const { return 30; }
+        int readTimeoutMaxSecs() const { return 9999; }
 		unsigned gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p);
 		QStringList filesList() const;
         void sendExitCommand(QProcess & p) const;
         bool outputCmdsAreBinary() const { return true; }
 
+    signals:
+
+        void gotMsg(const QString &txt, const QColor & color);
+
+    private slots:
+
+        void calibClicked();
+        void setupRegsClicked();
+        void contAdcClicked();
+        void grabFramesClicked();
+        void appendTE(const QString &s, const QColor & color = QColor(Qt::black));
+
 	private:
+
         bool sentFGCmd;
+        Ui::FG_Controls *dialog;
 	};
 	
 }

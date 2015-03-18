@@ -46,13 +46,10 @@ protected:
 class SpikeGLInputThread : public SpikeGLHandlerThread
 {
 public:
-    SpikeGLInputThread(HWND hw=0, unsigned msg_id=0) : hwnd(hw), msgid(msg_id) {}
+    SpikeGLInputThread()  {}
     ~SpikeGLInputThread();
 protected:
     void threadFunc();
-private:
-    HWND hwnd;
-	unsigned msgid;
 };
 
 #endif

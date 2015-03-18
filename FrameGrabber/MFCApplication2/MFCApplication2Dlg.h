@@ -66,6 +66,9 @@ public:
     SpikeGLInputThread *m_spikeGLIn;
     BOOL m_visible;
 
+    static MEAControlDlg *instance;
+    static UINT_PTR timerId;
+
     int SetupUart();
     int ReadUart(int);
     int	configure(bool printMsgs = false);
