@@ -114,7 +114,8 @@ void SpikeGLInputThread::threadFunc()
     while (!pleaseStop) {
         if ((xt = XtCmd::read(buf, stdin))) {
             pushCmd(xt);
-            PostMessage(hwnd,GOT_NEW_SPIKEGL_INPUT_MSG, 0, 0);
+			if (hwnd && msgid)
+				PostMessage(hwnd,msgid, 0, 0);
         }
     }
 }

@@ -47,6 +47,7 @@ int  DataGrid[40][100];
 
 CEvent g_dataReady;			// set flag when both image sources are grabbing. 
 BOOL SpikeGL_Mode = 1;
+#define GOT_NEW_SPIKEGL_INPUT_MSG (WM_APP+171)
 
 imageP AllocImageMemory(int w, int h, int s)
 {	uchar	*p;
@@ -451,11 +452,11 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	m_pAutoProxy = NULL;
 	
 	if (SpikeGL_Mode) {
-        m_spikeGLIn = new SpikeGLInputThread(static_cast<HWND>(*this));
+        m_spikeGLIn = new SpikeGLInputThread(static_cast<HWND>(*this), GOT_NEW_SPIKEGL_INPUT_MSG);
         m_spikeGL = new SpikeGLOutThread;
         m_spikeGLIn->start();
         m_spikeGL->start();
-    }	
+    }
 }
 
 void MEAControlDlg::handleSpikeGLEnvParms()
