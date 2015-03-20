@@ -133,27 +133,29 @@ void MEAControlDlg::Coreco_Display_Source1_Image(imageRGB4P rgb4, CRect &dRect, 
 	BITMAPINFO bmi;
 	MSG message;
 
-	hDC = tmp.GetSafeHdc();
+    if (m_visible) {
+        hDC = tmp.GetSafeHdc();
 
-	nMode = ::SetStretchBltMode(hDC, COLORONCOLOR);
+        nMode = ::SetStretchBltMode(hDC, COLORONCOLOR);
 
-	memset(&bmi, 0, sizeof(bmi));
-	bmi.bmiHeader.biSize			= sizeof(BITMAPINFOHEADER);
-	bmi.bmiHeader.biWidth			= rgb4->width;
-	bmi.bmiHeader.biHeight			= -rgb4->height; // top-down image
-	bmi.bmiHeader.biBitCount		= 32;
-	bmi.bmiHeader.biSizeImage		= rgb4->width * rgb4->height * 4;
-	bmi.bmiHeader.biPlanes			= 1;
-	bmi.bmiHeader.biXPelsPerMeter	= 0;
-	bmi.bmiHeader.biYPelsPerMeter	= 0;
-	bmi.bmiHeader.biClrImportant	= 0;
-	bmi.bmiHeader.biClrUsed			= 0;
-	bmi.bmiHeader.biCompression		= BI_RGB;
+        memset(&bmi, 0, sizeof(bmi));
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = rgb4->width;
+        bmi.bmiHeader.biHeight = -rgb4->height; // top-down image
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biSizeImage = rgb4->width * rgb4->height * 4;
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biXPelsPerMeter = 0;
+        bmi.bmiHeader.biYPelsPerMeter = 0;
+        bmi.bmiHeader.biClrImportant = 0;
+        bmi.bmiHeader.biClrUsed = 0;
+        bmi.bmiHeader.biCompression = BI_RGB;
 
-	StretchDIBits(hDC, dRect.left, dRect.top, (dRect.Width())*BMPScale, (dRect.Height()) *BMPScale, 0, 0, rgb4->width, rgb4->height, rgb4->image, &bmi, DIB_RGB_COLORS, SRCCOPY);
-	::SetStretchBltMode(hDC, nMode);
+        StretchDIBits(hDC, dRect.left, dRect.top, (dRect.Width())*BMPScale, (dRect.Height()) *BMPScale, 0, 0, rgb4->width, rgb4->height, rgb4->image, &bmi, DIB_RGB_COLORS, SRCCOPY);
+        ::SetStretchBltMode(hDC, nMode);
 
-	ReleaseDC(&tmp);
+        ReleaseDC(&tmp);
+    }
 
 	if (::PeekMessage(&message, NULL, 0, 0, PM_REMOVE))
 	{	::TranslateMessage(&message);
@@ -161,10 +163,6 @@ void MEAControlDlg::Coreco_Display_Source1_Image(imageRGB4P rgb4, CRect &dRect, 
 	}
 }
 
-void MEAControlDlg::Coreco_Image1_StatusCallback(SapAcqCallbackInfo *pInfo)
-{
-
-}
 
 void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 {
@@ -235,11 +233,9 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
         if (!pDlg->m_spikeGL->pushCmd(xt)) { /* todo:.. handle error here!*/ }
     }
 
-    if (pDlg->m_visible) {
-        // display image #1 
-        CRect rect(0, 0, width, height);
-        pDlg->Coreco_Display_Source1_Image(pDlg->m_DecodedRGB4[count], rect, 1); // show original image
-    }
+    // display image #1 
+    CRect rect(0, 0, width, height);
+    pDlg->Coreco_Display_Source1_Image(pDlg->m_DecodedRGB4[count], rect, 1); // show original image
 }
 
 void MEAControlDlg::sapStatusCallback(SapManCallbackInfo *p)
@@ -247,6 +243,26 @@ void MEAControlDlg::sapStatusCallback(SapManCallbackInfo *p)
     MEAControlDlg *o = (MEAControlDlg *)p->GetContext();
     if (o->m_spikeGL && p->GetErrorMessage() && *(p->GetErrorMessage())) {
         o->m_spikeGL->pushConsoleDebug(std::string("(SAP Status) ") + p->GetErrorMessage());
+    }
+}
+
+void MEAControlDlg::tellSpikeGLAboutSignalStatus(SapAcquisition::SignalStatus ss)
+{
+    std::string str = "Signal Status: ";
+    str = str + "PxClk1: " + ((ss&SapAcquisition::SignalPixelClk1Present) ? "YES" : "NO");
+    str = str + " PxClk2: " + ((ss&SapAcquisition::SignalPixelClk2Present) ? "YES" : "NO");
+    str = str + " PxClk3: " + ((ss&SapAcquisition::SignalPixelClk3Present) ? "YES" : "NO");
+    str = str + " HSync: " + ((ss&SapAcquisition::SignalHSyncPresent) ? "YES" : "NO");
+    str = str + " VSync: " + ((ss&SapAcquisition::SignalVSyncPresent) ? "YES" : "NO");
+    m_spikeGL->pushConsoleDebug(str);
+}
+
+void MEAControlDlg::sapSignalStatusCallback(SapAcqCallbackInfo *p)
+{
+    MEAControlDlg *o = (MEAControlDlg *)p->GetContext();
+    if (o->m_spikeGL) {
+        SapAcquisition::SignalStatus ss = p->GetSignalStatus();
+        o->tellSpikeGLAboutSignalStatus(ss);
     }
 }
 
@@ -331,36 +347,42 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	//-----------------------------------------------------------------------------------------
 	// Check Initial Clock, Frame and Line Signals 
 	//-----------------------------------------------------------------------------------------
-	m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk1Present, &PixelCLKSignal1);
-	if (PixelCLKSignal1)
-		m_ClockSignal1.SetCheck(TRUE);
-	else
-		m_ClockSignal1.SetCheck(FALSE);
+    if (m_visible) {
+        m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk1Present, &PixelCLKSignal1);
+        if (PixelCLKSignal1)
+            m_ClockSignal1.SetCheck(TRUE);
+        else
+            m_ClockSignal1.SetCheck(FALSE);
 
-	m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk2Present, &PixelCLKSignal2);
-	if (PixelCLKSignal2)
-		m_ClockSignal2.SetCheck(TRUE);
-	else
-		m_ClockSignal2.SetCheck(FALSE);
+        m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk2Present, &PixelCLKSignal2);
+        if (PixelCLKSignal2)
+            m_ClockSignal2.SetCheck(TRUE);
+        else
+            m_ClockSignal2.SetCheck(FALSE);
 
-	m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk3Present, &PixelCLKSignal3);
-	if (PixelCLKSignal3)
-		m_Clocksignal3.SetCheck(TRUE);
-	else
-		m_Clocksignal3.SetCheck(FALSE);
+        m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk3Present, &PixelCLKSignal3);
+        if (PixelCLKSignal3)
+            m_Clocksignal3.SetCheck(TRUE);
+        else
+            m_Clocksignal3.SetCheck(FALSE);
 
-	m_Acq->GetSignalStatus(SapAcquisition::SignalHSyncPresent, &HSyncSignal);
-	if (HSyncSignal)
-		m_LineSignal.SetCheck(TRUE);
-	else
-		m_LineSignal.SetCheck(FALSE);
+        m_Acq->GetSignalStatus(SapAcquisition::SignalHSyncPresent, &HSyncSignal);
+        if (HSyncSignal)
+            m_LineSignal.SetCheck(TRUE);
+        else
+            m_LineSignal.SetCheck(FALSE);
 
-	m_Acq->GetSignalStatus(SapAcquisition::SignalVSyncPresent, &VSyncSignal);
-	if (VSyncSignal)
-		m_FrameSignal.SetCheck(TRUE);
-	else
-		m_FrameSignal.SetCheck(FALSE);
-
+        m_Acq->GetSignalStatus(SapAcquisition::SignalVSyncPresent, &VSyncSignal);
+        if (VSyncSignal)
+            m_FrameSignal.SetCheck(TRUE);
+        else
+            m_FrameSignal.SetCheck(FALSE);
+    }
+    if (m_spikeGL) {
+        SapAcquisition::SignalStatus ss = (SapAcquisition::SignalStatus)SapAcquisition::SignalPixelClk1Present | SapAcquisition::SignalPixelClk2Present | SapAcquisition::SignalPixelClk3Present | SapAcquisition::SignalHSyncPresent | SapAcquisition::SignalVSyncPresent;
+        m_Acq->GetSignalStatus(&ss, sapSignalStatusCallback, this);
+        tellSpikeGLAboutSignalStatus(ss);
+    }
 	//-----------------------------------------------------------------------------------------
 	// Check Initial Buffer Contains 
 	//-----------------------------------------------------------------------------------------
@@ -371,19 +393,26 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	int depth	=	m_Buffers->GetPixelDepth();			// PixelDepth: get pixel depth 
 	int format	=	m_Buffers->GetFormat();				// PixelDepth: get pixel depth 
 
-	temp.Format(_T("%d"), bpp);
-	m_PixelBytes.SetWindowTextW(temp);
-	temp.Format(_T("%d"), pitch);
-	m_Pitch.SetWindowTextW(temp);
-	temp.Format(_T("%d"), width);
-	m_TotalPixel.SetWindowTextW(temp);
-	temp.Format(_T("%d"), height);
-	m_TotalLine.SetWindowTextW(temp);
-	temp.Format(_T("%d"), depth);
-	m_PixelDepth.SetWindowTextW(temp);
-	temp.Format(_T("%d"), format);
-	m_Format.SetWindowTextW(temp);
-
+    if (m_visible) {
+        temp.Format(_T("%d"), bpp);
+        m_PixelBytes.SetWindowTextW(temp);
+        temp.Format(_T("%d"), pitch);
+        m_Pitch.SetWindowTextW(temp);
+        temp.Format(_T("%d"), width);
+        m_TotalPixel.SetWindowTextW(temp);
+        temp.Format(_T("%d"), height);
+        m_TotalLine.SetWindowTextW(temp);
+        temp.Format(_T("%d"), depth);
+        m_PixelDepth.SetWindowTextW(temp);
+        temp.Format(_T("%d"), format);
+        m_Format.SetWindowTextW(temp);
+    }
+    if (m_spikeGL) {
+        char str[512];
+        _snprintf_s(str, sizeof(str), "Grab image format: %d bpp, %d pitch, %d x %d px, %d depth, %d format", bpp, pitch, width, height, depth, format);
+        str[511] = 0;
+        m_spikeGL->pushConsoleDebug(str);
+    }
 	//-----------------------------------------------------------------------------------------
 	// get max. image size, width and height 
 	//-----------------------------------------------------------------------------------------
@@ -400,7 +429,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	yTop = BMPY;
 	xBot = CorecoImageWidth;
 	yBot = CorecoImageHeight;
-	m_ViewWnd.SetWindowPos(NULL, xTop, yTop, CorecoImageWidth + 5, CorecoImageHeight + 5, NULL);
+	if (m_visible) m_ViewWnd.SetWindowPos(NULL, xTop, yTop, CorecoImageWidth + 5, CorecoImageHeight + 5, NULL);
 
 	// Allocate Frame to image processing ring buffer, 4 rings are used
 	for (int i = 0; i<BSIZE; i++) // Four Frame Ring Buffer

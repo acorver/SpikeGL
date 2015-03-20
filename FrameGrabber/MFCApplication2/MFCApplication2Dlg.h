@@ -59,7 +59,6 @@ public:
 	imageP						m_DecodedByte[BSIZE];													//	Gray Image	
 	imageRGB4P					m_DecodedRGB4[BSIZE];													//	RGB image
 	static void					Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo);
-	static void					Coreco_Image1_StatusCallback(SapAcqCallbackInfo *pInfo);
 	void						Coreco_Display_Source1_Image(imageRGB4P rgb4, CRect &dRect, bool flag);
 	int							m_RingBufferCounter;													//	Ring Buffer counter for Image Source 1 and Image Source 2
     std::vector<BYTE>           m_spikeGLFrameBuf;
@@ -85,6 +84,8 @@ private:
     void doSpikeGLAutoStart();
     void handleSpikeGLCommand(XtCmd *);
     static void sapStatusCallback(SapManCallbackInfo *info);
+    static void sapSignalStatusCallback(SapAcqCallbackInfo *info);
+    void tellSpikeGLAboutSignalStatus(SapAcquisition::SignalStatus ss);
 
 // Implementation
 protected:
