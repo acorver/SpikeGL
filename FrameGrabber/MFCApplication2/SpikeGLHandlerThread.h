@@ -12,7 +12,7 @@ public:
     volatile bool pleaseStop;
     int maxCommandQ;
 
-    SpikeGLHandlerThread() : pleaseStop(false), nCmd(0), maxCommandQ(384) {}
+    SpikeGLHandlerThread() : pleaseStop(false), nCmd(0), maxCommandQ(1024) {}
     virtual ~SpikeGLHandlerThread();
 
     bool pushCmd(const XtCmd *c, DWORD timeout_ms = INFINITE);

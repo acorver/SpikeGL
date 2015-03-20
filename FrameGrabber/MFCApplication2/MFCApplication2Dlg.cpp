@@ -185,6 +185,7 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 	int height	= pDlg->m_Buffers->GetHeight();				// Height:	get the height of the image
 
     if (SpikeGL_Mode) {
+        if (!pDlg->gotFirstXferCallback) pDlg->m_spikeGL->pushConsoleDebug("Coreco_Image1_XferCallback called at least once! Yay!"), pDlg->gotFirstXferCallback = true;
         size_t len = (sizeof(XtCmdImg)-1) + width*height;
         if (size_t(pDlg->m_spikeGLFrameBuf.size()) < len) pDlg->m_spikeGLFrameBuf.resize(len);
         if (size_t(pDlg->m_spikeGLFrameBuf.size()) >= len ) {
@@ -241,6 +242,14 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
     }
 }
 
+void MEAControlDlg::sapStatusCallback(SapManCallbackInfo *p)
+{
+    MEAControlDlg *o = (MEAControlDlg *)p->GetContext();
+    if (o->m_spikeGL && p->GetErrorMessage() && *(p->GetErrorMessage())) {
+        o->m_spikeGL->pushConsoleDebug(std::string("(SAP Status) ") + p->GetErrorMessage());
+    }
+}
+
 bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 {	
 	struct stat stFileInfo;
@@ -265,6 +274,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	SapManager::GetServerName(1, ServerName, sizeof(ServerName));
 	m_ServerName.SetWindowTextW(CString(ServerName));	
 	SapManager::GetResourceName(ServerName, SapManager::ResourceAcq, 0, CameraSetParameter, sizeof(CameraSetParameter));
+    SapManager::SetDisplayStatusMode(SapManager::StatusCallback, sapStatusCallback, this); // so we get errors reported properly from SAP
 	m_DeviceName.SetWindowTextW(CString(CameraSetParameter));
 	m_Version.SetWindowTextW(CString("3.01"));
 	m_TapSize.SetWindowTextW(CString("8"));
@@ -273,26 +283,50 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 
 	// Assign the camera configuration file the Coreco board sellected.
 	USES_CONVERSION;
-	Coreco_Camera_File_Name = T2A(CString(C_filename));
-	Coreco_pLoc = new SapLocation(ServerName, 0);
+	Coreco_Camera_File_Name = C_filename;
+	if (!Coreco_pLoc) Coreco_pLoc = new SapLocation(ServerName, 0);
 
 	// Reset and free up board buffers for newly sellected board 
 	FreeUp_Resource();
 
 	// Prepare the board for image acquisition.
-	m_Acq		= new SapAcquisition(*Coreco_pLoc, (char *)Coreco_Camera_File_Name);
+	m_Acq		= new SapAcquisition(*Coreco_pLoc, Coreco_Camera_File_Name.c_str());
 	m_Buffers	= new SapBufferWithTrash(2, m_Acq);
 	
 	m_View		= new SapView(m_Buffers,	m_ViewWnd.GetSafeHwnd());
 	m_ImageWnd	= new CImageWnd(m_View,		&m_ViewWnd, NULL, NULL, this);
 	m_Xfer		= new SapAcqToBuf(m_Acq,	m_Buffers,	Coreco_Image1_XferCallback, this);
 
-	// check video frame grabber for error 
-	if (m_Acq		&& !*m_Acq		&&	!m_Acq->Create())			OnCancel();
-	if (m_Buffers	&& !*m_Buffers	&&	!m_Buffers->Create())		OnCancel();
+    if (!m_spikeGL) {
+        // check video frame grabber for error 
+        if (m_Acq		&& !*m_Acq		&&	!m_Acq->Create())			OnCancel();
+        if (m_Buffers	&& !*m_Buffers	&&	!m_Buffers->Create())		OnCancel();
 
-	if (m_Xfer		&& !*m_Xfer		&&	!m_Xfer->Create())			OnCancel();
-	if (m_View		&& !*m_View		&&	!m_View->Create())			OnCancel();
+        if (m_Xfer		&& !*m_Xfer		&&	!m_Xfer->Create())			OnCancel();
+        if (m_View		&& !*m_View		&&	!m_View->Create())			OnCancel();
+    } else {
+        // Calin's code..
+        bool err = false;
+        if (!m_Acq || !m_Buffers || !m_Xfer || !m_View || !m_ImageWnd) 
+            m_spikeGL->pushConsoleError("Could not allocate core SAP objects!"), err = true;
+        else if (!m_Acq->Create())
+            m_spikeGL->pushConsoleError("SAP Acquisition 'Create' call failed!"), err = true;
+        else if (!*m_Acq)
+            m_spikeGL->pushConsoleError(std::string("SAP Acquisition error status reported!")), err = true;
+        else if (!m_Buffers->Create())
+            m_spikeGL->pushConsoleError("SAP Buffer 'Create' call failed!"), err = true;
+        else if (!*m_Buffers)
+            m_spikeGL->pushConsoleError("SAP Buffer error status reported!"), err = true;
+        else if (!m_Xfer->Create())
+            m_spikeGL->pushConsoleError("SAP AcqToBuf 'Create' call failed!"), err = true;
+        else if (!*m_Xfer)
+            m_spikeGL->pushConsoleError("SAP AcqToBuf error status reported!"), err = true;
+        else if (!m_View->Create())
+            m_spikeGL->pushConsoleError("SAP View 'Create' call failed!"), err = true;
+        else if (!*m_View)
+            m_spikeGL->pushConsoleError("SAP View error status reported!"), err = true;
+        if (err) return false;
+    }
 
 	//-----------------------------------------------------------------------------------------
 	// Check Initial Clock, Frame and Line Signals 
@@ -389,8 +423,17 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 		}
 	}
 
+    gotFirstXferCallback = false;
+
 	// Grad the input video frame.
-	m_Xfer->Grab();
+    if (!m_Xfer->Grab()) {
+        if (m_visible) ::MessageBox(NULL, L"Sap Grab Failed", L"Sap Grab Failed!", MB_OK);
+        if (m_spikeGL) m_spikeGL->pushConsoleError("SAP Grab() call failed!");
+        return false;
+    }
+    else {
+        if (m_spikeGL) m_spikeGL->pushConsoleDebug("SAP Grab() call success.");
+    }
 	return true;
 }
 
@@ -454,6 +497,7 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(MEAControlDlg::IDD, pParent)
 	, m_BuffBias_Value(0)
 {
+    Coreco_pLoc = 0;
 	m_visible = !SpikeGL_Mode || !::getenv("SPIKEGL_PARMS");
     m_spikeGL = 0; m_spikeGLIn = 0;
 	EnableActiveAccessibility();
@@ -2156,7 +2200,8 @@ void MEAControlDlg::OnBnClickedFramegrabberenable1()
 	{	m_FrameGrabberEnable.EnableWindow(false);	
 		//Coreco_Board_Setup("D:\\Project-Vitax-7\\ProjectBuildingDocumentation\\ProjectBoardTestProgram\\J_2000+_Electrode_8tap_8bit.ccf\0");
         //Coreco_Board_Setup("C:\\Users\\calin\\Desktop\\Src\\XTiumCL_Stuff\\J_2000+_Electrode_8tap_8bit.ccf\0");
-        Coreco_Board_Setup("J_2000+_Electrode_8tap_8bit.ccf\0");
+   //     Coreco_Board_Setup("C:\\Users\\calin\\Desktop\\Src\\SpikeGL\\Framegrabber\\J_2000+_Electrode_8tap_8bit.ccf\0");
+    Coreco_Board_Setup("J_2000+_Electrode_8tap_8bit.ccf\0");
         Frame_Grabber_Enabled = 1;
 	}
 }

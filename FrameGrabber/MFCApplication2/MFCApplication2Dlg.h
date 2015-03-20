@@ -9,6 +9,7 @@
 #include "SapClassGui.h"
 #include "afxcmn.h"
 #include <vector>
+#include <string>
 
 #include "SpikeGLHandlerThread.h"
 class MEAControlDlgAutoProxy;
@@ -43,7 +44,7 @@ public:
 	
 	bool						Coreco_Board_Setup(const char*);
 	void						FreeUp_Resource();
-	char						*Coreco_Camera_File_Name;												// Coreco Camera File Name
+	std::string					Coreco_Camera_File_Name;												// Coreco Camera File Name
 	SapAcquisition				*m_Acq;
 	SapBuffer					*m_Buffers;
 	SapTransfer					*m_Xfer;
@@ -83,6 +84,7 @@ private:
 	void handleSpikeGLEnvParms();
     void doSpikeGLAutoStart();
     void handleSpikeGLCommand(XtCmd *);
+    static void sapStatusCallback(SapManCallbackInfo *info);
 
 // Implementation
 protected:
@@ -298,4 +300,7 @@ public:
 	CButton m_FrameGrabberEnable;
 	afx_msg void OnBnClickedFramegrabberenable1();	
 	CEdit m_DataGridRaw1;
+
+    bool gotFirstXferCallback;
+
 };

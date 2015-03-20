@@ -496,7 +496,7 @@ namespace DAQ
 
 	private:
 
-        bool sentFGCmd;
+        bool sentFGCmd, didImgSizeWarn;
         Ui::FG_Controls *dialog;
 	};
 	

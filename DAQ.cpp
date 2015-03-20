@@ -1978,7 +1978,7 @@ namespace DAQ
 	FGTask::FGTask(const Params & ap, QObject *parent)
 	: SubprocessTask(ap, parent, "Framegrabber", "MFCApplication2.exe")
 	{
-        sentFGCmd = false;
+        didImgSizeWarn = sentFGCmd = false;
         dialogW = new QDialog(0,Qt::CustomizeWindowHint|Qt::Dialog|Qt::WindowTitleHint);
         dialog = new Ui::FG_Controls;
         dialog->setupUi(dialogW);
@@ -2045,11 +2045,15 @@ namespace DAQ
 			if (xt->cmd == XtCmd_Img) {
 				const XtCmdImg *xi = (const XtCmdImg *)xt;
 				//if (excessiveDebug) Debug() << "Got image of size " << xi->w << "x" << xi->h;
-				if ((xi->w/2)*xi->h != (int)params.nVAIChans) {
-					emit(daqError("Received image frame from slave process but it's not of the right size!"));
+                const int imgSz = (xi->w/2)*xi->h;
+                if (imgSz < (int)params.nVAIChans) {
+                    emit(daqError("Received image frame from slave process but it's smaller than the number of channels we are expecting!"));
 					p.kill();
 					return 0;
-				}
+                } else if (!didImgSizeWarn && imgSz > (int)params.nVAIChans) {
+                    Warning() << "Received image of size:" << (xi->w/2) << "x" << xi->h << ", but expected an image of 72x32";
+                    didImgSizeWarn = true;
+                }
 				scans.insert(scans.end(),(int16*)xi->img,((int16 *)xi->img)+params.nVAIChans);
             } else if (xt->cmd == XtCmd_ConsoleMessage) {
 				XtCmdConsoleMsg *xm = (XtCmdConsoleMsg *)xt; 
