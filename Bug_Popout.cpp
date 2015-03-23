@@ -33,55 +33,6 @@ Bug_Popout::~Bug_Popout()
 	delete ui; ui = 0;
 }
 
-/*
-void Bug_Popout::writeMetaToDataFile(DataFile &f, const DAQ::BugTask::BlockMetaData &m, int fudge)
-{
-	if (!seenMetaFiles.contains(f.metaFileName())) {
-		f.writeCommentToMetaFile("USB Bug3 \"Meta data\" is in the comments BELOW!! Format is as follows:");
-		f.writeCommentToMetaFile("blockNum "
-								 "framesPerBlock "
-								 "spikeGL_DataFile_ScanCount "
-								 "spikeGL_DataFile_SampleCount "
-								 "spikeGL_ScansInBlock "
-								 "boardFrameCtr_BlockBegin "
-								 "boardFrameCtr_BlockEnd "
-								 "frameTimer_BlockBegin "
-								 "frameTimer_BlockEnd "
-								 "chipID "
-								 "chipFrameCtr_BlockBegin "
-								 "chipFrameCtr_BlockEnd "
-								 "missingFrameCount "
-								 "falseFrameCount "
-								 "bitErrorRate "
-								 "wordErrorRate "
-								 "avgVunreg_FramesThisBlock "
-								 "avgVunreg_Last120Blocks ");
-		seenMetaFiles.insert(f.metaFileName());
-	}		
-	f.writeCommentToMetaFile (	
-							  QString("%1 %2 %3 %4 %5 %6 %7 %8 %9 %10 %11 %12 %13 %14 %15 %16 %17 %18")
-							  .arg(m.blockNum)
-							  .arg(DAQ::BugTask::FramesPerBlock)
-							  .arg(f.scanCount()+fudge/task->numChans())
-							  .arg(f.sampleCount()+fudge)
-							  .arg(DAQ::BugTask::SpikeGLScansPerBlock)
-							  .arg(m.boardFrameCounter[0])
-							  .arg(m.boardFrameCounter[DAQ::BugTask::FramesPerBlock-1])
-							  .arg(m.boardFrameTimer[0])
-							  .arg(m.boardFrameTimer[DAQ::BugTask::FramesPerBlock-1])
-							  .arg(m.chipID[0])
-							  .arg(m.chipFrameCounter[0])
-							  .arg(m.chipFrameCounter[DAQ::BugTask::FramesPerBlock-1])
-							  .arg(m.missingFrameCount)
-							  .arg(m.falseFrameCount)
-							  .arg(m.BER)
-							  .arg(m.WER)
-							  .arg(m.avgVunreg)
-							  .arg(avgPower) 
-							  );
-}
-*/
-
 void Bug_Popout::writeMetaToBug3File(const DataFile &df, const DAQ::BugTask::BlockMetaData &m, int fudge)
 {
 	QString fname (df.metaFileName());
