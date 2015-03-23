@@ -246,24 +246,18 @@ void MEAControlDlg::sapStatusCallback(SapManCallbackInfo *p)
     }
 }
 
-void MEAControlDlg::tellSpikeGLAboutSignalStatus(SapAcquisition::SignalStatus ss)
+void MEAControlDlg::tellSpikeGLAboutSignalStatus()
 {
-    std::string str = "Signal Status: ";
-    str = str + "PxClk1: " + ((ss&SapAcquisition::SignalPixelClk1Present) ? "YES" : "NO");
-    str = str + " PxClk2: " + ((ss&SapAcquisition::SignalPixelClk2Present) ? "YES" : "NO");
-    str = str + " PxClk3: " + ((ss&SapAcquisition::SignalPixelClk3Present) ? "YES" : "NO");
-    str = str + " HSync: " + ((ss&SapAcquisition::SignalHSyncPresent) ? "YES" : "NO");
-    str = str + " VSync: " + ((ss&SapAcquisition::SignalVSyncPresent) ? "YES" : "NO");
-    m_spikeGL->pushConsoleDebug(str);
-}
+    if (!m_Acq || !Frame_Grabber_Enabled) return;
+    m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk1Present, &PixelCLKSignal1);
+    m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk2Present, &PixelCLKSignal2);
+    m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk3Present, &PixelCLKSignal3);
+    m_Acq->GetSignalStatus(SapAcquisition::SignalHSyncPresent, &HSyncSignal);
+    m_Acq->GetSignalStatus(SapAcquisition::SignalVSyncPresent, &VSyncSignal);
 
-void MEAControlDlg::sapSignalStatusCallback(SapAcqCallbackInfo *p)
-{
-    MEAControlDlg *o = (MEAControlDlg *)p->GetContext();
-    if (o->m_spikeGL) {
-        SapAcquisition::SignalStatus ss = p->GetSignalStatus();
-        o->tellSpikeGLAboutSignalStatus(ss);
-    }
+    XtCmdClkSignals cmd;
+    cmd.init(!!PixelCLKSignal1, !!PixelCLKSignal2, !!PixelCLKSignal3, !!HSyncSignal, !!VSyncSignal);
+    m_spikeGL->pushCmd(&cmd);
 }
 
 bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
@@ -379,9 +373,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
             m_FrameSignal.SetCheck(FALSE);
     }
     if (m_spikeGL) {
-        SapAcquisition::SignalStatus ss = (SapAcquisition::SignalStatus)SapAcquisition::SignalPixelClk1Present | SapAcquisition::SignalPixelClk2Present | SapAcquisition::SignalPixelClk3Present | SapAcquisition::SignalHSyncPresent | SapAcquisition::SignalVSyncPresent;
-        m_Acq->GetSignalStatus(&ss, sapSignalStatusCallback, this);
-        tellSpikeGLAboutSignalStatus(ss);
+        tellSpikeGLAboutSignalStatus();
     }
 	//-----------------------------------------------------------------------------------------
 	// Check Initial Buffer Contains 
@@ -527,6 +519,7 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	, m_BuffBias_Value(0)
 {
     Coreco_pLoc = 0;
+    m_Acq = 0;
 	m_visible = !SpikeGL_Mode || !::getenv("SPIKEGL_PARMS");
     m_spikeGL = 0; m_spikeGLIn = 0;
 	EnableActiveAccessibility();
@@ -604,6 +597,7 @@ LRESULT MEAControlDlg::SpikeGLIdleHandler(WPARAM p1, LPARAM p2)
         else ++fail;
 
     }
+    if (m_spikeGL) tellSpikeGLAboutSignalStatus();
     return TRUE;
 }
 
@@ -2226,12 +2220,13 @@ void MEAControlDlg::OnBnClickedContinuousadc()
 void MEAControlDlg::OnBnClickedFramegrabberenable1()
 {
 	if (m_FrameGrabberEnable.GetCheck())
-	{	m_FrameGrabberEnable.EnableWindow(false);	
+	{	
 		//Coreco_Board_Setup("D:\\Project-Vitax-7\\ProjectBuildingDocumentation\\ProjectBoardTestProgram\\J_2000+_Electrode_8tap_8bit.ccf\0");
         //Coreco_Board_Setup("C:\\Users\\calin\\Desktop\\Src\\XTiumCL_Stuff\\J_2000+_Electrode_8tap_8bit.ccf\0");
    //     Coreco_Board_Setup("C:\\Users\\calin\\Desktop\\Src\\SpikeGL\\Framegrabber\\J_2000+_Electrode_8tap_8bit.ccf\0");
-    Coreco_Board_Setup("J_2000+_Electrode_8tap_8bit.ccf\0");
-        Frame_Grabber_Enabled = 1;
+    
+        Frame_Grabber_Enabled = Coreco_Board_Setup("J_2000+_Electrode_8tap_8bit.ccf\0") ? 1 : 0;
+        if (m_visible) m_FrameGrabberEnable.EnableWindow(!Frame_Grabber_Enabled);
 	}
 }
 

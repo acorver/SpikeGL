@@ -1987,6 +1987,7 @@ namespace DAQ
         Connect(dialog->contAdcBut, SIGNAL(clicked()), this, SLOT(contAdcClicked()));
         Connect(dialog->grabFramesBut, SIGNAL(clicked()), this, SLOT(grabFramesClicked()));
         Connect(this, SIGNAL(gotMsg(QString,QColor)), this, SLOT(appendTE(QString,QColor)));
+        Connect(this, SIGNAL(gotClkSignals(int)), this, SLOT(updateClkSignals(int)));
         dialogW->show();
         mainApp()->windowMenuAdd(dialogW);
     }
@@ -2086,7 +2087,9 @@ namespace DAQ
                         break;
 				}
                 emit gotMsg(msg,c);
-			} else {
+            } else if (xt->cmd == XtCmd_ClkSignals) {
+                emit(gotClkSignals(xt->param));
+            } else {
 				// todo.. handle other cmds coming in?
 			}
 		}
@@ -2102,6 +2105,17 @@ namespace DAQ
 		return consumed;
 	}
 	
+    void FGTask::updateClkSignals(int param) {
+        XtCmdClkSignals dummy; dummy.init(0,0,0,0,0); dummy.param = param;
+        dialog->pxClk1Lbl->setText(dummy.isPxClk1() ? "<font color=green>+</font>" : "<font color=red>-</font>");
+        dialog->pxClk2Lbl->setText(dummy.isPxClk2() ? "<font color=green>+</font>" : "<font color=red>-</font>");
+        dialog->pxClk3Lbl->setText(dummy.isPxClk3() ? "<font color=green>+</font>" : "<font color=red>-</font>");
+        dialog->hsyncLbl->setText(dummy.isHSync() ? "<font color=green>+</font>" : "<font color=red>-</font>");
+        dialog->vsyncLbl->setText(dummy.isVSync() ? "<font color=green>+</font>" : "<font color=red>-</font>");
+        unsigned long ctr = dialog->clkCtLbl->text().toULong();
+        dialog->clkCtLbl->setText(QString::number(ctr+1UL));
+    }
+
 	/* static */
 	QString FGTask::getChannelName(unsigned num)
 	{ 

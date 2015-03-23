@@ -16,6 +16,7 @@ enum XtCmds {
     XtCmd_Exit, // sent from SpikeGL -> slave app to tell it to exit gracefully...
     XtCmd_GrabFrames, // sent from SpikeGL-> slave app, tell it to start grabbing frames..
     XtCmd_FPGAProto, // sent from SpikeGL -> slave app to do low-level FPGA protocol commands
+    XtCmd_ClkSignals, // sent from slave app -> SpikeGL to update GUI
     XtCmd_N // num commands in enum
 };
 
@@ -127,5 +128,18 @@ struct XtCmdFPGAProto : public XtCmd {
         len = static_cast<int>((sizeof(XtCmdFPGAProto) - sizeof(XtCmd)) + sizeof(int));
         cmd_code = cmdCode; value1 = v1; value2 = v2;
     }
+};
+
+struct XtCmdClkSignals : public XtCmd {
+    void init(bool pxclk1, bool pxclk2, bool pxclk3, bool hsync, bool vsync) {
+        XtCmd::init();
+        cmd = XtCmd_ClkSignals;
+        param = ((pxclk1 ? 0x1 : 0) << 0) | ((pxclk2 ? 0x1 : 0) << 1) | ((pxclk3 ? 0x1 : 0) << 2) | ((hsync ? 0x1 : 0) << 3) | ((vsync ? 0x1 : 0) << 4);
+    }
+    bool isPxClk1() const { return !!(param&(0x1 << 0)); }
+    bool isPxClk2() const { return !!(param&(0x1 << 1)); }
+    bool isPxClk3() const { return !!(param&(0x1 << 2)); }
+    bool isHSync() const { return !!(param&(0x1 << 3)); }
+    bool isVSync() const { return !!(param&(0x1 << 4)); }
 };
 #endif

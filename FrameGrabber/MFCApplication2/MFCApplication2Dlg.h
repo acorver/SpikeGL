@@ -84,8 +84,7 @@ private:
     void doSpikeGLAutoStart();
     void handleSpikeGLCommand(XtCmd *);
     static void sapStatusCallback(SapManCallbackInfo *info);
-    static void sapSignalStatusCallback(SapAcqCallbackInfo *info);
-    void tellSpikeGLAboutSignalStatus(SapAcquisition::SignalStatus ss);
+    void tellSpikeGLAboutSignalStatus();
 
 // Implementation
 protected:

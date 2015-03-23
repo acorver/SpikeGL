@@ -485,6 +485,7 @@ namespace DAQ
     signals:
 
         void gotMsg(const QString &txt, const QColor & color);
+        void gotClkSignals(int param);
 
     private slots:
 
@@ -493,6 +494,7 @@ namespace DAQ
         void contAdcClicked();
         void grabFramesClicked();
         void appendTE(const QString &s, const QColor & color = QColor(Qt::black));
+        void updateClkSignals(int param);
 
 	private:
 
