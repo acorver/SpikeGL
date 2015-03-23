@@ -33,6 +33,7 @@ Bug_Popout::~Bug_Popout()
 	delete ui; ui = 0;
 }
 
+/*
 void Bug_Popout::writeMetaToDataFile(DataFile &f, const DAQ::BugTask::BlockMetaData &m, int fudge)
 {
 	if (!seenMetaFiles.contains(f.metaFileName())) {
@@ -58,26 +59,84 @@ void Bug_Popout::writeMetaToDataFile(DataFile &f, const DAQ::BugTask::BlockMetaD
 		seenMetaFiles.insert(f.metaFileName());
 	}		
 	f.writeCommentToMetaFile (	
-      QString("%1 %2 %3 %4 %5 %6 %7 %8 %9 %10 %11 %12 %13 %14 %15 %16 %17 %18")
-	   .arg(m.blockNum)
- 	   .arg(DAQ::BugTask::FramesPerBlock)
-       .arg(f.scanCount()+fudge/task->numChans())
-       .arg(f.sampleCount()+fudge)
-	   .arg(DAQ::BugTask::SpikeGLScansPerBlock)
-	   .arg(m.boardFrameCounter[0])
-	   .arg(m.boardFrameCounter[DAQ::BugTask::FramesPerBlock-1])
-	   .arg(m.boardFrameTimer[0])
-	   .arg(m.boardFrameTimer[DAQ::BugTask::FramesPerBlock-1])
-	   .arg(m.chipID[0])
-	   .arg(m.chipFrameCounter[0])
-	   .arg(m.chipFrameCounter[DAQ::BugTask::FramesPerBlock-1])
-	   .arg(m.missingFrameCount)
-	   .arg(m.falseFrameCount)
-	   .arg(m.BER)
-	   .arg(m.WER)
-	   .arg(m.avgVunreg)
-	   .arg(avgPower) 
-	 );
+							  QString("%1 %2 %3 %4 %5 %6 %7 %8 %9 %10 %11 %12 %13 %14 %15 %16 %17 %18")
+							  .arg(m.blockNum)
+							  .arg(DAQ::BugTask::FramesPerBlock)
+							  .arg(f.scanCount()+fudge/task->numChans())
+							  .arg(f.sampleCount()+fudge)
+							  .arg(DAQ::BugTask::SpikeGLScansPerBlock)
+							  .arg(m.boardFrameCounter[0])
+							  .arg(m.boardFrameCounter[DAQ::BugTask::FramesPerBlock-1])
+							  .arg(m.boardFrameTimer[0])
+							  .arg(m.boardFrameTimer[DAQ::BugTask::FramesPerBlock-1])
+							  .arg(m.chipID[0])
+							  .arg(m.chipFrameCounter[0])
+							  .arg(m.chipFrameCounter[DAQ::BugTask::FramesPerBlock-1])
+							  .arg(m.missingFrameCount)
+							  .arg(m.falseFrameCount)
+							  .arg(m.BER)
+							  .arg(m.WER)
+							  .arg(m.avgVunreg)
+							  .arg(avgPower) 
+							  );
+}
+*/
+
+void Bug_Popout::writeMetaToBug3File(const DataFile &df, const DAQ::BugTask::BlockMetaData &m, int fudge)
+{
+	QString fname (df.metaFileName());
+	static const QString metaExt(".meta");
+	if (fname.toLower().endsWith(metaExt)) fname = fname.left(fname.size()-metaExt.size()) + ".bug3";
+	QFile f(fname);
+	if (!df.scanCount()) {
+		f.open(QIODevice::WriteOnly|QIODevice::Truncate|QIODevice::Text);
+		Debug() << "Bug3 'extra data' file created: " << fname;
+	} else {
+		f.open(QIODevice::WriteOnly|QIODevice::Append|QIODevice::Text);
+		f.seek(f.size()); // got to end?
+	}
+	QTextStream ts(&f);
+	ts << "[ block " << m.blockNum << " ]\n";
+	ts << "framesThisBlock = " << DAQ::BugTask::FramesPerBlock << "\n";
+	ts << "spikeGL_DataFile_ScanCount = " << (df.scanCount()+(fudge/task->numChans())) << "\n";
+	ts << "spikeGL_DataFile_SampleCount = " << (df.sampleCount()+fudge) << "\n";
+	ts << "spikeGL_ScansInBlock = " << DAQ::BugTask::SpikeGLScansPerBlock << "\n";
+	ts << "boardFrameCounter = ";
+	for (int i = 0; i < DAQ::BugTask::FramesPerBlock; ++i) {
+		if (i) ts << ",";
+		ts << m.boardFrameCounter[i];
+	}
+	ts << "\n";
+	ts << "boardFrameTimer = ";
+	for (int i = 0; i < DAQ::BugTask::FramesPerBlock; ++i) {
+		if (i) ts << ",";
+		ts << m.boardFrameTimer[i];
+	}
+	ts << "\n";
+	ts << "chipFrameCounter = ";
+	for (int i = 0; i < DAQ::BugTask::FramesPerBlock; ++i) {
+		if (i) ts << ",";
+		ts << m.chipFrameCounter[i];
+	}
+	ts << "\n";
+	ts << "chipID = ";
+	for (int i = 0; i < DAQ::BugTask::FramesPerBlock; ++i) {
+		if (i) ts << ",";
+		ts << m.chipID[i];
+	}
+	ts << "\n";
+	ts << "frameMarkerCorrelation = ";
+	for (int i = 0; i < DAQ::BugTask::FramesPerBlock; ++i) {
+		if (i) ts << ",";
+		ts << m.frameMarkerCorrelation[i];
+	}
+	ts << "\n";
+	ts << "missingFrameCount = " << m.missingFrameCount << "\n";
+	ts << "falseFrameCount = " << m.falseFrameCount << "\n";
+	ts << "BER = " << m.BER << "\n";
+	ts << "WER = " << m.WER << "\n";
+	ts << "avgVunreg = " << m.avgVunreg << "\n";
+	ts.flush();
 }
 
 void Bug_Popout::plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_update)

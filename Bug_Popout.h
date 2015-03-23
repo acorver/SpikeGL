@@ -23,7 +23,7 @@ public:
 	~Bug_Popout();
 
 	void plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_QWidget_update = true);
-	void writeMetaToDataFile(DataFile & dataFile, const DAQ::BugTask::BlockMetaData & meta, int fudge_scanct = 0);
+	void writeMetaToBug3File(const DataFile & dataFile, const DAQ::BugTask::BlockMetaData & meta, int fudge_scanct = 0);
 	
 private slots:
 	void filterSettingsChanged();
@@ -38,8 +38,6 @@ private:
 	double lastStatusT; qint64 lastStatusBlock; double lastRate;
 	
 	Bug_Graph *vgraph, *errgraph;
-	
-	QSet<QString> seenMetaFiles; // used to detect when meta file changes so we can write a new header...
 };
 
 

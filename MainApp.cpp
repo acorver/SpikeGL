@@ -1246,8 +1246,6 @@ void MainApp::taskReadFunc()
 					scans.reserve(scans.size()+n);
 					scans.insert(scans.end(), scans_orig.begin(), scans_orig.begin() + n);
 				}
-				if (bugWindow && bugMeta) 
-					bugWindow->writeMetaToDataFile(dataFile, *bugMeta, bugMetaFudge); // bugMetaFudge explanation: puts a scan offset in the table generated in the meta data so that the scans in the data file line up with the scans in the comments...
                 if (wasFakeData) {
                     // indicate bad data in output file..
                     dataFile.pushBadData(dataFile.scanCount(), fakeDataSz/p.nVAIChans);
@@ -1263,9 +1261,17 @@ void MainApp::taskReadFunc()
 							scans_subsetted.push_back(scans[i]);
 						}
 					}
+					if (bugWindow && bugMeta) {
+						int bmf = qRound(bugMetaFudge*ratio);
+						while (bmf%dataFile.numChans()) ++bmf;
+						bugWindow->writeMetaToBug3File(dataFile, *bugMeta, bmf); // bugMetaFudge explanation: puts a scan offset in the table generated in the meta data so that the scans in the data file line up with the scans in the comments...
+					}
 					dataFile.writeScans(scans_subsetted, true);
-				} else
+				} else {
+					if (bugWindow && bugMeta) 
+						bugWindow->writeMetaToBug3File(dataFile, *bugMeta, bugMetaFudge); // bugMetaFudge explanation: puts a scan offset in the table generated in the meta data so that the scans in the data file line up with the scans in the comments...
 					dataFile.writeScans(scans, true);
+				}
 				// and.. swap back if we have anything in scans_orig
 				if (scans_orig.size()) 
 					scans.swap(scans_orig);
