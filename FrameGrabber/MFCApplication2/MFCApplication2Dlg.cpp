@@ -242,9 +242,11 @@ void MEAControlDlg::Coreco_ImageXferCallback()
         if (!m_spikeGL->pushCmd(xt)) { /* todo:.. handle error here!*/ }
     }
 
-    // display image #1 
-    CRect rect(0, 0, width, height);
-    Coreco_Display_Source1_Image(m_DecodedRGB4[count], rect, 1); // show original image
+    if (visible) {
+        // display image #1 
+        CRect rect(0, 0, width, height);
+        Coreco_Display_Source1_Image(m_DecodedRGB4[count], rect, 1); // show original image
+    }
 }
 
 void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
