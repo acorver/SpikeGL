@@ -169,14 +169,12 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 {
 	MEAControlDlg	*pDlg = (MEAControlDlg *)pInfo->GetContext();
 
-	BYTE			*pData, *pByte, *pRGB4, *pXt = 0;
+	BYTE			*pData = 0, *pByte = 0, *pRGB4 = 0, *pXt = 0;
     XtCmdImg *xt = 0;
-//	WORD			*word;
-	BYTE			*pLine;
-	int				count;
+	BYTE			*pLine = 0;
+	int				count = 0;
 	CString			temp;
 
-	pDlg->m_Buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
 
 	int bpp		= pDlg->m_Buffers->GetBytesPerPixel();		// bpp:		get number of bytes required to store a single image
 	int pitch	= pDlg->m_Buffers->GetPitch();				// pitch:	get number of bytes between two consecutive lines of all the buffer resource
@@ -204,6 +202,10 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 
 	g_dataReady.ResetEvent();
 
+    pDlg->m_Buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
+    void * const pDataOrig = pData;
+    const bool visible = !!pDlg->m_visible;
+
 	for (int i = 0; i<height; i++)						// width
 	{
 		pLine = pData;									// copy the image buffer address
@@ -218,14 +220,18 @@ void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
 			pRGB4++;									// increase address by 8 bit
 			pRGB4++;									// in case RGB, pixel data is two word (32-bit)
             if (pXt) *pXt++ = *pLine; // for SpikeGL
+            if (visible) {
+                DataGridRaw[i][j] = pLine[0];
+                temp.Format(_T("%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x"), DataGridRaw[0][0], DataGridRaw[0][1], DataGridRaw[0][2], DataGridRaw[0][3], DataGridRaw[0][4], DataGridRaw[0][5], DataGridRaw[0][6], DataGridRaw[0][7], DataGridRaw[0][8], DataGridRaw[0][9], DataGridRaw[0][10], DataGridRaw[0][11], DataGridRaw[0][12], DataGridRaw[0][13], DataGridRaw[0][14], DataGridRaw[0][15], DataGridRaw[0][16], DataGridRaw[0][17], DataGridRaw[0][18], DataGridRaw[0][19], DataGridRaw[0][20], DataGridRaw[0][21], DataGridRaw[0][22], DataGridRaw[0][23]);
+                pDlg->m_DataGridRaw1.SetWindowTextW(temp);
+            }
             pLine++;									// increase address by 8 bit becasue 1 byte image
             pByte++;									// increase gray image address by 8 bit
-			DataGridRaw[i][j] = pLine[0];
-			temp.Format(_T("%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x"), DataGridRaw[0][0], DataGridRaw[0][1], DataGridRaw[0][2], DataGridRaw[0][3], DataGridRaw[0][4], DataGridRaw[0][5], DataGridRaw[0][6], DataGridRaw[0][7], DataGridRaw[0][8], DataGridRaw[0][9], DataGridRaw[0][10], DataGridRaw[0][11], DataGridRaw[0][12], DataGridRaw[0][13], DataGridRaw[0][14], DataGridRaw[0][15], DataGridRaw[0][16], DataGridRaw[0][17], DataGridRaw[0][18], DataGridRaw[0][19], DataGridRaw[0][20], DataGridRaw[0][21], DataGridRaw[0][22], DataGridRaw[0][23]);
-			pDlg->m_DataGridRaw1.SetWindowTextW(temp);
-		}
+        }
 		pData += pitch;
 	}
+
+    pDlg->m_Buffers->ReleaseAddress(pDataOrig);
 
 	g_dataReady.SetEvent();
 
@@ -310,7 +316,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	// Prepare the board for image acquisition.
     if (m_spikeGL) m_spikeGL->pushConsoleDebug(std::string("Acquisition Info:  ServerName: '") + ServerName + "'  Resource: '" + CameraSetParameter + "'  CameraFile: '" + Coreco_Camera_File_Name + "'");
 	m_Acq		= new SapAcquisition(loc, Coreco_Camera_File_Name.c_str());
-    m_Buffers = m_visible ? new SapBufferWithTrash(2, m_Acq) : new SapBuffer(1, m_Acq);;
+    m_Buffers = m_visible ? new SapBufferWithTrash(2, m_Acq) : new SapBuffer(2, m_Acq);;
 	
     if (m_visible) {
         m_View = new SapView(m_Buffers, m_ViewWnd.GetSafeHwnd());
