@@ -201,7 +201,7 @@ void MEAControlDlg::Coreco_ImageXferCallback()
         pRGB4 = m_DecodedRGB4[count]->image;			// Assign the RGB Image Pixel address to local pRGB4
     }
 
-    g_dataReady.ResetEvent();
+    //g_dataReady.ResetEvent();
 
     m_Buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
     void * const pDataOrig = pData;
@@ -235,7 +235,7 @@ void MEAControlDlg::Coreco_ImageXferCallback()
 
     m_Buffers->ReleaseAddress(pDataOrig);
 
-    g_dataReady.SetEvent();
+    //g_dataReady.SetEvent();
 
     // for SpikeGL
     if (xt) {
@@ -246,10 +246,7 @@ void MEAControlDlg::Coreco_ImageXferCallback()
         // display image #1 
         CRect rect(0, 0, width, height);
         Coreco_Display_Source1_Image(m_DecodedRGB4[count], rect, 1); // show original image
-    } else if (m_View) {
-        // testing...
-        m_View->Show();
-    }
+    } 
 }
 
 void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
@@ -331,13 +328,10 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	m_Acq		= new SapAcquisition(loc, Coreco_Camera_File_Name.c_str());
     m_Buffers = new SapBufferWithTrash(200, m_Acq);
 	
-    if (m_visible) {
+    //if (m_visible) {
         m_View = new SapView(m_Buffers, m_ViewWnd.GetSafeHwnd());
         m_ImageWnd = new CImageWnd(m_View, &m_ViewWnd, NULL, NULL, this);
-    } else {
-        // testing...
-        m_View = new SapView(m_Buffers, SapHwndAutomatic);
-    }
+    //}
 	m_Xfer		= new SapAcqToBuf(m_Acq,	m_Buffers,	Coreco_Image1_XferCallback, this);
 
     if (!m_spikeGL) {
@@ -446,7 +440,8 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	yTop = BMPY;
 	xBot = CorecoImageWidth;
 	yBot = CorecoImageHeight;
-	if (m_visible) m_ViewWnd.SetWindowPos(NULL, xTop, yTop, CorecoImageWidth + 5, CorecoImageHeight + 5, NULL);
+	//if (m_visible) 
+    m_ViewWnd.SetWindowPos(NULL, xTop, yTop, CorecoImageWidth + 5, CorecoImageHeight + 5, NULL);
 
 	// Allocate Frame to image processing ring buffer, 4 rings are used
 	for (int i = 0; i<BSIZE; i++) // Four Frame Ring Buffer
@@ -1182,7 +1177,7 @@ UINT Background_Update(LPVOID pParam)
         }
         Sleep(100);
 	}
-    //if (pDlg->m_spikeGL) pDlg->m_spikeGL->pushConsoleDebug("Background update thread ended.");
+    if (pDlg->m_spikeGL) pDlg->m_spikeGL->pushConsoleDebug("Background update thread ended.");
 	return 0;
 }
 
