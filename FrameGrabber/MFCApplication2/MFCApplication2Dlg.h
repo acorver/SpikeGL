@@ -54,7 +54,6 @@ public:
 	int							yTop, yBot;
 	#define DisplayOffeset		650																		//	805 (for Camera Link 1kx1k)		// display coodinate offset between image 1 and imagee 2display
 	#define MaxDisplaySize		800
-	SapLocation					*Coreco_pLoc;
 	#define BSIZE				4																		//	ring buffer size
 	imageP						m_DecodedByte[BSIZE];													//	Gray Image	
 	imageRGB4P					m_DecodedRGB4[BSIZE];													//	RGB image

@@ -44,6 +44,7 @@
 #include <io.h>
 #include <stdlib.h>
 #include <string.h>
+#include <direct.h>
 
 #include <vector>
 #include <list>

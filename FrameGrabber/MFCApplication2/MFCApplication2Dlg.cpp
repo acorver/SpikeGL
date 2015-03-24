@@ -25,6 +25,7 @@
 #include <io.h>
 #include <stdlib.h>
 #include <string.h>
+#include <direct.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -127,13 +128,13 @@ void MEAControlDlg::FreeUp_Resource()
 
 void MEAControlDlg::Coreco_Display_Source1_Image(imageRGB4P rgb4, CRect &dRect, bool flag)
 {
-	CClientDC tmp(&m_ViewWnd);
-	HDC	 hDC;
-	INT nMode;
-	BITMAPINFO bmi;
 	MSG message;
 
     if (m_visible) {
+        CClientDC tmp(&m_ViewWnd);
+        HDC	 hDC;
+        INT nMode;
+        BITMAPINFO bmi;
         hDC = tmp.GetSafeHdc();
 
         nMode = ::SetStretchBltMode(hDC, COLORONCOLOR);
@@ -263,48 +264,58 @@ void MEAControlDlg::tellSpikeGLAboutSignalStatus()
 bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 {	
 	struct stat stFileInfo;
-	char C_filename[200];
-	CString temp;
-	SapAcqDevice device;
-	char CameraSetParameter[100];
-	char ServerName[100];
-
-	// check whether or not the camera files exists	
-	strncpy_s(C_filename, Coreco_FileName, 200);
-    C_filename[199] = 0;
-	if (stat(C_filename, &stFileInfo) != 0)
+    char CameraSetParameter[100] = { 0 };
+    char ServerName[100] = { 0 };
+	if (stat(Coreco_FileName, &stFileInfo) != 0)
 	{	MessageBox(CString("Cannot Find Camera Description File, Application Abort"), CString("Error Message"));
 		exit(1);
 		return false;						// couldn't find the camera ccf file.
 	}
-	else
-		m_CameraConfigFileDir.SetWindowTextW(CString(C_filename));
+    else if (m_visible)
+		m_CameraConfigFileDir.SetWindowTextW(CString(Coreco_FileName));
 
 	// Assign the camera configuration parameters
-	SapManager::GetServerName(1, ServerName, sizeof(ServerName));
-	m_ServerName.SetWindowTextW(CString(ServerName));	
-	SapManager::GetResourceName(ServerName, SapManager::ResourceAcq, 0, CameraSetParameter, sizeof(CameraSetParameter));
     SapManager::SetDisplayStatusMode(SapManager::StatusCallback, sapStatusCallback, this); // so we get errors reported properly from SAP
-	m_DeviceName.SetWindowTextW(CString(CameraSetParameter));
-	m_Version.SetWindowTextW(CString("3.01"));
-	m_TapSize.SetWindowTextW(CString("8"));
-	m_BitSize.SetWindowTextW(CString("8"));
-	m_FrameSize.SetWindowTextW(CString("32x36"));
+    int serverCount = SapManager::GetServerCount(), serverIndex;
+    for (serverIndex = 0; serverIndex < serverCount; ++serverIndex) {
+        SapManager::GetServerName(serverIndex, ServerName, sizeof(ServerName));
+        if (strstr(ServerName, "Xtium-CL")) break;
+        *ServerName = 0;
+    }
+    if (*ServerName) SapManager::GetResourceName(ServerName, SapManager::ResourceAcq, 0, CameraSetParameter, sizeof(CameraSetParameter));
+    if (!*ServerName || !*CameraSetParameter) {
+        if (m_visible) 
+            ::MessageBox(0, CString("Cannot find Xtium-CL mono resource"), CString("Device Not Found"), MB_OK);        
+        else if (m_spikeGL)
+            m_spikeGL->pushConsoleError("Error, cannot locate the Xtium-CL_PX4 device in the list of all Sapera devices.");
+        return false;
+    }
+    if (m_visible) {
+        m_ServerName.SetWindowTextW(CString(ServerName));
+        m_DeviceName.SetWindowTextW(CString(CameraSetParameter));
+        m_Version.SetWindowTextW(CString("3.01"));
+        m_TapSize.SetWindowTextW(CString("8"));
+        m_BitSize.SetWindowTextW(CString("8"));
+        m_FrameSize.SetWindowTextW(CString("32x36"));
+    }
 
 	// Assign the camera configuration file the Coreco board sellected.
 	USES_CONVERSION;
-	Coreco_Camera_File_Name = C_filename;
-	if (!Coreco_pLoc) Coreco_pLoc = new SapLocation(ServerName, 0);
+	Coreco_Camera_File_Name = Coreco_FileName;
+	SapLocation loc(ServerName, 0);
 
 	// Reset and free up board buffers for newly sellected board 
 	FreeUp_Resource();
 
 	// Prepare the board for image acquisition.
-	m_Acq		= new SapAcquisition(*Coreco_pLoc, Coreco_Camera_File_Name.c_str());
-	m_Buffers	= new SapBufferWithTrash(2, m_Acq);
+    if (m_spikeGL) m_spikeGL->pushConsoleDebug(std::string("Acquisition Info:  ServerName: '") + ServerName + "'  Resource: '" + CameraSetParameter + "'  CameraFile: '" + Coreco_Camera_File_Name + "'");
+	m_Acq		= new SapAcquisition(loc, Coreco_Camera_File_Name.c_str());
+    m_Buffers = m_visible ? new SapBufferWithTrash(2, m_Acq) : new SapBuffer(1, m_Acq);;
 	
-	m_View		= new SapView(m_Buffers,	m_ViewWnd.GetSafeHwnd());
-	m_ImageWnd	= new CImageWnd(m_View,		&m_ViewWnd, NULL, NULL, this);
+    if (m_visible) {
+        m_View = new SapView(m_Buffers, m_ViewWnd.GetSafeHwnd());
+        m_ImageWnd = new CImageWnd(m_View, &m_ViewWnd, NULL, NULL, this);
+    }
 	m_Xfer		= new SapAcqToBuf(m_Acq,	m_Buffers,	Coreco_Image1_XferCallback, this);
 
     if (!m_spikeGL) {
@@ -317,63 +328,49 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
     } else {
         // Calin's code..
         bool err = false;
-        if (!m_Acq || !m_Buffers || !m_Xfer || !m_View || !m_ImageWnd) 
-            m_spikeGL->pushConsoleError("Could not allocate core SAP objects!"), err = true;
-        else if (!m_Acq->Create())
+        if (!m_Acq || !m_Buffers || !m_Xfer /*|| !m_View || !m_ImageWnd*/)
+            m_spikeGL->pushConsoleError("Could not allocate core SAP objects!"), err = true; 
+        if (!err && !*m_Acq)
+            m_spikeGL->pushConsoleWarning("After construction, SapAcquisition object has an error status, continuing anyway...");
+        if (!err && !*m_Buffers) 
+            m_spikeGL->pushConsoleWarning("After construction, SapBuffer object has an error status, continuing anyway..."); 
+        if (!err && !*m_Xfer)
+            m_spikeGL->pushConsoleWarning("After construction, SapTransfer object has an error status, continuing anyway...");
+        if (!err && m_View && !*m_View)
+            m_spikeGL->pushConsoleWarning("After construction, SapView object has an error status, continuing anyway..."); 
+        if (!err && !m_Acq->Create())
             m_spikeGL->pushConsoleError("SAP Acquisition 'Create' call failed!"), err = true;
-        else if (!*m_Acq)
-            m_spikeGL->pushConsoleError(std::string("SAP Acquisition error status reported!")), err = true;
-        else if (!m_Buffers->Create())
+        if (!err && !*m_Acq)
+            m_spikeGL->pushConsoleError(std::string("SAP Acquisition error status reported!")), err = true; 
+        if (!err && !m_Buffers->Create())
             m_spikeGL->pushConsoleError("SAP Buffer 'Create' call failed!"), err = true;
-        else if (!*m_Buffers)
-            m_spikeGL->pushConsoleError("SAP Buffer error status reported!"), err = true;
-        else if (!m_Xfer->Create())
-            m_spikeGL->pushConsoleError("SAP AcqToBuf 'Create' call failed!"), err = true;
-        else if (!*m_Xfer)
-            m_spikeGL->pushConsoleError("SAP AcqToBuf error status reported!"), err = true;
-        else if (!m_View->Create())
+        if (!err && !*m_Buffers)
+            m_spikeGL->pushConsoleError("SAP Buffer error status reported!"), err = true; 
+        if (!err && !m_Xfer->Create())
+            m_spikeGL->pushConsoleError("SAP AcqToBuf 'Create' call failed!"), err = true; 
+        if (!err && !*m_Xfer)
+            m_spikeGL->pushConsoleError("SAP AcqToBuf error status reported!"), err = true; 
+        if (!err && m_View && !m_View->Create())
             m_spikeGL->pushConsoleError("SAP View 'Create' call failed!"), err = true;
-        else if (!*m_View)
-            m_spikeGL->pushConsoleError("SAP View error status reported!"), err = true;
+        if (!err && m_View && !*m_View)
+             m_spikeGL->pushConsoleError("SAP View error status reported!"), err = true; 
         if (err) return false;
     }
 
 	//-----------------------------------------------------------------------------------------
 	// Check Initial Clock, Frame and Line Signals 
 	//-----------------------------------------------------------------------------------------
+    m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk1Present, &PixelCLKSignal1);
+    m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk2Present, &PixelCLKSignal2);
+    m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk3Present, &PixelCLKSignal3);
+    m_Acq->GetSignalStatus(SapAcquisition::SignalHSyncPresent, &HSyncSignal);
+    m_Acq->GetSignalStatus(SapAcquisition::SignalVSyncPresent, &VSyncSignal);
     if (m_visible) {
-        m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk1Present, &PixelCLKSignal1);
-        if (PixelCLKSignal1)
-            m_ClockSignal1.SetCheck(TRUE);
-        else
-            m_ClockSignal1.SetCheck(FALSE);
-
-        m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk2Present, &PixelCLKSignal2);
-        if (PixelCLKSignal2)
-            m_ClockSignal2.SetCheck(TRUE);
-        else
-            m_ClockSignal2.SetCheck(FALSE);
-
-        m_Acq->GetSignalStatus(SapAcquisition::SignalPixelClk3Present, &PixelCLKSignal3);
-        if (PixelCLKSignal3)
-            m_Clocksignal3.SetCheck(TRUE);
-        else
-            m_Clocksignal3.SetCheck(FALSE);
-
-        m_Acq->GetSignalStatus(SapAcquisition::SignalHSyncPresent, &HSyncSignal);
-        if (HSyncSignal)
-            m_LineSignal.SetCheck(TRUE);
-        else
-            m_LineSignal.SetCheck(FALSE);
-
-        m_Acq->GetSignalStatus(SapAcquisition::SignalVSyncPresent, &VSyncSignal);
-        if (VSyncSignal)
-            m_FrameSignal.SetCheck(TRUE);
-        else
-            m_FrameSignal.SetCheck(FALSE);
-    }
-    if (m_spikeGL) {
-        tellSpikeGLAboutSignalStatus();
+        m_ClockSignal1.SetCheck(PixelCLKSignal1);
+        m_ClockSignal2.SetCheck(PixelCLKSignal2);
+        m_Clocksignal3.SetCheck(PixelCLKSignal3);
+        m_LineSignal.SetCheck(HSyncSignal);
+        m_FrameSignal.SetCheck(VSyncSignal);
     }
 	//-----------------------------------------------------------------------------------------
 	// Check Initial Buffer Contains 
@@ -386,6 +383,8 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	int format	=	m_Buffers->GetFormat();				// PixelDepth: get pixel depth 
 
     if (m_visible) {
+        CString temp;
+
         temp.Format(_T("%d"), bpp);
         m_PixelBytes.SetWindowTextW(temp);
         temp.Format(_T("%d"), pitch);
@@ -518,8 +517,7 @@ MEAControlDlg::MEAControlDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(MEAControlDlg::IDD, pParent)
 	, m_BuffBias_Value(0)
 {
-    Coreco_pLoc = 0;
-    m_Acq = 0;
+    m_Acq = 0; m_View = 0; m_Xfer = 0; m_ImageWnd = 0;
 	m_visible = !SpikeGL_Mode || !::getenv("SPIKEGL_PARMS");
     m_spikeGL = 0; m_spikeGLIn = 0;
 	EnableActiveAccessibility();
@@ -1387,7 +1385,6 @@ int MEAControlDlg::ReadUart(int len)
 	BOOL		fWaitingOnRead = FALSE;
 	OVERLAPPED	osReader = { 0 };
 	unsigned long	retlen = 0;
-	int			i;
 
 	// Create the overlapped event. Must be closed before exiting to avoid a handle leak.
 	osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -1409,10 +1406,10 @@ int MEAControlDlg::ReadUart(int len)
                 m_spikeGL->pushConsoleError(myerr);
             }
         } else {
-            for (i = 0; i <= 50; i++)	buf3[i] = 0;
+            memset(buf3, 0, sizeof(buf3));
 			sprintf_s(buf3, "%s\n\r", buf2);			
 			GetData();
-			for (i = 0; i <= 50; i++)	buf2[i] = 0;
+            memset(buf2, 0, sizeof(buf2));
 		}
 	}
 
@@ -2221,12 +2218,22 @@ void MEAControlDlg::OnBnClickedFramegrabberenable1()
 {
 	if (m_FrameGrabberEnable.GetCheck())
 	{	
-		//Coreco_Board_Setup("D:\\Project-Vitax-7\\ProjectBuildingDocumentation\\ProjectBoardTestProgram\\J_2000+_Electrode_8tap_8bit.ccf\0");
-        //Coreco_Board_Setup("C:\\Users\\calin\\Desktop\\Src\\XTiumCL_Stuff\\J_2000+_Electrode_8tap_8bit.ccf\0");
-   //     Coreco_Board_Setup("C:\\Users\\calin\\Desktop\\Src\\SpikeGL\\Framegrabber\\J_2000+_Electrode_8tap_8bit.ccf\0");
+        static const char * const ccfile = "J_2000+_Electrode_8tap_8bit.ccf";
+		//"D:\\Project-Vitax-7\\ProjectBuildingDocumentation\\ProjectBoardTestProgram\\J_2000+_Electrode_8tap_8bit.ccf";
+        //"C:\\Users\\calin\\Desktop\\Src\\XTiumCL_Stuff\\J_2000+_Electrode_8tap_8bit.ccf\0";
+   //     "C:\\Users\\calin\\Desktop\\Src\\SpikeGL\\Framegrabber\\J_2000+_Electrode_8tap_8bit.ccf\0";
     
-        Frame_Grabber_Enabled = Coreco_Board_Setup("J_2000+_Electrode_8tap_8bit.ccf\0") ? 1 : 0;
+        std::string ccf;
+        {
+            char cwdBuf[MAX_PATH];
+            ::_getcwd(cwdBuf, MAX_PATH);
+            ccf = cwdBuf;
+        }
+        if (ccf.length() && ccf[ccf.length() - 1] != '\\') ccf = ccf + "\\";
+        ccf = ccf + ccfile;
+        Frame_Grabber_Enabled = Coreco_Board_Setup(ccf.c_str()) ? 1 : 0;
         if (m_visible) m_FrameGrabberEnable.EnableWindow(!Frame_Grabber_Enabled);
+        if (!Frame_Grabber_Enabled) FreeUp_Resource();
 	}
 }
 
