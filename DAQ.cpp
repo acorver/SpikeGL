@@ -1988,6 +1988,7 @@ namespace DAQ
         Connect(dialog->grabFramesBut, SIGNAL(clicked()), this, SLOT(grabFramesClicked()));
         Connect(this, SIGNAL(gotMsg(QString,QColor)), this, SLOT(appendTE(QString,QColor)));
         Connect(this, SIGNAL(gotClkSignals(int)), this, SLOT(updateClkSignals(int)));
+        Connect(this, SIGNAL(gotImg()), this, SLOT(updateImgXferCt()));
         dialogW->show();
         mainApp()->windowMenuAdd(dialogW);
     }
@@ -2056,6 +2057,7 @@ namespace DAQ
                     didImgSizeWarn = true;
                 }
 				scans.insert(scans.end(),(int16*)xi->img,((int16 *)xi->img)+params.nVAIChans);
+                emit(gotImg());
             } else if (xt->cmd == XtCmd_ConsoleMessage) {
 				XtCmdConsoleMsg *xm = (XtCmdConsoleMsg *)xt; 
                 QString msg(xm->msg);
@@ -2114,6 +2116,12 @@ namespace DAQ
         dialog->vsyncLbl->setText(dummy.isVSync() ? "<font color=green>+</font>" : "<font color=red>-</font>");
         unsigned long ctr = dialog->clkCtLbl->text().toULong();
         dialog->clkCtLbl->setText(QString::number(ctr+1UL));
+    }
+
+    void FGTask::updateImgXferCt()
+    {
+        unsigned long ctr = dialog->imgXferCtLbl->text().toULong();
+        dialog->imgXferCtLbl->setText(QString::number(ctr+1UL));
     }
 
 	/* static */

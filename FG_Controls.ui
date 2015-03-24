@@ -227,7 +227,7 @@
   <widget class="QLabel" name="vsyncLbl">
    <property name="geometry">
     <rect>
-     <x>340</x>
+     <x>333</x>
      <y>220</y>
      <width>22</width>
      <height>16</height>
@@ -271,12 +271,44 @@
     <rect>
      <x>130</x>
      <y>200</y>
-     <width>171</width>
+     <width>51</width>
      <height>16</height>
     </rect>
    </property>
    <property name="text">
     <string>0</string>
+   </property>
+   <property name="scaledContents">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="clkSignalsLbl_2">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>200</y>
+     <width>107</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Image Xfer Updates:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="imgXferCtLbl">
+   <property name="geometry">
+    <rect>
+     <x>300</x>
+     <y>200</y>
+     <width>51</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>0</string>
+   </property>
+   <property name="scaledContents">
+    <bool>false</bool>
    </property>
   </widget>
  </widget>
