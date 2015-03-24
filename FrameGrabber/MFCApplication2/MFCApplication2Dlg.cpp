@@ -246,6 +246,9 @@ void MEAControlDlg::Coreco_ImageXferCallback()
         // display image #1 
         CRect rect(0, 0, width, height);
         Coreco_Display_Source1_Image(m_DecodedRGB4[count], rect, 1); // show original image
+    } else if (m_View) {
+        // testing...
+        m_View->Show();
     }
 }
 
@@ -331,6 +334,9 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
     if (m_visible) {
         m_View = new SapView(m_Buffers, m_ViewWnd.GetSafeHwnd());
         m_ImageWnd = new CImageWnd(m_View, &m_ViewWnd, NULL, NULL, this);
+    } else {
+        // testing...
+        m_View = new SapView(m_Buffers, SapHwndAutomatic);
     }
 	m_Xfer		= new SapAcqToBuf(m_Acq,	m_Buffers,	Coreco_Image1_XferCallback, this);
 
@@ -346,6 +352,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
         bool err = false;
         if (!m_Acq || !m_Buffers || !m_Xfer /*|| !m_View || !m_ImageWnd*/)
             m_spikeGL->pushConsoleError("Could not allocate core SAP objects!"), err = true; 
+        /*
         if (!err && !*m_Acq)
             m_spikeGL->pushConsoleWarning("After construction, SapAcquisition object has an error status, continuing anyway...");
         if (!err && !*m_Buffers) 
@@ -354,6 +361,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
             m_spikeGL->pushConsoleWarning("After construction, SapTransfer object has an error status, continuing anyway...");
         if (!err && m_View && !*m_View)
             m_spikeGL->pushConsoleWarning("After construction, SapView object has an error status, continuing anyway..."); 
+        */
         if (!err && !m_Acq->Create())
             m_spikeGL->pushConsoleError("SAP Acquisition 'Create' call failed!"), err = true;
         if (!err && !*m_Acq)
