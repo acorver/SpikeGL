@@ -2057,7 +2057,7 @@ namespace DAQ
                     didImgSizeWarn = true;
                 }
 				scans.insert(scans.end(),(int16*)xi->img,((int16 *)xi->img)+params.nVAIChans);
-                emit(gotImg());
+                emit(gotImg()); // todo.. make this not get called for each frame since it may impact performance significantly
             } else if (xt->cmd == XtCmd_ConsoleMessage) {
 				XtCmdConsoleMsg *xm = (XtCmdConsoleMsg *)xt; 
                 QString msg(xm->msg);
@@ -2120,6 +2120,7 @@ namespace DAQ
 
     void FGTask::updateImgXferCt()
     {
+		// todo.. make this not get called for each frame since it may impact performance significantly
         unsigned long ctr = dialog->imgXferCtLbl->text().toULong();
         dialog->imgXferCtLbl->setText(QString::number(ctr+1UL));
     }
