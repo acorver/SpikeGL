@@ -84,6 +84,7 @@ private:
     void handleSpikeGLCommand(XtCmd *);
     static void sapStatusCallback(SapManCallbackInfo *info);
     void tellSpikeGLAboutSignalStatus();
+    void Coreco_ImageXferCallback();
 
 // Implementation
 protected:

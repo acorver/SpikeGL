@@ -164,85 +164,93 @@ void MEAControlDlg::Coreco_Display_Source1_Image(imageRGB4P rgb4, CRect &dRect, 
 	}
 }
 
-
-void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
+void MEAControlDlg::Coreco_ImageXferCallback()
 {
-	MEAControlDlg	*pDlg = (MEAControlDlg *)pInfo->GetContext();
 
-	BYTE			*pData = 0, *pByte = 0, *pRGB4 = 0, *pXt = 0;
+    BYTE			*pData = 0, *pByte = 0, *pRGB4 = 0, *pXt = 0;
     XtCmdImg *xt = 0;
-	BYTE			*pLine = 0;
-	int				count = 0;
-	CString			temp;
+    BYTE			*pLine = 0;
+    int				count = 0;
+    CString			temp;
+    const bool visible = !!m_visible;
 
 
-	int bpp		= pDlg->m_Buffers->GetBytesPerPixel();		// bpp:		get number of bytes required to store a single image
-	int pitch	= pDlg->m_Buffers->GetPitch();				// pitch:	get number of bytes between two consecutive lines of all the buffer resource
-	int width	= pDlg->m_Buffers->GetWidth();				// width:	get the width (in pixel) of the image
-	int height	= pDlg->m_Buffers->GetHeight();				// Height:	get the height of the image
+    int bpp = m_Buffers->GetBytesPerPixel();		// bpp:		get number of bytes required to store a single image
+    int pitch = m_Buffers->GetPitch();				// pitch:	get number of bytes between two consecutive lines of all the buffer resource
+    int width = m_Buffers->GetWidth();				// width:	get the width (in pixel) of the image
+    int height = m_Buffers->GetHeight();				// Height:	get the height of the image
 
-    if (SpikeGL_Mode) {
-        if (!pDlg->gotFirstXferCallback) pDlg->m_spikeGL->pushConsoleDebug("Coreco_Image1_XferCallback called at least once! Yay!"), pDlg->gotFirstXferCallback = true;
-        size_t len = (sizeof(XtCmdImg)-1) + width*height;
-        if (size_t(pDlg->m_spikeGLFrameBuf.size()) < len) pDlg->m_spikeGLFrameBuf.resize(len);
-        if (size_t(pDlg->m_spikeGLFrameBuf.size()) >= len ) {
-            xt = (XtCmdImg *)&(pDlg->m_spikeGLFrameBuf[0]);
+    if (SpikeGL_Mode && m_spikeGL) {
+        if (!gotFirstXferCallback) m_spikeGL->pushConsoleDebug("Coreco_Image1_XferCallback called at least once! Yay!"), gotFirstXferCallback = true;
+        size_t len = (sizeof(XtCmdImg) - 1) + width*height;
+        if (size_t(m_spikeGLFrameBuf.size()) < len) m_spikeGLFrameBuf.resize(len);
+        if (size_t(m_spikeGLFrameBuf.size()) >= len) {
+            xt = (XtCmdImg *)&(m_spikeGLFrameBuf[0]);
             xt->init(width, height);
             pXt = xt->img;
         }
     }
 
-	// ring buffer counter, keep track which buffer to read. 
-	pDlg->m_RingBufferCounter++;							// start camera #1 ring buffer counter, total ringbuffer for camera #1 is BSIZE=4.	
-	if (pDlg->m_RingBufferCounter >= BSIZE)	pDlg->m_RingBufferCounter = 0;
-	count = pDlg->m_RingBufferCounter;
+    if (visible) {
+        // ring buffer counter, keep track which buffer to read. 
+        m_RingBufferCounter++;							// start camera #1 ring buffer counter, total ringbuffer for camera #1 is BSIZE=4.	
+        if (m_RingBufferCounter >= BSIZE)	m_RingBufferCounter = 0;
+        count = m_RingBufferCounter;
 
-	pByte = pDlg->m_DecodedByte[count]->image;			// Assign the Gray Image Pixel address to local pByte
-	pRGB4 = pDlg->m_DecodedRGB4[count]->image;			// Assign the RGB Image Pixel address to local pRGB4
+        pByte = m_DecodedByte[count]->image;			// Assign the Gray Image Pixel address to local pByte
+        pRGB4 = m_DecodedRGB4[count]->image;			// Assign the RGB Image Pixel address to local pRGB4
+    }
 
-	g_dataReady.ResetEvent();
+    g_dataReady.ResetEvent();
 
-    pDlg->m_Buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
+    m_Buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
     void * const pDataOrig = pData;
-    const bool visible = !!pDlg->m_visible;
 
-	for (int i = 0; i<height; i++)						// width
-	{
-		pLine = pData;									// copy the image buffer address
-		for (int j = 0; j<width; j++)					// line
-		{	pByte[0] = pLine[0];						// gray image				
-
-			pRGB4[0] = pLine[0];						// R
-			pRGB4++;									// increase address by 8 bit
-			pRGB4[0] = pLine[0];						// G
-			pRGB4++;									// increase address by 8 bit
-			pRGB4[0] = pLine[0];						// B
-			pRGB4++;									// increase address by 8 bit
-			pRGB4++;									// in case RGB, pixel data is two word (32-bit)
+    for (int i = 0; i<height; i++)						// width
+    {
+        pLine = pData;									// copy the image buffer address
+        for (int j = 0; j<width; j++)					// line
+        {
             if (pXt) *pXt++ = *pLine; // for SpikeGL
             if (visible) {
+                pByte[0] = pLine[0];						// gray image				
+
+                pRGB4[0] = pLine[0];						// R
+                pRGB4++;									// increase address by 8 bit
+                pRGB4[0] = pLine[0];						// G
+                pRGB4++;									// increase address by 8 bit
+                pRGB4[0] = pLine[0];						// B
+                pRGB4++;									// increase address by 8 bit
+                pRGB4++;									// in case RGB, pixel data is two word (32-bit)
+
                 DataGridRaw[i][j] = pLine[0];
                 temp.Format(_T("%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x"), DataGridRaw[0][0], DataGridRaw[0][1], DataGridRaw[0][2], DataGridRaw[0][3], DataGridRaw[0][4], DataGridRaw[0][5], DataGridRaw[0][6], DataGridRaw[0][7], DataGridRaw[0][8], DataGridRaw[0][9], DataGridRaw[0][10], DataGridRaw[0][11], DataGridRaw[0][12], DataGridRaw[0][13], DataGridRaw[0][14], DataGridRaw[0][15], DataGridRaw[0][16], DataGridRaw[0][17], DataGridRaw[0][18], DataGridRaw[0][19], DataGridRaw[0][20], DataGridRaw[0][21], DataGridRaw[0][22], DataGridRaw[0][23]);
-                pDlg->m_DataGridRaw1.SetWindowTextW(temp);
+                m_DataGridRaw1.SetWindowTextW(temp);
+                pByte++;									// increase gray image address by 8 bit
             }
             pLine++;									// increase address by 8 bit becasue 1 byte image
-            pByte++;									// increase gray image address by 8 bit
         }
-		pData += pitch;
-	}
+        pData += pitch;
+    }
 
-    pDlg->m_Buffers->ReleaseAddress(pDataOrig);
+    m_Buffers->ReleaseAddress(pDataOrig);
 
-	g_dataReady.SetEvent();
+    g_dataReady.SetEvent();
 
     // for SpikeGL
     if (xt) {
-        if (!pDlg->m_spikeGL->pushCmd(xt)) { /* todo:.. handle error here!*/ }
+        if (!m_spikeGL->pushCmd(xt)) { /* todo:.. handle error here!*/ }
     }
 
     // display image #1 
     CRect rect(0, 0, width, height);
-    pDlg->Coreco_Display_Source1_Image(pDlg->m_DecodedRGB4[count], rect, 1); // show original image
+    Coreco_Display_Source1_Image(m_DecodedRGB4[count], rect, 1); // show original image
+}
+
+void MEAControlDlg::Coreco_Image1_XferCallback(SapXferCallbackInfo *pInfo)
+{
+	MEAControlDlg	*pDlg = (MEAControlDlg *)pInfo->GetContext();
+    pDlg->Coreco_ImageXferCallback();
 }
 
 void MEAControlDlg::sapStatusCallback(SapManCallbackInfo *p)
