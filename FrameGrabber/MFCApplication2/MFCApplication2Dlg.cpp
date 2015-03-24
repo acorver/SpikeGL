@@ -328,10 +328,13 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	m_Acq		= new SapAcquisition(loc, Coreco_Camera_File_Name.c_str());
     m_Buffers = new SapBufferWithTrash(200, m_Acq);
 	
-    //if (m_visible) {
+    if (m_visible) {
         m_View = new SapView(m_Buffers, m_ViewWnd.GetSafeHwnd());
         m_ImageWnd = new CImageWnd(m_View, &m_ViewWnd, NULL, NULL, this);
-    //}
+    }
+    else {
+        m_View = new SapView(m_Buffers, SapHwndDesktop);
+    }
 	m_Xfer		= new SapAcqToBuf(m_Acq,	m_Buffers,	Coreco_Image1_XferCallback, this);
 
     if (!m_spikeGL) {
@@ -440,8 +443,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	yTop = BMPY;
 	xBot = CorecoImageWidth;
 	yBot = CorecoImageHeight;
-	//if (m_visible) 
-    m_ViewWnd.SetWindowPos(NULL, xTop, yTop, CorecoImageWidth + 5, CorecoImageHeight + 5, NULL);
+	if (m_visible) m_ViewWnd.SetWindowPos(NULL, xTop, yTop, CorecoImageWidth + 5, CorecoImageHeight + 5, NULL);
 
 	// Allocate Frame to image processing ring buffer, 4 rings are used
 	for (int i = 0; i<BSIZE; i++) // Four Frame Ring Buffer
