@@ -324,7 +324,7 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
 	// Prepare the board for image acquisition.
     if (m_spikeGL) m_spikeGL->pushConsoleDebug(std::string("Acquisition Info:  ServerName: '") + ServerName + "'  Resource: '" + CameraSetParameter + "'  CameraFile: '" + Coreco_Camera_File_Name + "'");
 	m_Acq		= new SapAcquisition(loc, Coreco_Camera_File_Name.c_str());
-    m_Buffers = m_visible ? new SapBufferWithTrash(2, m_Acq) : new SapBuffer(2, m_Acq);;
+    m_Buffers = new SapBufferWithTrash(200, m_Acq);
 	
     if (m_visible) {
         m_View = new SapView(m_Buffers, m_ViewWnd.GetSafeHwnd());
@@ -414,8 +414,10 @@ bool MEAControlDlg::Coreco_Board_Setup(const char *Coreco_FileName)
     }
     if (m_spikeGL) {
         char str[512];
-        _snprintf_s(str, sizeof(str), "Grab image format: %d bpp, %d pitch, %d x %d px, %d depth, %d format", bpp, pitch, width, height, depth, format);
+        _snprintf_s(str, sizeof(str), "Grab image format: %d Bpp, %d pitch, %d x %d px, %d depth, %d format", bpp, pitch, width, height, depth, format);
         str[511] = 0;
+        m_spikeGL->pushConsoleDebug(str);
+        _snprintf_s(str, sizeof(str), "SapBuffer object using %d buffers.", m_Buffers->GetCount());
         m_spikeGL->pushConsoleDebug(str);
     }
 	//-----------------------------------------------------------------------------------------
