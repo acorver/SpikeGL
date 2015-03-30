@@ -34,23 +34,24 @@ static void acqCallback(SapXferCallbackInfo *info)
         int width = buffers->GetWidth();				// width:	get the width (in pixel) of the image
         int height = buffers->GetHeight();				// Height:	get the height of the image
 
-            if (!gotFirstXferCallback) spikeGL->pushConsoleDebug("acqCallback called at least once! Yay!"), gotFirstXferCallback = true;
-            size_t len = (sizeof(XtCmdImg) - 1) + width*height;
-            if (size_t(spikeGLFrameBuf.size()) < len) spikeGLFrameBuf.resize(len);
-            if (size_t(spikeGLFrameBuf.size()) >= len) {
-                xt = (XtCmdImg *)&(spikeGLFrameBuf[0]);
-                xt->init(width, height);
-                pXt = xt->img;
-            }
-
-
-        buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
-        if (!pData) {
-            spikeGL->pushConsoleError("SapBuffers::GetAddress() returned a NULL pointer!");
-            return;
+        if (!gotFirstXferCallback) spikeGL->pushConsoleDebug("acqCallback called at least once! Yay!"), gotFirstXferCallback = true;
+        size_t len = (sizeof(XtCmdImg) - 1) + width*height;
+        if (size_t(spikeGLFrameBuf.size()) < len) spikeGLFrameBuf.resize(len);
+        if (size_t(spikeGLFrameBuf.size()) >= len) {
+            xt = (XtCmdImg *)&(spikeGLFrameBuf[0]);
+            xt->init(width, height);
+            pXt = xt->img;
         }
+
         if (!pXt) {
             spikeGL->pushConsoleError("INTERNAL ERROR.. pXt is NULL!");
+            return;
+        }
+
+        buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
+
+        if (!pData) {
+            spikeGL->pushConsoleError("SapBuffers::GetAddress() returned a NULL pointer!");
             return;
         }
 
