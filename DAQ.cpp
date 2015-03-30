@@ -25,7 +25,7 @@
 #include <math.h>
 #include "SampleBufQ.h"
 #include "MainApp.h"
-#include "FrameGrabber/MFCApplication2/XtCmd.h"
+#include "FrameGrabber/FG_SpikeGL/FG_SpikeGL/XtCmd.h"
 
 #define DAQmxErrChk(functionCall) do { if( DAQmxFailed(error=(functionCall)) ) { callStr = STR(functionCall); goto Error_Out; } } while (0)
 #define DAQmxErrChkNoJump(functionCall) ( DAQmxFailed(error=(functionCall)) && (callStr = STR(functionCall)) )
@@ -2022,7 +2022,7 @@ namespace DAQ
 		QStringList files;
         //files.push_back(QString(":/FG/FrameGrabber/x64/Release/") + exeName);
         files.push_back(QString(":/FG/FrameGrabber/FG_SpikeGL/x64/Release/") + exeName);
-		files.push_back(":/FG/FrameGrabber/x64/Release/SapClassGui75.NET_2013.dll");
+        files.push_back(":/FG/FrameGrabber/SapClassGui75.NET_2013.dll");
 		files.push_back(":/FG/FrameGrabber/J_2000+_Electrode_8tap_8bit.ccf");
 		return files;
 	}
