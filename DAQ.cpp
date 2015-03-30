@@ -1434,7 +1434,7 @@ namespace DAQ
 			RegisteredMetaType = true;
 		}
 		Connect(&p, SIGNAL(stateChanged(QProcess::ProcessState)), this, SLOT(slaveProcStateChanged(QProcess::ProcessState)));		
-		p.setProcessChannelMode(QProcess::MergedChannels);
+        p.setProcessChannelMode(usesMergedChannels() ? QProcess::MergedChannels : QProcess::SeparateChannels);
         p.setWorkingDirectory(exeDir);
 		QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 		setupEnv(env);
@@ -1474,11 +1474,12 @@ namespace DAQ
 						return;
 					} else {
 						Warning() << shortName << " slave process: read timed out, ct=" << tout_ct;
+                        readStdErr(p);
                         processCmds(p);
 						continue;
 					}
 				} else if (n_avail < 0) {
-                    emit(daqError(shortName + " slave process: eof on stdin stream!"));
+                    emit(daqError(shortName + " slave process: eof on stdout stream!"));
 					p.kill();
 					return;
 				}
@@ -1486,6 +1487,7 @@ namespace DAQ
 				QByteArray buf = p.readAll();
 				if (!buf.size()) {
 					Warning() << shortName << " slave process: read 0 bytes!";
+                    readStdErr(p);
                     processCmds(p);
 					continue;
 				}
@@ -1496,6 +1498,7 @@ namespace DAQ
 					Debug() << shortName << " slave process: partial data left over " << data.size() << " bytes";
 				}
 				
+                readStdErr(p);
 				processCmds(p);
 				
             } else {
@@ -1519,6 +1522,21 @@ namespace DAQ
 		}
 	}
 	
+    void SubprocessTask::readStdErr(QProcess &p) {
+        if (!usesMergedChannels()) {
+            p.setReadChannel(QProcess::StandardError);
+            QByteArray tmpData = p.readAll();
+            p.setReadChannel(QProcess::StandardOutput);
+            if (tmpData.size()) gotStdErr(tmpData);
+        }
+    }
+
+    void SubprocessTask::gotStdErr(const QByteArray & data) {
+        QString s(data);
+        s = s.trimmed();
+        Debug() << shortName << " stderr: " << s;
+    }
+
 	void SubprocessTask::pushCmd(const QByteArray &c) {
 		cmdQMut.lock();
 		cmdQ.push_back(c);
@@ -1976,7 +1994,7 @@ namespace DAQ
     unsigned FGTask::samplingRate() const { return params.srate; }
 	
 	FGTask::FGTask(const Params & ap, QObject *parent)
-	: SubprocessTask(ap, parent, "Framegrabber", "MFCApplication2.exe")
+    : SubprocessTask(ap, parent, "Framegrabber", "FG_SpikeGL.exe"/*"MFCApplication2.exe"*/)
 	{
         didImgSizeWarn = sentFGCmd = false;
         dialogW = new QDialog(0,Qt::CustomizeWindowHint|Qt::Dialog|Qt::WindowTitleHint);
@@ -2002,7 +2020,8 @@ namespace DAQ
 	QStringList FGTask::filesList() const 
 	{
 		QStringList files;
-		files.push_back(QString(":/FG/FrameGrabber/x64/Release/") + exeName);
+        //files.push_back(QString(":/FG/FrameGrabber/x64/Release/") + exeName);
+        files.push_back(QString(":/FG/FrameGrabber/FG_SpikeGL/x64/Debug/") + exeName);
 		files.push_back(":/FG/FrameGrabber/x64/Release/SapClassGui75.NET_2013.dll");
 		files.push_back(":/FG/FrameGrabber/J_2000+_Electrode_8tap_8bit.ccf");
 		return files;

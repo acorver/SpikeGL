@@ -2,5 +2,9 @@
 *.vcxproj.user
 *.opensdf
 *.user
-MFCApplication2.sdf
 ipch/
+Debug/
+Release/
+x64/
+*.sdf
+

@@ -73,7 +73,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Grab Frames (hit this only once)</string>
+    <string>Grab Frames</string>
    </property>
   </widget>
   <widget class="QPushButton" name="setupRegsBut">

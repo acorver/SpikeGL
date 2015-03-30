@@ -348,6 +348,9 @@ namespace DAQ
 		virtual bool platformSupported() const { return true; }
 		virtual int readTimeoutMaxSecs() const { return 5; }
 		virtual bool outputCmdsAreBinary() const { return false; }
+        virtual bool usesMergedChannels() const { return true; }
+        virtual void gotStdErr(const QByteArray & data);
+
 #ifdef Q_OS_WINDOWS
 		virtual QString interpreter() const { return ""; } 
 #else
@@ -371,6 +374,7 @@ namespace DAQ
 		
 		QList<QByteArray> cmdQ; QMutex cmdQMut;
 		void processCmds(QProcess & p);
+        void readStdErr(QProcess & p);
 	};
 	
 	class BugTask : public SubprocessTask {
