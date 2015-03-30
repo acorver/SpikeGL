@@ -286,7 +286,7 @@ int main(int argc, const char* argv[])
     if (!timerId) {
         timerId = ::SetTimer(NULL, NULL, 100, timerProc);
         if (!timerId) {
-            spikeGL->pushConsoleError("Could not create timer in MFCApplication constructor!");
+            spikeGL->pushConsoleError("Could not create timer at starup!");
         }
     }
 
