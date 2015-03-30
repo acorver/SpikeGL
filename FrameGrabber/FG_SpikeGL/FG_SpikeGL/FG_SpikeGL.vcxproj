@@ -145,9 +145,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="FPGA.h" />
     <ClInclude Include="GlowBalls.h" />
     <ClInclude Include="SpikeGLHandlerThread.h" />
