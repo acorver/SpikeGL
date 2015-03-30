@@ -27,7 +27,7 @@ static void acqCallback(SapXferCallbackInfo *info)
     if (buffers) {
         XtCmdImg *xt = 0;
         BYTE *pXt = 0;
-        BYTE *pData = 0, *pLine;
+        BYTE *pData = 0;
 
         int bpp = buffers->GetBytesPerPixel();		// bpp:		get number of bytes required to store a single image
         int pitch = buffers->GetPitch();				// pitch:	get number of bytes between two consecutive lines of all the buffer resource
@@ -55,13 +55,9 @@ static void acqCallback(SapXferCallbackInfo *info)
             return;
         }
 
-        pLine = pData;									
-        for (int i = 0; i < height; ++i) {					
-            for (int j = 0; j < width; ++j) {					
-                *pXt++ = pLine[j]; 
-            }
-            pLine += pitch;
-        }
+        // copy each row (line) of pixels.  Note the pitch parameter used to skip lines in the source image..
+        for (int i = 0; i < height; ++i)
+            memcpy(pXt + i*width, pData + i*pitch, width);
 
         buffers->ReleaseAddress(pData); // Need to release it to return it to the hardware!
 
