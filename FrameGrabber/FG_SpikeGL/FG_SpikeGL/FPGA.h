@@ -13,7 +13,7 @@ public:
     const std::string & portConfig() const { return PortConfig; }
 
     void write(const std::string &); ///< queued write.. returns immediately, writes in another thread
-    std::list<std::string> readAll(); ///< reads all data available, returns immediately, may return an empty list if no data is available
+    void readAll(std::list<std::string> & out_list); ///< reads all data available, returns immediately, may return an empty list if no data is available
 
     void protocol_Write(int CMD_Code, int Value_1, INT32 Value_2);
 

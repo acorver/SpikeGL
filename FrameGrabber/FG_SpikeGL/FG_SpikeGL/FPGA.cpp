@@ -243,9 +243,12 @@ void FPGA::Writer::threadFunc() {
     pleaseStop = false;
     while (!pleaseStop) {
         std::list<std::string> my;
-        mut.lock();
-        my.swap(q);
-        mut.unlock();
+        if (mut.lock()) {
+            my.swap(q);
+            mut.unlock();
+        } else {
+            spikeGL->pushConsoleWarning("INTERNAL ERROR -- FPGA::Writer::threadFunc() could not obtain a required mutex!");
+        }
         int ct = 0;
         for (std::list<std::string>::iterator it = my.begin(); it != my.end(); ++it) {
             DWORD bytesWritten = 0;
@@ -261,6 +264,7 @@ void FPGA::Writer::threadFunc() {
             }
             ++ct;
         }
+
         if (!ct && !pleaseStop) Sleep(100);
     }
 }
@@ -278,9 +282,12 @@ void FPGA::Reader::threadFunc() {
                 buf[nread] = 0;
                 std::string s(buf, nread);
                 spikeGL->pushConsoleDebug(std::string("Read COM --> ") + s);
-                mut.lock();
-                q.push_back(s);
-                mut.unlock();
+                if (mut.lock()) {
+                    q.push_back(s);
+                    mut.unlock();
+                } else {
+                    spikeGL->pushConsoleWarning("INTERNAL ERROR -- FPGA::Reader::threadFunc() could not obtain a required mutex!");
+                }
             } else {
                 spikeGL->pushConsoleDebug("FPGA::Reader::threadFunc() -- read 0 bytes...");
             }
@@ -294,19 +301,24 @@ void FPGA::Reader::threadFunc() {
 
 void FPGA::write(const std::string &s) { ///< queued write.. returns immediately, writes in another thread
     if (!writer) return;
-    writer->mut.lock();
-    writer->q.push_back(s);
-    writer->mut.unlock();
+    if (writer->mut.lock()) {
+        writer->q.push_back(s);
+        writer->mut.unlock();
+    } else {
+        spikeGL->pushConsoleWarning("INTERNAL ERROR -- FPGA::write() could not obtain a required mutex!");
+    }
 }
 
-std::list<std::string> FPGA::readAll() { ///< reads all data available, returns immediately, may return an empty list if no data is available
-    std::list<std::string> ret;
+void FPGA::readAll(std::list<std::string> & ret) { ///< reads all data available, returns immediately, may return an empty list if no data is available
+    ret.clear();
     if (reader) {
-        reader->mut.lock();
-        ret.swap(reader->q);
-        reader->mut.unlock();
+        if (reader->mut.lock()) {
+            ret.swap(reader->q);
+            reader->mut.unlock();
+        } else {
+            spikeGL->pushConsoleWarning("INTERNAL ERROR -- FPGA::readAll() could not obtain a required mutex!");
+        }
     }
-    return ret;
 }
 
 void FPGA::protocol_Write(int CMD_Code, int Value_1, INT32 Value_2)
