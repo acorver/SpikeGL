@@ -274,13 +274,13 @@ int main(int argc, const char* argv[])
 {
     spikeGL = new SpikeGLOutThread;
     spikeGLIn = new SpikeGLInputThread;
+
+    setupTimerFunc();
+    handleSpikeGLEnvParms();
+
     spikeGL->start();
 
     spikeGL->pushConsoleMsg("FG_SpikeGL.exe slave process started.");
-
-    setupTimerFunc();
-
-    handleSpikeGLEnvParms();
 
     spikeGLIn->start();
 
