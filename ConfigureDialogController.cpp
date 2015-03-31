@@ -1137,6 +1137,8 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
     p.fg.bits = settings.value("fg_bits", 0).toInt();
     p.fg.stop = settings.value("fg_stop", 0).toInt();
     p.fg.parity = settings.value("fg_parity", 0).toInt();
+    p.fg.sidx = settings.value("fg_sidx", 1).toInt();
+    p.fg.ridx = settings.value("fg_ridx", 0).toInt();
 }
 
 void ConfigureDialogController::loadSettings()
@@ -1231,6 +1233,8 @@ void ConfigureDialogController::saveSettings() const
     settings.setValue("fg_bits", p.fg.bits);
     settings.setValue("fg_stop", p.fg.stop);
     settings.setValue("fg_parity", p.fg.parity);
+    settings.setValue("fg_sidx", p.fg.sidx);
+    settings.setValue("fg_ridx", p.fg.ridx);
 
 	settings.endGroup(); 
 }

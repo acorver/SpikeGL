@@ -9,6 +9,7 @@ extern SapTransfer    *xfer;
 extern SapView        *view;
 #define NUM_BUFFERS 200
 extern std::string configFilename;
+extern int serverIndex, resourceIndex;
 
 // SpikeGL communication related
 extern SpikeGLOutThread    *spikeGL;

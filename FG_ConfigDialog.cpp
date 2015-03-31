@@ -44,6 +44,14 @@ void FG_ConfigDialog::browseButClicked()
 
 int FG_ConfigDialog::exec()
 {
+    if (DAQ::FGTask::probedHardware.empty())
+        DAQ::FGTask::probeHardware();
+
+    if (DAQ::FGTask::probedHardware.empty()) {
+        QMessageBox::critical((QWidget *)(mainApp()->console()),"No Valid Framegrabbers", "No compatible framegrabbers appear to be present on the system.  If you believe this message is in error, try disabling then re-enabling your framegrabber card in the Windows device manager.");
+        return ABORT;
+    }
+
 	mainApp()->configureDialogController()->loadSettings(); // this makes the shared params object get updated form the settings
 	
 	guiFromSettings();
@@ -69,7 +77,9 @@ int FG_ConfigDialog::exec()
                 p.fg.bits = dialog->bits->currentIndex();
                 p.fg.parity = dialog->parity->currentIndex();
                 p.fg.stop = dialog->stop->currentIndex();
-			
+                p.fg.sidx = DAQ::FGTask::probedHardware.at(dialog->sapdevCB->currentIndex()).serverIndex;
+                p.fg.ridx = DAQ::FGTask::probedHardware.at(dialog->sapdevCB->currentIndex()).resourceIndex;
+
 				p.suppressGraphs = false; //dialog->disableGraphsChk->isChecked();
 				p.resumeGraphSettings = false; //dialog->resumeGraphSettingsChk->isChecked();
 				
@@ -175,6 +185,17 @@ void FG_ConfigDialog::guiFromSettings()
     dialog->bits->setCurrentIndex(p.fg.bits);
     dialog->parity->setCurrentIndex(p.fg.parity);
     dialog->stop->setCurrentIndex(p.fg.stop);
+
+    if (!DAQ::FGTask::probedHardware.empty()) {
+        dialog->sapdevCB->clear();
+        int i = 0;
+        foreach(const DAQ::FGTask::Hardware & h,DAQ::FGTask::probedHardware) {
+            dialog->sapdevCB->addItem(QString("%1 - %2").arg(h.serverName).arg(h.resourceName));
+            if (h.serverIndex == p.fg.sidx && h.resourceIndex == p.fg.ridx) dialog->sapdevCB->setCurrentIndex(i);
+            ++i;
+        }
+    }
+
 }
 
 void FG_ConfigDialog::saveSettings()

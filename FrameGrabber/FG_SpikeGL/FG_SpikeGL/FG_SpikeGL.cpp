@@ -11,6 +11,7 @@ SapTransfer    *xfer = 0;
 SapView        *view = 0;
 //    std::string configFilename ("c:\\users\\calin\\Desktop\\Src\\SpikeGL\\Framegrabber\\J_2000+_Electrode_8tap_8bit.ccf");
 std::string configFilename("J_2000+_Electrode_8tap_8bit.ccf");
+int serverIndex = -1, resourceIndex = -1;
 
 SpikeGLOutThread    *spikeGL = 0;
 SpikeGLInputThread  *spikeGLIn = 0;
@@ -19,6 +20,9 @@ bool gotFirstXferCallback = false;
 std::vector<BYTE> spikeGLFrameBuf;
 
 FPGA *fpga = 0;
+
+// some static functions..
+static void probeHardware();
 
 static void acqCallback(SapXferCallbackInfo *info) 
 { 
@@ -95,8 +99,12 @@ static void freeSapHandles()
 
 static void sapStatusCallback(SapManCallbackInfo *p)
 {
-    if (spikeGL && p->GetErrorMessage() && *(p->GetErrorMessage())) {
-        spikeGL->pushConsoleDebug(std::string("(SAP Status) ") + p->GetErrorMessage());
+    if (p->GetErrorMessage() && *(p->GetErrorMessage())) {
+        if (spikeGL) {
+            spikeGL->pushConsoleDebug(std::string("(SAP Status) ") + p->GetErrorMessage());
+        } else {
+            fprintf(stderr, "(SAP Status) %s\n", p->GetErrorMessage());
+        }
     }
 }
 
@@ -105,12 +113,13 @@ static bool setupAndStartAcq()
     SapManager::SetDisplayStatusMode(SapManager::StatusCallback, sapStatusCallback, 0); // so we get errors reported properly from SAP
 
     freeSapHandles();
+    if (serverIndex < 0) serverIndex = 1;
+    if (resourceIndex < 0) resourceIndex = 0;
 
-    UINT32 acqDeviceNumber = 0;
     char acqServerName[128], acqResName[128];
 
-    SapLocation loc(1, acqDeviceNumber);
-    SapManager::GetServerName(1, acqServerName, sizeof(acqServerName));
+    SapLocation loc(serverIndex, resourceIndex);
+    SapManager::GetServerName(serverIndex, acqServerName, sizeof(acqServerName));
     SapManager::GetResourceName(loc, SapManager::ResourceAcq, acqResName, sizeof(acqResName));
     char tmp[512];
     _snprintf_c(tmp, sizeof(tmp), "Server name: %s   Resource name: %s  ConfigFile: %s", acqServerName, acqResName, configFilename.c_str());
@@ -205,6 +214,20 @@ static void handleSpikeGLCommand(XtCmd *xt)
             spikeGL->pushConsoleError("COM port error -- failed to start FPGA communications!");
     }
         break;
+    case XtCmd_ServerResource: {
+        XtCmdServerResource *x = (XtCmdServerResource *)xt;
+        spikeGL->pushConsoleDebug("Got 'ServerResource' command");
+            if (x->serverIndex < 0 || x->resourceIndex < 0) {
+            probeHardware();
+        } else {
+            serverIndex = x->serverIndex;
+            resourceIndex = x->resourceIndex;
+            char buf[64];
+            _snprintf_c(buf, sizeof(buf), "Setting serverIndex=%d resourceIndex=%d", serverIndex, resourceIndex);
+            spikeGL->pushConsoleDebug(buf);
+        }
+    }
+        break;
     default: // ignore....?
         break;
     }
@@ -266,6 +289,37 @@ static void setupTimerFunc()
         timerId = ::SetTimer(NULL, NULL, 100, timerProc);
         if (!timerId) {
             spikeGL->pushConsoleError("Could not create timer at starup!");
+        }
+    }
+}
+
+static void probeHardware()
+{
+    char buf[512];
+    SapManager::SetDisplayStatusMode(SapManager::StatusCallback, sapStatusCallback, 0); // so we get errors reported properly from SAP
+    int nServers = SapManager::GetServerCount();
+    _snprintf_c(buf, sizeof(buf), "ServerCount: %d", nServers);
+    if (spikeGL) spikeGL->pushConsoleDebug(buf);
+    else fprintf(stderr, "%s\n", buf);
+    for (int i = 0; i < nServers; ++i) {
+        //SapManager::ResetServer(i, 1, 0, 0);
+        int nRes;
+        if ((nRes = SapManager::GetResourceCount(i, SapManager::ResourceAcq)) > 0) {
+            char sname[64]; int type; BOOL accessible = SapManager::IsServerAccessible(i);
+            if (!SapManager::GetServerName(i, sname)) continue;
+            type = SapManager::GetServerType(i);
+            for (int j = 0; j < nRes; ++j) {
+                char rname[64];
+                if (!SapManager::GetResourceName(i, SapManager::ResourceAcq, j, rname, sizeof(rname))) continue;
+                _snprintf_c(buf, sizeof(buf), "#%d,%d \"%s\" - \"%s\", type %d accessible: %s",i,j,sname,rname,type,accessible ? "yes" : "no");
+                if (spikeGL) spikeGL->pushConsoleDebug(buf);
+                else fprintf(stderr, "%s\n", buf);
+                if (spikeGL) {
+                    XtCmdServerResource r;
+                    r.init(sname, rname, i, j, type, !!accessible);
+                    spikeGL->pushCmd(&r);
+                }
+            }
         }
     }
 }

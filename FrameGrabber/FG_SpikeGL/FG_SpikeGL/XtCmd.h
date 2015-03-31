@@ -17,7 +17,8 @@ enum XtCmds {
     XtCmd_GrabFrames, // sent from SpikeGL-> slave app, tell it to start grabbing frames..
     XtCmd_FPGAProto, // sent from SpikeGL -> slave app to do low-level FPGA protocol commands
     XtCmd_ClkSignals, // sent from slave app -> SpikeGL to update GUI
-    XtCmd_OpenPort,
+    XtCmd_OpenPort, // sent from SpikeGL -> slave app to start an acquisition
+    XtCmd_ServerResource, // sent SpikeGL <-> slave app (both directions) to either list the available server resources or set the active server
     XtCmd_N // num commands in enum
 };
 
@@ -155,6 +156,25 @@ struct XtCmdOpenPort : public XtCmd {
         for (int i = 0; i < 6; ++i) {
             parms[i] = (param >> (i * 4)) & 0xf;
         }
+    }
+};
+
+struct XtCmdServerResource : public XtCmd {
+    char serverName[64];
+    char resourceName[64];
+    int serverIndex, resourceIndex, serverType; ///< set serverIndex to -1 if communicating from SpikeGL->slave app to get a list of all servers and resources of type SapManager::ResourceAcq
+    bool accessible;
+
+    void init(const std::string &snam, const std::string & rnam, int sidx, int ridx, int typ, bool ac) {
+        XtCmd::init();
+        cmd = XtCmd_ServerResource;
+        strncpy(serverName, snam.c_str(), sizeof(serverName) - 1); serverName[sizeof(serverName) - 1] = 0;
+        strncpy(resourceName, rnam.c_str(), sizeof(resourceName) - 1); resourceName[sizeof(resourceName) - 1] = 0;
+        serverIndex = sidx;
+        resourceIndex = ridx;
+        serverType = typ;
+        accessible = ac;
+        len = static_cast<int>((sizeof(XtCmdServerResource) - sizeof(XtCmd)) + sizeof(int));
     }
 };
 

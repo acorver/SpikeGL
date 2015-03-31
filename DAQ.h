@@ -160,8 +160,9 @@ namespace DAQ
 		
 		struct FG { // framegrabber
 			bool enabled;
+            int sidx, ridx; ///< server and resource index
             int com,baud,bits,parity,stop;
-            void reset() { enabled = false; com=1,baud=1,bits=0,parity=0,stop=0; }
+            void reset() { enabled = false; com=1,baud=1,bits=0,parity=0,stop=0; sidx=1; ridx=0; }
 		} fg;
 		
         mutable QMutex mutex;
@@ -367,15 +368,14 @@ namespace DAQ
 		
 		void pushCmd(const QByteArray & cmd);
 		
-		
+        bool setupExeDir(QString * err = 0) const;
+        /// returns a strig of the form "c:\temp\bug3_spikegl\"
+        QString exePath() const;
+
 	protected slots:
 		void slaveProcStateChanged(QProcess::ProcessState);
 		
-	private:
-		bool setupExeDir(QString * err = 0) const;
-		/// returns a strig of the form "c:\temp\bug3_spikegl\"
-		QString exePath() const;
-		
+    private:
 		QList<QByteArray> cmdQ; QMutex cmdQMut;
 		void processCmds(QProcess & p);
         void readStdErr(QProcess & p);
@@ -460,10 +460,21 @@ namespace DAQ
 		void processBlock(const QMap<QString, QString> &, quint64 blockNum);		
 	};
 	
+
 	class FGTask : public SubprocessTask {
 			Q_OBJECT
-	public:        
-		FGTask(const Params & acqParams, QObject * parent);
+    public:
+
+        struct Hardware {
+            QString serverName, resourceName;
+            int serverIndex, resourceIndex, serverType;
+            bool accessible;
+        };
+
+        static QList<Hardware> probedHardware; ///< populate this by calling probeHardware()
+        static void probeHardware();
+
+        FGTask(const Params & acqParams, QObject * parent, bool isDummyTask = false);
         ~FGTask();
 		
         unsigned numChans() const;
@@ -505,6 +516,7 @@ namespace DAQ
         void updateClkSignals(int param);
         void updateImgXferCt();
         void openComPort();
+        void setSaperaDevice();
 
 	private:
 

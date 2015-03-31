@@ -1992,29 +1992,33 @@ namespace DAQ
 	unsigned FGTask::numChans() const { return params.nVAIChans; }
     unsigned FGTask::samplingRate() const { return params.srate; }
 	
-	FGTask::FGTask(const Params & ap, QObject *parent)
+    FGTask::FGTask(const Params & ap, QObject *parent, bool isDummy)
     : SubprocessTask(ap, parent, "Framegrabber", "FG_SpikeGL.exe"/*"MFCApplication2.exe"*/)
 	{
+        dialogW = 0; dialog = 0;
         didImgSizeWarn = sentFGCmd = false;
-        dialogW = new QDialog(0,Qt::CustomizeWindowHint|Qt::Dialog|Qt::WindowTitleHint);
-        dialog = new Ui::FG_Controls;
-        dialog->setupUi(dialogW);
-        Connect(dialog->calibAdcBut, SIGNAL(clicked()), this, SLOT(calibClicked()));
-        Connect(dialog->setupRegsBut, SIGNAL(clicked()), this, SLOT(setupRegsClicked()));
-        Connect(dialog->contAdcBut, SIGNAL(clicked()), this, SLOT(contAdcClicked()));
-        Connect(dialog->grabFramesBut, SIGNAL(clicked()), this, SLOT(grabFramesClicked()));
-        Connect(this, SIGNAL(gotMsg(QString,QColor)), this, SLOT(appendTE(QString,QColor)));
-        Connect(this, SIGNAL(gotClkSignals(int)), this, SLOT(updateClkSignals(int)));
-        Connect(this, SIGNAL(gotImg()), this, SLOT(updateImgXferCt()));
-        Connect(this, SIGNAL(justStarted()), this, SLOT(openComPort()));
-        dialogW->show();
-        mainApp()->windowMenuAdd(dialogW);
+        if (!isDummy) {
+            dialogW = new QDialog(0,Qt::CustomizeWindowHint|Qt::Dialog|Qt::WindowTitleHint);
+            dialog = new Ui::FG_Controls;
+            dialog->setupUi(dialogW);
+            Connect(dialog->calibAdcBut, SIGNAL(clicked()), this, SLOT(calibClicked()));
+            Connect(dialog->setupRegsBut, SIGNAL(clicked()), this, SLOT(setupRegsClicked()));
+            Connect(dialog->contAdcBut, SIGNAL(clicked()), this, SLOT(contAdcClicked()));
+            Connect(dialog->grabFramesBut, SIGNAL(clicked()), this, SLOT(grabFramesClicked()));
+            Connect(this, SIGNAL(gotMsg(QString,QColor)), this, SLOT(appendTE(QString,QColor)));
+            Connect(this, SIGNAL(gotClkSignals(int)), this, SLOT(updateClkSignals(int)));
+            Connect(this, SIGNAL(gotImg()), this, SLOT(updateImgXferCt()));
+            Connect(this, SIGNAL(justStarted()), this, SLOT(setSaperaDevice()));
+            Connect(this, SIGNAL(justStarted()), this, SLOT(openComPort()));
+            dialogW->show();
+            mainApp()->windowMenuAdd(dialogW);
+        }
     }
     FGTask::~FGTask() {
         if (isRunning()) { stop(); wait(); }
-        mainApp()->windowMenuRemove(dialogW);
-        delete dialog; dialog = 0;
-        delete dialogW; dialogW = 0;
+        if (dialogW) mainApp()->windowMenuRemove(dialogW);
+        if (dialog) delete dialog; dialog = 0;
+        if (dialogW) delete dialogW; dialogW = 0;
     }
 
 	QStringList FGTask::filesList() const 
@@ -2047,6 +2051,14 @@ namespace DAQ
         parms[5] = 0;
         XtCmdOpenPort x;
         x.init(parms);
+        pushCmd(x);
+    }
+
+    void FGTask::setSaperaDevice()
+    {
+        const DAQ::Params & p(params);
+        XtCmdServerResource x;
+        x.init("","",p.fg.sidx,p.fg.ridx,0,true);
         pushCmd(x);
     }
 
@@ -2102,20 +2114,21 @@ namespace DAQ
                         Debug() << shortName << ": " << msg; break;
 					default:
                         Log() << shortName << ": " << msg;
-                        if (msg == "Ready." && !sentFGCmd) {
-                            XtCmdFPGAProto p;
-							
-							// Digital output cmd... necessary or not?
-							p.init(2,0,0); 
-							pushCmd(p);
-                            sentFGCmd = true;
-                        }
-
                         break;
 				}
                 emit gotMsg(msg,c);
             } else if (xt->cmd == XtCmd_ClkSignals) {
                 emit(gotClkSignals(xt->param));
+            } else if (xt->cmd == XtCmd_ServerResource) {
+                XtCmdServerResource *xs = (XtCmdServerResource *)xt;
+                Hardware h;
+                h.serverName = xs->serverName;
+                h.resourceName = xs->resourceName;
+                h.serverIndex = xs->serverIndex;
+                h.resourceIndex = xs->resourceIndex;
+                h.serverType = xs->serverType;
+                h.accessible = xs->accessible;
+                probedHardware.push_back(h);
             } else {
 				// todo.. handle other cmds coming in?
 			}
@@ -2198,6 +2211,75 @@ namespace DAQ
         pushCmd(x);
     }
 
+    /* static */
+    QList<FGTask::Hardware> FGTask::probedHardware;
+
+    /* static */
+    void FGTask::probeHardware() {
+        double t0 = getTime();
+        DAQ::Params dummy;
+        FGTask task(dummy, 0, true);
+        if (!task.platformSupported()) return;
+
+        int wflags = Qt::Window|Qt::FramelessWindowHint|Qt::MSWindowsFixedSizeDialogHint|Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowStaysOnTopHint;
+        QMessageBox mb(QMessageBox::Information, "Probing Hardware", "Probing framegrabber hardware, please wait...", QMessageBox::Abort, (QWidget *)(mainApp()->console()), (Qt::WindowFlags)wflags);
+        QList<QAbstractButton *> buts = mb.buttons();
+        foreach (QAbstractButton *b, buts) {
+            mb.removeButton(b);
+        }
+        mb.setWindowFlags((Qt::WindowFlags)wflags);
+        mb.show();
+        mb.repaint();
+
+        QString err;
+        if (!task.setupExeDir(&err)) {
+            Error() << "Failed to probe Sapera for active hardware: " << err;
+            return;
+        }
+        QProcess p(0);
+        p.setProcessChannelMode(task.usesMergedChannels() ? QProcess::MergedChannels : QProcess::SeparateChannels);
+        p.setWorkingDirectory(task.exeDir);
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        task.setupEnv(env);
+        p.setProcessEnvironment(env);
+        p.start(task.exePath());
+        if (p.state() == QProcess::NotRunning) {
+            Error() << "Failed to probe Sapera for active hardware: slave process startup failed!";
+            p.kill();
+            return;
+        }
+        if (!p.waitForStarted(30000)) {
+            Error() << "Failed to probe Sapera for active hardware: slave process startup timed out!";
+            p.kill();
+            return;
+        }
+        QByteArray ba;
+        ba.resize(sizeof(XtCmdServerResource));
+        XtCmdServerResource *x = (XtCmdServerResource *)ba.data();
+        x->init("","",-1,-1,0,0);
+        p.write(ba);
+        int timeout = 10000;
+        if (p.state() == QProcess::Running && p.waitForReadyRead(timeout)) {
+            ba.clear();
+            probedHardware.clear();
+            do {
+                ba += p.readAll();
+                unsigned consumed = task.gotInput(ba, 0, p);
+                ba.remove(0,consumed);
+                if (!probedHardware.empty()) timeout = 500;
+            } while (p.state() == QProcess::Running && p.waitForReadyRead(timeout));
+            p.kill();
+        } else {
+            Error() << "Failed to probe Sapera for active hardware: slave process not running or waitForReadyRead() timed out!";
+            p.kill();
+            return;
+        }
+        task.sendExitCommand(p);
+        p.waitForFinished(250);
+        if (p.state() != QProcess::NotRunning) p.kill();
+
+        Debug() << "Probe done, found " << probedHardware.size() << " valid AcqDevices in " << (getTime()-t0) << " secs.";
+    }
 	
 } // end namespace DAQ
 
