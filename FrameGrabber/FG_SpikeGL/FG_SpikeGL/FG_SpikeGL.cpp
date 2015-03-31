@@ -9,6 +9,8 @@ SapAcquisition *acq = 0;
 SapBuffer      *buffers = 0;
 SapTransfer    *xfer = 0;
 SapView        *view = 0;
+//    std::string configFilename ("c:\\users\\calin\\Desktop\\Src\\SpikeGL\\Framegrabber\\J_2000+_Electrode_8tap_8bit.ccf");
+std::string configFilename("J_2000+_Electrode_8tap_8bit.ccf");
 
 SpikeGLOutThread    *spikeGL = 0;
 SpikeGLInputThread  *spikeGLIn = 0;
@@ -21,7 +23,7 @@ FPGA *fpga = 0;
 static void acqCallback(SapXferCallbackInfo *info) 
 { 
     SapView *v = (SapView *)info;
-    spikeGL->pushConsoleDebug("acqCallback called");
+    //spikeGL->pushConsoleDebug("acqCallback called");
     v->Show();
 
     if (buffers) {
@@ -34,7 +36,8 @@ static void acqCallback(SapXferCallbackInfo *info)
         int width = buffers->GetWidth();				// width:	get the width (in pixel) of the image
         int height = buffers->GetHeight();				// Height:	get the height of the image
 
-        if (!gotFirstXferCallback) spikeGL->pushConsoleDebug("acqCallback called at least once! Yay!"), gotFirstXferCallback = true;
+        if (!gotFirstXferCallback) 
+            spikeGL->pushConsoleDebug("acqCallback called at least once! Yay!"), gotFirstXferCallback = true;
         size_t len = (sizeof(XtCmdImg) - 1) + width*height;
         if (size_t(spikeGLFrameBuf.size()) < len) spikeGLFrameBuf.resize(len);
         if (size_t(spikeGLFrameBuf.size()) >= len) {
@@ -55,9 +58,13 @@ static void acqCallback(SapXferCallbackInfo *info)
             return;
         }
 
-        // copy each row (line) of pixels.  Note the pitch parameter used to skip lines in the source image..
-        for (int i = 0; i < height; ++i)
-            memcpy(pXt + i*width, pData + i*pitch, width);
+        if (pitch == width) {
+            memcpy(pXt, pData, width*height);
+        } else {
+            // copy each row (line) of pixels.  Note the pitch parameter used to skip lines in the source image..
+            for (int i = 0; i < height; ++i)
+                memcpy(pXt + i*width, pData + i*pitch, width);
+        }
 
         buffers->ReleaseAddress(pData); // Need to release it to return it to the hardware!
 
@@ -101,19 +108,17 @@ static bool setupAndStartAcq()
 
     UINT32 acqDeviceNumber = 0;
     char acqServerName[128], acqResName[128];
-//    char configFilename[] = "c:\\users\\calin\\Desktop\\Src\\SpikeGL\\Framegrabber\\J_2000+_Electrode_8tap_8bit.ccf";
-    char configFilename[] = "J_2000+_Electrode_8tap_8bit.ccf";
 
     SapLocation loc(1, acqDeviceNumber);
     SapManager::GetServerName(1, acqServerName, sizeof(acqServerName));
     SapManager::GetResourceName(loc, SapManager::ResourceAcq, acqResName, sizeof(acqResName));
     char tmp[512];
-    _snprintf_c(tmp, sizeof(tmp), "Server name: %s   Resource name: %s  ConfigFile: %s", acqServerName, acqResName, configFilename);
+    _snprintf_c(tmp, sizeof(tmp), "Server name: %s   Resource name: %s  ConfigFile: %s", acqServerName, acqResName, configFilename.c_str());
     spikeGL->pushConsoleDebug(tmp);
 
     if (SapManager::GetResourceCount(acqServerName, SapManager::ResourceAcq) > 0)
     {
-        acq = new SapAcquisition(loc, configFilename);
+        acq = new SapAcquisition(loc, configFilename.c_str());
         buffers = new SapBufferWithTrash(NUM_BUFFERS+1, acq);
         view = new SapView(buffers, SapHwndAutomatic);
         xfer = new SapAcqToBuf(acq, buffers, acqCallback, view);
@@ -183,7 +188,23 @@ static void handleSpikeGLCommand(XtCmd *xt)
             fpga->protocol_Write(x->cmd_code, x->value1, x->value2);
         }
     }
-    break;
+        break;
+    case XtCmd_OpenPort: {
+        int p[6];
+        XtCmdOpenPort *x = (XtCmdOpenPort *)xt;
+        x->getParms(p);
+        char buf[512];
+        _snprintf_c(buf, sizeof(buf), "Got 'OpenPort' command with params: %d,%d,%d,%d,%d,%d", p[0], p[1], p[2], p[3], p[4], p[5]);
+        spikeGL->pushConsoleDebug(buf);
+        if (fpga) delete fpga;
+        fpga = new FPGA(p);
+
+        if (fpga->isOk())
+            spikeGL->pushConsoleMsg(fpga->port() + " opened ok; FPGA communications enabled");
+        else
+            spikeGL->pushConsoleError("COM port error -- failed to start FPGA communications!");
+    }
+        break;
     default: // ignore....?
         break;
     }
@@ -208,7 +229,7 @@ static void tellSpikeGLAboutSignalStatus()
     }
 }
 
-static void idleHandler()
+static void timerFunc()
 {
     if (!spikeGLIn) return;
     int fail = 0;
@@ -228,52 +249,26 @@ static void idleHandler()
 static VOID CALLBACK timerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
     (void)hwnd; (void)uMsg; (void)idEvent; (void)dwTime;
-    idleHandler();
+    timerFunc();
 }
 
-static void handleSpikeGLEnvParms(int parms[6])
+static void handleSpikeGLEnvParms()
 {
-    memset(parms, 0, sizeof(parms));
-    parms[0] = 1;
-    parms[1] = 1;
+    const char *envstr = (char *)getenv("SPIKEGL_CCF");
 
-    char *envstr = (char *)getenv("SPIKEGL_PARMS");
+    if (envstr && *envstr) 
+        configFilename = envstr;
+}
 
-    if (envstr) {
-        char *e = _strdup(envstr);
-        int i = 0;
-        for (char *pe, *p = e; *p && i<5; p = pe + 1, ++i) {
-            pe = strchr(p, ',');
-            if (!pe) pe = p + strlen(p);
-            *pe = 0;
-            int num = 0;
-            if (sscanf(p, "%d", &num) == 1) {
-                switch (i) {
-                case 0: // COM
-                    parms[0] = num >= 0 && num <= 3 ? num : parms[0];
-                    break;
-                case 1: // speed
-                    parms[1] = num >= 0 && num <= 8 ? num : parms[1];
-                    break;
-                case 2: // bits
-                    parms[2] = num >= 0 && num <= 1 ? num : parms[2];
-                    break;
-                case 3: // parity
-                    parms[3] = num >= 0 && num <= 2 ? num : parms[3];
-                    break;
-                case 4: // stop
-                    parms[4] = num >= 0 && num <= 1 ? num : parms[4];
-                    break;
-                case 5: // flow control
-                    parms[5] = num >= 0 && num <= 2 ? num : parms[5];
-                    break;
-                }
-            }
+static void setupTimerFunc()
+{
+    if (!timerId) {
+        timerId = ::SetTimer(NULL, NULL, 100, timerProc);
+        if (!timerId) {
+            spikeGL->pushConsoleError("Could not create timer at starup!");
         }
-        free(e);
     }
 }
-
 
 int main(int argc, const char* argv[])
 {
@@ -283,21 +278,9 @@ int main(int argc, const char* argv[])
 
     spikeGL->pushConsoleMsg("FG_SpikeGL.exe slave process started.");
 
-    if (!timerId) {
-        timerId = ::SetTimer(NULL, NULL, 100, timerProc);
-        if (!timerId) {
-            spikeGL->pushConsoleError("Could not create timer at starup!");
-        }
-    }
+    setupTimerFunc();
 
-    int comParms[6];
-    handleSpikeGLEnvParms(comParms);
-    fpga = new FPGA(comParms);
-
-    if (fpga->isOk())
-        spikeGL->pushConsoleMsg(fpga->port() + " opened ok; FPGA communications enabled");
-    else 
-        spikeGL->pushConsoleError("COM port error -- failed to start FPGA communications!");
+    handleSpikeGLEnvParms();
 
     spikeGLIn->start();
 

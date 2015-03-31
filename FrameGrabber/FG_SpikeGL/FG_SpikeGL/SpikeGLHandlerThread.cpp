@@ -12,8 +12,14 @@
 static BOOL TESTING_SPIKEGL_INTEGRATION = 0;
 
 SpikeGLHandlerThread::~SpikeGLHandlerThread() { }
-SpikeGLOutThread::~SpikeGLOutThread() { tryToStop(); }
-SpikeGLInputThread::~SpikeGLInputThread() { tryToStop(); }
+SpikeGLOutThread::~SpikeGLOutThread() { 
+    tryToStop(); 
+    if (running) kill();
+}
+SpikeGLInputThread::~SpikeGLInputThread() { 
+    tryToStop(); 
+    if (running) kill();
+}
 
 void SpikeGLHandlerThread::tryToStop() {
     if (running) { pleaseStop = true; wait(300); }

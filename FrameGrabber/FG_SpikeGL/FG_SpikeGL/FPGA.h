@@ -5,7 +5,7 @@
 class FPGA
 {
 public:
-    FPGA(int parms[6]);
+    FPGA(const int parms[6]);
     ~FPGA();
 
     bool isOk() const { return is_ok; }
@@ -24,9 +24,10 @@ private:
     HANDLE hPort1;
     bool is_ok;
 
-    bool configure(int parms[6]);
+    bool configure(const int parms[6]);
     bool setupCOM();
 
+    struct Handler;
     struct Writer;
     struct Reader;
 

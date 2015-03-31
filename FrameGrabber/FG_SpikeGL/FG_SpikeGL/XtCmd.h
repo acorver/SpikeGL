@@ -17,6 +17,7 @@ enum XtCmds {
     XtCmd_GrabFrames, // sent from SpikeGL-> slave app, tell it to start grabbing frames..
     XtCmd_FPGAProto, // sent from SpikeGL -> slave app to do low-level FPGA protocol commands
     XtCmd_ClkSignals, // sent from slave app -> SpikeGL to update GUI
+    XtCmd_OpenPort,
     XtCmd_N // num commands in enum
 };
 
@@ -142,4 +143,19 @@ struct XtCmdClkSignals : public XtCmd {
     bool isHSync() const { return !!(param&(0x1 << 3)); }
     bool isVSync() const { return !!(param&(0x1 << 4)); }
 };
+
+struct XtCmdOpenPort : public XtCmd {
+    void init(const int parms[6]) {
+        XtCmd::init();
+        cmd = XtCmd_OpenPort;
+        param = 0;
+        for (int i = 0; i < 6; ++i) param |= parms[i] << (i * 4);
+    }
+    void getParms(int parms[6]) {
+        for (int i = 0; i < 6; ++i) {
+            parms[i] = (param >> (i * 4)) & 0xf;
+        }
+    }
+};
+
 #endif

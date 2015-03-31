@@ -1449,15 +1449,14 @@ namespace DAQ
 			p.kill();
 			return;
 		}
-		double t0 = getTime();
 		if (!p.waitForStarted(30000)) {
 			emit daqError(shortName + " slave process: startup timed out!");
 			p.kill();
 			return;
 		}
-		double tleft = 30.0-(getTime()-t0);
-		if (tleft < 2.0) tleft = 2.0;
 		Debug() << shortName << " slave process started ok";
+        emit(justStarted());
+
 		int tout_ct = 0;
 		QByteArray data;
 		
@@ -2007,6 +2006,7 @@ namespace DAQ
         Connect(this, SIGNAL(gotMsg(QString,QColor)), this, SLOT(appendTE(QString,QColor)));
         Connect(this, SIGNAL(gotClkSignals(int)), this, SLOT(updateClkSignals(int)));
         Connect(this, SIGNAL(gotImg()), this, SLOT(updateImgXferCt()));
+        Connect(this, SIGNAL(justStarted()), this, SLOT(openComPort()));
         dialogW->show();
         mainApp()->windowMenuAdd(dialogW);
     }
@@ -2035,13 +2035,19 @@ namespace DAQ
         p.write((const char *)&xt, sizeof(xt));
     }
 
-    void FGTask::setupEnv(QProcessEnvironment & e) const
+    void FGTask::openComPort()
     {
         const DAQ::Params & p(params);
-        e.insert("SPIKEGL_PARMS",
-                 QString("%1,%2,%3,%4,%5")
-                 .arg(p.fg.com).arg(p.fg.baud).arg(p.fg.bits).arg(p.fg.parity).arg(p.fg.stop)
-                 );
+        int parms[6];
+        parms[0] = p.fg.com;
+        parms[1] = p.fg.baud;
+        parms[2] = p.fg.bits;
+        parms[3] = p.fg.parity;
+        parms[4] = p.fg.stop;
+        parms[5] = 0;
+        XtCmdOpenPort x;
+        x.init(parms);
+        pushCmd(x);
     }
 
 	unsigned FGTask::gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p) 

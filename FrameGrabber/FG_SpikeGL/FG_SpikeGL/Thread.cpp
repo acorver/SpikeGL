@@ -20,7 +20,7 @@ bool Thread::wait(DWORD timeout)
         DWORD r = WaitForSingleObject(threadHandle, timeout);
         return r == WAIT_OBJECT_0;
     }
-    return false;
+    return true;
 }
 
 void Thread::kill()

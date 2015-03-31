@@ -2,33 +2,34 @@
 #include "FPGA.h"
 #include "Thread.h"
 
-struct FPGA::Writer : public Thread {
+struct FPGA::Handler : public Thread {
     HANDLE h;
     volatile bool pleaseStop;
     Mutex mut;
     std::list<std::string> q;
 
-    Writer(HANDLE h) : h(h) {}
-    ~Writer() {
-        if (isRunning()) { pleaseStop = true; if(!wait(250)) kill(); }
+    Handler(HANDLE h) : h(h) {}
+    ~Handler(); 
+};
+
+FPGA::Handler::~Handler() {
+    if (isRunning()) { 
+        pleaseStop = true; 
+        if (!wait(250)) kill();
     }
+}
+
+struct FPGA::Writer : public Handler {
+    Writer(HANDLE hh) : Handler(hh) {}
+    void threadFunc(); ///< virtual from Thread
+};
+
+struct FPGA::Reader : public Handler {
+    Reader(HANDLE hh) : Handler(hh) {}
     void threadFunc();
 };
 
-struct FPGA::Reader : public Thread {
-    HANDLE h;
-    volatile bool pleaseStop;
-    Mutex mut;
-    std::list<std::string> q;
-
-    Reader(HANDLE h) : h(h) {}
-    ~Reader() {
-        if (isRunning()) { pleaseStop = true; if(!wait(250)) kill(); }
-    }
-    void threadFunc();
-};
-
-FPGA::FPGA(int parms[6])
+FPGA::FPGA(const int parms[6])
     : hPort1(INVALID_HANDLE_VALUE), is_ok(false), writer(0), reader(0)
 {
     if (is_ok = configure(parms)) {
@@ -52,7 +53,7 @@ FPGA::~FPGA()
     reader = 0; writer = 0;
 }
 
-bool FPGA::configure(int parms[6])
+bool FPGA::configure(const int parms[6])
 {
     std::string str1, str2;
 

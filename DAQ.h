@@ -335,6 +335,10 @@ namespace DAQ
         virtual ~SubprocessTask();
 
         void stop();
+
+    signals:
+        void justStarted();
+
 	protected:
 		void daqThr(); ///< implemented from Task
 		
@@ -479,7 +483,6 @@ namespace DAQ
 #ifndef Q_OS_WINDOWS
 		bool platformSupported() const { return false; }
 #endif
-        void setupEnv(QProcessEnvironment & e) const;
         int readTimeoutMaxSecs() const { return 9999; }
 		unsigned gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p);
 		QStringList filesList() const;
@@ -501,6 +504,7 @@ namespace DAQ
         void appendTE(const QString &s, const QColor & color = QColor(Qt::black));
         void updateClkSignals(int param);
         void updateImgXferCt();
+        void openComPort();
 
 	private:
 
