@@ -272,6 +272,7 @@ static void setupTimerFunc()
 
 int main(int argc, const char* argv[])
 {
+    // NB: it's vital these two objects get constructed before any other calls.. since other code assumes they are valid and may call these objects' methods
     spikeGL = new SpikeGLOutThread;
     spikeGLIn = new SpikeGLInputThread;
 
