@@ -6,10 +6,15 @@ struct FPGA::Handler : public Thread {
     HANDLE h;
     volatile bool pleaseStop;
     Mutex mut;
-    std::list<std::string> q;
+    std::list<std::string> q, rq;
+    bool debugFlag[64];
 
-    Handler(HANDLE h) : h(h) {}
+    Handler(HANDLE h) : h(h) { memset(debugFlag, 0, sizeof(debugFlag)); }
     ~Handler(); 
+
+    void threadFunc(); ///< from Thread
+    bool readLine(std::string & partialLine);
+    int readAllLines(std::string & partialLine);
 };
 
 FPGA::Handler::~Handler() {
@@ -19,24 +24,12 @@ FPGA::Handler::~Handler() {
     }
 }
 
-struct FPGA::Writer : public Handler {
-    Writer(HANDLE hh) : Handler(hh) {}
-    void threadFunc(); ///< virtual from Thread
-};
-
-struct FPGA::Reader : public Handler {
-    Reader(HANDLE hh) : Handler(hh) {}
-    void threadFunc();
-};
-
 FPGA::FPGA(const int parms[6])
-    : hPort1(INVALID_HANDLE_VALUE), is_ok(false), writer(0), reader(0)
+    : hPort1(INVALID_HANDLE_VALUE), is_ok(false), handler(0)
 {
     if (is_ok = configure(parms)) {
-        writer = new Writer(hPort1);
-        reader = new Reader(hPort1);
-        writer->start();
-        reader->start();
+        handler = new Handler(hPort1);
+        handler->start();
 
         // auto-reset dout and leds..
         protocol_Write(1, 0, 0);
@@ -47,10 +40,10 @@ FPGA::FPGA(const int parms[6])
 
 FPGA::~FPGA()
 {
+    delete handler;
+    handler = 0;
     if (hPort1 != INVALID_HANDLE_VALUE) CloseHandle(hPort1);
     hPort1 = INVALID_HANDLE_VALUE;
-    delete reader; delete writer;
-    reader = 0; writer = 0;
 }
 
 bool FPGA::configure(const int parms[6])
@@ -58,6 +51,27 @@ bool FPGA::configure(const int parms[6])
     std::string str1, str2;
 
     memset(&Port1DCB, 0, sizeof(Port1DCB));
+
+    if (hPort1 != INVALID_HANDLE_VALUE) CloseHandle(hPort1);
+
+    switch (parms[0]) // Port Num
+    {
+    case 0:		PortNum = "COM1";				break;
+    case 1:		PortNum = "COM2";				break;
+    case 2:		PortNum = "COM3";				break;
+    case 3:		PortNum = "COM4";				break;
+    default:	PortNum = "COM1";				break;
+    }
+
+    hPort1 = CreateFile(PortNum.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    if (hPort1 != INVALID_HANDLE_VALUE)
+    {
+        Port1DCB.DCBlength = sizeof(DCB);
+        GetCommState(hPort1, &Port1DCB);
+        CloseHandle(hPort1);
+        hPort1 = INVALID_HANDLE_VALUE;
+    }
 
     // Change the DCB structure settings
     Port1DCB.fBinary = TRUE;				// Binary mode; no EOF check
@@ -68,15 +82,6 @@ bool FPGA::configure(const int parms[6])
     Port1DCB.fAbortOnError = FALSE;			// Do not abort reads/writes on error
     Port1DCB.fNull = FALSE;					// Disable null stripping 
     Port1DCB.fTXContinueOnXoff = TRUE;		// XOFF continues Tx 
-
-    switch (parms[0]) // Port Num
-    {
-    case 0:		PortNum = "COM1";				break;
-    case 1:		PortNum = "COM2";				break;
-    case 2:		PortNum = "COM3";				break;
-    case 3:		PortNum = "COM4";				break;
-    default:	PortNum = "COM1";				break;
-    }
 
     switch (parms[1]) // BAUD Rate
     {
@@ -121,6 +126,7 @@ bool FPGA::configure(const int parms[6])
         str2 = "0";						break;
     }
 
+#if 0
     switch (parms[5])
     {
     case 0:		
@@ -146,7 +152,13 @@ bool FPGA::configure(const int parms[6])
         break;
     default:	break;
     }
-
+#else
+    Port1DCB.fOutxCtsFlow = FALSE;					// CTS output flow control 
+    Port1DCB.fDtrControl = DTR_CONTROL_DISABLE;		// DTR flow control type 
+    Port1DCB.fOutX = FALSE;							// No XON/XOFF out flow control 
+    Port1DCB.fInX = FALSE;							// No XON/XOFF in flow control 
+    Port1DCB.fRtsControl = RTS_CONTROL_DISABLE;		// RTS flow control   
+#endif
     char buf[512];
     _snprintf_c(buf, sizeof(buf), "%s %d, %d, %s, %s", PortNum.c_str(), Port1DCB.BaudRate, Port1DCB.ByteSize, str1.c_str(), str2.c_str());
     PortConfig = buf;
@@ -215,11 +227,18 @@ bool FPGA::setupCOM()
 
     memset(&CommTimeouts, 0, sizeof(CommTimeouts));
     GetCommTimeouts(hPort1, &CommTimeouts);
-    CommTimeouts.ReadIntervalTimeout = 50;
-    CommTimeouts.ReadTotalTimeoutConstant = 50;
-    CommTimeouts.ReadTotalTimeoutMultiplier = 10;
-    CommTimeouts.WriteTotalTimeoutMultiplier = 10;
-    CommTimeouts.WriteTotalTimeoutConstant = 50;
+    double ms_per_char = 1000.0 / double(Port1DCB.BaudRate / double(Port1DCB.ByteSize ? Port1DCB.ByteSize : 8));
+    int msPerChar = int(ceil(ms_per_char));
+    {
+        char buf[128];
+        _snprintf_c(buf, sizeof(buf), "CommTimeouts calculation --> Baud rate: %d ~= %d msPerChar", Port1DCB.BaudRate, msPerChar);
+        spikeGL->pushConsoleDebug(buf);
+    }
+    CommTimeouts.ReadIntervalTimeout =  msPerChar*2;
+    CommTimeouts.ReadTotalTimeoutConstant = 10;
+    CommTimeouts.ReadTotalTimeoutMultiplier = msPerChar;
+    CommTimeouts.WriteTotalTimeoutMultiplier = msPerChar*3;
+    CommTimeouts.WriteTotalTimeoutConstant = 100;
 
     // Set the time-out parameters for all read and write operations on the port. 
     if (!SetCommTimeouts(hPort1, &CommTimeouts))
@@ -239,71 +258,81 @@ bool FPGA::setupCOM()
     return true;
 }
 
-void FPGA::Writer::threadFunc() {
-    pleaseStop = false;
-    while (!pleaseStop) {
-        std::list<std::string> my;
-        if (mut.lock()) {
-            my.swap(q);
-            mut.unlock();
+bool FPGA::Handler::readLine(std::string & partial)
+{
+    char c;
+    DWORD nb = 0;
+    while (ReadFile(h, &c, 1, &nb, NULL)) {
+        if (nb == 1) {
+            partial.push_back(c);
+            if (c == '\n') return true;
         } else {
-            spikeGL->pushConsoleWarning("INTERNAL ERROR -- FPGA::Writer::threadFunc() could not obtain a required mutex!");
-        }
-        int ct = 0;
-        for (std::list<std::string>::iterator it = my.begin(); it != my.end(); ++it) {
-            DWORD bytesWritten = 0;
-            spikeGL->pushConsoleDebug(std::string("Attempt to write: ") + *it);
-            if (!WriteFile(h, &((*it)[0]), DWORD((*it).length()), &bytesWritten, NULL)) {
-                spikeGL->pushConsoleDebug("FPGA::Writer::threadFunc() -- WriteFile() returned FALSE!");
-            } else if (bytesWritten != DWORD((*it).length())) {
-                char buf[512];
-                _snprintf_c(buf, sizeof(buf), "FPGA::Writer::threadFunc() -- WriteFile() returned %d, expected %d!", (int)bytesWritten, (int)(*it).length());
-                spikeGL->pushConsoleDebug(buf);
-            } else {
-                spikeGL->pushConsoleDebug(std::string("Wrote to COM --> ") + *it);
+            if (!debugFlag[0]) {
+                spikeGL->pushConsoleDebug("FPGA::Handler::readLine() read 0 bytes... so partial reads works OK! Yay!");
+                debugFlag[0] = true;
             }
-            ++ct;
+            return false;
         }
-
-        if (!ct && !pleaseStop) Sleep(100);
+        nb = 0;
     }
+    spikeGL->pushConsoleDebug("FPGA::Handler::readLine() ReadFile() returned FALSE... WTF?");
+    return false;
 }
 
-void FPGA::Reader::threadFunc() {
-    pleaseStop = false;
-    while (!pleaseStop) {
-        char buf[1024];
-        buf[1023] = 0;
-        DWORD nread = 0;
-        bool readok = false;
-        if (ReadFile(h, buf, sizeof(buf) - 1, &nread, NULL)) {
-            if (nread) {
-                if (nread > 1023) nread = 1023;
-                buf[nread] = 0;
-                std::string s(buf, nread);
-                spikeGL->pushConsoleDebug(std::string("Read COM --> ") + s);
-                if (mut.lock()) {
-                    q.push_back(s);
-                    mut.unlock();
-                } else {
-                    spikeGL->pushConsoleWarning("INTERNAL ERROR -- FPGA::Reader::threadFunc() could not obtain a required mutex!");
-                }
-            } else {
-                spikeGL->pushConsoleDebug("FPGA::Reader::threadFunc() -- read 0 bytes...");
-            }
-            readok = true;
+int FPGA::Handler::readAllLines(std::string & partial) 
+{
+    int ct = 0;
+    while ((!partial.empty() && partial.back() == '\n') || readLine(partial)) {
+        if (mut.lock(10)) {
+            rq.push_back(partial);
+            mut.unlock();
+            ++ct;
+            spikeGL->pushConsoleDebug(std::string("FPGA::Handler::readAllLines() -- read from COM ") + partial);
+            partial.clear();
         } else {
-            spikeGL->pushConsoleDebug("FPGA::Reader::threadFunc() -- ReadFile() returned FALSE!");
+            spikeGL->pushConsoleDebug("FPGA::Handler::readAllLines() -- Waiting on mutex...");
         }
-        if (!pleaseStop && !readok) Sleep(100);
+    }
+    return ct;
+}
+
+void FPGA::Handler::threadFunc()
+{
+    pleaseStop = false;
+    std::string partial;
+    while (!pleaseStop) {
+        int nxferred = 0;
+        if (partial.length() < 512) partial.reserve(512);
+        std::list<std::string> my;
+        if (mut.lock(10)) {
+            my.swap(q);
+            mut.unlock();
+        }
+        for (std::list<std::string>::const_iterator it = my.begin(); it != my.end(); ++it) {
+            DWORD nb = 0, len = (DWORD)(*it).length();
+            spikeGL->pushConsoleDebug(std::string("Attempt to write: ") + *it);
+            if (!WriteFile(h, (*it).c_str(), len, &nb, NULL)) {
+                spikeGL->pushConsoleDebug("FPGA::Handler::threadFunc() -- WriteFile() returned FALSE!");
+            } else if (nb != len) {
+                char buf[512];
+                _snprintf_c(buf, sizeof(buf), "FPGA::Handler::threadFunc() -- WriteFile() returned %d, expected %d! (write timeout?)", (int)nb, (int)len);
+                spikeGL->pushConsoleDebug(buf);
+            } else {
+                ++nxferred;
+                spikeGL->pushConsoleDebug(std::string("Wrote to COM --> ") + *it);
+            }
+            nxferred += readAllLines(partial);
+        }
+        nxferred += readAllLines(partial);
+        if (!nxferred && !pleaseStop) Sleep(10);
     }
 }
 
 void FPGA::write(const std::string &s) { ///< queued write.. returns immediately, writes in another thread
-    if (!writer) return;
-    if (writer->mut.lock()) {
-        writer->q.push_back(s);
-        writer->mut.unlock();
+    if (!handler) return;
+    if (handler->mut.lock()) {
+        handler->q.push_back(s);
+        handler->mut.unlock();
     } else {
         spikeGL->pushConsoleWarning("INTERNAL ERROR -- FPGA::write() could not obtain a required mutex!");
     }
@@ -311,10 +340,10 @@ void FPGA::write(const std::string &s) { ///< queued write.. returns immediately
 
 void FPGA::readAll(std::list<std::string> & ret) { ///< reads all data available, returns immediately, may return an empty list if no data is available
     ret.clear();
-    if (reader) {
-        if (reader->mut.lock()) {
-            ret.swap(reader->q);
-            reader->mut.unlock();
+    if (handler) {
+        if (handler->mut.lock()) {
+            ret.swap(handler->rq);
+            handler->mut.unlock();
         } else {
             spikeGL->pushConsoleWarning("INTERNAL ERROR -- FPGA::readAll() could not obtain a required mutex!");
         }
@@ -325,6 +354,6 @@ void FPGA::protocol_Write(int CMD_Code, int Value_1, INT32 Value_2)
 {
     char    str[512];
 
-    _snprintf_c(str, sizeof(str), "%c%02d%05d%06d\n\r", '~', CMD_Code, Value_1, Value_2);
+    _snprintf_c(str, sizeof(str), "%c%02d%05d%06d\r\n", '~', CMD_Code, Value_1, Value_2);
     write(str);
 }

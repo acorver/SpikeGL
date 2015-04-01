@@ -28,10 +28,7 @@ private:
     bool setupCOM();
 
     struct Handler;
-    struct Writer;
-    struct Reader;
 
-    Writer *writer;
-    Reader *reader;
+    Handler *handler;
 };
 

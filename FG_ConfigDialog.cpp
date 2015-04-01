@@ -77,8 +77,9 @@ int FG_ConfigDialog::exec()
                 p.fg.bits = dialog->bits->currentIndex();
                 p.fg.parity = dialog->parity->currentIndex();
                 p.fg.stop = dialog->stop->currentIndex();
-                p.fg.sidx = DAQ::FGTask::probedHardware.at(dialog->sapdevCB->currentIndex()).serverIndex;
-                p.fg.ridx = DAQ::FGTask::probedHardware.at(dialog->sapdevCB->currentIndex()).resourceIndex;
+                DAQ::FGTask::Hardware hw = DAQ::FGTask::probedHardware.at(dialog->sapdevCB->currentIndex());
+                p.fg.sidx = hw.serverIndex;
+                p.fg.ridx = hw.resourceIndex;
 
 				p.suppressGraphs = false; //dialog->disableGraphsChk->isChecked();
 				p.resumeGraphSettings = false; //dialog->resumeGraphSettingsChk->isChecked();
@@ -130,7 +131,7 @@ int FG_ConfigDialog::exec()
                 p.lowLatency = true; // we HAVE to do this for fg_mode, otherwise this never works right!
 
 				// this stuff doesn't need to be saved since it's constant and will mess up regular acq "remembered" values
-				p.dev = "Framegrabber";
+                p.dev = "Framegrabber";
 				p.nExtraChans1 = 0;
 				p.nExtraChans2 = 0;
 				
