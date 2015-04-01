@@ -8,7 +8,6 @@
 SapAcquisition *acq = 0;
 SapBuffer      *buffers = 0;
 SapTransfer    *xfer = 0;
-SapView        *view = 0;
 //    std::string configFilename ("c:\\users\\calin\\Desktop\\Src\\SpikeGL\\Framegrabber\\J_2000+_Electrode_8tap_8bit.ccf");
 std::string configFilename("J_2000+_Electrode_8tap_8bit.ccf");
 int serverIndex = -1, resourceIndex = -1;
@@ -18,6 +17,7 @@ SpikeGLInputThread  *spikeGLIn = 0;
 UINT_PTR timerId = 0;
 bool gotFirstXferCallback = false;
 std::vector<BYTE> spikeGLFrameBuf;
+int bpp, pitch, width=0, height=0;
 
 FPGA *fpga = 0;
 
@@ -26,19 +26,21 @@ static void probeHardware();
 
 static void acqCallback(SapXferCallbackInfo *info) 
 { 
-    SapView *v = (SapView *)info;
-    //spikeGL->pushConsoleDebug("acqCallback called");
-    v->Show();
+    char buf[64];
+    _snprintf_c(buf, sizeof(buf), "acqCallback called with event count %d", info->GetEventCount());
+    spikeGL->pushConsoleDebug(buf);
 
     if (buffers) {
         XtCmdImg *xt = 0;
         BYTE *pXt = 0;
         BYTE *pData = 0;
 
-        int bpp = buffers->GetBytesPerPixel();		// bpp:		get number of bytes required to store a single image
-        int pitch = buffers->GetPitch();				// pitch:	get number of bytes between two consecutive lines of all the buffer resource
-        int width = buffers->GetWidth();				// width:	get the width (in pixel) of the image
-        int height = buffers->GetHeight();				// Height:	get the height of the image
+        if (!width) {
+            bpp = buffers->GetBytesPerPixel();		// bpp:		get number of bytes required to store a single image
+            pitch = buffers->GetPitch();				// pitch:	get number of bytes between two consecutive lines of all the buffer resource
+            width = buffers->GetWidth();				// width:	get the width (in pixel) of the image
+            height = buffers->GetHeight();				// Height:	get the height of the image
+        }
 
         if (!gotFirstXferCallback) 
             spikeGL->pushConsoleDebug("acqCallback called at least once! Yay!"), gotFirstXferCallback = true;
@@ -88,13 +90,12 @@ static void startFrameCallback(SapAcqCallbackInfo *info)
 static void freeSapHandles()
 {
     if (xfer && *xfer) xfer->Destroy();
-    if (view && *view) view->Destroy();
     if (buffers && *buffers) buffers->Destroy();
     if (acq && *acq) acq->Destroy();
     if (xfer) delete xfer, xfer = 0;
-    if (view) delete view, view = 0;
     if (buffers) delete buffers, buffers = 0;
     if (acq) delete acq, acq = 0;
+    bpp = pitch = width = height = 0;
 }
 
 static void sapStatusCallback(SapManCallbackInfo *p)
@@ -129,8 +130,7 @@ static bool setupAndStartAcq()
     {
         acq = new SapAcquisition(loc, configFilename.c_str());
         buffers = new SapBufferWithTrash(NUM_BUFFERS+1, acq);
-        view = new SapView(buffers, SapHwndAutomatic);
-        xfer = new SapAcqToBuf(acq, buffers, acqCallback, view);
+        xfer = new SapAcqToBuf(acq, buffers, acqCallback, 0);
 
         // Create acquisition object
         if (acq && !*acq && !acq->Create()) {
@@ -158,13 +158,6 @@ static bool setupAndStartAcq()
     // Create transfer object
     if (xfer && !*xfer && !xfer->Create()) {
         spikeGL->pushConsoleError("Failed to Create() xfer object");
-        freeSapHandles();
-        return false;
-    }
-
-    // Create view object
-    if (view && !*view && !view->Create()) {
-        spikeGL->pushConsoleError("Failed to Create() view object");
         freeSapHandles();
         return false;
     }
@@ -267,6 +260,21 @@ static void timerFunc()
 
     }
     if (spikeGL) tellSpikeGLAboutSignalStatus();
+/*
+#define TESTING_SPIKEGL_INTEGRATION
+#ifdef TESTING_SPIKEGL_INTEGRATION
+    if (acq)
+        for (int iter = 0; iter < 2000; ++iter) {
+            // for testing.. put fake frames 
+            char buf[144 * 32 + sizeof(XtCmdImg) + 128];
+            XtCmdImg *xt = (XtCmdImg *)buf;
+            //::memset(xt->img, (iter % 2 ? 0x4f : 0), 144 * 32);
+            xt->init(144, 32);
+            for (int i = 0; i < 72 * 32; ++i) ((short *)xt->img)[i] = (short)(sinf(((iter + i) % 2560) / 2560.0f)*32768.f);
+            spikeGL->pushCmd(xt);
+        }
+#endif
+*/
 }
 
 static VOID CALLBACK timerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)

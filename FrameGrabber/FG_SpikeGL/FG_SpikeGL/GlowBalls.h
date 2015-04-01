@@ -6,7 +6,6 @@
 extern SapAcquisition *acq;
 extern SapBuffer      *buffers;
 extern SapTransfer    *xfer;
-extern SapView        *view;
 #define NUM_BUFFERS 200
 extern std::string configFilename;
 extern int serverIndex, resourceIndex;

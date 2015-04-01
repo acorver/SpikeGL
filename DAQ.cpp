@@ -1997,6 +1997,7 @@ namespace DAQ
 	{
         dialogW = 0; dialog = 0;
         didImgSizeWarn = sentFGCmd = false;
+        imgXferCt = 0;
         if (!isDummy) {
             dialogW = new QDialog(0,Qt::CustomizeWindowHint|Qt::Dialog|Qt::WindowTitleHint);
             dialog = new Ui::FG_Controls;
@@ -2007,7 +2008,6 @@ namespace DAQ
             Connect(dialog->grabFramesBut, SIGNAL(clicked()), this, SLOT(grabFramesClicked()));
             Connect(this, SIGNAL(gotMsg(QString,QColor)), this, SLOT(appendTE(QString,QColor)));
             Connect(this, SIGNAL(gotClkSignals(int)), this, SLOT(updateClkSignals(int)));
-            Connect(this, SIGNAL(gotImg()), this, SLOT(updateImgXferCt()));
             Connect(this, SIGNAL(justStarted()), this, SLOT(setSaperaDevice()));
             Connect(this, SIGNAL(justStarted()), this, SLOT(openComPort()));
             dialogW->show();
@@ -2092,7 +2092,7 @@ namespace DAQ
                     didImgSizeWarn = true;
                 }
 				scans.insert(scans.end(),(int16*)xi->img,((int16 *)xi->img)+params.nVAIChans);
-                emit(gotImg()); // todo.. make this not get called for each frame since it may impact performance significantly
+                ++imgXferCt;
             } else if (xt->cmd == XtCmd_ConsoleMessage) {
 				XtCmdConsoleMsg *xm = (XtCmdConsoleMsg *)xt; 
                 QString msg(xm->msg);
@@ -2152,13 +2152,7 @@ namespace DAQ
         dialog->vsyncLbl->setText(dummy.isVSync() ? "<font color=green>+</font>" : "<font color=red>-</font>");
         unsigned long ctr = dialog->clkCtLbl->text().toULong();
         dialog->clkCtLbl->setText(QString::number(ctr+1UL));
-    }
-
-    void FGTask::updateImgXferCt()
-    {
-		// todo.. make this not get called for each frame since it may impact performance significantly
-        unsigned long ctr = dialog->imgXferCtLbl->text().toULong();
-        dialog->imgXferCtLbl->setText(QString::number(ctr+1UL));
+        dialog->imgXferCtLbl->setText(QString::number(imgXferCt));
     }
 
 	/* static */

@@ -9,8 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static BOOL TESTING_SPIKEGL_INTEGRATION = 0;
-
 SpikeGLHandlerThread::~SpikeGLHandlerThread() { }
 SpikeGLOutThread::~SpikeGLOutThread() { 
     tryToStop(); 
@@ -84,19 +82,8 @@ void SpikeGLOutThread::threadFunc()
 {
     _setmode(_fileno(stdout), O_BINARY);
     while (!pleaseStop) {
-        if (TESTING_SPIKEGL_INTEGRATION) {
-            // for testing.. put fake frames 
-            static int iter = 0;
-            char buf[144 * 32 + sizeof(XtCmdImg) + 128];
-            XtCmdImg *xt = (XtCmdImg *)buf;
-            //::memset(xt->img, (iter % 2 ? 0x4f : 0), 144 * 32);
-            xt->init(144, 32);
-            for (int i = 0; i < 72 * 32; ++i) ((short *)xt->img)[i] = (short)(sinf(((iter + i) % 2560) / 2560.0f)*32768.f);
-            for (int i = 0; i < 20; ++i) xt->write(stdout);
-            Sleep(1);
-            ++iter;
-        }
-        else if (mut.lock(100)) {
+        int ct = 0;
+        if (mut.lock(100)) {
             CmdList my;
             my.splice(my.begin(), cmds);
             nCmd = 0;
@@ -106,8 +93,10 @@ void SpikeGLOutThread::threadFunc()
                 if (!c->write(stdout)) {
                     // todo.. handle error here...
                 }
+                ++ct;
             }
             fflush(stdout);
+            if (!ct) Sleep(10);
         }
     }
 }
@@ -119,7 +108,9 @@ void SpikeGLInputThread::threadFunc()
     XtCmd *xt = 0;
     while (!pleaseStop) {
         if ((xt = XtCmd::read(buf, stdin))) {
-            pushCmd(xt);
+            if (!pushCmd(xt)) {
+                // todo.. handle error here...
+            }
         }
     }
 }

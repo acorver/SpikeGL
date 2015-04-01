@@ -504,7 +504,6 @@ namespace DAQ
 
         void gotMsg(const QString &txt, const QColor & color);
         void gotClkSignals(int param);
-        void gotImg();
 
     private slots:
 
@@ -514,7 +513,6 @@ namespace DAQ
         void grabFramesClicked();
         void appendTE(const QString &s, const QColor & color = QColor(Qt::black));
         void updateClkSignals(int param);
-        void updateImgXferCt();
         void openComPort();
         void setSaperaDevice();
 
@@ -522,6 +520,7 @@ namespace DAQ
 
         bool sentFGCmd, didImgSizeWarn;
         Ui::FG_Controls *dialog;
+        quint64 imgXferCt;
 	};
 	
 }
