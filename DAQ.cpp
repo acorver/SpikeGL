@@ -2028,6 +2028,7 @@ namespace DAQ
 		QStringList files;
         files.push_back(QString(":/FG/FrameGrabber/FG_SpikeGL/x64/Release/") + exeName);
 		files.push_back(":/FG/FrameGrabber/J_2000+_Electrode_8tap_8bit.ccf");
+        files.push_back(":/FG/FrameGrabber/SapClassBasic75.dll");
 		return files;
 	}
 		
