@@ -6,9 +6,11 @@
 #include <qglobal.h>
 #include <QGLContext>
 #ifdef Q_OS_WIN
+#define PSAPI_VERSION 1
 #include <winsock.h>
 #include <io.h>
 #include <windows.h>
+#include <Psapi.h>
 #include <wingdi.h>
 #include <GL/gl.h>
 #endif
@@ -48,6 +50,12 @@ namespace {
         }
     };
     Init init;
+
+#ifdef Q_OS_WIN
+    void baseNameify(char *filePath);
+    int killAllInstances(const char *exeImgName);
+#endif
+
 };
 
 namespace Util {
@@ -488,4 +496,77 @@ quint64 availableDiskSpace()
 	return ~0UL; // FIX_ME: force 4000 MB of available disk space
 }
 
+int killAllInstancesOfProcessWithImageName(const QString &imgName)
+{
+#ifdef Q_OS_WIN
+    QStringList sl1 = imgName.split("/",QString::SkipEmptyParts),
+                sl2 = imgName.split("\\",QString::SkipEmptyParts);
+    QStringList *sl = &sl2;
+    if (sl1.count() > sl->count()) sl = &sl1;
+
+    const QString & s (sl->isEmpty() ? imgName : sl->back());
+    int ct = killAllInstances(s.toUtf8().constData());
+
+    if (ct > 0) {
+        Debug() << "killAllInstances() -- killed " << ct << " instances of " << s;
+    } else if (ct < 0) {
+        Warning() << "killAllInstances() -- returned " << ct;
+    }
+
+    return ct;
+#else
+    return 0;
+#endif
+}
+
 } // end namespace Util
+
+#ifdef Q_OS_WIN
+namespace {
+void baseNameify(char *e)
+{
+    const char *s = e;
+    for (const char *t = s; t = strchr(s, '\\'); ++s) {}
+    if (e != s) memmove(e, s, strlen(s) + 1);
+}
+
+int killAllInstances(const char *nam)
+{
+    char theExe[MAX_PATH];
+    strncpy(theExe,nam,MAX_PATH);
+    theExe[MAX_PATH-1] = 0;
+
+    baseNameify(theExe);
+
+    DWORD pids[16384];
+    DWORD npids;
+
+    // get the process by name
+    if (!EnumProcesses(pids, sizeof(pids), &npids))
+        return -1;
+
+    // convert from bytes to processes
+    npids = npids / sizeof(DWORD);
+    int ct = 0;
+    // loop through all processes
+    for (DWORD i = 0; i < npids; ++i) {
+        // get a handle to the process
+        HANDLE h = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pids[i]);
+        if (h == INVALID_HANDLE_VALUE) continue;
+        char exe[MAX_PATH];
+        // get the process name
+        if (GetProcessImageFileNameA(h, exe, sizeof(exe))) {
+            baseNameify(exe);
+            // terminate all pocesses that contain the name
+            if (0 == strcmp(exe, theExe)) {
+                TerminateProcess(h, 0);
+                ++ct;
+            }
+        }
+        CloseHandle(h);
+    }
+
+    return ct;
+}
+}
+#endif

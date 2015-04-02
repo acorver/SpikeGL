@@ -82,6 +82,9 @@ namespace Util
 
 /// returns the PID of the current process.
 extern unsigned getPid();
+
+/// only implemented on windows, for now..
+extern int killAllInstancesOfProcessWithImageName(const QString & imgName);
 }
 /// sets the process affinity mask -- a bitset of which processors to run on
 extern "C" void setProcessAffinityMask(unsigned mask);

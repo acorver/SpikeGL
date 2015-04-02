@@ -1995,6 +1995,8 @@ namespace DAQ
     FGTask::FGTask(const Params & ap, QObject *parent, bool isDummy)
     : SubprocessTask(ap, parent, "Framegrabber", "FG_SpikeGL.exe"/*"MFCApplication2.exe"*/)
 	{
+        killAllInstancesOfProcessWithImageName(exeName);
+
         dialogW = 0; dialog = 0;
         didImgSizeWarn = sentFGCmd = false;
         imgXferCt = 0;

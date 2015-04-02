@@ -15,7 +15,7 @@ int serverIndex = -1, resourceIndex = -1;
 SpikeGLOutThread    *spikeGL = 0;
 SpikeGLInputThread  *spikeGLIn = 0;
 UINT_PTR timerId = 0;
-bool gotFirstXferCallback = false;
+bool gotFirstXferCallback = false, gotFirstStartFrameCallback = false;
 std::vector<BYTE> spikeGLFrameBuf;
 int bpp, pitch, width=0, height=0;
 
@@ -24,67 +24,69 @@ FPGA *fpga = 0;
 // some static functions..
 static void probeHardware();
 
-static void acqCallback(SapXferCallbackInfo *info) 
-{ 
-    char buf[64];
-    _snprintf_c(buf, sizeof(buf), "acqCallback called with event count %d", info->GetEventCount());
-    spikeGL->pushConsoleDebug(buf);
+static void acqCallback(SapXferCallbackInfo *info)
+{
+    (void)info;
 
-    if (buffers) {
-        XtCmdImg *xt = 0;
-        BYTE *pXt = 0;
-        BYTE *pData = 0;
-
-        if (!width) {
-            bpp = buffers->GetBytesPerPixel();		// bpp:		get number of bytes required to store a single image
-            pitch = buffers->GetPitch();				// pitch:	get number of bytes between two consecutive lines of all the buffer resource
-            width = buffers->GetWidth();				// width:	get the width (in pixel) of the image
-            height = buffers->GetHeight();				// Height:	get the height of the image
-        }
-
-        if (!gotFirstXferCallback) 
-            spikeGL->pushConsoleDebug("acqCallback called at least once! Yay!"), gotFirstXferCallback = true;
-        size_t len = (sizeof(XtCmdImg) - 1) + width*height;
-        if (size_t(spikeGLFrameBuf.size()) < len) spikeGLFrameBuf.resize(len);
-        if (size_t(spikeGLFrameBuf.size()) >= len) {
-            xt = (XtCmdImg *)&(spikeGLFrameBuf[0]);
-            xt->init(width, height);
-            pXt = xt->img;
-        }
-
-        if (!pXt) {
-            spikeGL->pushConsoleError("INTERNAL ERROR.. pXt is NULL!");
-            return;
-        }
-
-        buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
-
-        if (!pData) {
-            spikeGL->pushConsoleError("SapBuffers::GetAddress() returned a NULL pointer!");
-            return;
-        }
-
-        if (pitch == width) {
-            memcpy(pXt, pData, width*height);
-        } else {
-            // copy each row (line) of pixels.  Note the pitch parameter used to skip lines in the source image..
-            for (int i = 0; i < height; ++i)
-                memcpy(pXt + i*width, pData + i*pitch, width);
-        }
-
-        buffers->ReleaseAddress(pData); // Need to release it to return it to the hardware!
-
-        // for SpikeGL
-        if (xt) {
-            if (!spikeGL->pushCmd(xt)) { /* todo:.. handle error here!*/ }
-        }
+    if (!gotFirstXferCallback)
+        spikeGL->pushConsoleDebug("acqCallback called at least once! Yay!"), gotFirstXferCallback = true;
+    if (!buffers) {
+        spikeGL->pushConsoleDebug("INTERNAL ERROR... acqCallback called with 'buffers' pointer NULL!");
+        return;
     }
+    if (!width) {
+        bpp = buffers->GetBytesPerPixel();		// bpp:		get number of bytes required to store a single image
+        pitch = buffers->GetPitch();				// pitch:	get number of bytes between two consecutive lines of all the buffer resource
+        width = buffers->GetWidth();				// width:	get the width (in pixel) of the image
+        height = buffers->GetHeight();				// Height:	get the height of the image
+    }
+    int w = width, h = height;
+    if (w < DESIRED_WIDTH || h < DESIRED_HEIGHT) {
+        char tmp[512];
+        _snprintf_c(tmp, sizeof(tmp), "acqCallback got a frame of size %dx%d, but expected a frame of size %dx%d", w, h, DESIRED_WIDTH, DESIRED_HEIGHT);
+        spikeGL->pushConsoleError(tmp);
+        return;
+    }
+    if (w > DESIRED_WIDTH) w = DESIRED_WIDTH;
+    if (h > DESIRED_HEIGHT) h = DESIRED_HEIGHT;
+    size_t len = sizeof(XtCmdImg) + w*h;
+    if (size_t(spikeGLFrameBuf.size()) < len) spikeGLFrameBuf.resize(len);
+    if (size_t(spikeGLFrameBuf.size()) < len) {
+        spikeGL->pushConsoleError("INTERNAL ERROR.. could not allocate spikeGLFrameBuf!");
+        return;
+    }
+
+    XtCmdImg *xt = (XtCmdImg *)&(spikeGLFrameBuf[0]);
+    BYTE *pXt = xt->img, *pData = 0;
+
+    buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
+
+    if (!pData) {
+        spikeGL->pushConsoleError("SapBuffers::GetAddress() returned a NULL pointer!");
+        return;
+    }
+
+    xt->init(w, h);
+
+    if (pitch == w) {
+        memcpy(pXt, pData, w*h);
+    } else {
+        // copy each row (line) of pixels.  Note the pitch parameter used to skip lines in the source image..
+        for (int i = 0; i < h; ++i)
+            memcpy(pXt + i*w, pData + i*pitch, w);
+    }
+
+    buffers->ReleaseAddress(pData); // Need to release it to return it to the hardware!
+
+    // for SpikeGL
+    if (!spikeGL->pushCmd(xt)) { /* todo:.. handle error here!*/ }
 }
 
 static void startFrameCallback(SapAcqCallbackInfo *info) 
 { 
     (void)info;
-    spikeGL->pushConsoleDebug("startFrameCallback called");
+    if (!gotFirstStartFrameCallback)
+        spikeGL->pushConsoleDebug("'startFrameCallback' called at least once! Yay!"), gotFirstStartFrameCallback = true;
 }
 
 static void freeSapHandles()
@@ -96,6 +98,7 @@ static void freeSapHandles()
     if (buffers) delete buffers, buffers = 0;
     if (acq) delete acq, acq = 0;
     bpp = pitch = width = height = 0;
+    gotFirstStartFrameCallback = gotFirstXferCallback = false;
 }
 
 static void sapStatusCallback(SapManCallbackInfo *p)
@@ -332,11 +335,66 @@ static void probeHardware()
     }
 }
 
+void baseNameify(char *e)
+{
+    const char *s = e;
+    for (const char *t = s; t = strchr(s, '\\'); ++s) {}
+    if (e != s) memmove(e, s, strlen(s) + 1);
+}
+
+int killAllOtherInstances()
+{
+    HANDLE pseudo = GetCurrentProcess();
+    char myExe[MAX_PATH];
+    DWORD myPid = GetCurrentProcessId();
+    GetProcessImageFileName(pseudo, myExe, sizeof(myExe));
+    baseNameify(myExe);
+
+    DWORD pids[16384];
+    DWORD npids;
+
+    // get the process by name
+    if (!EnumProcesses(pids, sizeof(pids), &npids))
+        return -1;
+
+    // convert from bytes to processes
+    npids = npids / sizeof(DWORD);
+    int ct = 0;
+    // loop through all processes
+    for (DWORD i = 0; i < npids; ++i) {
+        if (pids[i] == myPid) continue; // skip self, obviously!
+        // get a handle to the process
+        HANDLE h = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pids[i]);
+        if (h == INVALID_HANDLE_VALUE) continue;
+        char exe[MAX_PATH];
+        // get the process name
+        if (GetProcessImageFileName(h, exe, sizeof(exe))) {
+            baseNameify(exe);
+            // terminate all pocesses that contain the name
+            if (0 == strcmp(exe, myExe)) {
+                TerminateProcess(h, 0);
+                ++ct;
+            }
+        }
+        CloseHandle(h);
+    }
+
+    if (ct && spikeGL) {
+        char buf[256];
+        _snprintf_c(buf, sizeof(buf), "killAllOtherInstances() -- killed %d other instances of %s", ct, myExe);
+        spikeGL->pushConsoleDebug(buf);
+    }
+
+    return ct;
+}
+
 int main(int argc, const char* argv[])
 {
     // NB: it's vital these two objects get constructed before any other calls.. since other code assumes they are valid and may call these objects' methods
     spikeGL = new SpikeGLOutThread;
     spikeGLIn = new SpikeGLInputThread;
+
+    killAllOtherInstances();
 
     setupTimerFunc();
     handleSpikeGLEnvParms();

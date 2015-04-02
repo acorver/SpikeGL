@@ -6,8 +6,9 @@
 #pragma once
 
 #include "targetver.h"
-
+#define PSAPI_VERSION 1
 #include <windows.h>
+#include <Psapi.h>
 
 #include <stdio.h>
 #include <sys/stat.h>

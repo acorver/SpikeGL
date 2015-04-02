@@ -47,10 +47,8 @@ RESOURCES += qled.qrc bug3.qrc framegrabber.qrc
 
 
 win32 {
-#        LIBS += WS2_32.lib
-        LIBS += $${PWD}/NI/NIDAQmx.lib WS2_32.lib DelayImp.lib
-#        DEFINES += _CRT_SECURE_NO_WARNINGS
-        DEFINES += HAVE_NIDAQmx _CRT_SECURE_NO_WARNINGS WIN32
+        LIBS += $${PWD}/NI/NIDAQmx.lib WS2_32.lib DelayImp.lib Psapi.lib
+        DEFINES += HAVE_NIDAQmx _CRT_SECURE_NO_WARNINGS WIN32 PSAPI_VERSION=1
 		RESOURCES += Resources.qrc
         RC_FILE += WinResources.rc
 		HEADERS += AOWriteThread.h
