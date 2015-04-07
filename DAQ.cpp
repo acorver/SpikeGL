@@ -1399,7 +1399,7 @@ namespace DAQ
 				if (isRunning() && !pleaseStop) {
 					emit daqError(shortName + " slave process died unexpectedly!");
 					pleaseStop = true;
-					Debug() << shortName << " task thread still running but slave process died -- signaling BugTask::daqThr() to end as a result...";
+					Debug() << shortName << " task thread still running but slave process died -- signaling daqThr() to end as a result...";
 				} 
 				break;
 			case QProcess::Starting:
