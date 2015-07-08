@@ -536,7 +536,8 @@ void MainApp::about()
                        "Developed for the Anthony Leonardo lab at\n"
                        "Janelia Farm Research Campus, HHMI\n\n"
                        "Software License: GPL v2 or later\n\n"
-					   "Bitcoin Address: 1Ca1inQuedcKdyELCTmN8AtKTTehebY4mC"
+					   "Bitcoin Address: 1Ca1inQuedcKdyELCTmN8AtKTTehebY4mC\n"
+					   "Git Repository: https://www.github.com/cculianu/SpikeGL"
 					   );
 	// find the QLabel for the above text to make it selectable...
 	foreach (QWidget *w, QApplication::topLevelWidgets()) {
