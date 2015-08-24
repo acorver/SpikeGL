@@ -279,6 +279,7 @@ private slots:
 	void bringAllToFront();
 	void fileOpen(); ///< slot triggered from the File->Open menu to open a new data file for perusal in the app.	
 	void optionsSortGraphsByElectrode(); ///< slot triggered by Options->sort graph by electrode menu action
+    void gotManualTrigOverride(bool); ///< sent from GraphsWindow UI when user wants to temporarily manually override all the triggers and save immediately
 
 private:
     /// Display a message to the status bar
@@ -345,7 +346,7 @@ private:
     double tNow;
     u64 lastSeenPD, pdOffTimeSamps;
     DAQ::Task *task;
-    bool taskWaitingForTrigger, taskWaitingForStop, 
+    bool taskWaitingForTrigger, taskHasManualTrigOverride, taskWaitingForStop,
         taskShouldStop; ///< used for StimGL trigger to stop the task when the queue empties
     i64 scanCt, startScanCt, stopScanCt, lastScanSz, stopRecordAtSamp;
     DataFile_Fn_Shm dataFile; ///< the OUTPUT save file (this member var never used for input)

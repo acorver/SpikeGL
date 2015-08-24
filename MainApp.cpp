@@ -784,6 +784,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	Connect(spatialWindow, SIGNAL(channelsSelected(const QVector<unsigned> &)), graphsWindow, SLOT(highlightGraphsById(const QVector<unsigned> &)));
 	Connect(spatialWindow, SIGNAL(channelsOpened(const QVector<unsigned> &)), graphsWindow, SLOT(openGraphsById(const QVector<unsigned> &)));
 	Connect(graphsWindow, SIGNAL(tabChanged(int)), spatialWindow, SLOT(selectBlock(int)));
+    Connect(graphsWindow, SIGNAL(manualTrig(bool)), this, SLOT(gotManualTrigOverride(bool)));
 
     if (!params.suppressGraphs) {
 		//spatialWindow->show();
@@ -793,7 +794,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         graphsWindow->hide();
     }
     taskWaitingForStop = false;
-    
+    taskHasManualTrigOverride = false;
+
     switch (params.acqStartEndMode) {
         case DAQ::Immediate: taskWaitingForTrigger = false; break;
         case DAQ::PDStartEnd: 
@@ -973,6 +975,7 @@ void MainApp::stopTask()
     stopAcq->setEnabled(false);
     aoPassthruAct->setEnabled(false);
     taskWaitingForTrigger = false;
+    taskHasManualTrigOverride = false;
 	stopRecordAtSamp = -1;
     updateWindowTitles();
 	if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
@@ -1188,27 +1191,31 @@ void MainApp::taskReadFunc()
 		int prebufCopied = 0;
 		
         if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
-            detectTriggerEvent(scans, firstSamp, triggerOffset); // may set taskWaitingForTrigger...
-            if (taskWaitingForTrigger && tNow-lastSBUpd > 0.25) { // every 1/4th of a second
-                if (p.acqStartEndMode == DAQ::Timed) {
-                    Status() << "Acquisition will auto-start in " << (startScanCt-scanCt)/p.srate << " seconds.";
-                    lastSBUpd = tNow;
-                } else if (p.acqStartEndMode == DAQ::StimGLStart
-                          || p.acqStartEndMode == DAQ::StimGLStartEnd) {
-                    Status() << "Acquisition waiting for start trigger from StimGL program";
-                } else if (p.acqStartEndMode == DAQ::PDStart
-                           || p.acqStartEndMode == DAQ::PDStartEnd) {
-                    Status() << "Acquisition waiting for start trigger from photo-diode";
-                } else if (p.acqStartEndMode == DAQ::Bug3TTLTriggered) {
-                    Status() << "Acquisition waiting for start trigger from Bug3 TTL line " << p.bug.ttlTrig;
-                } else if (p.acqStartEndMode == DAQ::AITriggered) {
-						Status() << "Acquisition waiting for start trigger from AI";
-                } 
+            if (!taskHasManualTrigOverride) {
+                detectTriggerEvent(scans, firstSamp, triggerOffset); // may set taskWaitingForTrigger...
+                if (taskWaitingForTrigger && tNow-lastSBUpd > 0.25) { // every 1/4th of a second
+                    if (p.acqStartEndMode == DAQ::Timed) {
+                        Status() << "Acquisition will auto-start in " << (startScanCt-scanCt)/p.srate << " seconds.";
+                        lastSBUpd = tNow;
+                    } else if (p.acqStartEndMode == DAQ::StimGLStart
+                               || p.acqStartEndMode == DAQ::StimGLStartEnd) {
+                        Status() << "Acquisition waiting for start trigger from StimGL program";
+                    } else if (p.acqStartEndMode == DAQ::PDStart
+                               || p.acqStartEndMode == DAQ::PDStartEnd) {
+                        Status() << "Acquisition waiting for start trigger from photo-diode";
+                    } else if (p.acqStartEndMode == DAQ::Bug3TTLTriggered) {
+                        Status() << "Acquisition waiting for start trigger from Bug3 TTL line " << p.bug.ttlTrig;
+                    } else if (p.acqStartEndMode == DAQ::AITriggered) {
+                        Status() << "Acquisition waiting for start trigger from AI";
+                    }
+                }
+            } else { //taskHasManualTrigOverride
+                graphsWindow->setPDTrig(true); // just always say it's high.  Note the led should be yellow here, to indicate an override
             }
         } 
 
 		// not an 'else' because both 'if' clauses are true on first trigger		
-        if (!taskWaitingForTrigger) { // task not waiting from trigger, normal acq.. 
+        if (!taskWaitingForTrigger || taskHasManualTrigOverride) { // task not waiting from trigger, normal acq.. OR task has manual trigger override so save NOW
             const u64 scanSz = scans.size();
 
 			if ((p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::Bug3TTLTriggered) && !dataFile.isOpen()) {
@@ -1220,7 +1227,8 @@ void MainApp::taskReadFunc()
 				updateWindowTitles();
 			}
 			
-            if (!needToStop && !taskShouldStop && taskWaitingForStop) {
+            if (!taskHasManualTrigOverride
+                && !needToStop && !taskShouldStop && taskWaitingForStop) {
                 needToStop = detectStopTask(scans, firstSamp);
             }
 			
@@ -1351,6 +1359,18 @@ void MainApp::taskReadFunc()
         stopTask();
 }
 		   
+void MainApp::gotManualTrigOverride(bool b)
+{
+    taskHasManualTrigOverride = b;
+    if (b) {
+        Status() << "PD/TTL Manual Trigger Override ENABLED";
+        Log() << "PD/TTL Manual Trigger Override ENABLED, will ignore PD/TTL trigger events and begin saving data immediately.";
+    } else {
+        Status() << "PD/TTL Manual Trigger Override DISABLED";
+        Log() << "PD/TTL Manual Trigger Override DISABLED, will close immediate data file and begin monitoring PD/TTL trigger events again.";
+        if (dataFile.isOpen()) dataFile.closeAndFinalize();
+    }
+}
 
 bool MainApp::detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp, i32 & triggerOffset)
 {

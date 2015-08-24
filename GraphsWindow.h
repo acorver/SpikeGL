@@ -61,6 +61,7 @@ public:
 
 signals:
 	void tabChanged(int tabNum);
+    void manualTrig(bool);
 
 public slots:
 	void highlightGraphsById(const QVector<unsigned> & electrode_ids);
@@ -91,6 +92,8 @@ private slots:
 	void saveFileLineEditChanged(const QString & newtext);
 	
 	void updateTabsWithHighlights();
+
+    void manualTrigOverrideChanged(bool);
 	
 private:
     void setGraphTimeSecs(int graphnum, double t); // note you should call update_nPtsAllGs after this!  (Not auto-called in this function just in case of batch setGraphTimeSecs() in which case 1 call at end to update_nPtsAllGs() suffices.)
@@ -160,7 +163,8 @@ private:
     int lastMouseOverGraph;
     int selectedGraph;
 	QLed *stimTrigLed, *pdTrigLed;
-	bool suppressRecursive;
+    bool modeCaresAboutSGL, modeCaresAboutPD;
+    bool suppressRecursive;
 	QVector <int> sorting, naming;
 	QSet<GLGraph *> extraGraphs;
 	QTimer *tabHighlightTimer;

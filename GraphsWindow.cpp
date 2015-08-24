@@ -74,7 +74,7 @@ static void initIcons()
 }
 
 GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), suppressRecursive(false)
+    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false)
 {
     sharedCtor(p, isSaving);
 }
@@ -381,8 +381,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 
 
 	// LED setup..
-	stimTrigLed = new QLed;
-	bool modeCaresAboutSGL = false, modeCaresAboutPD = false;
+    stimTrigLed = new QLed(leds);
+    modeCaresAboutSGL = false, modeCaresAboutPD = false;
 	switch(p.acqStartEndMode) {
 		case DAQ::AITriggered:
 		case DAQ::Bug3TTLTriggered:
@@ -396,19 +396,27 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 			modeCaresAboutSGL = true;
 		default: break;/* do nothing */
 	}
-	lbl = new QLabel("SGLTrig:");
+    lbl = new QLabel("SGLTrig:", leds);
 	stimTrigLed->setOffColor(p.stimGlTrigResave || modeCaresAboutSGL ? QLed::Red : QLed::Grey);
 	stimTrigLed->setOnColor(QLed::Green);
 	hbl->addWidget(lbl);
 	stimTrigLed->setMinimumSize(20,20);
 	hbl->addWidget(stimTrigLed);
-	lbl = new QLabel((p.acqStartEndMode == DAQ::AITriggered) ? "TTL:" : "PDTrig:");
-	pdTrigLed = new QLed;
+    lbl = new QLabel((p.acqStartEndMode == DAQ::AITriggered) ? "TTL:" : "PDTrig:", leds);
+    pdTrigLed = new QLed(leds);
 	pdTrigLed->setOffColor(modeCaresAboutPD ? QLed::Red : QLed::Grey);
 	pdTrigLed->setOnColor(QLed::Green);
 	hbl->addWidget(lbl);
 	pdTrigLed->setMinimumSize(20,20);
 	hbl->addWidget(pdTrigLed);
+    QCheckBox *trigOverride = new QCheckBox("Manual Override",leds);
+    trigOverride->setChecked(false);
+    if (modeCaresAboutPD /*|| modeCaresAboutSGL*/) {
+        Connect(trigOverride, SIGNAL(clicked(bool)), this, SLOT(manualTrigOverrideChanged(bool)));
+    } else {
+        trigOverride->setDisabled(true);
+    }
+    hbl->addWidget(trigOverride);
 	leds->setLayout(hbl);
 //	leds->setMinimumSize(100,40);
 	statusBar()->addPermanentWidget(leds);
@@ -436,6 +444,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 		sortGraphsByElectrodeId();
 	}
 }
+
 
 GraphsWindow::~GraphsWindow()
 {
@@ -1125,6 +1134,19 @@ void GraphsWindow::tabChange(int t)
 	//retileGraphsAccordingToSorting();
 	emit tabChanged(t);
 }
+
+void GraphsWindow::manualTrigOverrideChanged(bool b)
+{
+    if (b) {
+        //if (stimTrigLed->offColor() != QLed::Grey) stimTrigLed->setOnColor(QLed::Yellow);
+        if (pdTrigLed->offColor() != QLed::Grey) pdTrigLed->setOnColor(QLed::Yellow);
+    } else {
+        //stimTrigLed->setOnColor(QLed::Green);
+        pdTrigLed->setOnColor(QLed::Green);
+    }
+    emit manualTrig(b);
+}
+
 
 void GraphsWindow::saveFileLineEditChanged(const QString &t)
 {
