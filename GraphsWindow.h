@@ -48,6 +48,8 @@ public:
 
 	void setPDTrig(bool);
 	void setSGLTrig(bool);
+    void setTrigOverride(bool);
+    void setTrigOverrideEnabled(bool);
 
 	void hideUnhideSaveChannelCBs();
 	
@@ -163,6 +165,7 @@ private:
     int lastMouseOverGraph;
     int selectedGraph;
 	QLed *stimTrigLed, *pdTrigLed;
+    QCheckBox *trigOverrideChk;
     bool modeCaresAboutSGL, modeCaresAboutPD;
     bool suppressRecursive;
 	QVector <int> sorting, naming;

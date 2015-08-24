@@ -1210,7 +1210,7 @@ void MainApp::taskReadFunc()
                     }
                 }
             } else { //taskHasManualTrigOverride
-                graphsWindow->setPDTrig(true); // just always say it's high.  Note the led should be yellow here, to indicate an override
+                if (graphsWindow) graphsWindow->setPDTrig(true); // just always say it's high.  Note the led should be yellow here, to indicate an override
             }
         } 
 
@@ -1425,6 +1425,10 @@ bool MainApp::detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp
     }
     if (triggered) {
         triggerTask();
+        if (graphsWindow) {
+            graphsWindow->setTrigOverride(false);
+            graphsWindow->setTrigOverrideEnabled(false);
+        }
     }
 	if (graphsWindow) graphsWindow->setPDTrig(triggered);
     
@@ -1468,7 +1472,11 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
 				Warning() << "PD/AI un-trig but datafile not open!  This is not really well-defined, but stopping task anyway.";
 				stopped = true;
 			}
-			if (graphsWindow) graphsWindow->setPDTrig(false);
+            if (graphsWindow) {
+                graphsWindow->setPDTrig(false);
+                graphsWindow->setTrigOverrideEnabled(true);
+                graphsWindow->setTrigOverride(false);
+            }
             Log() << "PD/AI un-trig due to input line being off for >" << p.pdStopTime << " seconds.";
         }
     }

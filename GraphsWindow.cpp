@@ -409,14 +409,14 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	hbl->addWidget(lbl);
 	pdTrigLed->setMinimumSize(20,20);
 	hbl->addWidget(pdTrigLed);
-    QCheckBox *trigOverride = new QCheckBox("Manual Override",leds);
-    trigOverride->setChecked(false);
+    trigOverrideChk = new QCheckBox("Manual Override",leds);
+    trigOverrideChk->setChecked(false);
     if (modeCaresAboutPD /*|| modeCaresAboutSGL*/) {
-        Connect(trigOverride, SIGNAL(clicked(bool)), this, SLOT(manualTrigOverrideChanged(bool)));
+        Connect(trigOverrideChk, SIGNAL(clicked(bool)), this, SLOT(manualTrigOverrideChanged(bool)));
     } else {
-        trigOverride->setDisabled(true);
+        trigOverrideChk->setDisabled(true);
     }
-    hbl->addWidget(trigOverride);
+    hbl->addWidget(trigOverrideChk);
 	leds->setLayout(hbl);
 //	leds->setMinimumSize(100,40);
 	statusBar()->addPermanentWidget(leds);
@@ -963,6 +963,15 @@ void GraphsWindow::setSGLTrig(bool b) {
 	stimTrigLed->setValue(b);
 }
 
+void GraphsWindow::setTrigOverride(bool b)
+{
+    trigOverrideChk->setChecked(b);
+}
+
+void GraphsWindow::setTrigOverrideEnabled(bool b)
+{
+    trigOverrideChk->setEnabled(b);
+}
 
 void GraphsWindow::saveGraphChecked(bool b) {
 	const int num = sender()->objectName().toInt();
