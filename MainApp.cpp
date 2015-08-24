@@ -821,7 +821,12 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
             Error() << errTitle << " " << errMsg;
             return false;
     }
-    
+
+    if (params.acqStartEndMode == DAQ::Bug3TTLTriggered)
+        graphsWindow->setTrigOverrideEnabled(true);
+    else
+        graphsWindow->setTrigOverrideEnabled(false);
+
 	DAQ::NITask *nitask = 0;
 	DAQ::BugTask *bugtask = 0;
 	DAQ::FGTask *fgtask = 0;
@@ -1474,8 +1479,10 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
 			}
             if (graphsWindow) {
                 graphsWindow->setPDTrig(false);
-                graphsWindow->setTrigOverrideEnabled(true);
-                graphsWindow->setTrigOverride(false);
+                if (p.acqStartEndMode == DAQ::Bug3TTLTriggered) {
+                    graphsWindow->setTrigOverrideEnabled(true);
+                    graphsWindow->setTrigOverride(false);
+                }
             }
             Log() << "PD/AI un-trig due to input line being off for >" << p.pdStopTime << " seconds.";
         }
