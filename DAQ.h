@@ -155,7 +155,6 @@ namespace DAQ
 			int hpf; // if nonzero, the high pass filter is enabled at set to filter past this many Hz
 			bool snf; // if true, use the software notch filter at 60Hz
 			int errTol; // out of 144, default is 6
-            mutable volatile bool ignoreTO; ///< if true, ignore subprocess timeouts
             void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false;  }
 		} bug;
 		

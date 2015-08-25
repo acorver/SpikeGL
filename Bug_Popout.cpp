@@ -14,12 +14,10 @@ Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
 	
 	if (p.hpf > 0) { ui->hpfChk->setChecked(true); ui->hpfSB->setValue(p.hpf); } else { ui->hpfChk->setChecked(false); }
 	ui->snfChk->setChecked(p.snf);
-    ui->ignoreTOChk->setChecked(p.ignoreTO);
 	ui->statusLabel->setText("Startup...");
 	
 	Connect(ui->snfChk, SIGNAL(toggled(bool)), this, SLOT(filterSettingsChanged()));
 	Connect(ui->hpfChk, SIGNAL(toggled(bool)), this, SLOT(filterSettingsChanged()));
-    Connect(ui->ignoreTOChk, SIGNAL(toggled(bool)), this, SLOT(ignoreTOChanged(bool)));
     Connect(ui->hpfSB, SIGNAL(valueChanged(int)), this, SLOT(filterSettingsChanged()));
 	
 	mainApp()->sortGraphsByElectrodeAct->setEnabled(false);
@@ -193,12 +191,6 @@ void Bug_Popout::filterSettingsChanged()
 	task->setHPFilter(ui->hpfChk->isChecked() ? ui->hpfSB->value() : 0);
 }
 
-void Bug_Popout::ignoreTOChanged(bool b)
-{
-    p.ignoreTO = b;
-    // UGLY HACK to save this value.
-    mainApp()->configureDialogController()->saveSettings(ConfigureDialogController::BUG);
-}
 
 void Bug_Popout::setupGraphs()
 {

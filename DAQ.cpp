@@ -1482,7 +1482,7 @@ namespace DAQ
 					p.kill();
 					return;
 				}
-				if (--tout_ct < 0) tout_ct = 0;
+                tout_ct = 0;
 				QByteArray buf = p.readAll();
 				if (!buf.size()) {
 					Warning() << shortName << " slave process: read 0 bytes!";
@@ -1592,8 +1592,7 @@ namespace DAQ
 	
     int BugTask::readTimeoutMaxSecs() const
     {
-        if (params.bug.ignoreTO) return INT_MAX;
-        else return 5;
+        return 10;
     }
 
 
@@ -1677,7 +1676,11 @@ namespace DAQ
 			}
 		} else if (!state && line.startsWith("USRMSG:")) {
 			emit(daqWarning(line.mid(7).trimmed()));
-		}		
+        } else if (!state && line.startsWith("WARNMSG:")) {
+            Warning() << "Bug3: " << line.mid(8).trimmed();
+        } else if (!state && line.startsWith("LOGMSG:")) {
+            Log() << "Bug3: " << line.mid(7).trimmed();
+        }
 	}
 	
 	void BugTask::processBlock(const QMap<QString, QString> & blk, quint64 blockNum)

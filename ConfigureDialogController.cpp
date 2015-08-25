@@ -1131,7 +1131,6 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.bug.hpf = settings.value("bug_hpf", 0).toInt();
 	p.bug.snf = settings.value("bug_snf", false).toBool();	
 	p.bug.errTol = settings.value("bug_errTol", 6).toInt();
-    p.bug.ignoreTO = settings.value("bug_ignoreTO", false).toBool();
 
     p.fg.baud = settings.value("fg_baud", 1).toInt();
     p.fg.com = settings.value("fg_com", 1).toInt();
@@ -1230,7 +1229,6 @@ void ConfigureDialogController::saveSettings(int sc) const
         settings.setValue("bug_hpf", p.bug.hpf);
         settings.setValue("bug_snf", p.bug.snf);
         settings.setValue("bug_errTol", p.bug.errTol);
-        settings.setValue("bug_ignoreTO", p.bug.ignoreTO);
     }
 
     if (sc & FG) {

@@ -67,6 +67,7 @@ namespace Bug3
         private int xSlowPosBER = 0;
         private const int XPlotOffset = 64;
         private int noDataCounter = 0;
+        private int noDataCounter2 = 0;
 
         private const int numAvg = 10;
         private int avgStatCounter = 0;
@@ -1103,10 +1104,12 @@ namespace Bug3
                     doPlot(numPagesLeftInRAM); // NB: do the plot even if GUI hidden.. as it writes to the USB device in some cases!
                     if (Params.consoleData) doConsoleDataOutput(numPagesLeftInRAM);
                     plotQueue.Clear(); // must call this else data will leak..
+                    noDataCounter = noDataCounter2 = 0;
                 }
                 else // plotQueue.count() == 0
                 {
                     noDataCounter++;
+                    noDataCounter2++;
 
                     // Turn off LED bar graph if we haven't seen any valid frames in a while
                     if (noDataCounter > 10)
@@ -1116,6 +1119,12 @@ namespace Bug3
                         lblFrameFound.ForeColor = Color.Red;
                         lblChipID.Text = "n/a";
                         noDataCounter = 0;
+                    }
+
+                    if (noDataCounter2 > 200)
+                    {
+                        if (Params.consoleData) Console.WriteLine("WARNMSG: No frame data received in a while, continuing...");
+                        noDataCounter2 = 0;
                     }
                 }
 
