@@ -27,6 +27,7 @@ public:
 	
 private slots:
 	void filterSettingsChanged();
+    void ignoreTOChanged(bool);
 	
 private:
 	void setupGraphs();

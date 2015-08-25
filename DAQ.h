@@ -155,7 +155,8 @@ namespace DAQ
 			int hpf; // if nonzero, the high pass filter is enabled at set to filter past this many Hz
 			bool snf; // if true, use the software notch filter at 60Hz
 			int errTol; // out of 144, default is 6
-			void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false; }
+            mutable volatile bool ignoreTO; ///< if true, ignore subprocess timeouts
+            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false;  }
 		} bug;
 		
 		struct FG { // framegrabber
@@ -448,6 +449,7 @@ namespace DAQ
 		QStringList filesList() const; ///< used to setup the exedir with the appropriate files in resources.  reimplement to return a list of resource paths to put into the exedir..
 		void setupEnv(QProcessEnvironment &) const; ///< called before the exe is about to be run. set up any needed environment parameters
 		void sendExitCommand(QProcess &p) const;
+        int readTimeoutMaxSecs() const;
 
 	private:
 		int state;

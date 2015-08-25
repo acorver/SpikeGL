@@ -41,8 +41,12 @@ public:
     QString acqParamsToString();
     QString acqParamsFromString(const QString & paramString); ///< returns QString::null on success, or an explanatory error message on error
 
+    enum SettingsCategory {
+        ALL = 0xffffffff, BASE = 1, BUG = 2, FG = 4
+    };
+
     void loadSettings();
-    void saveSettings() const;
+    void saveSettings(int sc = ALL) const;
 
     static QString parseAIChanString(const QString & aichanstr, QVector<unsigned> & aiChannels_out, bool *parse_error = 0, bool emptyOk = false);
     static QMap<unsigned,unsigned> parseAOPassthruString(const QString & aochanstr, bool *parse_error = 0);

@@ -1131,6 +1131,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.bug.hpf = settings.value("bug_hpf", 0).toInt();
 	p.bug.snf = settings.value("bug_snf", false).toBool();	
 	p.bug.errTol = settings.value("bug_errTol", 6).toInt();
+    p.bug.ignoreTO = settings.value("bug_ignoreTO", false).toBool();
 
     p.fg.baud = settings.value("fg_baud", 1).toInt();
     p.fg.com = settings.value("fg_com", 1).toInt();
@@ -1155,7 +1156,7 @@ void ConfigureDialogController::loadSettings()
 
 }
 
-void ConfigureDialogController::saveSettings() const
+void ConfigureDialogController::saveSettings(int sc) const
 {
     const DAQ::Params & p(acceptedParams);
 
@@ -1163,78 +1164,84 @@ void ConfigureDialogController::saveSettings() const
 
     settings.beginGroup(SETTINGS_GROUP);
     
-    settings.setValue("outputFile", /*QFileInfo(*/p.outputFile/*).fileName()*/);
-    //QString path = QFileInfo(p.outputFile).path();
-    //mainApp()->setOutputDirectory(path.length() ? path : QString(PATH_SEPARATOR));
-    settings.setValue("dev", p.dev);
-    settings.setValue("stimGlTrigResave", p.stimGlTrigResave);
+    if (sc & BASE) {
+        settings.setValue("outputFile", /*QFileInfo(*/p.outputFile/*).fileName()*/);
+        //QString path = QFileInfo(p.outputFile).path();
+        //mainApp()->setOutputDirectory(path.length() ? path : QString(PATH_SEPARATOR));
+        settings.setValue("dev", p.dev);
+        settings.setValue("stimGlTrigResave", p.stimGlTrigResave);
 
-    settings.setValue("rangeMin", p.range.min);
-    settings.setValue("rangeMax", p.range.max);
-    settings.setValue("acqMode", (int)p.mode);
-    settings.setValue("doCtlChan", p.doCtlChan);
-    settings.setValue("srate", p.srate);
-    settings.setValue("extClock", p.extClock);
-    settings.setValue("aiString", p.aiString);
-    settings.setValue("subsetString", p.subsetString);
-    settings.setValue("aoDev", p.aoDev);
-    settings.setValue("aoPassthru", p.aoPassthru);
-    settings.setValue("aoRangeMin", p.aoRange.min);
-    settings.setValue("aoRangeMax", p.aoRange.max);
-    settings.setValue("aoPassthruString", p.aoPassthruString);
-    settings.setValue("suppressGraphs", p.suppressGraphs);    
-    
-    settings.setValue("acqStartEndMode", (int)p.acqStartEndMode);
-    settings.setValue("acqStartTimedImmed", p.isImmediate);
-    settings.setValue("acqStartTimedIndef", p.isIndefinite);
-    settings.setValue("acqStartTimedTime", p.startIn);
-    settings.setValue("acqStartTimedDuration", p.duration);
+        settings.setValue("rangeMin", p.range.min);
+        settings.setValue("rangeMax", p.range.max);
+        settings.setValue("acqMode", (int)p.mode);
+        settings.setValue("doCtlChan", p.doCtlChan);
+        settings.setValue("srate", p.srate);
+        settings.setValue("extClock", p.extClock);
+        settings.setValue("aiString", p.aiString);
+        settings.setValue("subsetString", p.subsetString);
+        settings.setValue("aoDev", p.aoDev);
+        settings.setValue("aoPassthru", p.aoPassthru);
+        settings.setValue("aoRangeMin", p.aoRange.min);
+        settings.setValue("aoRangeMax", p.aoRange.max);
+        settings.setValue("aoPassthruString", p.aoPassthruString);
+        settings.setValue("suppressGraphs", p.suppressGraphs);
 
-    settings.setValue("acqPDThresh", p.pdThresh);
-    settings.setValue("acqPDChan", p.pdChan);
-	settings.setValue("pdChanIsVirtual", p.pdChanIsVirtual);
-    settings.setValue("acqPDPassthruChanAO", p.pdPassThruToAO);
-    settings.setValue("acqPDOffStopTime", p.pdStopTime);
-	settings.setValue("acqPDThreshW", p.pdThreshW);
-    settings.setValue("aiTermConfig", (int)p.aiTerm);
-    settings.setValue("fastSettleTimeMS", p.fastSettleTimeMS);
-    settings.setValue("auxGain", p.auxGain);
+        settings.setValue("acqStartEndMode", (int)p.acqStartEndMode);
+        settings.setValue("acqStartTimedImmed", p.isImmediate);
+        settings.setValue("acqStartTimedIndef", p.isIndefinite);
+        settings.setValue("acqStartTimedTime", p.startIn);
+        settings.setValue("acqStartTimedDuration", p.duration);
 
-    settings.setValue("silenceBeforePD", p.silenceBeforePD);
+        settings.setValue("acqPDThresh", p.pdThresh);
+        settings.setValue("acqPDChan", p.pdChan);
+        settings.setValue("pdChanIsVirtual", p.pdChanIsVirtual);
+        settings.setValue("acqPDPassthruChanAO", p.pdPassThruToAO);
+        settings.setValue("acqPDOffStopTime", p.pdStopTime);
+        settings.setValue("acqPDThreshW", p.pdThreshW);
+        settings.setValue("aiTermConfig", (int)p.aiTerm);
+        settings.setValue("fastSettleTimeMS", p.fastSettleTimeMS);
+        settings.setValue("auxGain", p.auxGain);
 
-	settings.setValue("lowLatency", p.lowLatency);
-	settings.setValue("doPreJuly2011IntanDemux", p.doPreJuly2011IntanDemux);
-	settings.setValue("aiBufferSizeCentiSeconds", p.aiBufferSizeCS);
-	settings.setValue("dualDevMode", p.dualDevMode);
-	settings.setValue("dev2", p.dev2);
-	settings.setValue("aiString2", p.aiString2);
-	
-	settings.setValue("aoSrate", p.aoSrate);
-	settings.setValue("aoClock", p.aoClock);
-	settings.setValue("aoBufferSizeCentiSeconds", p.aoBufferSizeCS);
+        settings.setValue("silenceBeforePD", p.silenceBeforePD);
 
-	settings.setValue("secondDevIsAuxOnly", p.secondDevIsAuxOnly);
-	settings.setValue("pdOnSecondDev", p.pdOnSecondDev);
-	settings.setValue("resumeGraphSettings", p.resumeGraphSettings);
-	settings.setValue("autoRetryOnAIOverrun", p.autoRetryOnAIOverrun);
-    settings.setValue("overrideGraphsPerTab", p.overrideGraphsPerTab);
+        settings.setValue("lowLatency", p.lowLatency);
+        settings.setValue("doPreJuly2011IntanDemux", p.doPreJuly2011IntanDemux);
+        settings.setValue("aiBufferSizeCentiSeconds", p.aiBufferSizeCS);
+        settings.setValue("dualDevMode", p.dualDevMode);
+        settings.setValue("dev2", p.dev2);
+        settings.setValue("aiString2", p.aiString2);
 
+        settings.setValue("aoSrate", p.aoSrate);
+        settings.setValue("aoClock", p.aoClock);
+        settings.setValue("aoBufferSizeCentiSeconds", p.aoBufferSizeCS);
 
-	settings.setValue("bug_rate", p.bug.rate);
-	settings.setValue("bug_ttlTrig", p.bug.ttlTrig);
-	settings.setValue("bug_whichTTLs", p.bug.whichTTLs);
-	settings.setValue("bug_clockEdge", p.bug.clockEdge);
-	settings.setValue("bug_hpf", p.bug.hpf);
-	settings.setValue("bug_snf", p.bug.snf);
-	settings.setValue("bug_errTol", p.bug.errTol);
+        settings.setValue("secondDevIsAuxOnly", p.secondDevIsAuxOnly);
+        settings.setValue("pdOnSecondDev", p.pdOnSecondDev);
+        settings.setValue("resumeGraphSettings", p.resumeGraphSettings);
+        settings.setValue("autoRetryOnAIOverrun", p.autoRetryOnAIOverrun);
+        settings.setValue("overrideGraphsPerTab", p.overrideGraphsPerTab);
+    }
 
-    settings.setValue("fg_baud", p.fg.baud);
-    settings.setValue("fg_com", p.fg.com);
-    settings.setValue("fg_bits", p.fg.bits);
-    settings.setValue("fg_stop", p.fg.stop);
-    settings.setValue("fg_parity", p.fg.parity);
-    settings.setValue("fg_sidx", p.fg.sidx);
-    settings.setValue("fg_ridx", p.fg.ridx);
+    if (sc & BUG) {
+        settings.setValue("bug_rate", p.bug.rate);
+        settings.setValue("bug_ttlTrig", p.bug.ttlTrig);
+        settings.setValue("bug_whichTTLs", p.bug.whichTTLs);
+        settings.setValue("bug_clockEdge", p.bug.clockEdge);
+        settings.setValue("bug_hpf", p.bug.hpf);
+        settings.setValue("bug_snf", p.bug.snf);
+        settings.setValue("bug_errTol", p.bug.errTol);
+        settings.setValue("bug_ignoreTO", p.bug.ignoreTO);
+    }
+
+    if (sc & FG) {
+        settings.setValue("fg_baud", p.fg.baud);
+        settings.setValue("fg_com", p.fg.com);
+        settings.setValue("fg_bits", p.fg.bits);
+        settings.setValue("fg_stop", p.fg.stop);
+        settings.setValue("fg_parity", p.fg.parity);
+        settings.setValue("fg_sidx", p.fg.sidx);
+        settings.setValue("fg_ridx", p.fg.ridx);
+    }
 
 	settings.endGroup(); 
 }

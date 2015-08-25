@@ -1370,10 +1370,12 @@ void MainApp::gotManualTrigOverride(bool b)
     if (b) {
         Status() << "PD/TTL Manual Trigger Override ENABLED";
         Log() << "PD/TTL Manual Trigger Override ENABLED, will ignore PD/TTL trigger events and begin saving data immediately.";
+        updateWindowTitles();
     } else {
         Status() << "PD/TTL Manual Trigger Override DISABLED";
         Log() << "PD/TTL Manual Trigger Override DISABLED, will close immediate data file and begin monitoring PD/TTL trigger events again.";
         if (dataFile.isOpen()) dataFile.closeAndFinalize();
+        updateWindowTitles();
     }
 }
 
@@ -1429,11 +1431,8 @@ bool MainApp::detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp
     }
     }
     if (triggered) {
+        if (graphsWindow) graphsWindow->setTrigOverrideEnabled(false);
         triggerTask();
-        if (graphsWindow) {
-            graphsWindow->setTrigOverride(false);
-            graphsWindow->setTrigOverrideEnabled(false);
-        }
     }
 	if (graphsWindow) graphsWindow->setPDTrig(triggered);
     
@@ -1479,10 +1478,8 @@ bool MainApp::detectStopTask(const std::vector<int16> & scans, u64 firstSamp)
 			}
             if (graphsWindow) {
                 graphsWindow->setPDTrig(false);
-                if (p.acqStartEndMode == DAQ::Bug3TTLTriggered) {
+                if (p.acqStartEndMode == DAQ::Bug3TTLTriggered)
                     graphsWindow->setTrigOverrideEnabled(true);
-                    graphsWindow->setTrigOverride(false);
-                }
             }
             Log() << "PD/AI un-trig due to input line being off for >" << p.pdStopTime << " seconds.";
         }
@@ -1535,7 +1532,9 @@ void MainApp::updateWindowTitles()
     QString stat = "";
     QString fname = isOpen ? dataFile.fileName() : "(no outfile)";
     if (task) {
-        if (taskWaitingForTrigger)
+        if (taskHasManualTrigOverride) {
+            stat = "MANUAL TRIG OVERRIDE - " + fname;
+        } else if (taskWaitingForTrigger)
             stat = "WAITING - " + fname;
         else
             stat = "RUNNING - " + fname;

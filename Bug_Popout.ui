@@ -33,7 +33,7 @@
    <property name="geometry">
     <rect>
      <x>354</x>
-     <y>30</y>
+     <y>40</y>
      <width>151</width>
      <height>18</height>
     </rect>
@@ -661,6 +661,59 @@
    </property>
    <property name="text">
     <string>&amp; Bit Error Rates</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="ignoreTOChk">
+   <property name="geometry">
+    <rect>
+     <x>354</x>
+     <y>15</y>
+     <width>151</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="palette">
+    <palette>
+     <active>
+      <colorrole role="WindowText">
+       <brush brushstyle="SolidPattern">
+        <color alpha="255">
+         <red>0</red>
+         <green>90</green>
+         <blue>84</blue>
+        </color>
+       </brush>
+      </colorrole>
+     </active>
+     <inactive>
+      <colorrole role="WindowText">
+       <brush brushstyle="SolidPattern">
+        <color alpha="255">
+         <red>0</red>
+         <green>90</green>
+         <blue>84</blue>
+        </color>
+       </brush>
+      </colorrole>
+     </inactive>
+     <disabled>
+      <colorrole role="WindowText">
+       <brush brushstyle="SolidPattern">
+        <color alpha="255">
+         <red>120</red>
+         <green>120</green>
+         <blue>120</blue>
+        </color>
+       </brush>
+      </colorrole>
+     </disabled>
+    </palette>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, the DAQ reader thread will ignore read timeouts from the Bug3 subprocess. This is useful in situations where the fly goes out of range and no data comes in to the receiver. Otherwise, 5 seconds of read timeouts will cause the DAQ task to stop.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Ignore  Timeouts</string>
    </property>
   </widget>
  </widget>

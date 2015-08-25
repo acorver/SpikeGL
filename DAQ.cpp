@@ -1590,6 +1590,13 @@ namespace DAQ
 		return files;
 	}
 	
+    int BugTask::readTimeoutMaxSecs() const
+    {
+        if (params.bug.ignoreTO) return INT_MAX;
+        else return 5;
+    }
+
+
 	void BugTask::setupEnv(QProcessEnvironment & env) const
 	{
 		env.insert("BUG3_SPIKEGL_MODE", "yes");

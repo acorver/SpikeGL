@@ -48,7 +48,6 @@ public:
 
 	void setPDTrig(bool);
 	void setSGLTrig(bool);
-    void setTrigOverride(bool);
     void setTrigOverrideEnabled(bool);
 
 	void hideUnhideSaveChannelCBs();

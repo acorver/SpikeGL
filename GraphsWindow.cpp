@@ -411,11 +411,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	hbl->addWidget(pdTrigLed);
     trigOverrideChk = new QCheckBox("Manual Override",leds);
     trigOverrideChk->setChecked(false);
-    if (modeCaresAboutPD /*|| modeCaresAboutSGL*/) {
-        Connect(trigOverrideChk, SIGNAL(clicked(bool)), this, SLOT(manualTrigOverrideChanged(bool)));
-    } else {
-        trigOverrideChk->setDisabled(true);
-    }
+    trigOverrideChk->setToolTip("Bug3 Mode only. Manually override the trigger detection mechanism and force a file to open and save immediately while this is checked.");
+    Connect(trigOverrideChk, SIGNAL(clicked(bool)), this, SLOT(manualTrigOverrideChanged(bool)));
     hbl->addWidget(trigOverrideChk);
 	leds->setLayout(hbl);
 //	leds->setMinimumSize(100,40);
@@ -963,14 +960,14 @@ void GraphsWindow::setSGLTrig(bool b) {
 	stimTrigLed->setValue(b);
 }
 
-void GraphsWindow::setTrigOverride(bool b)
-{
-    trigOverrideChk->setChecked(b);
-}
-
 void GraphsWindow::setTrigOverrideEnabled(bool b)
 {
     trigOverrideChk->setEnabled(b);
+    if (!b) {
+        trigOverrideChk->setChecked(false);
+        pdTrigLed->setOnColor(QLed::Yellow);
+    } else
+        pdTrigLed->setOnColor(QLed::Green);
 }
 
 void GraphsWindow::saveGraphChecked(bool b) {
