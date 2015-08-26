@@ -66,6 +66,9 @@ namespace Bug3
         public int falseFrameCount;
         public UInt16[] rawData = new UInt16[Constant.MaxFrameSize * Constant.FramesPerBlock];
 
+        // the absolute time in nanoseconds that this data block was created, as returned by MainForm.GetAbsTimeNS()
+        public long timeStampNanos; 
+
         // public methods
 
         /// <summary>
@@ -91,6 +94,8 @@ namespace Bug3
 
             missingFrameCount = 0;
             falseFrameCount = 0;
+
+            timeStampNanos = MainForm.GetAbsTimeNS();
 
             for (i = 0; i < frameSize * Constant.FramesPerBlock; i++)
             {

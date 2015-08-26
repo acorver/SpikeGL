@@ -73,7 +73,7 @@ namespace Util
 /// retrieve a time value from the system's high resolution timer
  double getTime();
 
-/// retrieve a time value from the system's high resolution timer -- the absolute time since system boot is returns, in nanoseconds
+/// retrieve a time value from the system's high resolution timer -- the absolute time since system boot is returned, in nanoseconds
 /// implemented to attempt to do synch in the StimGL/SpikeGL frame share mechanism
   u64 getAbsTimeNS();
 	

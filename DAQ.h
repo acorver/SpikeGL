@@ -425,6 +425,7 @@ namespace DAQ
 			int falseFrameCount;
 			double BER, WER; ///< bit error rate and word error rate
 			double avgVunreg; ///< computed value derived from the "AUX" voltage channel.  Avg of all frames.  To save time we compute it on-the-fly as well.
+            u64 comm_absTimeNS, creation_absTimeNS; ///< timestamp ultimately coming off the CPU TSC that went with the block when it was created (creation_) and when it was sent down the pipe to SpikeGL (comm_)
 			
 			BlockMetaData();
 			BlockMetaData(const BlockMetaData &o);

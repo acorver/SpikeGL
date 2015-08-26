@@ -37,6 +37,9 @@ using System.Media;
 using System.Threading;
 using OpalKelly.FrontPanel;
 
+// interop 
+using System.Runtime.InteropServices;
+
 namespace Bug3
 {
     /// <summary>
@@ -131,6 +134,28 @@ namespace Bug3
         private SpikeRecord mySpikeRecord = new SpikeRecord();
         private bool spikeWindowVisible = false;
         private Point spikeWindowOffset = new Point(980, 150);
+
+
+        // high perf counter for timing/lag/delay testing
+        [DllImport("Kernel32.dll")]
+        private static extern bool QueryPerformanceCounter(out long lpPerformanceCount);
+        [DllImport("Kernel32.dll")]
+        private static extern bool QueryPerformanceFrequency(out long lpFrequency);
+        private static long pfreq = 0;
+
+        // returns the absolute time in nanos since system boot
+        public static long GetAbsTimeNS()
+        {
+	        long ct, factor;
+	
+	        if (pfreq==0 && !QueryPerformanceFrequency(out pfreq)) 
+                return 0; 
+
+	        QueryPerformanceCounter(out ct);   // reads the current time (in system units) 
+        	factor = 1000000000L/pfreq;
+	        if (factor <= 0) factor = 1;
+	        return ct * factor;
+        }
 
         public class ConfigParams
         {
@@ -1078,6 +1103,8 @@ namespace Bug3
                 }
                 writer.WriteLine("}");
 
+                writer.Write("CREATION_ABSTIMENS{"); writer.Write(data.timeStampNanos); writer.WriteLine("}");
+                writer.Write("COMM_ABSTIMENS{"); writer.Write(GetAbsTimeNS()); writer.WriteLine("}");
                 writer.Write("BER{"); writer.Write(data.BER); writer.WriteLine("}");
                 writer.Write("WER{"); writer.Write(data.WER); writer.WriteLine("}");
                 writer.Write("MISSING_FC{"); writer.Write(data.missingFrameCount); writer.WriteLine("}");

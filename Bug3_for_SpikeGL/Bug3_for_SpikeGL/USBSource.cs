@@ -317,7 +317,6 @@ namespace Bug3
             int i, numPagesInRAM, numPagesLeftInRAM, numBytesToRead, numBytesRead, indexUSB, indexFrame;
             int word1, word2, word3, word4;
             int pageThreshold = 20;
-            USBData USBDataBlock;
 
             numPagesLeftInRAM = 0;
 
@@ -360,6 +359,9 @@ namespace Bug3
 
             if (haveEnoughData)
             {
+                USBData USBDataBlock;
+                long tsNow = MainForm.GetAbsTimeNS();
+
                 if (synthDataMode)
                 {
                     int channel, j;
@@ -508,6 +510,8 @@ namespace Bug3
                     USBDataBlock.NeuralFilterNotch(neuralDelay1, neuralDelay2, neuralNotchDelay1, neuralNotchDelay2, fNotch, Constant.NeuralSampleRate);
                     USBDataBlock.EMGFilterNotch(EMGDelay1, EMGDelay2, EMGNotchDelay1, EMGNotchDelay2, fNotch, Constant.EMGSampleRate);
                 }
+
+                USBDataBlock.timeStampNanos = tsNow;
 
                 plotQueue.Enqueue(USBDataBlock);
                 saveQueue.Enqueue(USBDataBlock);

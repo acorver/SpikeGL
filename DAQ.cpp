@@ -1943,8 +1943,18 @@ namespace DAQ
 				if (!ok) Warning() << "Bug3: Internal problem -- error parsing MISSING_FC `" << v << "'";
 				// TESTING HACK XXX TODO FIXME!
 //				if (Util::random() < .3 && totalRead < 10000000ULL) n = int(Util::random(0.,16.)) % 6;
-				meta.missingFrameCount = n;								
-			} else if (k.startsWith("FALSE_FC")) {
+                meta.missingFrameCount = n;
+            } else if (k.startsWith("COMM_ABSTIMENS")) {
+                bool ok = false;
+                u64 abs = v.toULongLong(&ok);
+                if (!ok) Warning() << "Bug3: Internal problem -- error parsing COMM_ABSTIMENS `" << v << "'";
+                meta.comm_absTimeNS = abs;
+            } else if (k.startsWith("CREATION_ABSTIMENS")) {
+                bool ok = false;
+                u64 abs = v.toULongLong(&ok);
+                if (!ok) Warning() << "Bug3: Internal problem -- error parsing CREATION_ABSTIMENS `" << v << "'";
+                meta.creation_absTimeNS = abs;
+            } else if (k.startsWith("FALSE_FC")) {
 				bool ok = false;
 				int n = v.toInt(&ok);
 				if (!ok) Warning() << "Bug3: Internal problem -- error parsing FALSE_FC `" << v << "'";
