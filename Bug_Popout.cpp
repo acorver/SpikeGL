@@ -181,6 +181,7 @@ void Bug_Popout::plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_up
 			lastStatusBlock = meta.blockNum;
 		}
         QString statusTxt = QString("Read %1 USB blocks (%2 MS) - %3 KS/sec").arg(meta.blockNum+1).arg((meta.blockNum*samplesPerBlock)/1e6,3,'f',2).arg(lastRate/1e3);
+#ifdef Q_OS_WIN
         if (mainApp()->isDebugMode()) {
             // DEBUG MODE ONLY: show in status bar the delay/lag information from bug3 subprocess to here!
             u64 now = getAbsTimeNS();
@@ -188,11 +189,12 @@ void Bug_Popout::plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_up
             QTextStream ts(&s);
             ts << statusTxt << " -"
              /*<< " blk# " << meta.blockNum*/
-               << " usb_lag: " << (double(int64(now)-int64(meta.creation_absTimeNS))/1e9) << "s"
-               << " com_lag: " << (double(int64(now)-int64(meta.comm_absTimeNS))/1e9) << "s";
+               << " usb_lag: " << (double(qint64(now)-qint64(meta.creation_absTimeNS))/1e9) << "s"
+               << " com_lag: " << (double(qint64(now)-qint64(meta.comm_absTimeNS))/1e9) << "s";
             ts.flush();
             statusTxt = s;
         }
+#endif
         ui->statusLabel->setText(statusTxt);
 		errgraph->update();
 		vgraph->update();
