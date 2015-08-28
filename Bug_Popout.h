@@ -27,12 +27,15 @@ public:
 	
 private slots:
 	void filterSettingsChanged();
+    void aoControlsChanged();
 	
 private:
 	void setupGraphs();
+    void setupAOPassThru();
 	
 	DAQ::BugTask *task;
-	const DAQ::Params::Bug & p;
+    DAQ::Params::Bug & p;
+    DAQ::Params & ap;
 	double avgPower; int nAvg;
 	Ui::Bug_Popout *ui;
 	double lastStatusT; qint64 lastStatusBlock; double lastRate;

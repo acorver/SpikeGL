@@ -155,6 +155,8 @@ namespace DAQ
 			int hpf; // if nonzero, the high pass filter is enabled at set to filter past this many Hz
 			bool snf; // if true, use the software notch filter at 60Hz
 			int errTol; // out of 144, default is 6
+            QString aoPassthruString; // defaults to "", but can be something eg 0=1
+            unsigned aoSrate;
             void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false;  }
 		} bug;
 		
@@ -262,7 +264,9 @@ namespace DAQ
         unsigned samplingRate() const { return params.srate; }
 
         void setDO(bool onoff);
-        
+
+        static void recomputeAOAITab(QVector<QPair<int, int> > & aoAITab, QString & aoChan, const Params & p);
+
     public slots:
         void requestFastSettle(); ///< task needs to be running and it will then be done synchronously with the task
 
@@ -281,8 +285,6 @@ namespace DAQ
         bool muxMode;
 
         friend struct DAQPvt;
-
-        static void recomputeAOAITab(QVector<QPair<int, int> > & aoAITab, QString & aoChan, const Params & p);
 
         static int computeTaskReadFreq(double srate);
 		
@@ -330,12 +332,14 @@ namespace DAQ
 	class SubprocessTask : public Task {
 			Q_OBJECT
 	public:
-		SubprocessTask(const Params & acqParams, QObject *parent, 
+        SubprocessTask(Params & acqParams, QObject *parent,
 					   const QString & shortName,
                        const QString & exeName);
         virtual ~SubprocessTask();
 
         void stop();
+
+        DAQ::Params & allParams() { return params; }
 
     signals:
         void justStarted();
@@ -363,7 +367,7 @@ namespace DAQ
 #endif
 		
 		volatile bool pleaseStop;
-		const Params & params;
+        Params & params;
         QString shortName, dirName, exeName, exeDir;
 		
 		void pushCmd(const QByteArray & cmd);
@@ -406,13 +410,13 @@ namespace DAQ
         static const double MinBER;// = -5.0;
 		
 		
-		BugTask(const Params & acqParams, QObject * parent);
+        BugTask(Params & acqParams, QObject * parent);
         ~BugTask();
 		
         unsigned numChans() const;
         unsigned samplingRate() const;
 		
-		const Params::Bug & bugParams() const { return params.bug; }
+        Params::Bug & bugParams() { return params.bug; }
 
 		struct BlockMetaData {
 			quint64 blockNum; ///< sequential number. incremented for each new block
@@ -457,9 +461,16 @@ namespace DAQ
 		quint64 nblocks, nlines;
 		qint64 debugTTLStart;
 		QMap<QString, QString> block;
+
+        AOWriteThread *aoWriteThread;
+        u64 aoSampCount;
+        QString savedAOPassthruString;
+        QVector<QPair<int, int> > aoAITab;
+        QString aoChan;
 		
 		void processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines);
 		void processBlock(const QMap<QString, QString> &, quint64 blockNum);		
+        void handleAOPassthru(const std::vector<int16> & samps);
 	};
 	
 
@@ -476,7 +487,7 @@ namespace DAQ
         static QList<Hardware> probedHardware; ///< populate this by calling probeHardware()
         static void probeHardware();
 
-        FGTask(const Params & acqParams, QObject * parent, bool isDummyTask = false);
+        FGTask(Params & acqParams, QObject * parent, bool isDummyTask = false);
         ~FGTask();
 		
         unsigned numChans() const;

@@ -18,6 +18,7 @@ const unsigned AOWriteThread::QueueSz(5);
 AOWriteThread::AOWriteThread(QObject *parent, const QString & aoChanString, const Params & params, AOWriteThread *oldToDelete)
 : QThread(parent), SampleBufQ("AOWriteThread", QueueSz), aoChanString(aoChanString), params(params), old2Delete(oldToDelete)
 {
+    dequeueWarnThresh = 10;
 	pleaseStop = false;
 }
 

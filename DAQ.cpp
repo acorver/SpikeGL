@@ -479,9 +479,9 @@ namespace DAQ
             while (!pleaseStop && !break2) {
                 u64 sampCount;
                 if (!dequeueBuffer(sampsOrig, sampCount) || !sampsOrig.size()) {
-                    if (++nodatact > 10) {
+                    if (dequeueWarnThresh > 0 && ++nodatact > dequeueWarnThresh) {
                         nodatact = 0;
-						if (aoWriteCt) Warning() << "AOWrite thread failed to dequeue any sample data 10 times in a row. Clocks drifting?";
+                        if (aoWriteCt) Warning() << "AOWrite thread failed to dequeue any sample data " << dequeueWarnThresh << " times in a row. Clocks drifting?";
                         // failed to dequeue data, insert silence to keep ao writer going otherwise we get underruns!
  /*                       sampsOrig.clear();
                         samps.clear();
@@ -1346,8 +1346,7 @@ namespace DAQ
         return ret;
     }
 	
-	SubprocessTask::SubprocessTask(const DAQ::Params & p, QObject *parent,
-									   const QString & shortName,
+    SubprocessTask::SubprocessTask(DAQ::Params & p, QObject *parent, const QString & shortName,
 								   const QString & exeName)
 	: Task(parent, shortName + " DAQ task", SAMPLE_BUF_Q_SIZE), params(p),
 	  shortName(shortName), dirName(shortName + "_SpikeGLv" + QString(VERSION_STR).right(8)), exeName(exeName)
@@ -1568,14 +1567,21 @@ namespace DAQ
     /*static*/ const double BugTask::MaxBER = -1.0;
     /*static*/ const double BugTask::MinBER = -5.0;
 
-	BugTask::BugTask(const DAQ::Params & p, QObject *parent)
-	: SubprocessTask(p, parent, "Bug3", "bug3_spikegl.exe")
+    BugTask::BugTask(DAQ::Params & p, QObject *parent)
+    : SubprocessTask(p, parent, "Bug3", "bug3_spikegl.exe"), aoWriteThread(0), aoSampCount(0)
 	{
 		state = 0; nblocks = 0; nlines = 0;
 		debugTTLStart = 0;
 	}
 
-    BugTask::~BugTask() {  if (isRunning()) { stop(); wait(); } }
+    BugTask::~BugTask() {
+        if (isRunning()) { stop(); wait(); }
+#ifdef FAKEDAQ
+        // stuff...
+#else // !FAKEDAQ == real NI platform
+        if (aoWriteThread) delete aoWriteThread; aoWriteThread=0;
+#endif
+    }
 
     unsigned BugTask::numChans() const { return params.nVAIChans; }
     unsigned BugTask::samplingRate() const { return params.srate; }
@@ -1967,11 +1973,62 @@ namespace DAQ
 		quint64 oldTotalRead = totalRead;
 		totalRead += (quint64)samps.size(); 
 		totalReadMut.unlock();
+
+        handleAOPassthru(samps);
+
 		//Debug() << "Enq: " << samps.size() << " samps, firstSamp: " << oldTotalRead;
 		enqueueBuffer(samps, oldTotalRead, false, 0, QByteArray(reinterpret_cast<char *>(&meta),sizeof(meta)));
 		if (!oldTotalRead) emit(gotFirstScan());
 	}
 		
+    void BugTask::handleAOPassthru(const std::vector<int16> &samps)
+    {
+#ifdef FAKEDAQ
+        if (!params.aoPassthru) return;
+        if (!aoSampCount)
+            Error() << "AOWriteThread unsupported on this platform -- not a real NI platform!  AOWrites will be disabled...";
+        aoSampCount += samps.size() / params.nVAIChans;
+#else
+        if (params.aoPassthru) {
+            params.mutex.lock();
+            QString aops = params.bug.aoPassthruString;
+            params.mutex.unlock();
+            if (!aoWriteThread || (aops.length() && savedAOPassthruString != aops)) {
+                savedAOPassthruString = aops;
+                NITask::recomputeAOAITab(aoAITab, aoChan, params);
+                aoWriteThread = new AOWriteThread(0,aoChan,params,aoWriteThread);
+                Connect(aoWriteThread, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
+                aoWriteThread->dequeueWarnThresh = 50;
+                aoWriteThread->start();
+            }
+        }
+        if (aoWriteThread) {
+            const int dsize = samps.size();
+            std::vector<int16> aoData;
+            aoData.reserve(dsize);
+            const int NCHANS = params.nVAIChans;
+
+            for (int i = 0; i < dsize; i += NCHANS) { // for each scan..
+                for (QVector<QPair<int,int> >::const_iterator it = aoAITab.begin(); it != aoAITab.end(); ++it) { // take ao channels
+                    const int aiChIdx = (*it).second;
+                    const int dix = i+aiChIdx;
+                    if (dix < dsize)
+                        aoData.push_back(samps[dix]);
+                    else {
+                        static int errct = 0;
+                        aoData.push_back(0);
+                        if (errct++ < 5)
+                            Error() << "INTERNAL ERROR: This shouldn't happen.  AO passthru code is buggy. FIX ME!!";
+                    }
+                }
+            }
+            u64 sz = aoData.size();
+            aoWriteThread->enqueueBuffer(aoData, aoSampCount);
+            aoSampCount += sz;
+        }
+#endif
+    }
+
 	BugTask::BlockMetaData::BlockMetaData() { ::memset(this, 0, sizeof(*this)); /*zero out all data.. yay!*/ }
 	BugTask::BlockMetaData::BlockMetaData(const BlockMetaData &o) { *this = o; }
 	BugTask::BlockMetaData & BugTask::BlockMetaData::operator=(const BlockMetaData & o) { ::memcpy(this, &o, sizeof(o)); return *this; }
@@ -2012,7 +2069,7 @@ namespace DAQ
 	unsigned FGTask::numChans() const { return params.nVAIChans; }
     unsigned FGTask::samplingRate() const { return params.srate; }
 	
-    FGTask::FGTask(const Params & ap, QObject *parent, bool isDummy)
+    FGTask::FGTask(Params & ap, QObject *parent, bool isDummy)
     : SubprocessTask(ap, parent, "Framegrabber", "FG_SpikeGL.exe"/*"MFCApplication2.exe"*/)
 	{
         killAllInstancesOfProcessWithImageName(exeName);

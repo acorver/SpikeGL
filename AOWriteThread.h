@@ -28,6 +28,8 @@ public:
 
     static const unsigned QueueSz;
 
+    volatile int dequeueWarnThresh; ///< defaults to 10
+
 signals:
 	void daqError(const QString &);
 protected:

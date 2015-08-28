@@ -1,11 +1,12 @@
 #include "Bug_Popout.h"
 #include "Util.h"
 #include <QPainter>
+#include <QMutexLocker>
 #include "MainApp.h"
 #include "ConfigureDialogController.h"
 
 Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
-: QWidget(parent), task(task), p(task->bugParams()), avgPower(0.0), nAvg(0)
+: QWidget(parent), task(task), p(task->bugParams()), ap(task->allParams()), avgPower(0.0), nAvg(0)
 {
 	ui = new Ui::Bug_Popout;
 	ui->setupUi(this);	
@@ -20,6 +21,8 @@ Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
 	Connect(ui->hpfChk, SIGNAL(toggled(bool)), this, SLOT(filterSettingsChanged()));
     Connect(ui->hpfSB, SIGNAL(valueChanged(int)), this, SLOT(filterSettingsChanged()));
 	
+    setupAOPassThru();
+
 	mainApp()->sortGraphsByElectrodeAct->setEnabled(false);
 	
 	lastStatusT = getTime();
@@ -238,6 +241,46 @@ void Bug_Popout::setupGraphs()
 	errgraph->update();
 }
 
+void Bug_Popout::setupAOPassThru()
+{
+    ui->aoChanCB->clear();
+    ui->bug3ChanCB->clear();
+    ui->aoControlGB->setEnabled(false);
+
+    if (ap.aoPassthru) {
+        ui->aoControlGB->setEnabled(true);
+        QStringList allao(DAQ::GetAOChans(ap.aoDev));
+        if (allao.empty()) return;
+        unsigned aoch = 0;
+        if (!ap.aoChannels.empty()) aoch = ap.aoChannels.first();
+        foreach(QString aoch, allao) {
+            ui->aoChanCB->addItem(aoch);
+        }
+        if (aoch < DAQ::GetNAOChans(ap.aoDev)) ui->aoChanCB->setCurrentIndex(aoch);
+        unsigned bug3ch = ap.aoPassthruMap.contains(aoch) ? ap.aoPassthruMap[aoch] : 0;
+        unsigned i;
+        for (i = 0; i < task->numChans(); ++i) {
+            ui->bug3ChanCB->addItem(task->getChannelName(i),QVariant(i));
+        }
+        if (bug3ch < i) ui->bug3ChanCB->setCurrentIndex(bug3ch);
+
+        Connect(ui->aoChanCB, SIGNAL(currentIndexChanged(int)), this, SLOT(aoControlsChanged()));
+        Connect(ui->bug3ChanCB, SIGNAL(currentIndexChanged(int)), this, SLOT(aoControlsChanged()));
+    }
+}
+
+void Bug_Popout::aoControlsChanged()
+{
+    if (!ui->aoControlGB->isEnabled()) return;
+    unsigned ao = ui->aoChanCB->currentIndex(), bug = ui->bug3ChanCB->currentIndex();
+    ap.mutex.lock();
+    p.aoPassthruString = ap.aoPassthruString = QString("%1=%2").arg(ao).arg(bug);
+    ap.aoPassthruMap.clear(); ap.aoPassthruMap[ao] = bug;
+    ap.aoChannels.clear(); ap.aoChannels.push_back(ao);
+    ap.mutex.unlock();
+    mainApp()->configureDialogController()->saveSettings(ConfigureDialogController::BUG);
+}
+
 Bug_Graph::Bug_Graph(QWidget *parent, unsigned nplots, unsigned maxPts)
 : QWidget(parent), maxPts(maxPts), pen_width(2.0f)
 {
@@ -329,3 +372,4 @@ void Bug_Graph::paintEvent(QPaintEvent *e)
 	}
 	p.end();
 }
+

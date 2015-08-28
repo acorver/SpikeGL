@@ -54,7 +54,7 @@ public:
     static bool chopNumberFromFilename(const QString & filename, QString & numberless, int & number);
 	static int setFilenameTakingIntoAccountIncrementHack(DAQ::Params & p, DAQ::AcqStartEndMode m, const QString & filename, QWidget *dialogW, bool isGUI=true);
 
-    void resetAOPassFromParams(Ui::AoPassThru *ao, DAQ::Params *p = 0);
+    void resetAOPassFromParams(Ui::AoPassThru *ao, DAQ::Params *p = 0, const unsigned *srate_override = 0);
     static void updateAOBufferSizeLabel(Ui::AoPassThru *aopass);
     void updateAORangeOnCBChange(Ui::AoPassThru *aoPassthru);
     QString getAODevName(Ui::AoPassThru *ao);

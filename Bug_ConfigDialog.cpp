@@ -158,7 +158,7 @@ int Bug_ConfigDialog::exec()
 				
                 if ( (p.aoPassthru = (aoPassThru->aoDeviceCB->count() && aoPassThru->aoPassthruGB->isChecked())) ) {
                     p.aoDev = mainApp()->configureDialogController()->getAODevName(aoPassThru);
-                    p.aoSrate = aoPassThru->srateSB->value();
+                    p.bug.aoSrate = aoPassThru->srateSB->value();
                     p.aoClock = aoPassThru->aoClockCB->currentText();
                     QStringList rngs = aoPassThru->aoRangeCB->currentText().split(" - ");
                     if (rngs.count() != 2) {
@@ -169,23 +169,33 @@ int Bug_ConfigDialog::exec()
                     }
                     p.aoRange.min = rngs.first().toDouble();
                     p.aoRange.max = rngs.last().toDouble();
-//                    p.aoChannels.clear();
-//                    p.aoChannels.push_back(0); // TESTING...
                     p.aoBufferSizeCS = aoPassThru->bufferSizeSlider->value();
                     if (p.aoBufferSizeCS > 100) p.aoBufferSizeCS = 100;
                     else if (p.aoBufferSizeCS <= 0) p.aoBufferSizeCS = 1;
+                    bool errflg;
+                    QMap<unsigned, unsigned> m = ConfigureDialogController::parseAOPassthruString(p.bug.aoPassthruString, &errflg);
+                    unsigned k = 0, v = 0;
+                    if (!errflg && !m.empty()) {
+                        k = m.begin().key();
+                        v = m.begin().value();
+                    }
+                    if (k >= DAQ::GetNAOChans(p.aoDev) || v >= p.nVAIChans) k = 0, v = 0;
+                    p.aoChannels = QVector<unsigned>(1,k);
+                    p.aoPassthruMap.clear();
+                    p.aoPassthruMap.insert(k,v);
+                    p.aoPassthruString = p.bug.aoPassthruString = QString("%1=%2").arg(k).arg(v);
                 }
 
 				saveSettings();
 
-				// this stuff doesn't need to be saved since it's constant and will mess up regular acq "remembered" values
+                // this stuff doesn't need to be saved since it's constant and will mess up regular acq "remembered" values
+                p.aoSrate = p.bug.aoSrate; // fudged.. needed because AOWriteThread::run looks at this variable but we don't want to save it above in saveSettings()...
 				p.dev = "USB_Bug3";
 				p.nExtraChans1 = 0;
 				p.nExtraChans2 = 0;
 				
 				p.extClock = true;
 				p.mode = DAQ::AIRegular;
-				p.aoPassthru = 0;
 				p.dualDevMode = false;
 				p.stimGlTrigResave = false;
 				p.srate = DAQ::BugTask::SamplingRate;
@@ -260,7 +270,7 @@ void Bug_ConfigDialog::guiFromSettings()
 	dialog->trigPre->setValue(p.silenceBeforePD*1000.);
 	dialog->trigParams->setEnabled(p.bug.ttlTrig >= 0);
 
-    mainApp()->configureDialogController()->resetAOPassFromParams(aoPassThru, &p);
+    mainApp()->configureDialogController()->resetAOPassFromParams(aoPassThru, &p, &p.bug.aoSrate);
     aoPassThru->aoPassthruGB->setCheckable(true);
     aoPassThru->aoPassthruGB->setChecked(p.aoPassthru && aoPassThru->aoDeviceCB->count());
     if (!aoPassThru->aoDeviceCB->count()) aoPassThru->aoPassthruGB->setEnabled(false);
