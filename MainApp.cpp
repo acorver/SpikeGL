@@ -864,7 +864,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     }
 	
     stopAcq->setEnabled(true);
-    aoPassthruAct->setEnabled(params.aoPassthru);
+    aoPassthruAct->setEnabled(params.aoPassthru && !bugtask && !fgtask);
     Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));
     task->start();
 	if (addtlDemuxTask)	addtlDemuxTask->start();
