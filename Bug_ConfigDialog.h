@@ -10,6 +10,7 @@
 #define Bug_ConfigDialog_H
 
 #include "ui_Bug_ConfigDialog.h"
+#include "ui_AOPassthru.h"
 #include <QObject>
 #include "SpikeGL.h"
 #include <QVector>
@@ -44,6 +45,8 @@ public:
 private slots:
 	void ttlTrigCBChanged();
 	void browseButClicked();
+    void aoBufferSizeSliderChanged();
+    void aoDeviceCBChanged();
 	
 private:
 	
@@ -60,6 +63,7 @@ private:
 	void saveSettings();
 	
     QDialog *dialogW;
+    Ui::AoPassThru *aoPassThru;
 	QCheckBox *ttls[DAQ::BugTask::TotalTTLChans];
 };
 

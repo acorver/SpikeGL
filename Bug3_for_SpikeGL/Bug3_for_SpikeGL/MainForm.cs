@@ -1112,6 +1112,7 @@ namespace Bug3
 
                 writer.Flush();
                 Console.Write(writer.ToString());
+                Console.Out.Flush();
             }
         }
 

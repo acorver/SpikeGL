@@ -53,7 +53,12 @@ public:
 	static QString generateAIChanString(const QVector<unsigned> & aiChans_sorted_ascending);
     static bool chopNumberFromFilename(const QString & filename, QString & numberless, int & number);
 	static int setFilenameTakingIntoAccountIncrementHack(DAQ::Params & p, DAQ::AcqStartEndMode m, const QString & filename, QWidget *dialogW, bool isGUI=true);
-	
+
+    void resetAOPassFromParams(Ui::AoPassThru *ao, DAQ::Params *p = 0);
+    static void updateAOBufferSizeLabel(Ui::AoPassThru *aopass);
+    void updateAORangeOnCBChange(Ui::AoPassThru *aoPassthru);
+    QString getAODevName(Ui::AoPassThru *ao);
+
 protected slots:    
     void acqStartEndCBChanged();
     void acqModeCBChanged();
@@ -73,7 +78,6 @@ protected slots:
 
 private:
     void resetFromParams(DAQ::Params *p = 0);
-    void resetAOPassFromParams(Ui::AoPassThru *);
     static void paramsFromSettingsObject(DAQ::Params & p, const QSettings & settings);
 	void probeDAQHardware();
 	

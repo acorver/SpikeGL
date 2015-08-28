@@ -86,9 +86,13 @@ void ConfigureDialogController::probeDAQHardware()
     aoChanLists = DAQ::ProbeAllAOChannels();	
 }
 
-void ConfigureDialogController::resetAOPassFromParams(Ui::AoPassThru *aoPassthru)
+void ConfigureDialogController::resetAOPassFromParams(Ui::AoPassThru *aoPassthru, DAQ::Params *p_in)
 {
-    DAQ::Params & p (acceptedParams); // this just got populated from settings
+    if (!p_in) {
+        loadSettings();
+        p_in = &acceptedParams;
+    }
+    DAQ::Params & p (*p_in); // this may have just gotten populated from settings...?
     aoPassthru->aoPassthruLE->setText(p.aoPassthruString);
     aoPassthru->aoDeviceCB->clear();
     aoPassthru->aoPassthruGB->setCheckable(Util::objectHasAncestor(aoPassthru->aoPassthruGB,dialogW));
@@ -113,7 +117,7 @@ void ConfigureDialogController::resetAOPassFromParams(Ui::AoPassThru *aoPassthru
 		}
 	}
 	aoPassthru->srateSB->setValue(p.aoSrate);
-    aoBufferSizeSliderChanged();
+    updateAOBufferSizeLabel(aoPassthru);
 }
 
 void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
@@ -199,7 +203,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
 
 	chanMapCtl.setDualDevMode(p.dualDevMode && !p.secondDevIsAuxOnly);
 
-    resetAOPassFromParams(aoPassthru);
+    resetAOPassFromParams(aoPassthru, &p);
     
 	dialog->resumeGraphSettingsChk->setChecked(p.resumeGraphSettings);
     dialog->disableGraphsChk->setChecked(p.suppressGraphs);
@@ -389,6 +393,11 @@ void ConfigureDialogController::deviceCBChanged()
 
 void ConfigureDialogController::aoDeviceCBChanged()
 {
+    updateAORangeOnCBChange(aoPassthru);
+}
+
+void ConfigureDialogController::updateAORangeOnCBChange(Ui::AoPassThru *aoPassthru)
+{
     if (!aoPassthru->aoDeviceCB->count()) return;
     QString devStr = aoDevNames[aoPassthru->aoDeviceCB->currentIndex()];
     QList<DAQ::Range> ranges = aoDevRanges.values(devStr);
@@ -408,6 +417,7 @@ void ConfigureDialogController::aoDeviceCBChanged()
     if (aoPassthru->aoRangeCB->count())
         aoPassthru->aoRangeCB->setCurrentIndex(sel);
 }
+
 
 void ConfigureDialogController::browseButClicked()
 {
@@ -1459,7 +1469,12 @@ void ConfigureDialogController::bufferSizeSliderChanged()
 
 void ConfigureDialogController::aoBufferSizeSliderChanged()
 {
-	aoPassthru->bufSzLbl->setText(QString("%1 ms").arg(aoPassthru->bufferSizeSlider->value()*10));
+    updateAOBufferSizeLabel(aoPassthru);
+}
+
+void ConfigureDialogController::updateAOBufferSizeLabel(Ui::AoPassThru *aopass)
+{
+    aopass->bufSzLbl->setText(QString("%1 ms").arg(aopass->bufferSizeSlider->value()*10));
 }
 
 /* static */
@@ -1490,4 +1505,9 @@ void ConfigureDialogController::aoNote()
 	helpWindow->show();
 	helpWindow->activateWindow();
     if (createNew) helpWindow->setMaximumSize(helpWindow->size());
+}
+
+QString ConfigureDialogController::getAODevName(Ui::AoPassThru *ao)
+{
+    return ao->aoDeviceCB->count() ? aoDevNames[ao->aoDeviceCB->currentIndex()] : "";
 }
