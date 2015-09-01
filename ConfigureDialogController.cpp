@@ -399,7 +399,8 @@ void ConfigureDialogController::aoDeviceCBChanged()
 void ConfigureDialogController::updateAORangeOnCBChange(Ui::AoPassThru *aoPassthru)
 {
     if (!aoPassthru->aoDeviceCB->count()) return;
-    QString devStr = aoDevNames[aoPassthru->aoDeviceCB->currentIndex()];
+    int devix = aoPassthru->aoDeviceCB->currentIndex(); if (devix < 0) devix = 0;
+    QString devStr = aoDevNames[devix];
     QList<DAQ::Range> ranges = aoDevRanges.values(devStr);
     QString curr = aoPassthru->aoRangeCB->currentText();
 
@@ -416,6 +417,14 @@ void ConfigureDialogController::updateAORangeOnCBChange(Ui::AoPassThru *aoPassth
     }
     if (aoPassthru->aoRangeCB->count())
         aoPassthru->aoRangeCB->setCurrentIndex(sel);
+    else {
+        QString errMsg(QString("AO on device '") + devStr + "' seems to be invalid or improperly configured.  Please run NI-MAX and delete any ghost/unused devices and restart SpikeGL.");
+        Warning() << errMsg;
+        int but = QMessageBox::warning(0, "AO Device Invalid", errMsg, QMessageBox::Ignore|QMessageBox::Abort, QMessageBox::Abort);
+        if (but != QMessageBox::Ignore) mainApp()->quit();
+        aoPassthru->aoRangeCB->insertItem(0, "-10 - 10");
+        aoPassthru->aoRangeCB->insertItem(1, "-5 - 5");
+    }
 }
 
 

@@ -59,6 +59,8 @@ public:
     void updateAORangeOnCBChange(Ui::AoPassThru *aoPassthru);
     QString getAODevName(Ui::AoPassThru *ao);
 
+    void probeDAQHardware();
+
 protected slots:    
     void acqStartEndCBChanged();
     void acqModeCBChanged();
@@ -79,7 +81,6 @@ protected slots:
 private:
     void resetFromParams(DAQ::Params *p = 0);
     static void paramsFromSettingsObject(DAQ::Params & p, const QSettings & settings);
-	void probeDAQHardware();
 	
     enum ValidationResult {
         AGAIN = -1,

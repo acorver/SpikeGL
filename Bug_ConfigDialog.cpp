@@ -270,6 +270,7 @@ void Bug_ConfigDialog::guiFromSettings()
 	dialog->trigPre->setValue(p.silenceBeforePD*1000.);
 	dialog->trigParams->setEnabled(p.bug.ttlTrig >= 0);
 
+    mainApp()->configureDialogController()->probeDAQHardware();
     mainApp()->configureDialogController()->resetAOPassFromParams(aoPassThru, &p, &p.bug.aoSrate);
     aoPassThru->aoPassthruGB->setCheckable(true);
     aoPassThru->aoPassthruGB->setChecked(p.aoPassthru && aoPassThru->aoDeviceCB->count());
