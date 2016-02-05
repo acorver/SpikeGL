@@ -8,7 +8,6 @@
 SapAcquisition *acq = 0;
 SapBuffer      *buffers = 0;
 SapTransfer    *xfer = 0;
-//    std::string configFilename ("c:\\users\\calin\\Desktop\\Src\\SpikeGL\\Framegrabber\\J_2000+_Electrode_8tap_8bit.ccf");
 std::string configFilename("J_2000+_Electrode_8tap_8bit.ccf");
 int serverIndex = -1, resourceIndex = -1;
 
@@ -16,13 +15,21 @@ SpikeGLOutThread    *spikeGL = 0;
 SpikeGLInputThread  *spikeGLIn = 0;
 UINT_PTR timerId = 0;
 bool gotFirstXferCallback = false, gotFirstStartFrameCallback = false;
-std::vector<BYTE> spikeGLFrameBuf;
 int bpp, pitch, width=0, height=0;
 
 FPGA *fpga = 0;
 
+int desiredWidth = 144;
+int desiredHeight = 32;
+unsigned long long frameNum = 0;
+unsigned frameIdx = 0;
+XtCmdImg *frames = 0;
+
+static HANDLE hShm = 0;
+
 // some static functions..
 static void probeHardware();
+static double getTime();
 
 static void acqCallback(SapXferCallbackInfo *info)
 {
@@ -41,22 +48,26 @@ static void acqCallback(SapXferCallbackInfo *info)
         height = buffers->GetHeight();				// Height:	get the height of the image
     }
     int w = width, h = height;
-    if (w < DESIRED_WIDTH || h < DESIRED_HEIGHT) {
+    if (w < desiredWidth || h < desiredHeight) {
         char tmp[512];
-        _snprintf_c(tmp, sizeof(tmp), "acqCallback got a frame of size %dx%d, but expected a frame of size %dx%d", w, h, DESIRED_WIDTH, DESIRED_HEIGHT);
+        _snprintf_c(tmp, sizeof(tmp), "acqCallback got a frame of size %dx%d, but expected a frame of size %dx%d", w, h, desiredWidth, desiredHeight);
         spikeGL->pushConsoleError(tmp);
         return;
     }
-    if (w > DESIRED_WIDTH) w = DESIRED_WIDTH;
-    if (h > DESIRED_HEIGHT) h = DESIRED_HEIGHT;
+    if (w > desiredWidth) w = desiredWidth;
+    if (h > desiredHeight) h = desiredHeight;
     size_t len = sizeof(XtCmdImg) + w*h;
-    if (size_t(spikeGLFrameBuf.size()) < len) spikeGLFrameBuf.resize(len);
-    if (size_t(spikeGLFrameBuf.size()) < len) {
-        spikeGL->pushConsoleError("INTERNAL ERROR.. could not allocate spikeGLFrameBuf!");
+    if (!frames) {
+        spikeGL->pushConsoleError("INTERNAL ERROR.. not attached to shm, cannot send frames!");
         return;
     }
-
-    XtCmdImg *xt = (XtCmdImg *)&(spikeGLFrameBuf[0]);
+    if (len + len*frameIdx > XT_SHM_SIZE) frameIdx = 0;
+    if (len > XT_SHM_SIZE) {
+        spikeGL->pushConsoleError("INTERNAL ERROR.. attached to shm, but it is too small for the frames to fit!");
+        return;
+    }
+    XtCmdImg *xt = (XtCmdImg *)&(reinterpret_cast<char *>(frames)[len*frameIdx]);
+   
     BYTE *pXt = xt->img, *pData = 0;
 
     buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
@@ -66,7 +77,9 @@ static void acqCallback(SapXferCallbackInfo *info)
         return;
     }
 
-    xt->init(w, h);
+    ++frameNum; ++frameIdx;
+
+    xt->init(w, h, frameNum);
 
     if (pitch == w) {
         memcpy(pXt, pData, w*h);
@@ -77,9 +90,26 @@ static void acqCallback(SapXferCallbackInfo *info)
     }
 
     buffers->ReleaseAddress(pData); // Need to release it to return it to the hardware!
+    
 
-    // for SpikeGL
-    if (!spikeGL->pushCmd(xt)) { /* todo:.. handle error here!*/ }
+    /// DEBUG RATE CODE, ETC XXX FIXME
+    static double lastTS = 0., lastPrt = -1.0;
+    static int ctr = 0;
+    ++ctr;
+    double now = getTime();
+    if (frameNum > 1 && now - lastPrt >= 1.0) {
+        double rate = 1.0 / ((now - lastPrt)/ctr);
+        //char tmp[512];
+        //_snprintf_c(tmp, sizeof(tmp), "DEBUG: frame %u - avg.interval %f ms - avg.rate %f FPS", (unsigned)frameNum, 1000.0/rate, rate );
+        //spikeGL->pushConsoleDebug(tmp);
+        lastPrt = now;
+        ctr = 0;
+        XtCmdFPS fps;
+        fps.init(rate);
+        spikeGL->pushCmd(&fps);
+    }
+    lastTS = now;
+    
 }
 
 static void startFrameCallback(SapAcqCallbackInfo *info) 
@@ -117,6 +147,40 @@ static bool setupAndStartAcq()
     SapManager::SetDisplayStatusMode(SapManager::StatusCallback, sapStatusCallback, 0); // so we get errors reported properly from SAP
 
     freeSapHandles();
+
+    if (!frames) {
+        char tmp[512];
+
+        hShm = OpenFileMapping(
+            FILE_MAP_ALL_ACCESS,   // read/write access
+            FALSE,                 // do not inherit the name
+            XT_SHM_NAME);               // name of mapping object
+
+
+        if (!hShm ) {
+            _snprintf_c(tmp, sizeof(tmp), "Could not open shared memory (%d).", GetLastError());
+            spikeGL->pushConsoleError(tmp);
+            return false;
+        }
+
+        frames = (XtCmdImg *)MapViewOfFile(
+            hShm,
+            FILE_MAP_ALL_ACCESS,  // read/write permission
+            0,
+            0,
+            XT_SHM_SIZE);
+
+        if (!frames) {
+            _snprintf_c(tmp, sizeof(tmp), "Could not map shared memory (%d).", GetLastError());
+            spikeGL->pushConsoleError(tmp);
+            CloseHandle(hShm); hShm = 0;
+            return false;
+        }
+
+        _snprintf_c(tmp, sizeof(tmp), "Connected to shared memory \"%s\" size: %u", XT_SHM_NAME, XT_SHM_SIZE);
+        spikeGL->pushConsoleDebug(tmp);
+    }
+
     if (serverIndex < 0) serverIndex = 1;
     if (resourceIndex < 0) resourceIndex = 0;
 
@@ -131,9 +195,14 @@ static bool setupAndStartAcq()
 
     if (SapManager::GetResourceCount(acqServerName, SapManager::ResourceAcq) > 0)
     {
+        int nbufs = NUM_BUFFERS(); if (nbufs < 2) nbufs = 2;
+
         acq = new SapAcquisition(loc, configFilename.c_str());
-        buffers = new SapBufferWithTrash(NUM_BUFFERS+1, acq);
+        buffers = new SapBufferWithTrash(nbufs, acq);
         xfer = new SapAcqToBuf(acq, buffers, acqCallback, 0);
+
+        _snprintf_c(tmp, sizeof(tmp), "Will use buffer memory: %dMB in %d sapbufs", BUFFER_MEMORY_MB, nbufs);
+        spikeGL->pushConsoleDebug(tmp);
 
         // Create acquisition object
         if (acq && !*acq && !acq->Create()) {
@@ -148,7 +217,7 @@ static bool setupAndStartAcq()
     }
 
     //register an acquisition callback
-    if (acq)
+    if (acq) 
         acq->RegisterCallback(SapAcquisition::EventStartOfFrame, startFrameCallback, 0);
 
     // Create buffer object
@@ -181,11 +250,16 @@ static void handleSpikeGLCommand(XtCmd *xt)
     case XtCmd_Test:
         spikeGL->pushConsoleDebug("Got 'TEST' command, replying with this debug message!");
         break;
-    case XtCmd_GrabFrames:
+    case XtCmd_GrabFrames: {
+        XtCmdGrabFrames *x = (XtCmdGrabFrames *)xt;
         spikeGL->pushConsoleDebug("Got 'GrabFrames' command");
+        if (x->ccfFile[0]) configFilename = x->ccfFile;
+        if (x->frameH > 0) desiredHeight = x->frameH; 
+        if (x->frameW > 0) desiredWidth = x->frameW;
         if (!setupAndStartAcq())
             spikeGL->pushConsoleWarning("Failed to start acquisition.");
         break;
+    }
     case XtCmd_FPGAProto: {
         XtCmdFPGAProto *x = (XtCmdFPGAProto *)xt;
         if (x->len >= 16) {
@@ -419,3 +493,19 @@ int main(int argc, const char* argv[])
     return (int)msg.wParam;
 }
 
+
+static double getTime()
+{
+    static __int64 freq = 0;
+    static __int64 t0 = 0;
+    __int64 ct;
+
+    if (!freq) {
+        QueryPerformanceFrequency((LARGE_INTEGER *)&freq);
+    }
+    QueryPerformanceCounter((LARGE_INTEGER *)&ct);   // reads the current time (in system units)    
+    if (!t0) {
+        t0 = ct;
+    }
+    return double(ct - t0) / double(freq);
+}

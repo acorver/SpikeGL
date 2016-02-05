@@ -166,10 +166,11 @@ bool DataFile::doFileWrite(const std::vector<int16> & scans)
 
 	tWrite = getTime() - tWrite;
 //	Debug() << "Wrote " << n2Write << " bytes in " << tWrite << " secs";
-	statsMut.lock();
 	
 	sha.UpdateHash((const uint8_t *)&scans[0], n2Write);
-		
+
+    statsMut.lock();
+
 	// update write speed..
 	writeRateAvg = (writeRateAvg*nWritesAvg+(n2Write/tWrite))/double(nWritesAvg+1);
 	if (++nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;

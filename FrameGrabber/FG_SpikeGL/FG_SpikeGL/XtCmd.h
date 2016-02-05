@@ -19,6 +19,7 @@ enum XtCmds {
     XtCmd_ClkSignals, // sent from slave app -> SpikeGL to update GUI
     XtCmd_OpenPort, // sent from SpikeGL -> slave app to start an acquisition
     XtCmd_ServerResource, // sent SpikeGL <-> slave app (both directions) to either list the available server resources or set the active server
+    XtCmd_FPS, ///< sent from slave process -> SpikeGL to report FPS (frames per second) coming in from the camera
     XtCmd_N // num commands in enum
 };
 
@@ -79,17 +80,19 @@ struct XtCmd {
 };
 
 struct XtCmdImg : public XtCmd {
+    unsigned long long frameNum; ///< first frame is 1.  Keeps getting incremented.
     int w, h; ///< in px, the image is always 8bit (grayscale) 
     union {
         unsigned char img[1];
         int imgPadding;
     };
 
-    void init(int width, int height) { 
+    void init(int width, int height, unsigned long long frame = 0) {
         XtCmd::init(); 
         cmd = XtCmd_Img; 
         w = width;
         h = height;
+        frameNum = frame;
         len = (sizeof(*this) - sizeof(XtCmd)) + w*h - 1;
         imgPadding = 0;
     }
@@ -145,6 +148,15 @@ struct XtCmdClkSignals : public XtCmd {
     bool isVSync() const { return !!(param&(0x1 << 4)); }
 };
 
+struct XtCmdFPS : public XtCmd {
+    void init(double fps) {
+        XtCmd::init();
+        cmd = XtCmd_FPS;
+        if (fps < 0.) fps = 0.;
+        param = int(fps + 0.5);
+    }
+};
+
 struct XtCmdOpenPort : public XtCmd {
     void init(const int parms[6]) {
         XtCmd::init();
@@ -177,5 +189,23 @@ struct XtCmdServerResource : public XtCmd {
         len = static_cast<int>((sizeof(XtCmdServerResource) - sizeof(XtCmd)) + sizeof(int));
     }
 };
+
+struct XtCmdGrabFrames : public XtCmd {
+    char ccfFile[256]; ///< which .ccf file should sapera use?
+    int frameW, frameH; ///< in 8-bit pixels
+    int numChansPerScan; ///< size of 1 full scan, in 16-bit samples.  If the incoming frame is larger than 1 scan, it will be chopped up into multiple frames, 1 per scan, when sent back to spikegl
+
+    void init(const std::string &ccf, int w, int h, int scanSize) {
+        XtCmd::init();
+        cmd = XtCmd_GrabFrames;
+        strncpy(ccfFile, ccf.c_str(), sizeof(ccfFile) - 1);  ccfFile[sizeof(ccfFile)-1] = 0;
+        frameW = w; frameH = h;
+        numChansPerScan = scanSize;
+        len = static_cast<int>((sizeof(XtCmdGrabFrames) - sizeof(XtCmd)) + sizeof(int));
+    }
+};
+
+#define XT_SHM_NAME "FG_SpikeGL Shm"
+#define XT_SHM_SIZE 1024*1024*100 ///< 100MB shm
 
 #endif

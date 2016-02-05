@@ -15,6 +15,7 @@
 #include <QVector>
 #include <QPair>
 #include <QProcess>
+#include <QSharedMemory>
 #ifdef HAVE_NIDAQmx
 #include "NI/NIDAQmx.h"
 #endif
@@ -26,6 +27,7 @@
 #include <list>
 #include "ui_FG_Controls.h"
 struct XtCmd;
+struct XtCmdImg;
 
 namespace DAQ
 {
@@ -164,7 +166,8 @@ namespace DAQ
 			bool enabled;
             int sidx, ridx; ///< server and resource index
             int com,baud,bits,parity,stop;
-            void reset() { enabled = false; com=1,baud=1,bits=0,parity=0,stop=0; sidx=1; ridx=0; }
+            bool isCalinsConfig;
+            void reset() { enabled = false; com=1,baud=1,bits=0,parity=0,stop=0; sidx=1; ridx=0; isCalinsConfig = false; }
 		} fg;
 		
         mutable QMutex mutex;
@@ -485,6 +488,7 @@ namespace DAQ
         };
 
         static QList<Hardware> probedHardware; ///< populate this by calling probeHardware()
+        static double lastProbeTS() { return last_hw_probe_ts; }
         static void probeHardware();
 
         FGTask(Params & acqParams, QObject * parent, bool isDummyTask = false);
@@ -495,8 +499,8 @@ namespace DAQ
 		
 		static QString getChannelName(unsigned num);
 		
-		static const double SamplingRate;
-		static const int NumChans = 2304 /* 72 * 32 */;
+        static const double SamplingRate, SamplingRateCalinsTest;
+        static const int NumChans = 2304 /* 72 * 32 */, NumChansCalinsTest = 2048;
 
         void pushCmd(const XtCmd * c);
         void pushCmd(const XtCmd & c) { pushCmd(&c); }
@@ -517,6 +521,7 @@ namespace DAQ
 
         void gotMsg(const QString &txt, const QColor & color);
         void gotClkSignals(int param);
+        void gotFPS(int fps);
 
     private slots:
 
@@ -526,14 +531,48 @@ namespace DAQ
         void grabFramesClicked();
         void appendTE(const QString &s, const QColor & color = QColor(Qt::black));
         void updateClkSignals(int param);
+        void updateFPS(int fps);
         void openComPort();
         void setSaperaDevice();
 
 	private:
 
+        static double last_hw_probe_ts;
         bool sentFGCmd, didImgSizeWarn;
         Ui::FG_Controls *dialog;
-        quint64 imgXferCt;
+        volatile quint64 imgXferCt, frameSkipCt;
+
+        static QSharedMemory shm;
+        union {
+            XtCmdImg *frames;
+            char *frameBytes;
+        };
+        unsigned frameSize;
+        volatile unsigned frameIdx;
+
+        XtCmdImg *frameCur() {
+            if (frameSize*frameIdx + frameSize > unsigned(shm.size()))
+                frameIdx = 0;
+            return (XtCmdImg *)&frameBytes[frameSize*frameIdx];
+        }
+        void frameNext() { ++frameIdx; }
+
+        void emit_gotFirstScan() { emit(gotFirstScan()); }
+
+        struct FrameReader : public QThread {
+            FGTask *task;
+            volatile bool pleaseStop;
+            FrameReader(FGTask *);
+            ~FrameReader();
+        protected:
+            void run();
+            void enqueueScans(std::vector<int16> & scans, quint64 fake = 0);
+        };
+
+        FrameReader *frameReader;
+
+        friend struct DAQ::FGTask::FrameReader;
+
 	};
 	
 }

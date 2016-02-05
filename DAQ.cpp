@@ -2066,9 +2066,14 @@ namespace DAQ
 	/*-------------------- Framegrabber Task --------------------------------*/
 	
     /* static */ const double FGTask::SamplingRate = /*100;*/ 20000.0; // 20kHz sampling rate!
-	unsigned FGTask::numChans() const { return params.nVAIChans; }
+    /* static */ const double FGTask::SamplingRateCalinsTest = (150 * 1024)/4; // 38.4khz rate!
+    /* static */ QSharedMemory FGTask::shm;
+
+    unsigned FGTask::numChans() const { return params.nVAIChans; }
     unsigned FGTask::samplingRate() const { return params.srate; }
 	
+
+
     FGTask::FGTask(Params & ap, QObject *parent, bool isDummy)
     : SubprocessTask(ap, parent, "Framegrabber", "FG_SpikeGL.exe"/*"MFCApplication2.exe"*/)
 	{
@@ -2076,7 +2081,7 @@ namespace DAQ
 
         dialogW = 0; dialog = 0;
         didImgSizeWarn = sentFGCmd = false;
-        imgXferCt = 0;
+        frameSkipCt = imgXferCt = 0;
         if (!isDummy) {
             dialogW = new QDialog(0,Qt::CustomizeWindowHint|Qt::Dialog|Qt::WindowTitleHint);
             dialog = new Ui::FG_Controls;
@@ -2087,17 +2092,26 @@ namespace DAQ
             Connect(dialog->grabFramesBut, SIGNAL(clicked()), this, SLOT(grabFramesClicked()));
             Connect(this, SIGNAL(gotMsg(QString,QColor)), this, SLOT(appendTE(QString,QColor)));
             Connect(this, SIGNAL(gotClkSignals(int)), this, SLOT(updateClkSignals(int)));
+            Connect(this, SIGNAL(gotFPS(int)), this, SLOT(updateFPS(int)));
             Connect(this, SIGNAL(justStarted()), this, SLOT(setSaperaDevice()));
             Connect(this, SIGNAL(justStarted()), this, SLOT(openComPort()));
             dialogW->show();
             mainApp()->windowMenuAdd(dialogW);
         }
+        frames = 0;
+        frameSize = params.fg.isCalinsConfig ? 2048*(2048/4) + sizeof(XtCmdImg) : 144*32+sizeof(XtCmdImg);
+        frameIdx = 0;
+        frameReader = 0;
     }
+
     FGTask::~FGTask() {
         if (isRunning()) { stop(); wait(); }
         if (dialogW) mainApp()->windowMenuRemove(dialogW);
         if (dialog) delete dialog; dialog = 0;
         if (dialogW) delete dialogW; dialogW = 0;
+        if (frameReader) delete frameReader; frameReader = 0;
+        if (shm.isAttached()) { shm.detach(); Log() << "'" << XT_SHM_NAME << "' destroyed."; }
+        frames = 0; frameSize = 0; frameIdx = 0;
     }
 
 	QStringList FGTask::filesList() const 
@@ -2105,6 +2119,7 @@ namespace DAQ
 		QStringList files;
         files.push_back(QString(":/FG/FrameGrabber/FG_SpikeGL/x64/Release/") + exeName);
 		files.push_back(":/FG/FrameGrabber/J_2000+_Electrode_8tap_8bit.ccf");
+        files.push_back(":/FG/FrameGrabber/B_a2040_FreeRun_8Tap_Default.ccf");
         files.push_back(":/FG/FrameGrabber/SapClassBasic75.dll");
 		return files;
 	}
@@ -2140,39 +2155,86 @@ namespace DAQ
         pushCmd(x);
     }
 
+    FGTask::FrameReader::FrameReader(FGTask *t) : QThread(0), task(t), pleaseStop(false) {}
+
+    FGTask::FrameReader::~FrameReader() {
+        pleaseStop = true;
+        if (isRunning()) wait(2000);
+        if (isRunning()) terminate();
+    }
+
+    void FGTask::FrameReader::enqueueScans(std::vector<int16> & scans, quint64 fake) {
+        task->totalReadMut.lock();
+        quint64 oldTotalRead = task->totalRead;
+        task->totalRead += fake ? fake : (quint64)scans.size();
+        task->totalReadMut.unlock();
+        task->enqueueBuffer(scans, oldTotalRead, true, fake);
+        if (!oldTotalRead) task->emit_gotFirstScan();
+    }
+
+    void FGTask::FrameReader::run() {
+        int nChansPerScan = task->numChans();
+        int nScansPerFrame = 1;
+        std::vector<int16> scans;
+        scans.reserve(2048*2048);
+        int sleepct = 0;
+        while (!pleaseStop) {
+            XtCmdImg *img = task->frameCur();
+            if (img->magic == XT_CMD_MAGIC && img->frameNum > task->imgXferCt) {
+                nScansPerFrame = ((img->w * img->h)/2) / nChansPerScan;
+                qint64 diff = img->frameNum - task->imgXferCt;
+                if (diff > 1LL) {
+                    Error() << "FrameGrabbar task ring buffer overrun! Dropped Frames for frame number " << task->imgXferCt;
+                    qint64 nSkipped = diff-1LL;
+                    task->frameSkipCt += nSkipped;
+                    // put fake data in data pipe that matches the number of dropped frames (set to 0)
+                    // in order to indicate in data file exactly which scans were dropped.
+                    // uses the 'fake data' mechanism for this!
+                    enqueueScans(std::vector<int16>(), nScansPerFrame*nSkipped*nChansPerScan);
+                }
+                scans.clear();
+                scans.reserve(nScansPerFrame * nChansPerScan);
+                int16 *imgScans = reinterpret_cast<int16 *>(img->img);
+                scans.insert(scans.begin(), imgScans, imgScans+(nScansPerFrame*nChansPerScan));
+
+                task->imgXferCt = img->frameNum;
+                task->frameNext();
+
+                if (scans.size()) enqueueScans(scans);
+                sleepct = 0;
+            } else {
+                long usecs = (1e6/task->samplingRate()) * nScansPerFrame;
+                this->usleep(usecs);
+                ++sleepct;
+                if (qint64(sleepct)*qint64(usecs) > 5000000LL ) {
+                    Warning() << "FrameGrabber subprocess hasn't sent us any frames in quite some time.  Check to make sure everyting is working.";
+                    sleepct = 0;
+                }
+            }
+        }
+    }
+
 	unsigned FGTask::gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p) 
 	{
+        (void) p;
 		(void) lastReadNBytes;
 		unsigned consumed = 0;
 		
 		std::vector<const XtCmd *> cmds;
 		cmds.reserve(16384);
 		const XtCmd *xt = 0;
-		int cons = 0, nscans = 0;
+        int cons = 0;
 		unsigned char *pdata = (unsigned char *)data.data();
 		while ((xt = XtCmd::parseBuf(pdata+consumed, data.size()-consumed, cons))) {
 			consumed += cons;
 			cmds.push_back(xt);
-			if (xt->cmd == XtCmd_Img) ++nscans;            
 		}
-		std::vector<int16> scans;
-		scans.reserve(params.nVAIChans * nscans);
 		for (std::vector<const XtCmd *>::iterator it = cmds.begin(); it != cmds.end(); ++it) {
 			xt = *it;
-			if (xt->cmd == XtCmd_Img) {
-				const XtCmdImg *xi = (const XtCmdImg *)xt;
-				//if (excessiveDebug) Debug() << "Got image of size " << xi->w << "x" << xi->h;
-                const int imgSz = (xi->w/2)*xi->h;
-                if (imgSz < (int)params.nVAIChans) {
-                    emit(daqError("Received image frame from slave process but it's smaller than the number of channels we are expecting!"));
-					p.kill();
-					return 0;
-                } else if (!didImgSizeWarn && imgSz > (int)params.nVAIChans) {
-                    Warning() << "Received image of size:" << (xi->w/2) << "x" << xi->h << ", but expected an image of 72x32";
-                    didImgSizeWarn = true;
-                }
-				scans.insert(scans.end(),(int16*)xi->img,((int16 *)xi->img)+params.nVAIChans);
-                ++imgXferCt;
+            if (xt->cmd == XtCmd_Img) {
+                Error() << "XtCmd_Img mechanism via stdout/stdin is no longer supported -- subprocess should be using shm mechanism!";
+                p.kill();
+                return 0;
             } else if (xt->cmd == XtCmd_ConsoleMessage) {
 				XtCmdConsoleMsg *xm = (XtCmdConsoleMsg *)xt; 
                 QString msg(xm->msg);
@@ -2207,17 +2269,12 @@ namespace DAQ
                 h.serverType = xs->serverType;
                 h.accessible = xs->accessible;
                 probedHardware.push_back(h);
+            } else if (xt->cmd == XtCmd_FPS) {
+                emit (gotFPS(xt->param));
             } else {
 				// todo.. handle other cmds coming in?
+                Warning() << "Unrecognized command from FrameGrabber subprocess: " << (unsigned)xt->cmd;
 			}
-		}
-		if (scans.size()) {
-			totalReadMut.lock();
-			quint64 oldTotalRead = totalRead;
-			totalRead += (quint64)scans.size();
-			totalReadMut.unlock();
-			enqueueBuffer(scans, oldTotalRead, true);
-			if (!oldTotalRead) emit(gotFirstScan());
 		}
 
 		return consumed;
@@ -2233,6 +2290,14 @@ namespace DAQ
         unsigned long ctr = dialog->clkCtLbl->text().toULong();
         dialog->clkCtLbl->setText(QString::number(ctr+1UL));
         dialog->imgXferCtLbl->setText(QString::number(imgXferCt));
+        dialog->frameSkipsLbl->setText(
+                    QString( !frameSkipCt ?  "<font color=green>" : "<font color=red>")
+                    + QString::number(frameSkipCt) + "</font>"
+                    );
+    }
+
+    void FGTask::updateFPS(int fps) {
+        dialog->fpsLbl->setText(QString::number(fps));
     }
 
 	/* static */
@@ -2276,15 +2341,42 @@ namespace DAQ
 
     void FGTask::grabFramesClicked() {
         appendTE("Grab frames clicked.", QColor(Qt::gray));
-        XtCmd x;
+
+        if (!shm.isAttached()) {
+            shm.setNativeKey(XT_SHM_NAME);
+            if (!shm.create(XT_SHM_SIZE) && !shm.attach()) {
+                Error() << "INTERNAL ERROR: Error creating FrameGrabber shm segment:" << shm.errorString();
+                return;
+            } else {
+                if ( shm.size() < XT_SHM_SIZE ) {
+                    Error() << "INTERNAL ERROR: FrameGrabber shm segment is too small.  Required size: " << XT_SHM_SIZE << " Current size: " << shm.size();
+                    return;
+                } else {
+                    frames = (XtCmdImg *)shm.data();
+                    memset(frameBytes, 0, shm.size());
+                    Log() << "Successfully created '" << XT_SHM_NAME <<"' shm segment of size " << (XT_SHM_SIZE/1024/1024) << "MB";
+                }
+            }
+        }
+        if (!frameReader) {
+            frameReader = new FrameReader(this);
+            frameReader->start();
+        }
+
         // grab frames.. does stuff with Sapera API in the slave process
-        x.init();
-        x.cmd = XtCmd_GrabFrames;
+        XtCmdGrabFrames x;
+        if (params.fg.isCalinsConfig)
+            x.init("B_a2040_FreeRun_8Tap_Default.ccf", 2048, 2048/4, NumChansCalinsTest);
+        else
+            x.init("J_2000+_Electrode_8tap_8bit.ccf", 144, 32, NumChans);
         pushCmd(x);
     }
 
     /* static */
     QList<FGTask::Hardware> FGTask::probedHardware;
+
+    /* static */
+    double FGTask::last_hw_probe_ts = 0.0;
 
     /* static */
     void FGTask::probeHardware() {
@@ -2350,7 +2442,8 @@ namespace DAQ
         p.waitForFinished(250);
         if (p.state() != QProcess::NotRunning) p.kill();
 
-        Debug() << "Probe done, found " << probedHardware.size() << " valid AcqDevices in " << (getTime()-t0) << " secs.";
+        last_hw_probe_ts = getTime();
+        Debug() << "Probe done, found " << probedHardware.size() << " valid AcqDevices in " << (last_hw_probe_ts-t0) << " secs.";
     }
 	
 } // end namespace DAQ

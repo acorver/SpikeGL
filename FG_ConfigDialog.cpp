@@ -44,7 +44,7 @@ void FG_ConfigDialog::browseButClicked()
 
 int FG_ConfigDialog::exec()
 {
-    if (DAQ::FGTask::probedHardware.empty())
+    if (DAQ::FGTask::probedHardware.empty() || Util::getTime() - DAQ::FGTask::lastProbeTS() > 10.0)
         DAQ::FGTask::probeHardware();
 
     if (DAQ::FGTask::probedHardware.empty()) {
@@ -80,11 +80,12 @@ int FG_ConfigDialog::exec()
                 DAQ::FGTask::Hardware hw = DAQ::FGTask::probedHardware.at(dialog->sapdevCB->currentIndex());
                 p.fg.sidx = hw.serverIndex;
                 p.fg.ridx = hw.resourceIndex;
+                p.fg.isCalinsConfig = dialog->calinRadio->isChecked();
 
 				p.suppressGraphs = false; //dialog->disableGraphsChk->isChecked();
 				p.resumeGraphSettings = false; //dialog->resumeGraphSettingsChk->isChecked();
 				
-				p.nVAIChans = 2304;
+                p.nVAIChans =  p.fg.isCalinsConfig ? DAQ::FGTask::NumChansCalinsTest : DAQ::FGTask::NumChans;
 				p.nVAIChans1 = p.nVAIChans;
 				p.nVAIChans2 = 0;
 				p.aiChannels2.clear();
@@ -140,7 +141,7 @@ int FG_ConfigDialog::exec()
 				p.aoPassthru = 0;
 				p.dualDevMode = false;
                 p.stimGlTrigResave = true; // HACK XXX don't open file for now by default since it's huge
-				p.srate = DAQ::FGTask::SamplingRate;
+                p.srate = p.fg.isCalinsConfig ? DAQ::FGTask::SamplingRateCalinsTest : DAQ::FGTask::SamplingRate;
 				p.aiTerm = DAQ::Default;
 				p.aiString = QString("0:%1").arg(p.nVAIChans-1);
 				p.customRanges.resize(p.nVAIChans);
@@ -185,7 +186,7 @@ void FG_ConfigDialog::guiFromSettings()
     dialog->com->setCurrentIndex(p.fg.com);
     dialog->bits->setCurrentIndex(p.fg.bits);
     dialog->parity->setCurrentIndex(p.fg.parity);
-    dialog->stop->setCurrentIndex(p.fg.stop);
+    dialog->stop->setCurrentIndex(p.fg.stop);    
 
     if (!DAQ::FGTask::probedHardware.empty()) {
         dialog->sapdevCB->clear();
@@ -196,6 +197,9 @@ void FG_ConfigDialog::guiFromSettings()
             ++i;
         }
     }
+
+    dialog->calinRadio->setChecked(p.fg.isCalinsConfig);
+    dialog->janeliaRadio->setChecked(!p.fg.isCalinsConfig);
 
 }
 
