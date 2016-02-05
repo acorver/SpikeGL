@@ -500,7 +500,7 @@ namespace DAQ
 		static QString getChannelName(unsigned num);
 		
         static const double SamplingRate, SamplingRateCalinsTest;
-        static const int NumChans = 2304 /* 72 * 32 */, NumChansCalinsTest = 2048;
+        static const int NumChans /*= 2304 == 72 * 32 */, NumChansCalinsTest /*= 2048*/;
 
         void pushCmd(const XtCmd * c);
         void pushCmd(const XtCmd & c) { pushCmd(&c); }

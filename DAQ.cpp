@@ -2068,6 +2068,7 @@ namespace DAQ
     /* static */ const double FGTask::SamplingRate = /*100;*/ 20000.0; // 20kHz sampling rate!
     /* static */ const double FGTask::SamplingRateCalinsTest = (150 * 1024)/4; // 38.4khz rate!
     /* static */ QSharedMemory FGTask::shm;
+	/* static */ const int FGTask::NumChans = 2304 /* 72 * 32 */, FGTask::NumChansCalinsTest = 2048;
 
     unsigned FGTask::numChans() const { return params.nVAIChans; }
     unsigned FGTask::samplingRate() const { return params.srate; }
@@ -2190,7 +2191,8 @@ namespace DAQ
                     // put fake data in data pipe that matches the number of dropped frames (set to 0)
                     // in order to indicate in data file exactly which scans were dropped.
                     // uses the 'fake data' mechanism for this!
-                    enqueueScans(std::vector<int16>(), nScansPerFrame*nSkipped*nChansPerScan);
+					std::vector<int16> dummy;
+                    enqueueScans(dummy, nScansPerFrame*nSkipped*nChansPerScan);
                 }
                 scans.clear();
                 scans.reserve(nScansPerFrame * nChansPerScan);
@@ -2343,7 +2345,11 @@ namespace DAQ
         appendTE("Grab frames clicked.", QColor(Qt::gray));
 
         if (!shm.isAttached()) {
+#if QT_VERSION >= 0x040800
             shm.setNativeKey(XT_SHM_NAME);
+#else
+			shm.setKey(XT_SHM_NAME);
+#endif
             if (!shm.create(XT_SHM_SIZE) && !shm.attach()) {
                 Error() << "INTERNAL ERROR: Error creating FrameGrabber shm segment:" << shm.errorString();
                 return;
