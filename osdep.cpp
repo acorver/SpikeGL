@@ -23,7 +23,7 @@
 // for sched_setscheduler
 #endif
 
-#ifdef Q_WS_MACX
+#if defined(Q_WS_MACX) || defined(Q_OS_DARWIN)
 #include <agl.h>
 #include <gl.h>
 #endif
@@ -457,7 +457,7 @@ void setVSyncMode(bool onoff, bool prt)
         Warning() << "VSync mode could not be changed because wglSwapIntervalEXT is missing.";
     }
 }
-#elif defined (Q_WS_MACX)
+#elif defined (Q_WS_MACX) || defined(Q_OS_DARWIN)
 
 void setVSyncMode(bool onoff, bool prt)
 {

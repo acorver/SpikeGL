@@ -1,7 +1,8 @@
 #include "GLGraph.h"
-#ifdef Q_WS_MACX
+#if defined(Q_WS_MACX) || defined(Q_OS_DARWIN)
 #include <gl.h>
 #include <agl.h>
+#include <glu.h>
 #else
 #include <GL/gl.h>
 #endif

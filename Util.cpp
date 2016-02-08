@@ -14,7 +14,7 @@
 #include <windows.h>
 #include <wingdi.h>
 #endif
-#ifdef Q_WS_MACX
+#if defined(Q_WS_MACX) || defined(Q_OS_DARWIN)
 #  include <gl.h>
 #else
 #  include <GL/gl.h>
