@@ -67,10 +67,11 @@ signals:
 public slots:
 	void highlightGraphsById(const QVector<unsigned> & electrode_ids);
 	void openGraphsById(const QVector<unsigned> & electrode_ids); ///< really just opens the first graph
-	
+    void setDownsampling(bool checked);
+    void setDownsamplingCheckboxEnabled(bool en);
+
 private slots:
     void updateGraphs();
-    void downsampleChk(bool checked);
     void hpfChk(bool checked);
     void pauseGraph();
     void toggleMaximize();
@@ -131,7 +132,7 @@ private:
     QPushButton *chanBut;
 	QLabel *chanLbl;
     QDoubleSpinBox *graphYScale, *graphSecs;
-    QCheckBox *highPassChk, *toggleSaveChk;
+    QCheckBox *highPassChk, *toggleSaveChk, *downsampleChk;
     QLineEdit *saveFileLE;
     QPushButton *graphColorBut;
     QVector<Vec2WrapBuffer> points;

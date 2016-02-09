@@ -697,7 +697,6 @@ void MainApp::initActions()
 	Connect( sortGraphsByElectrodeAct = new QAction("Sort graphs by Electrode", this), SIGNAL(triggered()), this, SLOT(optionsSortGraphsByElectrode()) );
 	sortGraphsByElectrodeAct->setCheckable(true);
 	sortGraphsByElectrodeAct->setChecked(m_sortGraphsByElectrodeId);
-	
 }
 
 bool MainApp::startAcq(QString & errTitle, QString & errMsg) 
@@ -858,6 +857,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	}	
 	
     if (fgtask) { // HACK, testing for now!!
+        graphsWindow->setDownsampling(true);
+        graphsWindow->setDownsamplingCheckboxEnabled(false);
         delete acqStartingDialog; acqStartingDialog = 0;
         fgtask->dialogW->show();
         fgtask->dialogW->activateWindow();

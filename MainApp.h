@@ -391,7 +391,7 @@ public:
         *quitAct, *toggleDebugAct, *toggleExcessiveDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
         *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct, *commandServerOptionsAct,
 		*showChannelSaveCBAct, *enableDSFacilityAct, *fileOpenAct, *tempFileSizeAct, *bringAllToFrontAct,
-	    *sortGraphsByElectrodeAct, *bugAcqAct, *fgAcqAct;
+        *sortGraphsByElectrodeAct, *bugAcqAct, *fgAcqAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon, bugIcon;

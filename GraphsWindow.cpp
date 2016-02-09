@@ -224,10 +224,10 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	const bool setting_ds = settings.value("downsample",false).toBool(),
 		       setting_filt = settings.value("filter",true).toBool();
 
-    QCheckBox *dsc = new QCheckBox(QString("Downsample (%1 KHz)").arg(DOWNSAMPLE_TARGET_HZ/1000.), graphCtls);
+    QCheckBox *dsc = downsampleChk = new QCheckBox(QString("Downsample (%1 KHz)").arg(DOWNSAMPLE_TARGET_HZ/1000.), graphCtls);
     graphCtls->addWidget(dsc);
     dsc->setChecked(setting_ds);
-    Connect(dsc, SIGNAL(clicked(bool)), this, SLOT(downsampleChk(bool)));
+    Connect(dsc, SIGNAL(clicked(bool)), this, SLOT(setDownsampling(bool)));
 
     highPassChk = new QCheckBox("Filter < 300Hz", graphCtls);
     graphCtls->addWidget(highPassChk);
@@ -419,7 +419,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 	statusBar()->addPermanentWidget(leds);
 
 	/// apply saved settings by calling the callback after everything is constructed
-	downsampleChk(setting_ds);
+    setDownsampling(setting_ds);
 	hpfChk(setting_filt);
 	
 	// setup sorting/naming
@@ -594,8 +594,14 @@ void GraphsWindow::updateGraphs()
             graphs[i]->updateGL();
 }
 
-void GraphsWindow::downsampleChk(bool checked)
-{
+void GraphsWindow::setDownsampling(bool checked)
+{    
+    if (checked?1:0 != downsampleChk->isChecked()?1:0) {
+        downsampleChk->blockSignals(true);
+        downsampleChk->setChecked(checked);
+        downsampleChk->blockSignals(false);
+    }
+
     if (checked) {
         downsampleRatio = params.srate/double(DOWNSAMPLE_TARGET_HZ);
         if (downsampleRatio < 1.) downsampleRatio = 1.;
@@ -608,6 +614,8 @@ void GraphsWindow::downsampleChk(bool checked)
 	settings.beginGroup("GraphsWindow");
 	settings.setValue("downsample",checked);
 }
+
+void GraphsWindow::setDownsamplingCheckboxEnabled(bool en) { downsampleChk->setEnabled(en); }
 
 
 void GraphsWindow::doPauseUnpause(int num, bool updateCtls)
