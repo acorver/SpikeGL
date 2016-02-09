@@ -119,7 +119,7 @@ private:
 	QScrollArea *scrollArea; ///< the central widget
 	QWidget *graphParent;
 	QVector<GLGraph *> graphs;
-	QVector<Vec2WrapBuffer> graphBufs;	
+    QVector<Vec2fWrapBuffer> graphBufs;
 	QVector<QFrame *> graphFrames;
 	QSpinBox *posScansSB;
 	QDoubleSpinBox *posSecsSB;

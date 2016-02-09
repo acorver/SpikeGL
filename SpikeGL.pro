@@ -34,6 +34,7 @@ SOURCES += DataFile.cpp osdep.cpp Params.cpp sha1.cpp Util.cpp \
            Bug_ConfigDialog.cpp Bug_Popout.cpp \
            FG_ConfigDialog.cpp
 
+
 FORMS += ConfigureDialog.ui AcqPDParams.ui AcqTimedParams.ui Par2Window.ui \
          StimGLIntegration.ui ChanMapping.ui AOPassthru.ui Dialog.ui \
          ApplyDialog.ui TextBrowser.ui CommandServerOptions.ui \
@@ -80,3 +81,5 @@ ICON = SpikeGL.icns
 
 # Embed the samplerate lib into the executable..
 include(samplerate/samplerate.pri)
+
+

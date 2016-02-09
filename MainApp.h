@@ -247,6 +247,7 @@ protected slots:
     void sha1VerifySuccess();
     void sha1VerifyFailure();
     void sha1VerifyCancel();
+    void sha1VerifyMissing(QString);
 
     void showPar2Win();
 	void par2WinClosed();
@@ -383,6 +384,8 @@ private:
 	
 	PostJuly2011Remuxer *addtlDemuxTask;
 	bool doBugAcqInstead, doFGAcqInstead, m_sortGraphsByElectrodeId;
+
+    int datafile_desired_q_size;
 	
 public:
 

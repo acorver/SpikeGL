@@ -7,9 +7,9 @@
 #include "sha1.h"
 #include "ConsoleWindow.h"
 
-Sha1VerifyTask::Sha1VerifyTask(const QString & dfn, 
+Sha1VerifyTask::Sha1VerifyTask(const QString & dfn, const QString & metaFP,
                                const Params & params_in, QObject *parent)
-    : QThread(parent), Sha1Verifier(dfn, params_in)
+    : QThread(parent), Sha1Verifier(dfn, metaFP, params_in)
 {
     prog = new QProgressDialog(QString("Verifying SHA1 hash of " + dataFileNameShort + "..."), "Cancel", 0, 100, mainApp()->console());
     Connect(this, SIGNAL(progress(int)), prog, SLOT(setValue(int)));
@@ -29,14 +29,14 @@ void Sha1VerifyTask::cancel()
 //    emit canceled();
 }
 
-Sha1Verifier::Sha1Verifier(const QString & dataFileName, const Params & params)   ///< c'tor just initializes values to 0
-: dataFileName(dataFileName), pleaseStop(false), params(params)
+Sha1Verifier::Sha1Verifier(const QString & dataFileName, const QString &meta, const Params & params)   ///< c'tor just initializes values to 0
+: dataFileName(dataFileName), metaFilePath(meta), pleaseStop(false), params(params)
 {
     dataFileNameShort = QFileInfo(dataFileName).fileName();
 }
 
 Sha1Verifier::Result
-Sha1Verifier::verify()
+Sha1Verifier::verify(QString *hash_out)
 {
     QByteArray buf(65536, 0);
     QFile f(dataFileName);
@@ -80,11 +80,18 @@ Sha1Verifier::verify()
     if (!pleaseStop && f.atEnd() && extendedError.isNull()) {
         progress(100);
         sha1.Final();
-        if (sha1FromMeta.compare(sha1.ReportHash().c_str(), Qt::CaseInsensitive) == 0) {
+        QString theHash = sha1.ReportHash().c_str();
+        if (hash_out) *hash_out = theHash;
+        if (sha1FromMeta.compare(theHash, Qt::CaseInsensitive) == 0) {
             r = Success;
         } else {
-            extendedError = "Computed SHA1 does not match saved hash in meta file!\n(This could mean the data file has some corruption!)";
-            r = Failure;
+            if (sha1FromMeta.trimmed() == "0" || !sha1FromMeta.trimmed().length()) {
+                extendedError = "SHA1 hash is missing from this data file, because it has never been computed for this file.";
+                r = MetaFileMissingSha1;
+            } else {
+                extendedError = "Computed SHA1 does not match saved hash in meta file!\n(This could mean the data file has some corruption!)";
+                r = Failure;
+            }
         }
     } else if (pleaseStop)
         r = Canceled;
@@ -93,10 +100,13 @@ Sha1Verifier::verify()
 
 void Sha1VerifyTask::run()
 {
-    Result res = verify();
+    QString hash="";
+
+    Result res = verify(&hash);
     switch(res) {
         case Success: emit success(); break;
         case Failure: emit failure(); break;
         case Canceled: emit canceled(); break;
+        case MetaFileMissingSha1: emit metaFileMissingSha1(hash); break;
     }
 }

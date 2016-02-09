@@ -135,7 +135,7 @@ private:
     QCheckBox *highPassChk, *toggleSaveChk, *downsampleChk;
     QLineEdit *saveFileLE;
     QPushButton *graphColorBut;
-    QVector<Vec2WrapBuffer> points;
+    QVector<Vec2fWrapBuffer> points;
     QVector<GLGraph *> graphs;
 	QVector<QCheckBox *> chks; /// checkboxes for above graphs!
     QVector<QFrame *> graphFrames;

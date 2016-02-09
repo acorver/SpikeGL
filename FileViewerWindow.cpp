@@ -559,7 +559,7 @@ void FileViewerWindow::updateData()
 				const int chanId = chanIdsOn[j];
 				int16 & rawsampl = data[i * nChansOn + j];
 			    const double sampl = ( ((double(rawsampl) + (-smin))/(usmax)) * (2.0) ) - 1.0;
-			    Vec2 vec(double(i)/double(nread), sampl);
+                Vec2f vec(double(i)/double(nread), sampl);
 				graphBufs[chanId].putData(&vec, 1);
 				avgs[j] += sampl * avgfactor;
 			}
@@ -571,7 +571,7 @@ void FileViewerWindow::updateData()
 				for (int j = 0; j < nChansOn; ++j) {
 					const int chanId = chanIdsOn[j];
 					if (chansToDCSubtract[j]) {
-						Vec2 & vec(graphBufs[chanId].at(i));
+                        Vec2f & vec(graphBufs[chanId].at(i));
 						vec.y -= avgs[j];
 					}
 				}

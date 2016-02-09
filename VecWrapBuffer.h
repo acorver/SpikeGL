@@ -71,6 +71,7 @@ public:
 /// a class that is a wrapper for WrapBuffer that deals with data items as Vec2s rather than bytes (thus sizes, etc, are in terms of number of Vec2's)
 typedef VecWrapBuffer<Vec2> Vec2WrapBuffer;
 typedef VecWrapBuffer<Vec2f> Vec2fWrapBuffer;
+typedef VecWrapBuffer<Vec2s> Vec2sWrapBuffer;
 /// a class that is a wrapper for WrapBuffer that deals with data items as Vec3s rather than bytes (thus sizes, etc, are in terms of number of Vec2's)
 typedef VecWrapBuffer<Vec3> Vec3WrapBuffer;
 typedef VecWrapBuffer<Vec3f> Vec3fWrapBuffer;

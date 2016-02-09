@@ -182,7 +182,7 @@ struct ConnSha1Verifier : public Sha1Verifier {
     CommandConnection *conn;
     
     ConnSha1Verifier(const QString & f, const Params & p, CommandConnection * conn) 
-        : Sha1Verifier(f, p), conn(conn), highestProg(-1) {}
+        : Sha1Verifier(f, "", p), conn(conn), highestProg(-1) {}
     
     int highestProg;
     

@@ -130,7 +130,7 @@ int FG_ConfigDialog::exec()
 				
 				saveSettings();
 
-                p.lowLatency = false;
+                p.lowLatency = false/*true*/;
 
 				// this stuff doesn't need to be saved since it's constant and will mess up regular acq "remembered" values
                 p.dev = "Framegrabber";

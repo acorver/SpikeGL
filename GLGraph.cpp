@@ -155,9 +155,9 @@ void GLGraph::drawGrid() const
     glLineStipple(1, gridLineStipplePattern); 
     glLineWidth(1.f);
     glColor4f(grid_Color.redF(), grid_Color.greenF(), grid_Color.blueF(), grid_Color.alphaF());
-    glVertexPointer(2, GL_DOUBLE, 0, &gridVs[0]);
+    glVertexPointer(2, GL_FLOAT, 0, &gridVs[0]);
     glDrawArrays(GL_LINES, 0, nVGridLines*2);
-    glVertexPointer(2, GL_DOUBLE, 0, &gridHs[0]);
+    glVertexPointer(2, GL_FLOAT, 0, &gridHs[0]);
     glDrawArrays(GL_LINES, 0, nHGridLines*2);
 
     glLineStipple(1, 0xffff);
@@ -174,11 +174,11 @@ void GLGraph::drawGrid() const
 
 void GLGraph::drawPoints() const 
 {
-    const Vec2 *pv1(0), *pv2(0);
+    const Vec2f *pv1(0), *pv2(0);
     unsigned l1(0), l2(0);
     
-    pointsWB->dataPtr1((Vec2 *&)pv1, l1);
-    pointsWB->dataPtr2((Vec2 *&)pv2, l2);
+    pointsWB->dataPtr1((Vec2f *&)pv1, l1);
+    pointsWB->dataPtr2((Vec2f *&)pv2, l2);
 
     GLfloat savedColor[4];
     GLfloat savedWidth;
@@ -199,14 +199,14 @@ void GLGraph::drawPoints() const
     // and such a difference in scale between x,y causes precision loss!
     // (See bugs before Oct 27, 2009 build!)
     const size_t len = l1+l2;
-    QVector<Vec2> & points ( pointsDisplayBuf );
+    QVector<Vec2f> & points ( pointsDisplayBuf );
     // copy point to display vertex buffer
     if (size_t(points.size()) != len) points.resize(len);
-    if (l1)  memcpy(points.data(), pv1, l1*sizeof(Vec2));
-    if (l2)  memcpy(points.data()+l1, pv2, l2*sizeof(Vec2));
+    if (l1)  memcpy(points.data(), pv1, l1*sizeof(Vec2f));
+    if (l2)  memcpy(points.data()+l1, pv2, l2*sizeof(Vec2f));
     for (size_t i = 0; i < len; ++i) points[i].x -= min_x; /// xform relative to min_x
     
-    glVertexPointer(2, GL_DOUBLE, 0, points.constData());
+    glVertexPointer(2, GL_FLOAT, 0, points.constData());
     glDrawArrays(GL_LINE_STRIP, 0, len);
 
     
@@ -226,14 +226,14 @@ void GLGraph::drawSelection() const
 	glGetIntegerv(GL_POLYGON_MODE, saved_polygonmode);		   
 	glColor4f(.5, .5, .5, .5);
 	glPolygonMode(GL_FRONT, GL_FILL); // make suroe to fill the polygon;	
-	const double vertices[] = {
+    const float vertices[] = {
 		selectionBegin,  -1.,
 		selectionEnd,    -1.,
 		selectionEnd,     1.,
 		selectionBegin,   1.
 	};
 	
-	glVertexPointer(2, GL_DOUBLE, 0, vertices);
+    glVertexPointer(2, GL_FLOAT, 0, vertices);
 	glDrawArrays(GL_QUADS, 0, 4);	
 	
 	// restore saved OpenGL state
@@ -248,9 +248,9 @@ void GLGraph::setNumHGridLines(unsigned n)
     gridHs.clear();
     gridHs.reserve(nHGridLines*2);
     for (unsigned i = 0; i < nHGridLines; ++i) {
-        Vec2 v;
+        Vec2f v;
         v.x = 0.f;
-        v.y = double(i)/double(nHGridLines) * 2.0f - 1.0f;
+        v.y = float(i)/float(nHGridLines) * 2.0f - 1.0f;
         gridHs.push_back(v);         
         v.x = 1.f;
         gridHs.push_back(v);         
@@ -266,8 +266,8 @@ void GLGraph::setNumVGridLines(unsigned n)
     gridVs.clear();
     gridVs.reserve(nVGridLines*2);
     for (unsigned i = 0; i < nVGridLines; ++i) {
-        Vec2 v;
-        v.x = double(i)/double(nVGridLines);
+        Vec2f v;
+        v.x = float(i)/float(nVGridLines);
         v.y = -1.f;
         gridVs.push_back(v);         
         v.y = 1.f;
@@ -277,7 +277,7 @@ void GLGraph::setNumVGridLines(unsigned n)
     else need_update = true;
 }
 
-void GLGraph::setPoints(const Vec2WrapBuffer *va)
+void GLGraph::setPoints(const Vec2fWrapBuffer *va)
 {
     pointsWB = va;
     if (auto_update) updateGL();
@@ -294,7 +294,7 @@ void GLGraph::setYScale(double d)
 void GLGraph::mouseMoveEvent(QMouseEvent *evt)
 {
 	emit(cursorOverWindowCoords(evt->x(), evt->y()));
-    Vec2 v(pos2Vec(evt->pos()));
+    Vec2f v(pos2Vec(evt->pos()));
     emit(cursorOver(v.x,v.y));
 }
 
@@ -302,7 +302,7 @@ void GLGraph::mousePressEvent(QMouseEvent *evt)
 {
     if (!(evt->buttons() & Qt::LeftButton)) return;
 	emit(clickedWindowCoords(evt->x(), evt->y()));
-    Vec2 v(pos2Vec(evt->pos()));
+    Vec2f v(pos2Vec(evt->pos()));
     emit(clicked(v.x,v.y));
 }
 
@@ -310,7 +310,7 @@ void GLGraph::mouseReleaseEvent(QMouseEvent *evt)
 {
     if (evt->buttons() & Qt::LeftButton) return;
 	emit(clickReleasedWindowCoords(evt->x(), evt->y()));
-    Vec2 v(pos2Vec(evt->pos()));
+    Vec2f v(pos2Vec(evt->pos()));
     emit(clickReleased(v.x,v.y));
 	
 }
@@ -318,13 +318,13 @@ void GLGraph::mouseReleaseEvent(QMouseEvent *evt)
 void GLGraph::mouseDoubleClickEvent(QMouseEvent *evt)
 {
     if (!(evt->buttons() & Qt::LeftButton)) return;
-    Vec2 v(pos2Vec(evt->pos()));
+    Vec2f v(pos2Vec(evt->pos()));
     emit(doubleClicked(v.x,v.y));
 }
 
-Vec2 GLGraph::pos2Vec(const QPoint & pos)
+Vec2f GLGraph::pos2Vec(const QPoint & pos)
 {
-    Vec2 ret;
+    Vec2f ret;
     ret.x = double(pos.x())/width();
     // invert Y
     int y = height()-pos.y();

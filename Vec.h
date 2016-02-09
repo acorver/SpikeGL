@@ -32,6 +32,23 @@ struct Vec2f
 	bool operator!=(const Vec2f & o) const { return !((*this) == o); }
 };
 
+struct Vec2s
+{
+    union {
+        struct {
+            int16 v1, v2;
+        };
+        struct {
+            int16 x, y;
+        };
+    };
+    Vec2s() : x(0.), y(0.) {}
+    Vec2s(int16 x, int16 y) : x(x), y(y) {}
+    bool operator==(const Vec2s & o) const { return v1 == o.v1 && v2 == o.v2; }
+    bool operator!=(const Vec2s & o) const { return !((*this) == o); }
+};
+
+
 struct Vec3 
 {
     union {

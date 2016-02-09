@@ -17,7 +17,7 @@ class DFWriteThread : public QThread, public SampleBufQ
 	volatile bool stopflg;
 
 public:
-	DFWriteThread(DataFile *df);
+    DFWriteThread(DataFile *df, unsigned q_size);
 	~DFWriteThread();
 protected:
 	void run(); ///< from QThread
@@ -77,7 +77,7 @@ bool DataFile::closeAndFinalize()
 		if (dfwt) delete dfwt, dfwt = 0;
 		// Output mode...
 		sha.Final();
-		params["sha1"] = sha.ReportHash().c_str();
+        params["sha1"] = /*sha.ReportHash().c_str()*/ "0";
 		params["fileTimeSecs"] = fileTimeSecs();
 		params["fileSizeBytes"] = dataFile.size();
 		params["createdBy"] = QString("%1").arg(VERSION_STR);
@@ -103,7 +103,7 @@ bool DataFile::closeAndFinalize()
 	return false; // not normally reached...
 }
 
-bool DataFile::writeScans(const std::vector<int16> & scans, bool asynch)
+bool DataFile::writeScans(const std::vector<int16> & scans, bool asynch, unsigned threaded_queueSize)
 {
     if (!isOpen()) return false;
     if (!scans.size()) return true; // for now, we allow empty writes!
@@ -129,7 +129,8 @@ bool DataFile::writeScans(const std::vector<int16> & scans, bool asynch)
 
 	if (asynch) {
 		if (!dfwt) {
-			dfwt = new DFWriteThread(this);
+            if (threaded_queueSize == 0) threaded_queueSize = SAMPLE_BUF_Q_SIZE;
+            dfwt = new DFWriteThread(this, threaded_queueSize);
 			dfwt->start();
 		}
 		std::vector<int16> scansCopy;
@@ -164,10 +165,17 @@ bool DataFile::doFileWrite(const std::vector<int16> & scans)
 		return false;
 	}
 
-	tWrite = getTime() - tWrite;
-//	Debug() << "Wrote " << n2Write << " bytes in " << tWrite << " secs";
-	
-	sha.UpdateHash((const uint8_t *)&scans[0], n2Write);
+    const double tEndWrite = getTime();
+
+    tWrite = tEndWrite - tWrite;
+    //XXX debug todo fixme
+    //qDebug("Wrote %d bytes in %f ms",n2Write,tWrite*1e3);
+
+    // Sha1 Realtime has update disabled as of 2/9/2016 -- this was causing massive slowdowns on
+    // file saving of large data files.  Will revisit this later.  But noone was using the sha1
+    // hash's anyway.  Right now the Sha1 Verify... popup will warn if the sha1 hash is 0,
+    // and offer the user the opportunity to recompute the hash.s
+    //sha.UpdateHash((const uint8_t *)&scans[0], n2Write);
 
     statsMut.lock();
 
@@ -176,6 +184,10 @@ bool DataFile::doFileWrite(const std::vector<int16> & scans)
 	if (++nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;
 	
 	statsMut.unlock();
+
+    //XXX debug todo fixme
+    //qDebug("Update hash + stats took %f ms",(getTime()-tEndWrite)*1e3);
+
 	return true;
 }
 
@@ -635,7 +647,7 @@ bool DataFile::secondDevIsAuxOnly() const
 	return false;
 }
 
-DFWriteThread::DFWriteThread(DataFile *df) : QThread(0), SampleBufQ("Data Write Queue", SAMPLE_BUF_Q_SIZE), d(df), stopflg(false)
+DFWriteThread::DFWriteThread(DataFile *df, unsigned q_size) : QThread(0), SampleBufQ("Data Write Queue", q_size), d(df), stopflg(false)
 {}
 
 DFWriteThread::~DFWriteThread()
@@ -667,7 +679,7 @@ void DFWriteThread::run()
 {
 	unsigned bufct = 0;
 	u64 bytect = 0;
-	Debug() << "DFWriteThread started for " << d->fileName() << " ...";
+    Debug() << "DFWriteThread started for " << d->fileName() << "  with queueSize " << dataQueueMaxSize << "...";
 	std::vector<int16> buf;
 	u64 scount = 0;
 	while (!stopflg) {

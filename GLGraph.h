@@ -17,7 +17,7 @@ struct GLGraphState
     unsigned nHGridLines, nVGridLines;
     double min_x, max_x, yscale;
     unsigned short gridLineStipplePattern;
-    const Vec2WrapBuffer *pointsWB;
+    const Vec2fWrapBuffer *pointsWB;
     QVariant tagData;
 	double selectionBegin, selectionEnd;
 	bool hasSelection;
@@ -46,7 +46,7 @@ public:
     QVariant tag() const { return tagData; }
     void setTag(const QVariant & v) { tagData = v; }
 
-    void setPoints(const Vec2WrapBuffer *pointsBuf);
+    void setPoints(const Vec2fWrapBuffer *pointsBuf);
 
     QColor & bgColor() { return bg_Color; }
     QColor & graphColor() { return graph_Color; }
@@ -100,7 +100,7 @@ protected:
     void resizeGL(int w, int h);
     void paintGL();
 
-    Vec2 pos2Vec(const QPoint & pos);
+    Vec2f pos2Vec(const QPoint & pos);
     void mouseMoveEvent(QMouseEvent *evt);
     void mousePressEvent(QMouseEvent *evt);
     void mouseReleaseEvent(QMouseEvent *evt);
@@ -116,9 +116,9 @@ private:
     unsigned nHGridLines, nVGridLines;
     double min_x, max_x, yscale;
     unsigned short gridLineStipplePattern;
-    const Vec2WrapBuffer *pointsWB;
-    mutable QVector<Vec2> pointsDisplayBuf;
-    std::vector<Vec2> gridVs, gridHs;
+    const Vec2fWrapBuffer *pointsWB;
+    mutable QVector<Vec2f> pointsDisplayBuf;
+    std::vector<Vec2f> gridVs, gridHs;
     bool auto_update, need_update;
     QVariant tagData;
 	double selectionBegin, selectionEnd;

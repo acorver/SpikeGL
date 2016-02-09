@@ -66,7 +66,7 @@ public:
 		using openForWrite().
         Must be vector of length a multiple of  numChans() otherwise it will 
 	    fail unconditionally */
-    bool writeScans(const std::vector<int16> & scan, bool asynch = false);
+    bool writeScans(const std::vector<int16> & scan, bool asynch = false, unsigned asynch_queue_size = 0);
 	
 	/// Returns true iff we did an asynch write and we have writes that still haven't finished.  False otherwise.
 	bool hasPendingWrites() const;

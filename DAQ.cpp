@@ -1347,8 +1347,8 @@ namespace DAQ
     }
 	
     SubprocessTask::SubprocessTask(DAQ::Params & p, QObject *parent, const QString & shortName,
-								   const QString & exeName)
-	: Task(parent, shortName + " DAQ task", SAMPLE_BUF_Q_SIZE), params(p),
+                                   const QString & exeName, unsigned bufQSize)
+        : Task(parent, shortName + " DAQ task", bufQSize ? bufQSize : SAMPLE_BUF_Q_SIZE), params(p),
 	  shortName(shortName), dirName(shortName + "_SpikeGLv" + QString(VERSION_STR).right(8)), exeName(exeName)
 	{
         QString tp(QDir::tempPath());
@@ -2076,7 +2076,7 @@ namespace DAQ
 
 
     FGTask::FGTask(Params & ap, QObject *parent, bool isDummy)
-    : SubprocessTask(ap, parent, "Framegrabber", "FG_SpikeGL.exe"/*"MFCApplication2.exe"*/)
+        : SubprocessTask(ap, parent, "Framegrabber", "FG_SpikeGL.exe", ap.fg.isCalinsConfig ? SAMPLE_BUF_Q_SIZE_FG_CALIN : SAMPLE_BUF_Q_SIZE_FG_JANELIA)
 	{
         killAllInstancesOfProcessWithImageName(exeName);
 

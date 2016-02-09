@@ -105,6 +105,8 @@ MainApp * MainApp::singleton = 0;
 MainApp::MainApp(int & argc, char ** argv)
 	: QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), spatialWindow(0), bugWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), addtlDemuxTask(0), doBugAcqInstead(false)
 {
+    datafile_desired_q_size = SAMPLE_BUF_Q_SIZE;
+
 	QLocale::setDefault(QLocale::c());
 	setApplicationName("SpikeGL");
 	setApplicationVersion(VERSION_STR);
@@ -848,6 +850,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     
     taskReadTimer->start(1000/DEF_TASK_READ_FREQ_HZ);
 	
+    datafile_desired_q_size = SAMPLE_BUF_Q_SIZE;
+
 	if (bugtask) {
 		bugWindow = new Bug_Popout(bugtask,0);
 		bugWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
@@ -857,6 +861,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	}	
 	
     if (fgtask) { // HACK, testing for now!!
+        datafile_desired_q_size = params.fg.isCalinsConfig ? SAMPLE_BUF_Q_SIZE_FG_CALIN : SAMPLE_BUF_Q_SIZE_FG_JANELIA;
         graphsWindow->setDownsampling(true);
         graphsWindow->setDownsamplingCheckboxEnabled(false);
         delete acqStartingDialog; acqStartingDialog = 0;
@@ -1281,11 +1286,11 @@ void MainApp::taskReadFunc()
 						while (bmf%dataFile.numChans()) ++bmf;
 						bugWindow->writeMetaToBug3File(dataFile, *bugMeta, bmf); // bugMetaFudge explanation: puts a scan offset in the table generated in the meta data so that the scans in the data file line up with the scans in the comments...
 					}
-					dataFile.writeScans(scans_subsetted, true);
+                    dataFile.writeScans(scans_subsetted, true, datafile_desired_q_size);
 				} else {
 					if (bugWindow && bugMeta) 
 						bugWindow->writeMetaToBug3File(dataFile, *bugMeta, bugMetaFudge); // bugMetaFudge explanation: puts a scan offset in the table generated in the meta data so that the scans in the data file line up with the scans in the comments...
-					dataFile.writeScans(scans, true);
+                    dataFile.writeScans(scans, true, datafile_desired_q_size);
 				}
 				// and.. swap back if we have anything in scans_orig
 				if (scans_orig.size()) 
@@ -1606,10 +1611,11 @@ void MainApp::verifySha1()
     }
 
     // now, spawn a new thread for the task..
-    Sha1VerifyTask *task = new Sha1VerifyTask(dataFile, p, this);
+    Sha1VerifyTask *task = new Sha1VerifyTask(dataFile, pickedFI.filePath(), p, this);
     Connect(task, SIGNAL(success()), this, SLOT(sha1VerifySuccess()));
     Connect(task, SIGNAL(failure()), this, SLOT(sha1VerifyFailure()));
     Connect(task, SIGNAL(canceled()), this, SLOT(sha1VerifyCancel()));
+    Connect(task, SIGNAL(metaFileMissingSha1(QString)), this, SLOT(sha1VerifyMissing(QString)));
     task->prog->show();
     task->start();
 }
@@ -1654,6 +1660,35 @@ void MainApp::sha1VerifyCancel()
     if (task) task->deleteLater();
     else Error() << "sha1VerifyCancel error, no task!";
 }
+
+void MainApp::sha1VerifyMissing(QString computedHash)
+{
+    Sha1VerifyTask *task = dynamic_cast<Sha1VerifyTask *>(sender());
+    QString fn, mfp;
+    if (!task) {
+        Error() << "sha1VerifyMissing error, no task!";
+        return;
+    }
+    fn = task->dataFileNameShort, mfp = task->metaFilePath;
+    QString str = QString("'") + fn + "' is missing a SHA1 hash because it was never computer for this file.\n\nSave the correct SHA1 hash to the .meta file now?";
+    int but = QMessageBox::question(consoleWindow, "Missing Hash", str, QMessageBox::Yes|QMessageBox::No, QMessageBox::Yes);
+    if (but == QMessageBox::Yes) {
+        //...
+        Params p;
+        p.fromFile(mfp);
+        p["sha1"] = computedHash;
+        if (!p.toFile(mfp)) {
+            Error() << "Error writing to " << mfp;
+        } else {
+            QString msg = QString("'") + fn + "'" + " SHA1 hash saved successfully!";
+            Log() << msg;
+            QMessageBox::information(consoleWindow, "Success!", msg);
+        }
+    }
+    task->deleteLater();
+}
+
+
 
 void MainApp::showPar2Win()
 {

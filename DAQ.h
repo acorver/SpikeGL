@@ -337,7 +337,8 @@ namespace DAQ
 	public:
         SubprocessTask(Params & acqParams, QObject *parent,
 					   const QString & shortName,
-                       const QString & exeName);
+                       const QString & exeName,
+                       unsigned bufQSize = SAMPLE_BUF_Q_SIZE);
         virtual ~SubprocessTask();
 
         void stop();

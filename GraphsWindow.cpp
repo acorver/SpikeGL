@@ -504,14 +504,15 @@ void GraphsWindow::update_nPtsAllGs()
 
 void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
 {
+        //const double t0 = getTime(); /// XXX debug
         const int NGRAPHS (graphs.size());
-        const int DOWNSAMPLE_RATIO((int)downsampleRatio);
+        const int DOWNSAMPLE_RATIO(qRound(downsampleRatio));
         const double SRATE (params.srate);
         // avoid some operator[] and others..
         const int DSIZE = data.size();
         const int16 * const DPTR = &data[0];
         const bool * const pgraphs = &pausedGraphs[0];
-        Vec2WrapBuffer * const pts = &points[0];
+        Vec2fWrapBuffer * const pts = &points[0];
         int startpt = (int(DSIZE) - int(nPtsAllGs*DOWNSAMPLE_RATIO));
         i64 sidx = i64((firstSamp) + u64(DSIZE)) - nPtsAllGs*i64(DOWNSAMPLE_RATIO);
         if (startpt < 0) {
@@ -521,9 +522,9 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
         }
 
         double t = double(double(sidx) / NGRAPHS) / double(SRATE);
-        const double deltaT =  1.0/SRATE * double(DOWNSAMPLE_RATIO);
+        const double deltaT =  1.0/SRATE * downsampleRatio;
         // now, push new points to back of each graph, downsampling if need be
-        Vec2 v;
+        Vec2f v;
         int idx = 0;
         const int maximizedIdx = (maximized ? parseGraphNum(maximized) : -1);
 
@@ -533,10 +534,10 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
                 filter->apply(&data[i], deltaT);
                 needFilter = false;
             }
-            v.x = t;
-            v.y = DPTR[i] / 32768.0; // hardcoded range of data
             if (graphs[idx] && !pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx)) {
-                Vec2WrapBuffer & pbuf = pts[idx];
+                v.x = t;
+                v.y = DPTR[i] / 32768.0; // hardcoded range of data
+                Vec2fWrapBuffer & pbuf = pts[idx];
                 GraphStats & gs = graphStats[idx];
                 if (!pbuf.unusedCapacity()) {
                     const double val = pbuf.first().y;
@@ -566,9 +567,9 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
 				if (graphs[i]) graphs[i]->minx() = graphStates[i].min_x;
 				graphStates[i].max_x = graphStates[i].min_x + graphTimesSecs[i];
                 if (graphs[i]) graphs[i]->maxx() = graphStates[i].max_x;
-                // uncomment below 2 line if the empty gap at the end of the downsampled graph annoys you, or comment them out to remove this 'feature'
-                //if (!points[i].unusedCapacity())
-                //    graphs[i]->maxx() = points[i].last().x;
+                // XXX hack uncomment below 2 line if the empty gap at the end of the downsampled graph annoys you, or comment them out to remove this 'feature'
+                if (!points[i].unusedCapacity())
+                    graphs[i]->maxx() = points[i].last().x;
             } 
             // and, notify graph of new points
             graphs[i]->setPoints(&pts[i]);
@@ -583,6 +584,10 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
             tAvg += tDelta;
             tAvg /= ++tNum;
         } 
+
+        // debug fixme XXX TODO
+        //if (mainApp()->isDebugMode()) qDebug("GraphsWindow::putScans took %f ms (avg time between calls=%f ms)", (tNow-t0)*1e3, tAvg*1e3);
+
         tLast = tNow;
 }
 
