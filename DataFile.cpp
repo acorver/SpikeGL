@@ -680,16 +680,14 @@ void DFWriteThread::run()
     Debug() << "DFWriteThread started for " << d->fileName() << "  with queueSize " << dataQueueMaxSize << "...";
 	std::vector<int16> buf;
 	u64 scount = 0;
-    double tLast = getTime();
 	while (!stopflg) {
 		while (dequeueBuffer(buf, scount, false, false)) {
 			++bufct;
 			bytect += buf.size() * sizeof(int16);
 			write(buf);
             noDataCt = 0;
-            tLast = getTime();
 		}
-        if (noDataCt++ && (getTime()-tLast) > .01) msleep(1);
+        if (++noDataCt > 10000) msleep(1);
 	}
 	Debug() << "DFWriteThread stopped after writing " << bufct << " buffers (" << bytect << " bytes in " << d->scanCount() << " scans).";
 }
