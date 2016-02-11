@@ -56,7 +56,7 @@ static QString metaFileForFileName(const QString &fname)
  }
  
 DataFile::DataFile()
-    : mode(Undefined), scanCt(0), nChans(0), sRate(0), writeRateAvg(0.), nWritesAvg(0), nWritesAvgMax(1), dfwt(0)
+    : mode(Undefined), scanCt(0), nChans(0), sRate(0), writeRateAvg_for_ui(0), writeRateAvg(0.), nWritesAvg(0), nWritesAvgMax(1), dfwt(0)
 {
 }
 
@@ -95,7 +95,7 @@ bool DataFile::closeAndFinalize()
 		dataFile.close();
 		QString mf = metaFile.fileName();
 		metaFile.close(); // close it.. we mostly reserved it in the FS.. however we did write to it if writeCommentToMetaFile() as called, otherwise we just reserved it on the FS    
-		writeRateAvg = 0.;
+        writeRateAvg_for_ui = writeRateAvg = 0.;
 		nWritesAvg = nWritesAvgMax = 0;
 		mode = Undefined;
 		return params.toFile(mf,true /* append since we may have written comments to metafile!*/);
@@ -177,14 +177,12 @@ bool DataFile::doFileWrite(const std::vector<int16> & scans)
     // and offer the user the opportunity to recompute the hash.s
     //sha.UpdateHash((const uint8_t *)&scans[0], n2Write);
 
-    statsMut.lock();
-
 	// update write speed..
 	writeRateAvg = (writeRateAvg*nWritesAvg+(n2Write/tWrite))/double(nWritesAvg+1);
 	if (++nWritesAvg > nWritesAvgMax) nWritesAvg = nWritesAvgMax;
-	
-	statsMut.unlock();
 
+    writeRateAvg_for_ui = qRound(writeRateAvg);
+	
     //XXX debug todo fixme
     //qDebug("Update hash + stats took %f ms",(getTime()-tEndWrite)*1e3);
 
@@ -677,18 +675,21 @@ DFWriteThread::~DFWriteThread()
 
 void DFWriteThread::run()
 {
-	unsigned bufct = 0;
+    unsigned bufct = 0, noDataCt = 0;
 	u64 bytect = 0;
     Debug() << "DFWriteThread started for " << d->fileName() << "  with queueSize " << dataQueueMaxSize << "...";
 	std::vector<int16> buf;
 	u64 scount = 0;
+    double tLast = getTime();
 	while (!stopflg) {
 		while (dequeueBuffer(buf, scount, false, false)) {
 			++bufct;
 			bytect += buf.size() * sizeof(int16);
 			write(buf);
+            noDataCt = 0;
+            tLast = getTime();
 		}
-		msleep(10);
+        if (noDataCt++ && (getTime()-tLast) > .01) msleep(1);
 	}
 	Debug() << "DFWriteThread stopped after writing " << bufct << " buffers (" << bytect << " bytes in " << d->scanCount() << " scans).";
 }

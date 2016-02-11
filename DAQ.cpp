@@ -2175,14 +2175,22 @@ namespace DAQ
 
     void FGTask::FrameReader::run() {
         int nChansPerScan = task->numChans();
+        if (nChansPerScan < 0) /* divide by 0 guard for below */ nChansPerScan = 1;
         int nScansPerFrame = 1;
+        int minScansPerQueued = (task->samplingRate() / Util::getTaskReadFreqHz()) / 3;
+        if (minScansPerQueued <= 0) minScansPerQueued = 1;
+        Debug() << "FG Queue stats -- minScansPerQueued: " << minScansPerQueued  << "  size per q'd(MB): " << ((minScansPerQueued*nChansPerScan*2)/(1024.0*1024.)) << "  qcapacity(MB): " << (task->dataQueueMaxSize*(minScansPerQueued*nChansPerScan*2)/(1024.*1024.));
         std::vector<int16> scans;
-        scans.reserve(2048*2048);
+        scans.reserve(nChansPerScan*minScansPerQueued);
         int sleepct = 0;
         while (!pleaseStop) {
             XtCmdImg *img = task->frameCur();
             if (img->magic == XT_CMD_MAGIC && img->frameNum > task->imgXferCt) {
                 nScansPerFrame = ((img->w * img->h)/2) / nChansPerScan;
+                if (nScansPerFrame <= 0) {
+                    nScansPerFrame = 1;
+                    Error() << "FrameGrabber task sent a frame that contains less than 1 scan! FIXME!";
+                }
                 qint64 diff = img->frameNum - task->imgXferCt;
                 if (diff > 1LL) {
                     Error() << "FrameGrabbar task ring buffer overrun! Dropped Frames for frame number " << task->imgXferCt;
@@ -2194,15 +2202,20 @@ namespace DAQ
 					std::vector<int16> dummy;
                     enqueueScans(dummy, nScansPerFrame*nSkipped*nChansPerScan);
                 }
-                scans.clear();
-                scans.reserve(nScansPerFrame * nChansPerScan);
                 int16 *imgScans = reinterpret_cast<int16 *>(img->img);
-                scans.insert(scans.begin(), imgScans, imgScans+(nScansPerFrame*nChansPerScan));
+                scans.insert(scans.end(), imgScans, imgScans+(nScansPerFrame*nChansPerScan));
 
                 task->imgXferCt = img->frameNum;
                 task->frameNext();
 
-                if (scans.size()) enqueueScans(scans);
+                if (int(scans.size()/nChansPerScan) >= minScansPerQueued) {
+                    // enqueue throttling -- note that Janelia's FG sends scans 1 at a time.  SO we need to bunch them up in order to avoid spamming
+                    // the queues with tiny packets of data. This caused the app to stall (see Feb. 2016 emails)
+                    enqueueScans(scans);
+                    scans.clear();
+                    unsigned cap = MAX( (nScansPerFrame * nChansPerScan), (nChansPerScan * minScansPerQueued) );
+                    scans.reserve(cap);
+                }
                 sleepct = 0;
             } else {
                 long usecs = (1e6/task->samplingRate()) * nScansPerFrame;

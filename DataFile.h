@@ -104,7 +104,7 @@ public:
 	ChanMap chanMap() const;
 
     /// the average speed in bytes/sec for writes
-    double writeSpeedBytesSec() const { QMutexLocker l(&statsMut); return writeRateAvg; }
+    double writeSpeedBytesSec() const { return writeRateAvg_for_ui; }
     /// the minimal write speed required in bytes/sec, based on sample rate
     double minimalWriteSpeedRequired() const { return nChans*sizeof(int16)*double(sRate); }
 
@@ -143,8 +143,8 @@ private:
 	int pd_chanId;
 	
 	/// member vars used for Output mode only
-	mutable QMutex statsMut;
     SHA1 sha;
+    volatile unsigned writeRateAvg_for_ui; ///< in bytes/sec
     double writeRateAvg; ///< in bytes/sec
     unsigned nWritesAvg, nWritesAvgMax; ///< the number of writes in the average, tops off at sRate/10
 	DFWriteThread *dfwt;

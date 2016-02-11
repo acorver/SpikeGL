@@ -1159,7 +1159,7 @@ void MainApp::taskReadFunc()
     std::vector<int16> scans, scans_subsetted;
     u64 firstSamp;
     int ct = 0;
-    const int ctMax = 10;
+    const int ctMax = 10; // XXX FIXME DEBUG
     double qFillPct, qFillPct2 = 0., qFillPct3 = 0.;
     bool needToStop = false;
     static double lastSBUpd = 0;
@@ -1323,7 +1323,7 @@ void MainApp::taskReadFunc()
                 if (taskWaitingForStop && p.acqStartEndMode == DAQ::Timed) {
                     taskEndStr = QString(" - task will auto-stop in ") + QString::number((stopScanCt-scanCt)/p.srate) + " secs";
                 }
-                Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz - " << dataFile.sampleCount() << " samples read - " << qFillPct << "% buffer fill - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
+                Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz - " << dataFile.sampleCount() << " samples read - " <<  qFillPct << "% buffer fill - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
                 lastSBUpd = tNow;
             }
         }
