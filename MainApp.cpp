@@ -929,6 +929,16 @@ void MainApp::fgAcq()
 {
 	if (acqWaitingForPrecreate) return; ///< disable 'F' key or new app menu spamming...
     if ( !maybeCloseCurrentIfRunning() ) return;
+    if ( isDSFacilityEnabled() ) {
+        int answer =
+                QMessageBox::question(consoleWindow, "Disable Matlab Data API?",
+                              "The Matlab Data API concurrently writes a temp file while the acquisition takes place.\n\n"
+                              "This can impact performance for the Framegrabber acquisition mode, and is officially unsupported.\n\n"
+                              "Disable Matlab Data API and continue?",
+                              "Disable Matlab 'Data' API", "Cancel Operation",0,-1);
+        if (answer == 1) return;
+        if (isDSFacilityEnabled()) enableDSFacilityAct->trigger();
+    }
     noHotKeys = true;
     int ret = fgConfig->exec();
     noHotKeys = false;

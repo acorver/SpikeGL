@@ -10,6 +10,7 @@
 #include <vector>
 #include "ChanMappingController.h"
 #include <QSet>
+#include <QMutex>
 
 class QToolBar;
 class QLabel;
@@ -33,6 +34,7 @@ public:
     ~GraphsWindow();
 
     void putScans(std::vector<int16> & scans, u64 firstSamp);
+    void putScans(const int16 *data, unsigned data_size_samps, u64 firstSamp);
 
     // clear a specific graph's points, or all if negative
     void clearGraph(int which = -1);
@@ -171,6 +173,8 @@ private:
 	QVector <int> sorting, naming;
 	QSet<GLGraph *> extraGraphs;
 	QTimer *tabHighlightTimer;
+
+    mutable QMutex graphsMut; ///< recursive mutex.  locked whenever this class accesses graph data.  used because we are transitioning over to a threaded graphing data reader model as of Feb. 2016
 };
 
 

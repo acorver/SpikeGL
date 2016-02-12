@@ -28,6 +28,7 @@
 #include <QTabWidget>
 #include <QStackedWidget>
 #include <QComboBox>
+#include <QMutexLocker>
 #include <string.h>
 #include "MainApp.h"
 #include "HPFilter.h"
@@ -74,13 +75,14 @@ static void initIcons()
 }
 
 GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false)
+    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false), graphsMut(QMutex::Recursive)
 {
     sharedCtor(p, isSaving);
 }
 
 void GraphsWindow::setupGraph(int num, int firstExtraChan) 
 {
+    QMutexLocker l(&graphsMut);
 	GLGraph *g = graphs[num];
 	QColor bgColor = NormalGraphBGColor;
 	if (params.bug.enabled) {
@@ -120,7 +122,7 @@ void GraphsWindow::setupGraph(int num, int firstExtraChan)
 
 /*static*/ void GraphsWindow::SetupNumGraphsPerGraphTab()
 {
-	if (NumGraphsPerGraphTab[0]) return;
+    if (NumGraphsPerGraphTab[0]) return;
 	// defensively program against adding modes that lack a spec for number of graphs per tab
 	for (int i = 0; i < (int)DAQ::N_Modes; ++i) {
 		NumGraphsPerGraphTab[i] = MAX_NUM_GRAPHS_PER_GRAPH_TAB;
@@ -444,7 +446,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 
 
 GraphsWindow::~GraphsWindow()
-{
+{    
 	setUpdatesEnabled(false);
 	if (maximized) toggleMaximize(); // resets graphs to original state..
     const int gfs = graphFrames.size();
@@ -475,6 +477,8 @@ void GraphsWindow::removeEventFilter(QObject *obj)
 
 void GraphsWindow::setGraphTimeSecs(int num, double t)
 {
+    QMutexLocker l(&graphsMut);
+
     if (num < 0 || num >= (int)graphs.size()) return;
     graphTimesSecs[num] = t;
     const i64 npts = nptsAll[num] = (graphs[num] ? i64(ceil(t*params.srate/downsampleRatio)) : 0); // if the graph is not on-screen, make it use 0 points in the points WB to save memory for high-channel-counts
@@ -498,19 +502,27 @@ void GraphsWindow::setGraphTimeSecs(int num, double t)
 
 void GraphsWindow::update_nPtsAllGs()
 {
+    QMutexLocker l(&graphsMut);
+
     nPtsAllGs = 0;
     for (int i = 0; i < graphs.size(); ++i) nPtsAllGs += nptsAll[i];
 }
 
 void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
 {
+    if (data.size())  putScans(&data[0], data.size(), firstSamp);
+}
+
+void GraphsWindow::putScans(const int16 * data, unsigned DSIZE, u64 firstSamp)
+{
+    QMutexLocker l(&graphsMut);
+
         //const double t0 = getTime(); /// XXX debug
         const int NGRAPHS (graphs.size());
         const int DOWNSAMPLE_RATIO(qRound(downsampleRatio));
         const double SRATE (params.srate);
         // avoid some operator[] and others..
-        const int DSIZE = data.size();
-        const int16 * const DPTR = &data[0];
+        const int16 * DPTR = &data[0];
         const bool * const pgraphs = &pausedGraphs[0];
         Vec2fWrapBuffer * const pts = &points[0];
         int startpt = (int(DSIZE) - int(nPtsAllGs*DOWNSAMPLE_RATIO));
@@ -520,6 +532,7 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
             sidx += -startpt;
             startpt = 0;
         }
+        std::vector<int16> scanTmp; scanTmp.resize(NGRAPHS);
 
         double t = double(double(sidx) / NGRAPHS) / double(SRATE);
         const double deltaT =  1.0/SRATE * downsampleRatio;
@@ -529,9 +542,11 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
         const int maximizedIdx = (maximized ? parseGraphNum(maximized) : -1);
 
         bool needFilter = filter;
-        for (int i = startpt; i < DSIZE; ++i) {
+        for (int i = startpt; i < (int)DSIZE; ++i) {
             if (needFilter) {
-                filter->apply(&data[i], deltaT);
+                memcpy(&scanTmp[0], &data[i], NGRAPHS*sizeof(int16));
+                filter->apply(&scanTmp[0], deltaT);
+                DPTR = (&scanTmp[0])-i;//fudge DPTR.. dangerous but below code always accesses it as DPTR[i], so it's ok
                 needFilter = false;
             }
             if (graphs[idx] && !pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx)) {
@@ -555,6 +570,7 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
                 t += deltaT;
                 i = int((i-NGRAPHS) + DOWNSAMPLE_RATIO*NGRAPHS);
                 if ((i+1)%NGRAPHS) i -= (i+1)%NGRAPHS;
+                DPTR = &data[0];
                 needFilter = filter;
             }
         }
@@ -593,6 +609,8 @@ void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
 
 void GraphsWindow::updateGraphs()
 {
+    QMutexLocker l(&graphsMut);
+
     // repaint all graphs..
     for (int i = 0; i < (int)graphs.size(); ++i)
         if (graphs[i] && graphs[i]->needsUpdateGL())
@@ -600,7 +618,9 @@ void GraphsWindow::updateGraphs()
 }
 
 void GraphsWindow::setDownsampling(bool checked)
-{    
+{
+    QMutexLocker l(&graphsMut);
+
     if (checked?1:0 != downsampleChk->isChecked()?1:0) {
         downsampleChk->blockSignals(true);
         downsampleChk->setChecked(checked);
@@ -625,6 +645,8 @@ void GraphsWindow::setDownsamplingCheckboxEnabled(bool en) { downsampleChk->setE
 
 void GraphsWindow::doPauseUnpause(int num, bool updateCtls)
 {
+    QMutexLocker l(&graphsMut);
+
     if (num < pausedGraphs.size()) {
         bool p = pausedGraphs[num] = !pausedGraphs[num];
         if (!p) // unpaused. clear the graph now..
@@ -636,6 +658,8 @@ void GraphsWindow::doPauseUnpause(int num, bool updateCtls)
 
 void GraphsWindow::pauseGraph()
 {
+    QMutexLocker l(&graphsMut);
+
     if (mainApp()->isShiftPressed()) { // shift pressed, do 1 graph
         int num = selectedGraph;
         doPauseUnpause(num, false);
@@ -649,6 +673,8 @@ void GraphsWindow::pauseGraph()
 
 void GraphsWindow::selectGraph(int num)
 {
+    QMutexLocker l(&graphsMut);
+
     int old = selectedGraph;
     graphFrames[old]->setFrameStyle(QFrame::StyledPanel|QFrame::Plain);
     selectedGraph = num;
@@ -670,6 +696,7 @@ void GraphsWindow::doGraphColorDialog()
     QColorDialog::setCustomColor(1,AuxGraphBGColor.rgb());
     QColor c = QColorDialog::getColor(graphs[num] ? graphs[num]->graphColor() : graphStates[num].graph_Color, this);
     if (c.isValid()) {
+        QMutexLocker l(&graphsMut);
         if (graphs[num]) graphs[num]->graphColor() = c;
 		graphStates[num].graph_Color = c;
         updateGraphCtls();
@@ -687,6 +714,8 @@ struct SignalBlocker {
 
 void GraphsWindow::updateGraphCtls()
 {
+    QMutexLocker l(&graphsMut);
+
 	SignalBlocker b(graphYScale), b2(graphSecs), b3(graphColorBut), b4(pauseAct), b5(maxAct);
     int num = selectedGraph;
     bool p = pausedGraphs[num];
@@ -718,6 +747,8 @@ void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
 											 double & rms,
                                              const char * & unit)
 {
+    QMutexLocker l(&graphsMut);
+
     y += 1.;
     y /= 2.;
     // scale it to range..
@@ -743,6 +774,8 @@ void GraphsWindow::computeGraphMouseOverVars(unsigned num, double & y,
 
 void GraphsWindow::mouseClickGraph(double x, double y)
 {
+    QMutexLocker l(&graphsMut);
+
     int num = parseGraphNum(sender());
     selectGraph(num);
     lastMouseOverGraph = num;
@@ -752,6 +785,8 @@ void GraphsWindow::mouseClickGraph(double x, double y)
 
 void GraphsWindow::mouseOverGraph(double x, double y)
 {
+    QMutexLocker l(&graphsMut);
+
     int num = parseGraphNum(sender());
     lastMouseOverGraph = num;
     lastMousePos = Vec2(x,y);
@@ -760,6 +795,8 @@ void GraphsWindow::mouseOverGraph(double x, double y)
 
 void GraphsWindow::mouseDoubleClickGraph(double x, double y)
 {
+    QMutexLocker l(&graphsMut);
+
     int num = parseGraphNum(sender());
     selectGraph(num);
     toggleMaximize();
@@ -771,6 +808,8 @@ void GraphsWindow::mouseDoubleClickGraph(double x, double y)
 
 void GraphsWindow::updateMouseOver()
 {
+    QMutexLocker l(&graphsMut);
+
     QWidget *w = QApplication::widgetAt(QCursor::pos());
     bool isNowOver = true;
     if (!w || !dynamic_cast<GLGraph *>(w)) isNowOver = false;
@@ -796,6 +835,8 @@ void GraphsWindow::updateMouseOver()
 
 void GraphsWindow::toggleMaximize()
 {
+    QMutexLocker l(&graphsMut);
+
     int num = selectedGraph;
 	QWidget *tabber = tabWidget ? (QWidget *)tabWidget : (QWidget *)stackedWidget;
     if (maximized && graphs[num] != maximized) {
@@ -847,6 +888,8 @@ void GraphsWindow::toggleMaximize()
     // clear a specific graph's points, or all if negative
 void GraphsWindow::clearGraph(int which)
 {
+    QMutexLocker l(&graphsMut);
+
     if (which < 0 || which > graphs.size()) {
         // clear all..
         for (int i = 0; i < (int)points.size(); ++i) {
@@ -865,6 +908,8 @@ void GraphsWindow::clearGraph(int which)
 
 void GraphsWindow::graphSecsChanged(double secs)
 {
+    QMutexLocker l(&graphsMut);
+
     int num = selectedGraph;
     setGraphTimeSecs(num, secs);
     update_nPtsAllGs();    
@@ -874,6 +919,8 @@ void GraphsWindow::graphSecsChanged(double secs)
 
 void GraphsWindow::graphYScaleChanged(double scale)
 {
+    QMutexLocker l(&graphsMut);
+
     int num = selectedGraph;
     if (graphs[num]) graphs[num]->setYScale(scale);
 	graphStates[num].yscale = scale;
@@ -883,6 +930,8 @@ void GraphsWindow::graphYScaleChanged(double scale)
 
 void GraphsWindow::applyAll()
 {
+    QMutexLocker l(&graphsMut);
+
     if (!graphSecs->hasAcceptableInput() || !graphYScale->hasAcceptableInput()) return;
     double secs = graphSecs->text().toDouble(), scale = graphYScale->text().toDouble();
     QColor c = graphs[selectedGraph] ? graphs[selectedGraph]->graphColor() : graphStates[selectedGraph].graph_Color;
@@ -902,6 +951,8 @@ void GraphsWindow::applyAll()
 
 void GraphsWindow::hpfChk(bool b)
 {
+    QMutexLocker l(&graphsMut);
+
     if (filter) delete filter, filter = 0;
     if (b) {
         filter = new HPFilter(graphs.size(), 300.0);
@@ -911,7 +962,7 @@ void GraphsWindow::hpfChk(bool b)
 	settings.setValue("filter",b);
 }
 
-double GraphsWindow::GraphStats::rms() const { return sqrt(rms2()); }
+double GraphsWindow::GraphStats::rms() const {  return sqrt(rms2()); }
 
 double GraphsWindow::GraphStats::stdDev() const
 {
@@ -984,6 +1035,8 @@ void GraphsWindow::setTrigOverrideEnabled(bool b)
 }
 
 void GraphsWindow::saveGraphChecked(bool b) {
+    QMutexLocker l(&graphsMut);
+
 	const int num = sender()->objectName().toInt();
 	if (num >= 0 && num < (int)params.nVAIChans) {
 		QVector<unsigned> subset;
@@ -999,6 +1052,8 @@ void GraphsWindow::saveGraphChecked(bool b) {
 }
 
 void GraphsWindow::retileGraphsAccordingToSorting() {
+    QMutexLocker l(&graphsMut);
+
 	const int nGraphTabs (graphTabs.size());
 	QWidget * dummy = new QWidget(0);
 	dummy->setHidden(true);
@@ -1051,6 +1106,8 @@ void GraphsWindow::retileGraphsAccordingToSorting() {
 }
 
 void GraphsWindow::sortGraphsByElectrodeId() {
+    QMutexLocker l(&graphsMut);
+
 	DAQ::Params & p (params);
 	if (p.bug.enabled) {
 		chanBut->setText("Channel:");
@@ -1080,6 +1137,8 @@ void GraphsWindow::sortGraphsByElectrodeId() {
 }
 
 void GraphsWindow::sortGraphsByIntan() {
+    QMutexLocker l(&graphsMut);
+
 	if (params.bug.enabled) {
 		chanBut->setText("Channel:");
 	} else
@@ -1100,6 +1159,8 @@ void GraphsWindow::sortGraphsByIntan() {
 
 void GraphsWindow::tabChange(int t)
 {
+    QMutexLocker l(&graphsMut);
+
 	setUpdatesEnabled(false);
 
 	const int N_G = graphs.size();
@@ -1177,6 +1238,8 @@ void GraphsWindow::saveFileLineEditChanged(const QString &t)
 
 QString GraphsWindow::getGraphSettingsKey() const
 {
+    QMutexLocker l(&graphsMut);
+
 	const DAQ::Params & p(params);
 	const size_t bufsz = 512+p.demuxedBitMap.size();
 	char *buf = (char *)calloc(bufsz,sizeof(char));
@@ -1219,6 +1282,8 @@ QString GraphsWindow::getGraphSettingsKey() const
 
 void GraphsWindow::loadGraphSettings()
 {	
+    QMutexLocker l(&graphsMut);
+
 	if (!params.resumeGraphSettings) return;
 
 	QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
@@ -1260,6 +1325,8 @@ void GraphsWindow::loadGraphSettings()
 
 void GraphsWindow::saveGraphSettings()
 {
+    QMutexLocker l(&graphsMut);
+
 	QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 	settings.beginGroup(SETTINGS_GROUP);
 
@@ -1293,6 +1360,8 @@ void GraphsWindow::saveGraphSettings()
 
 void GraphsWindow::updateTabsWithHighlights()
 {
+    QMutexLocker l(&graphsMut);
+
 	QVarLengthArray<unsigned char> tabsWithHighlights(tabWidget ? tabWidget->count() : stackedWidget->count());
 	memset(tabsWithHighlights.data(), 0, tabsWithHighlights.size());
 	for (int i = 0; i < (int)graphs.size(); ++i) {
@@ -1318,6 +1387,8 @@ void GraphsWindow::updateTabsWithHighlights()
 
 void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
 {
+    QMutexLocker l(&graphsMut);
+
 	//Debug() << "GraphsWindow::highlightGraphsById called with " << ids.size() << " ids...";
 	
 	/*
@@ -1358,6 +1429,8 @@ void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
 
 void GraphsWindow::openGraphsById(const QVector<unsigned> & ids) ///< really just opens the first graph
 {
+    QMutexLocker l(&graphsMut);
+
     //Debug() << "GraphsWindow::openGraphsById called with " << ids.size() << " ids...";
     qDebug("selectGraphsById called, ids[0]=%d",ids.size()?int(ids[0]):-1);
 	if (ids.size()) {
