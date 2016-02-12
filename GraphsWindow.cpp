@@ -508,7 +508,7 @@ void GraphsWindow::update_nPtsAllGs()
     for (int i = 0; i < graphs.size(); ++i) nPtsAllGs += nptsAll[i];
 }
 
-void GraphsWindow::putScans(std::vector<int16> & data, u64 firstSamp)
+void GraphsWindow::putScans(const std::vector<int16> & data, u64 firstSamp)
 {
     if (data.size())  putScans(&data[0], data.size(), firstSamp);
 }

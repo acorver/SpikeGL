@@ -4,6 +4,7 @@
 #include "GlowBalls.h"
 #include "XtCmd.h"
 #include "FPGA.h"
+#include "../../../PagedRingbuffer.h"
 
 SapAcquisition *acq = 0;
 SapBuffer      *buffers = 0;
@@ -22,8 +23,15 @@ FPGA *fpga = 0;
 int desiredWidth = 144;
 int desiredHeight = 32;
 unsigned long long frameNum = 0;
-unsigned frameIdx = 0;
-XtCmdImg *frames = 0;
+
+std::string shmName("COMES_FROM_XtCmd");
+unsigned shmSize(0), shmPageSize(0);
+
+void *sharedMemory = 0;
+PagedRingbufferWriter *pager = 0;
+void *page = 0; int pageOffset = 0; 
+unsigned nChansPerScan = 0 /*in samples*/, nScansPerPage = 0;
+static void nextPage() { if (sharedMemory && pager) { if (page) pager->commitCurrentWritePage(); page = pager->grabNextPageForWrite(); pageOffset = 0; } }
 
 static HANDLE hShm = 0;
 
@@ -56,19 +64,36 @@ static void acqCallback(SapXferCallbackInfo *info)
     }
     if (w > desiredWidth) w = desiredWidth;
     if (h > desiredHeight) h = desiredHeight;
-    size_t len = sizeof(XtCmdImg) + w*h;
-    if (!frames) {
+    size_t len = w*h;
+
+    const size_t oneScanBytes = nChansPerScan * sizeof(short);
+
+    int scansLeftInPage = (shmPageSize - pageOffset) / int(oneScanBytes);
+
+    if (!page || scansLeftInPage <= 0) nextPage();
+    if (!page) {
         spikeGL->pushConsoleError("INTERNAL ERROR.. not attached to shm, cannot send frames!");
         return;
     }
-    if (len + len*frameIdx > XT_SHM_SIZE) frameIdx = 0;
-    if (len > XT_SHM_SIZE) {
-        spikeGL->pushConsoleError("INTERNAL ERROR.. attached to shm, but it is too small for the frames to fit!");
+    scansLeftInPage = (shmPageSize - pageOffset) / int(oneScanBytes);
+    if (!scansLeftInPage) {
+        spikeGL->pushConsoleError("INTERNAL ERROR.. shm page, cannot fit at least 1 scan! FIXME!");
         return;
     }
-    XtCmdImg *xt = (XtCmdImg *)&(reinterpret_cast<char *>(frames)[len*frameIdx]);
-   
-    BYTE *pXt = xt->img, *pData = 0;
+
+    if (pitch != w) {
+        spikeGL->pushConsoleError("Frame pitch must equal frame width! FIXME!");
+        return;
+    }
+
+    size_t nScansInFrame = len / oneScanBytes;
+
+    if (!nScansInFrame) {
+        spikeGL->pushConsoleError("Frame must contain at least 1 full scan! FIXME!");
+        return;
+    }
+
+    BYTE *pDest = ((BYTE *)page);    BYTE *pData = 0;
 
     buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
 
@@ -77,25 +102,23 @@ static void acqCallback(SapXferCallbackInfo *info)
         return;
     }
 
-    ++frameNum; ++frameIdx;
-
-    xt->init(w, h, frameNum);
-
-    if (pitch == w) {
-        memcpy(pXt, pData, w*h);
-    } else {
-        // copy each row (line) of pixels.  Note the pitch parameter used to skip lines in the source image..
-        for (int i = 0; i < h; ++i)
-            memcpy(pXt + i*w, pData + i*pitch, w);
+    size_t frameOffset = 0;
+    while (nScansInFrame) {
+        memcpy(pDest + pageOffset, pData + frameOffset, oneScanBytes);
+        pageOffset += int(oneScanBytes); frameOffset += oneScanBytes; --nScansInFrame;
+        scansLeftInPage = (shmPageSize - pageOffset) / int(oneScanBytes);
+        if (scansLeftInPage <= 0) nextPage();
     }
+
 
     buffers->ReleaseAddress(pData); // Need to release it to return it to the hardware!
     
 
-    /// DEBUG RATE CODE, ETC XXX FIXME
+    /// FPS RATE CODE
     static double lastTS = 0., lastPrt = -1.0;
     static int ctr = 0;
     ++ctr;
+    ++frameNum;
     double now = getTime();
     if (frameNum > 1 && now - lastPrt >= 1.0) {
         double rate = 1.0 / ((now - lastPrt)/ctr);
@@ -148,13 +171,13 @@ static bool setupAndStartAcq()
 
     freeSapHandles();
 
-    if (!frames) {
+    if (!sharedMemory) {
         char tmp[512];
 
         hShm = OpenFileMapping(
             FILE_MAP_ALL_ACCESS,   // read/write access
             FALSE,                 // do not inherit the name
-            XT_SHM_NAME);               // name of mapping object
+            shmName.c_str());               // name of mapping object
 
 
         if (!hShm ) {
@@ -163,21 +186,22 @@ static bool setupAndStartAcq()
             return false;
         }
 
-        frames = (XtCmdImg *)MapViewOfFile(
+        sharedMemory = (void *)MapViewOfFile(
             hShm,
             FILE_MAP_ALL_ACCESS,  // read/write permission
             0,
             0,
-            XT_SHM_SIZE);
+            shmSize);
 
-        if (!frames) {
+        if (!sharedMemory) {
             _snprintf_c(tmp, sizeof(tmp), "Could not map shared memory (%d).", GetLastError());
             spikeGL->pushConsoleError(tmp);
             CloseHandle(hShm); hShm = 0;
             return false;
         }
-
-        _snprintf_c(tmp, sizeof(tmp), "Connected to shared memory \"%s\" size: %u", XT_SHM_NAME, XT_SHM_SIZE);
+        if (pager) delete pager;
+        pager = new PagedRingbufferWriter(sharedMemory, shmSize, shmPageSize);
+        _snprintf_c(tmp, sizeof(tmp), "Connected to shared memory \"%s\" size: %u  pagesize: %u", shmName.c_str(), shmSize, shmPageSize);
         spikeGL->pushConsoleDebug(tmp);
     }
 
@@ -256,6 +280,27 @@ static void handleSpikeGLCommand(XtCmd *xt)
         if (x->ccfFile[0]) configFilename = x->ccfFile;
         if (x->frameH > 0) desiredHeight = x->frameH; 
         if (x->frameW > 0) desiredWidth = x->frameW;
+        if (x->numChansPerScan > 0) nChansPerScan = x->numChansPerScan;
+        else {
+            nChansPerScan = 1;
+            spikeGL->pushConsoleWarning("FIXME: nChansPerScan was not specified in XtCmd_GrabFrames!");
+        }
+        if (x->shmPageSize <= 0 || x->shmSize <= 0 || !x->shmName[0]) {
+            spikeGL->pushConsoleError("FIXME: shmPageSize,shmName,and shmSize need to be specified in XtCmd_GrabFrames!");
+            break;
+        }
+        if (x->shmPageSize > x->shmSize) {
+            spikeGL->pushConsoleError("FIXME: shmPageSize cannot be > shmSize in XtCmd_GrabFrames!");
+            break;
+        }
+        shmPageSize = x->shmPageSize;
+        shmSize = x->shmSize;
+        shmName = x->shmName;
+        nScansPerPage = shmPageSize / (nChansPerScan*sizeof(short));
+        if (nScansPerPage*sizeof(short) > shmPageSize ) {
+            spikeGL->pushConsoleError("INTERNAL ERROR.. a shm page cannot even hold 1 scan! This should never happen! Fixme!");
+            break;
+        }        
         if (!setupAndStartAcq())
             spikeGL->pushConsoleWarning("Failed to start acquisition.");
         break;
@@ -306,19 +351,24 @@ static void handleSpikeGLCommand(XtCmd *xt)
 static void tellSpikeGLAboutSignalStatus()
 {
     if (!acq) return;
-    BOOL PixelCLKSignal1, PixelCLKSignal2, PixelCLKSignal3, HSyncSignal, VSyncSignal;
-    if (
-        acq->GetSignalStatus(SapAcquisition::SignalPixelClk1Present, &PixelCLKSignal1)
-        && acq->GetSignalStatus(SapAcquisition::SignalPixelClk2Present, &PixelCLKSignal2)
-        && acq->GetSignalStatus(SapAcquisition::SignalPixelClk3Present, &PixelCLKSignal3)
-        && acq->GetSignalStatus(SapAcquisition::SignalHSyncPresent, &HSyncSignal)
-        && acq->GetSignalStatus(SapAcquisition::SignalVSyncPresent, &VSyncSignal)
-        ) 
-    {
+    static double tLast = 0.;
 
-        XtCmdClkSignals cmd;
-        cmd.init(!!PixelCLKSignal1, !!PixelCLKSignal2, !!PixelCLKSignal3, !!HSyncSignal, !!VSyncSignal);
-        spikeGL->pushCmd(&cmd);
+    if (getTime() - tLast > 0.25) {
+        BOOL PixelCLKSignal1, PixelCLKSignal2, PixelCLKSignal3, HSyncSignal, VSyncSignal;
+        if (
+            acq->GetSignalStatus(SapAcquisition::SignalPixelClk1Present, &PixelCLKSignal1)
+            && acq->GetSignalStatus(SapAcquisition::SignalPixelClk2Present, &PixelCLKSignal2)
+            && acq->GetSignalStatus(SapAcquisition::SignalPixelClk3Present, &PixelCLKSignal3)
+            && acq->GetSignalStatus(SapAcquisition::SignalHSyncPresent, &HSyncSignal)
+            && acq->GetSignalStatus(SapAcquisition::SignalVSyncPresent, &VSyncSignal)
+            )
+        {
+
+            XtCmdClkSignals cmd;
+            cmd.init(!!PixelCLKSignal1, !!PixelCLKSignal2, !!PixelCLKSignal3, !!HSyncSignal, !!VSyncSignal);
+            spikeGL->pushCmd(&cmd);
+        }
+        tLast = getTime();
     }
 }
 

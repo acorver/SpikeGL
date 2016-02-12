@@ -13,9 +13,14 @@ public:
     unsigned long totalSize() const { return size_bytes; }
     unsigned int nPages() const { return npages; }
 
+    void resetToBeginning();
+
     void *getCurrentReadPage();
     /// returns NULL when a new read page isn't 'ready' yet.  nSkips is the number of pages dropped due to overflows.  Normally should be 0.
     void *nextReadPage(int *nSkips = 0);
+
+    /// clear the contents to 0.
+    void bzero();
 
 protected:
     char *mem;

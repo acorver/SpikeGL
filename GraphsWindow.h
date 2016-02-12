@@ -33,7 +33,7 @@ public:
     GraphsWindow(DAQ::Params & params, QWidget *parent = 0, bool isSaving = true);
     ~GraphsWindow();
 
-    void putScans(std::vector<int16> & scans, u64 firstSamp);
+    void putScans(const std::vector<int16> & scans, u64 firstSamp);
     void putScans(const int16 *data, unsigned data_size_samps, u64 firstSamp);
 
     // clear a specific graph's points, or all if negative
@@ -61,6 +61,8 @@ public:
 	int numGraphTabs() const { return nGraphTabs; }
 	int numColsPerGraphTab() const { return nColsGraphTab; }
 	int numRowsPerGraphTab() const { return nRowsGraphTab; }
+
+    const DAQ::Params & daqParams() const { return params; }
 
 signals:
 	void tabChanged(int tabNum);

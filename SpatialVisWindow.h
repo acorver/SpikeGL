@@ -11,6 +11,7 @@
 #include <QSet>
 #include <QColor.h>
 #include "StimGL_SpikeGL_Integration.h"
+#include <QMutex>
 
 class QToolBar;
 class QLabel;
@@ -29,6 +30,7 @@ public:
     ~SpatialVisWindow();
 	
     void putScans(const std::vector<int16> & scans, u64 firstSamp);
+    void putScans(const int16 *scans, unsigned scans_size_samps, u64 firstSamp);
 		
 public slots:
 	void selectBlock(int tabNum);
@@ -107,6 +109,8 @@ private:
 	quint64 last_fs_frame_tsc;
 	Avg frameDelayAvg;
 	QString fdelayStr;
+
+    QMutex mut;
 };
 
 

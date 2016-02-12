@@ -79,6 +79,7 @@ struct XtCmd {
 
 };
 
+/*
 struct XtCmdImg : public XtCmd {
     unsigned long long frameNum; ///< first frame is 1.  Keeps getting incremented.
     int w, h; ///< in px, the image is always 8bit (grayscale) 
@@ -98,6 +99,7 @@ struct XtCmdImg : public XtCmd {
     }
     XtCmdImg() { init(0,0);  }
 };
+*/
 
 struct XtCmdConsoleMsg : public XtCmd {
 	enum MsgType { Normal = 0, Debug, Warning, Error, N_MsgType };
@@ -192,20 +194,23 @@ struct XtCmdServerResource : public XtCmd {
 
 struct XtCmdGrabFrames : public XtCmd {
     char ccfFile[256]; ///< which .ccf file should sapera use?
+    char shmName[256];
+    int shmSize, shmPageSize;
     int frameW, frameH; ///< in 8-bit pixels
     int numChansPerScan; ///< size of 1 full scan, in 16-bit samples.  If the incoming frame is larger than 1 scan, it will be chopped up into multiple frames, 1 per scan, when sent back to spikegl
 
-    void init(const std::string &ccf, int w, int h, int scanSize) {
+    void init(const std::string & nam, unsigned shmSz, unsigned pageSz, const std::string &ccf, unsigned w, unsigned h, unsigned scanSize) {
         XtCmd::init();
         cmd = XtCmd_GrabFrames;
         strncpy(ccfFile, ccf.c_str(), sizeof(ccfFile) - 1);  ccfFile[sizeof(ccfFile)-1] = 0;
-        frameW = w; frameH = h;
+        strncpy(shmName, nam.c_str(), sizeof(shmName) - 1);  shmName[sizeof(shmName)-1] = 0;
+        shmSize = (int)shmSz;
+        shmPageSize = (int)pageSz;
+        frameW = int(w); frameH = int(h);
         numChansPerScan = scanSize;
         len = static_cast<int>((sizeof(XtCmdGrabFrames) - sizeof(XtCmd)) + sizeof(int));
     }
 };
 
-#define XT_SHM_NAME "FG_SpikeGL Shm"
-#define XT_SHM_SIZE 1024*1024*100 ///< 100MB shm
 
 #endif

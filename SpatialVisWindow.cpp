@@ -17,6 +17,7 @@
 #include <QSlider>
 #include <QMatrix>
 #include <QCheckBox>
+#include <QMutexLocker>
 #include "StimGL_SpikeGL_Integration.h"
 
 #include "no_data.xpm"
@@ -27,7 +28,7 @@
 
 SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims, QWidget * parent)
 : QMainWindow(parent), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2), 
-  graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xffffffff), last_fs_frame_tsc(getAbsTimeNS())
+  graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xffffffff), last_fs_frame_tsc(getAbsTimeNS()), mut(QMutex::Recursive)
 {
 	static bool registeredMetaType = false;
 		
@@ -224,10 +225,17 @@ void SpatialVisWindow::updateGlyphSize()
 
 void SpatialVisWindow::putScans(const std::vector<int16> & scans, u64 firstSamp)
 {
+    putScans(&scans[0], scans.size(), firstSamp);
+}
+
+void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u64 firstSamp)
+{
+    QMutexLocker l(&mut);
+
 	(void)firstSamp; // unused warning
-	int firstidx = scans.size() - nvai;
+    int firstidx = scans_size_samps - nvai;
 	if (firstidx < 0) firstidx = 0;
-	for (int i = firstidx; i < int(scans.size()); ++i) {
+    for (int i = firstidx; i < int(scans_size_samps); ++i) {
 		int chanid = i % nvai;
 		const QColor color (chanid < nvai-nextra ? fg : fg2);
 #ifdef HEADACHE_PROTECTION
@@ -260,9 +268,12 @@ SpatialVisWindow::~SpatialVisWindow()
 
 void SpatialVisWindow::updateGraph()
 {
+
 	if (!graph) return;
 	updateGlyphSize();
+    mut.lock();
 	graph->setColors(colors);
+    mut.unlock();
 	if (graph->needsUpdateGL())
 		graph->updateGL();
 	
@@ -351,10 +362,12 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 	const int chanId = mouseOverChan;
 	if (chanId < 0 || chanId >= chanVolts.size()) 
 		statusLabel->setText("");
-	else
+    else {
+        QMutexLocker l (&mut);
 		statusLabel->setText(QString("Chan: #%3 -- Volts: %4 V")
 							 .arg(chanId)
 							 .arg(chanId < (int)chanVolts.size() ? chanVolts[chanId] : 0.0));
+    }
 	
 	if (selIdxs.size()) {
 		QString t = statusLabel->text();
@@ -444,10 +457,14 @@ void SpatialVisWindow::updateToolBar()
 
 void SpatialVisWindow::colorButPressed()
 {
-    QColorDialog::setCustomColor(0,fg.rgba());
-    QColorDialog::setCustomColor(1,fg2.rgba());
-    QColor c = QColorDialog::getColor(fg, this);
+    mut.lock();
+    QColor f(fg),f2(fg2);
+    mut.unlock();
+    QColorDialog::setCustomColor(0,f.rgba());
+    QColorDialog::setCustomColor(1,f2.rgba());
+    QColor c = QColorDialog::getColor(f, this);
     if (c.isValid()) {
+        QMutexLocker l(&mut);
 		fg = c;
         updateToolBar();
 		saveSettings();
@@ -456,6 +473,8 @@ void SpatialVisWindow::colorButPressed()
 
 void SpatialVisWindow::saveSettings()
 {
+    QMutexLocker l (&mut);
+
 	QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 	settings.beginGroup(SETTINGS_GROUP);
 
@@ -470,6 +489,7 @@ void SpatialVisWindow::saveSettings()
 
 void SpatialVisWindow::loadSettings()
 {
+    QMutexLocker l(&mut);
 	QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 	settings.beginGroup(SETTINGS_GROUP);
 

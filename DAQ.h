@@ -26,8 +26,9 @@
 #endif
 #include <list>
 #include "ui_FG_Controls.h"
+#include "PagedRingbuffer.h"
+
 struct XtCmd;
-struct XtCmdImg;
 
 namespace DAQ
 {
@@ -478,7 +479,7 @@ namespace DAQ
 	};
 	
 
-	class FGTask : public SubprocessTask {
+    class FGTask : public SubprocessTask {
 			Q_OBJECT
     public:
 
@@ -492,7 +493,8 @@ namespace DAQ
         static double lastProbeTS() { return last_hw_probe_ts; }
         static void probeHardware();
 
-        FGTask(Params & acqParams, QObject * parent, bool isDummyTask = false);
+        FGTask(void *samplesShm, size_t samplesShmSize, size_t pageSize,
+               Params & acqParams, QObject * parent, bool isDummyTask = false);
         ~FGTask();
 		
         unsigned numChans() const;
@@ -541,22 +543,12 @@ namespace DAQ
         static double last_hw_probe_ts;
         bool sentFGCmd, didImgSizeWarn;
         Ui::FG_Controls *dialog;
-        volatile quint64 imgXferCt, frameSkipCt;
+        volatile quint64 xferCt, scanSkipCt;
 
-        static QSharedMemory shm;
-        union {
-            XtCmdImg *frames;
-            char *frameBytes;
-        };
-        unsigned frameSize;
-        volatile unsigned frameIdx;
+        PagedRingbuffer pager;
 
-        XtCmdImg *frameCur() {
-            if (frameSize*frameIdx + frameSize > unsigned(shm.size()))
-                frameIdx = 0;
-            return (XtCmdImg *)&frameBytes[frameSize*frameIdx];
-        }
-        void frameNext() { ++frameIdx; }
+        const int16 *scansCur() { return reinterpret_cast<int16 *>(pager.getCurrentReadPage()); }
+        const int16 *scansNext(int *skips = 0) { return reinterpret_cast<int16 *>(pager.nextReadPage(skips));  }
 
         void emit_gotFirstScan() { emit(gotFirstScan()); }
 

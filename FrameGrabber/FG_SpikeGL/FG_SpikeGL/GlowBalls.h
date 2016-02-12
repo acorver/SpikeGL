@@ -11,12 +11,13 @@ extern int desiredHeight; // 32
 extern int desiredWidth; // 144
 #define NUM_BUFFERS()  ((BUFFER_MEMORY_MB*1024*1024) / (desiredHeight*desiredWidth) )
 extern unsigned long long frameNum; // starts at 0, first frame sent is 1
-extern unsigned frameIdx;
-extern XtCmdImg *frames;
 
 
 extern std::string configFilename;
 extern int serverIndex, resourceIndex;
+
+extern std::string shmName;
+extern unsigned shmSize, shmPageSize;
 
 // SpikeGL communication related
 extern SpikeGLOutThread    *spikeGL;

@@ -2067,7 +2067,7 @@ namespace DAQ
 	
     /* static */ const double FGTask::SamplingRate = /*100;*/ 20000.0; // 20kHz sampling rate!
     /* static */ const double FGTask::SamplingRateCalinsTest = (150 * 1024)/4; // 38.4khz rate!
-    /* static */ QSharedMemory FGTask::shm;
+
 	/* static */ const int FGTask::NumChans = 2304 /* 72 * 32 */, FGTask::NumChansCalinsTest = 2048;
 
     unsigned FGTask::numChans() const { return params.nVAIChans; }
@@ -2075,14 +2075,16 @@ namespace DAQ
 	
 
 
-    FGTask::FGTask(Params & ap, QObject *parent, bool isDummy)
-        : SubprocessTask(ap, parent, "Framegrabber", "FG_SpikeGL.exe", ap.fg.isCalinsConfig ? SAMPLE_BUF_Q_SIZE_FG_CALIN : SAMPLE_BUF_Q_SIZE_FG_JANELIA)
+    FGTask::FGTask(void *shm, size_t shmsz, size_t pgsz,
+                    Params & ap, QObject *parent, bool isDummy)
+        : SubprocessTask(ap, parent, "Framegrabber", "FG_SpikeGL.exe", ap.fg.isCalinsConfig ? SAMPLE_BUF_Q_SIZE_FG_CALIN : SAMPLE_BUF_Q_SIZE_FG_JANELIA),
+          pager(shm, shmsz, pgsz)
 	{
-        killAllInstancesOfProcessWithImageName(exeName);
+        killAllInstancesOfProcessWithImageName(exeName);                
 
         dialogW = 0; dialog = 0;
         didImgSizeWarn = sentFGCmd = false;
-        frameSkipCt = imgXferCt = 0;
+        scanSkipCt = xferCt = 0;
         if (!isDummy) {
             dialogW = new QDialog(0,Qt::CustomizeWindowHint|Qt::Dialog|Qt::WindowTitleHint);
             dialog = new Ui::FG_Controls;
@@ -2099,9 +2101,7 @@ namespace DAQ
             dialogW->show();
             mainApp()->windowMenuAdd(dialogW);
         }
-        frames = 0;
-        frameSize = params.fg.isCalinsConfig ? 2048*(2048/4) + sizeof(XtCmdImg) : 144*32+sizeof(XtCmdImg);
-        frameIdx = 0;
+        //frameSize = params.fg.isCalinsConfig ? 2048*(2048/4) + sizeof(XtCmdImg) : 144*32+sizeof(XtCmdImg);
         frameReader = 0;
     }
 
@@ -2111,8 +2111,6 @@ namespace DAQ
         if (dialog) delete dialog; dialog = 0;
         if (dialogW) delete dialogW; dialogW = 0;
         if (frameReader) delete frameReader; frameReader = 0;
-        if (shm.isAttached()) { shm.detach(); Log() << "'" << XT_SHM_NAME << "' destroyed."; }
-        frames = 0; frameSize = 0; frameIdx = 0;
     }
 
 	QStringList FGTask::filesList() const 
@@ -2176,7 +2174,11 @@ namespace DAQ
     void FGTask::FrameReader::run() {
         int nChansPerScan = task->numChans();
         if (nChansPerScan < 0) /* divide by 0 guard for below */ nChansPerScan = 1;
-        int nScansPerFrame = 1;
+        int nScansPerPage = (task->pager.pageSize()/sizeof(int16)) / nChansPerScan;
+        if (nScansPerPage <= 0) {
+            nScansPerPage = 1;
+            Error() << "FrameGrabber task scans don't fit in shared memory pages!! FIXME!";
+        }
         int minScansPerQueued = (task->samplingRate() / Util::getTaskReadFreqHz()) / 3;
         if (minScansPerQueued <= 0) minScansPerQueued = 1;
         Debug() << "FG Queue stats -- minScansPerQueued: " << minScansPerQueued  << "  size per q'd(MB): " << ((minScansPerQueued*nChansPerScan*2)/(1024.0*1024.)) << "  qcapacity(MB): " << (task->dataQueueMaxSize*(minScansPerQueued*nChansPerScan*2)/(1024.*1024.));
@@ -2184,41 +2186,34 @@ namespace DAQ
         scans.reserve(nChansPerScan*minScansPerQueued);
         int sleepct = 0;
         while (!pleaseStop) {
-            XtCmdImg *img = task->frameCur();
-            if (img->magic == XT_CMD_MAGIC && img->frameNum > task->imgXferCt) {
-                nScansPerFrame = ((img->w * img->h)/2) / nChansPerScan;
-                if (nScansPerFrame <= 0) {
-                    nScansPerFrame = 1;
-                    Error() << "FrameGrabber task sent a frame that contains less than 1 scan! FIXME!";
-                }
-                qint64 diff = img->frameNum - task->imgXferCt;
-                if (diff > 1LL) {
-                    Error() << "FrameGrabbar task ring buffer overrun! Dropped Frames for frame number " << task->imgXferCt;
-                    qint64 nSkipped = diff-1LL;
-                    task->frameSkipCt += nSkipped;
+            int skips = 0;
+            const int16 *scans_in = task->scansNext(&skips);
+            if (scans_in) {
+                if (skips > 0) {
+                    Error() << "FrameGrabbar task ring buffer overrun! Dropped scans for xfer number " << task->xferCt;
+                    qint64 nSkipped = skips*nScansPerPage;
+                    task->scanSkipCt += nSkipped;
                     // put fake data in data pipe that matches the number of dropped frames (set to 0)
                     // in order to indicate in data file exactly which scans were dropped.
                     // uses the 'fake data' mechanism for this!
 					std::vector<int16> dummy;
-                    enqueueScans(dummy, nScansPerFrame*nSkipped*nChansPerScan);
+                    enqueueScans(dummy, nSkipped*nChansPerScan);
                 }
-                int16 *imgScans = reinterpret_cast<int16 *>(img->img);
-                scans.insert(scans.end(), imgScans, imgScans+(nScansPerFrame*nChansPerScan));
+                scans.insert(scans.end(), scans_in, scans_in+(nScansPerPage*nChansPerScan));
 
-                task->imgXferCt = img->frameNum;
-                task->frameNext();
+                task->xferCt++;
 
                 if (int(scans.size()/nChansPerScan) >= minScansPerQueued) {
                     // enqueue throttling -- note that Janelia's FG sends scans 1 at a time.  SO we need to bunch them up in order to avoid spamming
                     // the queues with tiny packets of data. This caused the app to stall (see Feb. 2016 emails)
                     enqueueScans(scans);
                     scans.clear();
-                    unsigned cap = MAX( (nScansPerFrame * nChansPerScan), (nChansPerScan * minScansPerQueued) );
+                    unsigned cap = MAX( (nScansPerPage * nChansPerScan), (nChansPerScan * minScansPerQueued) );
                     scans.reserve(cap);
                 }
                 sleepct = 0;
             } else {
-                long usecs = (1e6/task->samplingRate()) * nScansPerFrame;
+                long usecs = ((1e6/task->samplingRate()) * nScansPerPage)/2;
                 this->usleep(usecs);
                 ++sleepct;
                 if (qint64(sleepct)*qint64(usecs) > 5000000LL ) {
@@ -2304,10 +2299,10 @@ namespace DAQ
         dialog->vsyncLbl->setText(dummy.isVSync() ? "<font color=green>+</font>" : "<font color=red>-</font>");
         unsigned long ctr = dialog->clkCtLbl->text().toULong();
         dialog->clkCtLbl->setText(QString::number(ctr+1UL));
-        dialog->imgXferCtLbl->setText(QString::number(imgXferCt));
-        dialog->frameSkipsLbl->setText(
-                    QString( !frameSkipCt ?  "<font color=green>" : "<font color=red>")
-                    + QString::number(frameSkipCt) + "</font>"
+        dialog->xferCtLbl->setText(QString::number(xferCt));
+        dialog->scanSkipsLbl->setText(
+                    QString( !scanSkipCt ?  "<font color=green>" : "<font color=red>")
+                    + QString::number(scanSkipCt) + "</font>"
                     );
     }
 
@@ -2357,26 +2352,6 @@ namespace DAQ
     void FGTask::grabFramesClicked() {
         appendTE("Grab frames clicked.", QColor(Qt::gray));
 
-        if (!shm.isAttached()) {
-#if QT_VERSION >= 0x040800
-            shm.setNativeKey(XT_SHM_NAME);
-#else
-			shm.setKey(XT_SHM_NAME);
-#endif
-            if (!shm.create(XT_SHM_SIZE) && !shm.attach()) {
-                Error() << "INTERNAL ERROR: Error creating FrameGrabber shm segment:" << shm.errorString();
-                return;
-            } else {
-                if ( shm.size() < XT_SHM_SIZE ) {
-                    Error() << "INTERNAL ERROR: FrameGrabber shm segment is too small.  Required size: " << XT_SHM_SIZE << " Current size: " << shm.size();
-                    return;
-                } else {
-                    frames = (XtCmdImg *)shm.data();
-                    memset(frameBytes, 0, shm.size());
-                    Log() << "Successfully created '" << XT_SHM_NAME <<"' shm segment of size " << (XT_SHM_SIZE/1024/1024) << "MB";
-                }
-            }
-        }
         if (!frameReader) {
             frameReader = new FrameReader(this);
             frameReader->start();
@@ -2385,9 +2360,9 @@ namespace DAQ
         // grab frames.. does stuff with Sapera API in the slave process
         XtCmdGrabFrames x;
         if (params.fg.isCalinsConfig)
-            x.init("B_a2040_FreeRun_8Tap_Default.ccf", 2048, 2048/4, NumChansCalinsTest);
+            x.init(SAMPLES_SHM_NAME, pager.totalSize(), pager.pageSize(), "B_a2040_FreeRun_8Tap_Default.ccf", 2048, 2048/4, NumChansCalinsTest);
         else
-            x.init("J_2000+_Electrode_8tap_8bit.ccf", 144, 32, NumChans);
+            x.init(SAMPLES_SHM_NAME, pager.totalSize(), pager.pageSize(), "J_2000+_Electrode_8tap_8bit.ccf", 144, 32, NumChans);
         pushCmd(x);
     }
 
@@ -2401,7 +2376,7 @@ namespace DAQ
     void FGTask::probeHardware() {
         double t0 = getTime();
         DAQ::Params dummy;
-        FGTask task(dummy, 0, true);
+        FGTask task("",0,0,dummy, 0, true);
         if (!task.platformSupported()) return;
 
         int wflags = Qt::Window|Qt::FramelessWindowHint|Qt::MSWindowsFixedSizeDialogHint|Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowStaysOnTopHint;

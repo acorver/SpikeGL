@@ -1,8 +1,14 @@
+#include "stdafx.h"
 #include "PagedRingbuffer.h"
 #include <string.h>
 
 PagedRingbuffer::PagedRingbuffer(void *m, unsigned long sz, unsigned long psz)
     : mem(reinterpret_cast<char *>(m)), size_bytes(sz), page_size(psz)
+{
+    resetToBeginning();
+}
+
+void PagedRingbuffer::resetToBeginning()
 {
     lastPageRead = 0; pageIdx = -1;
     npages = size_bytes/(page_size + sizeof(Header));
@@ -37,7 +43,9 @@ void *PagedRingbuffer::nextReadPage(int *nSkips)
     return 0;
 }
 
-
+void PagedRingbuffer::bzero() {
+    if (mem && size_bytes) memset(mem, 0, size_bytes);
+}
 
 PagedRingbufferWriter::PagedRingbufferWriter(void *mem, unsigned long sz, unsigned long psz)
     : PagedRingbuffer(mem, sz, psz)
@@ -50,7 +58,7 @@ PagedRingbufferWriter::~PagedRingbufferWriter() {}
 
 void PagedRingbufferWriter::initializeForWriting()
 {
-    if (mem && size_bytes) memset(mem, 0, size_bytes);
+    bzero();
     pageIdx = -1;
     nWritten = 0;
     lastPageWritten = 0;

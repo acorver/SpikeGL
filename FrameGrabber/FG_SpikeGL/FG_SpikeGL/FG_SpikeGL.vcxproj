@@ -147,6 +147,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\PagedRingbuffer.h" />
     <ClInclude Include="FPGA.h" />
     <ClInclude Include="GlowBalls.h" />
     <ClInclude Include="SpikeGLHandlerThread.h" />
@@ -156,6 +157,7 @@
     <ClInclude Include="XtCmd.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\PagedRingbuffer.cpp" />
     <ClCompile Include="FG_SpikeGL.cpp" />
     <ClCompile Include="FPGA.cpp" />
     <ClCompile Include="SpikeGLHandlerThread.cpp" />

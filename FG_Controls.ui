@@ -292,10 +292,10 @@
     </rect>
    </property>
    <property name="text">
-    <string>Image Xfer Updates:</string>
+    <string>Xfer Updates:</string>
    </property>
   </widget>
-  <widget class="QLabel" name="imgXferCtLbl">
+  <widget class="QLabel" name="xferCtLbl">
    <property name="geometry">
     <rect>
      <x>130</x>
@@ -321,10 +321,10 @@
     </rect>
    </property>
    <property name="text">
-    <string>Dropped Frames:</string>
+    <string>Dropped Scans:</string>
    </property>
   </widget>
-  <widget class="QLabel" name="frameSkipsLbl">
+  <widget class="QLabel" name="scanSkipsLbl">
    <property name="geometry">
     <rect>
      <x>330</x>

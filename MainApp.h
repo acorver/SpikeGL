@@ -42,6 +42,7 @@ class FG_ConfigDialog;
 #include <QMap>
 #include <QSet>
 #include <QDialog>
+#include <QSharedMemory>
 #include "Util.h"
 #include "DAQ.h"
 #include "DataFile.h"
@@ -243,6 +244,7 @@ protected slots:
     void gotDaqError(const QString & e);
     void gotDaqWarning(const QString & e);
     void taskReadFunc(); ///< called from a timer at 30Hz
+    void taskReadFunc2();
 
     void sha1VerifySuccess();
     void sha1VerifyFailure();
@@ -386,7 +388,40 @@ private:
 	bool doBugAcqInstead, doFGAcqInstead, m_sortGraphsByElectrodeId;
 
     int datafile_desired_q_size;
+
+    QSharedMemory shm; /* the giant buffer that scans get dumped to for reading from other app subsystems.
+                          note that for now just the framegrabber task uses this */
+    PagedRingbuffer *pager; ///< used to copy-construct other pagers, among other things
 	
+    struct GraphingThread : public QThread {
+        GraphsWindow *g;
+        SpatialVisWindow *s;
+        PagedRingbuffer pager;
+        const DAQ::Params & p;
+        volatile bool pleaseStop;
+        u64 sampCount;
+
+        GraphingThread(GraphsWindow *g, SpatialVisWindow *s, const PagedRingbuffer & prb);
+        ~GraphingThread();
+    protected:
+        void run();
+    };
+
+    struct DataSavingThread : public QThread {
+        DataFile_Fn_Shm & f;
+        TempDataFile *t;
+        PagedRingbuffer pager;
+        volatile bool pleaseStop;
+
+        DataSavingThread(DataFile_Fn_Shm & f, TempDataFile *t, const PagedRingbuffer &prb);
+        ~DataSavingThread();
+    protected:
+        void run();
+    };
+
+    GraphingThread *gthread;
+    DataSavingThread *dthread;
+
 public:
 
 /// Main application actions!
