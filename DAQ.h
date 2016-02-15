@@ -26,7 +26,7 @@
 #endif
 #include <list>
 #include "ui_FG_Controls.h"
-#include "PagedRingbuffer.h"
+#include "PagedRingBuffer.h"
 
 struct XtCmd;
 
@@ -545,7 +545,7 @@ namespace DAQ
         Ui::FG_Controls *dialog;
         volatile quint64 xferCt, scanSkipCt;
 
-        PagedRingbuffer pager;
+        PagedRingBuffer pager;
 
         const int16 *scansCur() { return reinterpret_cast<int16 *>(pager.getCurrentReadPage()); }
         const int16 *scansNext(int *skips = 0) { return reinterpret_cast<int16 *>(pager.nextReadPage(skips));  }

@@ -742,7 +742,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 #if QT_VERSION >= 0x040800
             shm.setNativeKey(SAMPLES_SHM_NAME);
 #else
-            shm.setKey(SAMPLES_SHM_NAME));
+            shm.setKey(SAMPLES_SHM_NAME);
 #endif
             int shmSizeMB = SAMPLES_SHM_SIZE/(1024*1024);
             if (!shm.create(SAMPLES_SHM_SIZE) && !shm.attach()) {
@@ -761,7 +761,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     }
 
     if (pager) delete pager, pager = 0;
-    pager = new PagedRingbuffer(shm.data(), SAMPLES_SHM_SIZE, SAMPLES_SHM_PAGESIZE_BYTES(params.srate));
+    pager = new PagedRingBuffer(shm.data(), SAMPLES_SHM_SIZE, SAMPLES_SHM_PAGESIZE_BYTES(params.srate));
     pager->bzero();
 
 	// re-set the data temp file, delete it, etc
@@ -1204,7 +1204,7 @@ void MainApp::putRestarts(const DAQ::Params & p, u64 firstSamp, u64 restartNumSc
 bool MainApp::sortGraphsByElectrodeId() const { return m_sortGraphsByElectrodeId || (configCtl && configCtl->acceptedParams.bug.enabled); }
 
 
-MainApp::GraphingThread::GraphingThread(GraphsWindow *g, SpatialVisWindow *s, const PagedRingbuffer & prb)
+MainApp::GraphingThread::GraphingThread(GraphsWindow *g, SpatialVisWindow *s, const PagedRingBuffer & prb)
     : QThread(g), g(g), s(s), pager(prb), p(g->daqParams()), pleaseStop(false)
 {
     sampCount = 0ULL;
@@ -1470,7 +1470,7 @@ void MainApp::taskReadFunc()
         stopTask();
 }
 
-
+#if 0
 void MainApp::taskReadFunc2()
 {
     std::vector<int16> scans_vec, scans_subsetted;
@@ -1498,7 +1498,7 @@ void MainApp::taskReadFunc2()
         // TODO: Handle metadata!!
 
         int skips = 0;
-        gotSomething = !!(scans = pager->nextReadPage(&skips));
+        gotSomething = !!(scans = (int16 *)pager->nextReadPage(&skips));
         if (!gotSomething) break;
 
         const bool wasDroppedData = skips > 0;
@@ -1690,6 +1690,9 @@ void MainApp::taskReadFunc2()
     if (taskShouldStop || needToStop)
         stopTask();
 }
+#else
+void MainApp::taskReadFunc2() {}
+#endif
 
 void MainApp::gotManualTrigOverride(bool b)
 {

@@ -1,14 +1,14 @@
 #include "stdafx.h"
-#include "PagedRingbuffer.h"
+#include "PagedRingBuffer.h"
 #include <string.h>
 
-PagedRingbuffer::PagedRingbuffer(void *m, unsigned long sz, unsigned long psz)
+PagedRingBuffer::PagedRingBuffer(void *m, unsigned long sz, unsigned long psz)
     : mem(reinterpret_cast<char *>(m)), size_bytes(sz), page_size(psz)
 {
     resetToBeginning();
 }
 
-void PagedRingbuffer::resetToBeginning()
+void PagedRingBuffer::resetToBeginning()
 {
     lastPageRead = 0; pageIdx = -1;
     npages = size_bytes/(page_size + sizeof(Header));
@@ -17,7 +17,7 @@ void PagedRingbuffer::resetToBeginning()
     }
 }
 
-void *PagedRingbuffer::getCurrentReadPage()
+void *PagedRingBuffer::getCurrentReadPage()
 {
     if (!mem || !npages || !size_bytes) return 0;
     if (pageIdx < 0 || pageIdx >= (int)npages) return 0;
@@ -26,7 +26,7 @@ void *PagedRingbuffer::getCurrentReadPage()
     return reinterpret_cast<char *>(h)+sizeof(Header);
 }
 
-void *PagedRingbuffer::nextReadPage(int *nSkips)
+void *PagedRingBuffer::nextReadPage(int *nSkips)
 {
     if (!mem || !npages || !size_bytes) return 0;
     int nxt = (pageIdx+1) % npages;
@@ -43,20 +43,20 @@ void *PagedRingbuffer::nextReadPage(int *nSkips)
     return 0;
 }
 
-void PagedRingbuffer::bzero() {
+void PagedRingBuffer::bzero() {
     if (mem && size_bytes) memset(mem, 0, size_bytes);
 }
 
-PagedRingbufferWriter::PagedRingbufferWriter(void *mem, unsigned long sz, unsigned long psz)
-    : PagedRingbuffer(mem, sz, psz)
+PagedRingBufferWriter::PagedRingBufferWriter(void *mem, unsigned long sz, unsigned long psz)
+    : PagedRingBuffer(mem, sz, psz)
 {
     lastPageWritten = 0;
     nWritten = 0;
 }
 
-PagedRingbufferWriter::~PagedRingbufferWriter() {}
+PagedRingBufferWriter::~PagedRingBufferWriter() {}
 
-void PagedRingbufferWriter::initializeForWriting()
+void PagedRingBufferWriter::initializeForWriting()
 {
     bzero();
     pageIdx = -1;
@@ -64,7 +64,7 @@ void PagedRingbufferWriter::initializeForWriting()
     lastPageWritten = 0;
 }
 
-void *PagedRingbufferWriter::grabNextPageForWrite()
+void *PagedRingBufferWriter::grabNextPageForWrite()
 {
     if (!mem || !npages || !size_bytes) return 0;
     int nxt = (pageIdx+1) % npages;
@@ -75,7 +75,7 @@ void *PagedRingbufferWriter::grabNextPageForWrite()
     return reinterpret_cast<char *>(h)+sizeof(Header);
 }
 
-bool PagedRingbufferWriter::commitCurrentWritePage()
+bool PagedRingBufferWriter::commitCurrentWritePage()
 {
     if (!mem || !npages || !size_bytes) return false;
     int pg = pageIdx % npages;

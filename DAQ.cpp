@@ -2376,7 +2376,7 @@ namespace DAQ
     void FGTask::probeHardware() {
         double t0 = getTime();
         DAQ::Params dummy;
-        FGTask task("",0,0,dummy, 0, true);
+        FGTask task(0,0,0,dummy,0,true);
         if (!task.platformSupported()) return;
 
         int wflags = Qt::Window|Qt::FramelessWindowHint|Qt::MSWindowsFixedSizeDialogHint|Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowStaysOnTopHint;

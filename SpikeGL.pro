@@ -21,7 +21,7 @@ HEADERS += SpikeGL.h DataFile.h Params.h sha1.h Util.h TypeDefs.h \
            Bug_ConfigDialog.h Bug_Popout.h \
            FG_ConfigDialog.h \
            FrameGrabber/FG_SpikeGL/FG_SpikeGL/XtCmd.h \
-    PagedRingbuffer.h \
+    PagedRingBuffer.h \
     stdafx.h
 
 SOURCES += DataFile.cpp osdep.cpp Params.cpp sha1.cpp Util.cpp \
@@ -35,7 +35,7 @@ SOURCES += DataFile.cpp osdep.cpp Params.cpp sha1.cpp Util.cpp \
            SpatialVisWindow.cpp \
            Bug_ConfigDialog.cpp Bug_Popout.cpp \
            FG_ConfigDialog.cpp \
-    PagedRingbuffer.cpp
+    PagedRingBuffer.cpp
 
 
 FORMS += ConfigureDialog.ui AcqPDParams.ui AcqTimedParams.ui Par2Window.ui \

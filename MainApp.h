@@ -391,17 +391,17 @@ private:
 
     QSharedMemory shm; /* the giant buffer that scans get dumped to for reading from other app subsystems.
                           note that for now just the framegrabber task uses this */
-    PagedRingbuffer *pager; ///< used to copy-construct other pagers, among other things
+    PagedRingBuffer *pager; ///< used to copy-construct other pagers, among other things
 	
     struct GraphingThread : public QThread {
         GraphsWindow *g;
         SpatialVisWindow *s;
-        PagedRingbuffer pager;
+        PagedRingBuffer pager;
         const DAQ::Params & p;
         volatile bool pleaseStop;
         u64 sampCount;
 
-        GraphingThread(GraphsWindow *g, SpatialVisWindow *s, const PagedRingbuffer & prb);
+        GraphingThread(GraphsWindow *g, SpatialVisWindow *s, const PagedRingBuffer & prb);
         ~GraphingThread();
     protected:
         void run();
@@ -410,10 +410,10 @@ private:
     struct DataSavingThread : public QThread {
         DataFile_Fn_Shm & f;
         TempDataFile *t;
-        PagedRingbuffer pager;
+        PagedRingBuffer pager;
         volatile bool pleaseStop;
 
-        DataSavingThread(DataFile_Fn_Shm & f, TempDataFile *t, const PagedRingbuffer &prb);
+        DataSavingThread(DataFile_Fn_Shm & f, TempDataFile *t, const PagedRingBuffer &prb);
         ~DataSavingThread();
     protected:
         void run();
