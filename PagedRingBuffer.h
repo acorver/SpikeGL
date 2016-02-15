@@ -24,6 +24,8 @@ public:
     /// clear the contents to 0.
     void bzero();
 
+    void *rawData() const { return const_cast<char *>(mem); }
+
 protected:
     char *mem;
     unsigned long size_bytes, page_size;
@@ -69,7 +71,7 @@ private:
 
 };
 
-class PagedScanReader : protected PagedRingBuffer
+class PagedScanReader : public PagedRingBuffer
 {
 public:
     PagedScanReader(unsigned scan_size_samples, unsigned meta_data_size_bytes, void *mem, unsigned long size_bytes, unsigned long page_size = PAGED_RINGBUFFER_DEFAULT_PAGESIZE)
@@ -88,15 +90,24 @@ public:
     /// includes 'dead' or 'skipped' scans in total (due to overflows)
     unsigned long long samplesReadVirtual() const { return scanCtV * static_cast<unsigned long long>(scan_size_samps); }
 
-    const short *next(int *nSkips, void **metaPtr = 0) {
+    /// number of scans per call to next()
+    unsigned scansPerPage() const { return nScansPerPage; }
+    /// in samples
+    unsigned scanSizeSamps() const { return scan_size_samps; }
+
+    const short *next(int *nSkips, void **metaPtr = 0, unsigned *scans_returned = 0) {
         int sk = 0;
         const short *scans = (short *)nextReadPage(&sk);
         if (nSkips) *nSkips = sk;
+        if (scans_returned) *scans_returned = 0;
+        if (metaPtr) *metaPtr = 0;
         if (scans) {
+            if (scans_returned) *scans_returned = nScansPerPage;
             scanCtV += static_cast<unsigned long long>(nScansPerPage*(sk+1));
             scanCt += static_cast<unsigned long long>(nScansPerPage);
-            if (metaPtr) *metaPtr = const_cast<short *>(scans+(nScansPerPage*scan_size_samps));
-        } else if (metaPtr) *metaPtr = 0;
+            if (metaPtr && meta_data_size_bytes)
+                *metaPtr = const_cast<short *>(scans+(nScansPerPage*scan_size_samps));
+        }
         return scans;
     }
 
@@ -106,7 +117,7 @@ private:
     unsigned long long scanCt, scanCtV;
 };
 
-class PagedScanWriter : protected PagedRingBufferWriter
+class PagedScanWriter : public PagedRingBufferWriter
 {
 public:
     PagedScanWriter(unsigned scan_size_samples, unsigned meta_data_size_bytes, void *mem, unsigned long size_bytes, unsigned long page_size = PAGED_RINGBUFFER_DEFAULT_PAGESIZE)
@@ -125,7 +136,7 @@ public:
         //commit(); // commented-out because we don't want to commit partial writes...
     }
     /// in samples
-    unsigned scanSize() const { return scan_size_samps; }
+    unsigned scanSizeSamps() const { return scan_size_samps; }
     unsigned scanSizeBytes() const { return scan_size_bytes; }
     unsigned scansPerPage() const { return nScansPerPage; }
     unsigned long long scansWritten() const { return scanCt; }
@@ -175,3 +186,4 @@ private:
 };
 
 #endif // PAGEDRINGBUFFER_H
+

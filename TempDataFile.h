@@ -22,7 +22,7 @@ public:
     void setNChans(unsigned int chans) { nChans = chans; }
     void close();
 
-    bool writeScans(const std::vector<int16> & scan);
+    bool writeScans(const int16 * scan, unsigned nsamps);
     bool readScans(QVector<int16> & outbuf, i64 nfrom, i64 nread, const QBitArray & channelSubset, unsigned downsample_factor = 1) const;
     void setTempFileSize(qint64 newSize) { maxSize = newSize; }
 

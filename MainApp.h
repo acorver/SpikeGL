@@ -25,7 +25,6 @@ class QTimer;
 class QMessageBox;
 class CommandConnection;
 class FileViewerWindow;
-class PostJuly2011Remuxer;
 class SpatialVisWindow;
 class Bug_ConfigDialog;
 class Bug_Popout;
@@ -244,7 +243,6 @@ protected slots:
     void gotDaqError(const QString & e);
     void gotDaqWarning(const QString & e);
     void taskReadFunc(); ///< called from a timer at 30Hz
-    void taskReadFunc2();
 
     void sha1VerifySuccess();
     void sha1VerifyFailure();
@@ -296,9 +294,9 @@ private:
     void stopTask();
     bool setupStimGLIntegration(bool doQuitOnFail=true);
     bool setupCommandServer(bool doQuitOnFail=true);
-    bool detectTriggerEvent(const std::vector<int16> & scans, u64 firstSamp, i32 & triggerOffset);
+    bool detectTriggerEvent(const int16 * scans, unsigned sz,  u64 firstSamp, i32 & triggerOffset);
     void triggerTask();
-    bool detectStopTask(const std::vector<int16> & scans, u64 firstSamp);
+    bool detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp);
     static void prependPrebufToScans(const WrapBuffer & wb, std::vector<int16> & scans, int & numAdded, int skip);
     void precreateOneGraph(bool noGLGraph = false);
     bool startAcq(QString & errTitle, QString & errMsg);
@@ -384,24 +382,23 @@ private:
 	
 	bool acqWaitingForPrecreate;
 	
-	PostJuly2011Remuxer *addtlDemuxTask;
 	bool doBugAcqInstead, doFGAcqInstead, m_sortGraphsByElectrodeId;
 
     int datafile_desired_q_size;
 
     QSharedMemory shm; /* the giant buffer that scans get dumped to for reading from other app subsystems.
                           note that for now just the framegrabber task uses this */
-    PagedRingBuffer *pager; ///< used to copy-construct other pagers, among other things
+    PagedScanReader *reader; ///< used to copy-construct other pagers/readers, among other things
 	
     struct GraphingThread : public QThread {
         GraphsWindow *g;
         SpatialVisWindow *s;
-        PagedRingBuffer pager;
+        PagedScanReader reader;
         const DAQ::Params & p;
         volatile bool pleaseStop;
         u64 sampCount;
 
-        GraphingThread(GraphsWindow *g, SpatialVisWindow *s, const PagedRingBuffer & prb);
+        GraphingThread(GraphsWindow *g, SpatialVisWindow *s, const PagedScanReader & psr);
         ~GraphingThread();
     protected:
         void run();

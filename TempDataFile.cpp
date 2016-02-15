@@ -24,14 +24,14 @@ TempDataFile::~TempDataFile()
     Util::removeTempDataFiles();
 }
 
-bool TempDataFile::writeScans(const std::vector<int16> & scans)
+bool TempDataFile::writeScans(const int16 * scans, unsigned nsamps)
 {
     if (!tempFile.isOpen() && !openForWrite())
         return false;
 	
     qint64 pos = tempFile.pos();
 
-    std::vector<int16>::size_type bytes2Write = scans.size() * sizeof(int16);
+    std::vector<int16>::size_type bytes2Write = nsamps * sizeof(int16);
     const quint64 freeSpace = Util::availableDiskSpace();
     // check disk filling up and adjust the temporary file's maximum size
     // leave there 10MB of free space
@@ -45,7 +45,7 @@ bool TempDataFile::writeScans(const std::vector<int16> & scans)
     }
 
     const int scanSz = nChans * sizeof(int16);
-	const int nScans = scans.size() / nChans;
+    const int nScans = nsamps / nChans;
     const int nFitsToEOF = (maxSize - pos) / scanSz;
     qint64 nWritten = 0, nWritten0 = 0;
 

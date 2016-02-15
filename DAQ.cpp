@@ -306,8 +306,8 @@ namespace DAQ
 #endif
     }
     
-    NITask::NITask(const Params & acqParams, QObject *p) 
-        : Task(p,"DAQ Task", SAMPLE_BUF_Q_SIZE), pleaseStop(false), params(acqParams), 
+    NITask::NITask(const Params & acqParams, QObject *p, const PagedScanReader &psr)
+        : Task(p,"DAQ Task", psr), pleaseStop(false), params(acqParams),
           fast_settle(0), muxMode(false), aoWriteThr(0),
 #ifdef HAVE_NIDAQmx
           taskHandle(0), taskHandle2(0),
@@ -333,7 +333,7 @@ namespace DAQ
 
     void NITask::overflowWarning() 
     {
-        Warning() << "DAQ Task sample buffer overflow!  Queue has " << dataQueueMaxSize << " buffers in it!  Dropping a buffer!";
+        Warning() << "DAQ Task sample buffer overflow!  Dropping a buffer!";
         emit(bufferOverrun());
 #ifdef FAKEDAQ
         static int overflowct = 0;
@@ -401,7 +401,8 @@ namespace DAQ
                 nread /= sizeof(int16);
                 data.resize(nread);
                 if (!totalRead) emit(gotFirstScan());
-                enqueueBuffer(data, totalRead);
+
+                doFinalDemuxAndEnqueue(data);
       
                 totalReadMut.lock();
                 totalRead += nread;
@@ -1091,7 +1092,7 @@ namespace DAQ
                 aoSampCount += sz;
             }
             
-            breakupDataIntoChunksAndEnqueue(data, sampCount, p.autoRetryOnAIOverrun);
+            doFinalDemuxAndEnqueue(data);
             lastEnq = lastReadTime;
 
             // fast settle...
@@ -1158,33 +1159,7 @@ namespace DAQ
         }
         if (i < s1 || j < s2) 
             Error() << "INTERNAL ERROR IN FUNCTION `mergeDualDevData()'!  The two device buffers data and data2 have differing numbers of scans! FIXME!  Aieeeee!!\n";
-    }    
-
-    void NITask::breakupDataIntoChunksAndEnqueue(std::vector<int16> & data, u64 sampCount, bool putFakeDataOnOverrun)
-    {
-        int chunkSize = int(params.srate / computeTaskReadFreq(params.srate)) * params.nVAIChans, nchunk = 0, ct = 0;
-        if (chunkSize < (int)params.nVAIChans) chunkSize = params.nVAIChans;
-        static const int limit = (1024*786)/sizeof(int16); /* 768KB max chunk size? */
-        if (chunkSize > limit) { 
-            chunkSize = limit - (limit % params.nVAIChans);
-        }
-        const int nSamps = data.size();
-        if (chunkSize >= nSamps) {
-            enqueueBuffer(data, sampCount, putFakeDataOnOverrun);
-            return;
-        }
-        std::vector<int16> chunk;
-        for (int i = 0; i < nSamps; i += nchunk, ++ct) {
-            chunk.reserve(chunkSize);
-            nchunk = nSamps - i;
-            if (nchunk > chunkSize) nchunk = chunkSize;
-            chunk.insert(chunk.begin(), data.begin()+i, data.begin()+i+nchunk);
-            enqueueBuffer(chunk, sampCount+u64(i), putFakeDataOnOverrun);
-            chunk.clear();
-        }
-        //Debug() << "broke up data of size " << data.size() << " into " << ct << " chunks of size " << chunkSize;
-        data.clear();
-    }
+    }        
 
     void NITask::setDO(bool onoff)
     {
@@ -1273,6 +1248,38 @@ namespace DAQ
 #endif // ! FAKEDAQ
 
 
+    static inline void ApplyNewIntanDemuxToScan(int16 *begin, const unsigned nchans_per_intan, const unsigned num_intans) {
+        int narr = nchans_per_intan*num_intans;
+        int16 tmparr[NUM_MUX_CHANS_MAX]; // hopefully 512 channels is freakin' enough..
+        if (narr > NUM_MUX_CHANS_MAX) {
+            Error() << "INTERNAL ERROR: Scan size too large for compiled-in limits (too many INTANs?!).  Please fix the sourcecode at DAQ::ApplyJFRCIntanXXDemuxToScan!";
+            return;
+        }
+        int i,j,k;
+        for (k = 0; k < int(num_intans); ++k) {
+            const int jlimit = (k+1)*int(nchans_per_intan);
+            for (i = k, j = k*int(nchans_per_intan); j < jlimit; i+=num_intans,++j) {
+                tmparr[j] = begin[i];
+            }
+        }
+        memcpy(begin, tmparr, narr*sizeof(int16));
+    }
+
+    void NITask::doFinalDemuxAndEnqueue(std::vector<int16> & data)
+    {
+        const DAQ::Params & p (params);
+        if (!p.doPreJuly2011IntanDemux && p.mode != DAQ::AIRegular) {
+            for (int i = 0; i < (int)data.size(); i += p.nVAIChans) {
+                ApplyNewIntanDemuxToScan(&data[i], DAQ::ModeNumChansPerIntan[p.mode], DAQ::ModeNumIntans[p.mode]*(p.dualDevMode && !p.secondDevIsAuxOnly ? 2 : 1));
+            }
+        }
+        if (!writer.write(&data[0],data.size()/p.nVAIChans)) {
+            Error() << "NITask::daqThr writer.write() returned false! FIXME!";
+        }
+        data.clear();
+    }
+
+
     /// some helper funcs from SpikeGL.h
     static const QString acqModes[] = { "AI60Demux", "AIRegular", "AI120Demux", "JFRCIntan32", "AI128Demux", "AI256Demux", "AI64Demux", "AI96Demux", "AI128_32_Demux", QString::null };
     
@@ -1329,8 +1336,8 @@ namespace DAQ
         return unk;
     }
 
-	Task::Task(QObject *parent, const QString & name, unsigned max)
-		: QThread(parent), SampleBufQ(name, max), totalRead(0ULL)
+    Task::Task(QObject *parent, const QString & name, const PagedScanReader & prb)
+        : QThread(parent), totalRead(0ULL), writer(prb.scanSizeSamps(),prb.metaDataSizeBytes(),prb.rawData(),prb.totalSize(),prb.pageSize())
 	{
 	
 	}
@@ -1347,8 +1354,8 @@ namespace DAQ
     }
 	
     SubprocessTask::SubprocessTask(DAQ::Params & p, QObject *parent, const QString & shortName,
-                                   const QString & exeName, unsigned bufQSize)
-        : Task(parent, shortName + " DAQ task", bufQSize ? bufQSize : SAMPLE_BUF_Q_SIZE), params(p),
+                                   const QString & exeName, const PagedScanReader &ref_reader)
+        : Task(parent, shortName + " DAQ task", ref_reader), params(p),
 	  shortName(shortName), dirName(shortName + "_SpikeGLv" + QString(VERSION_STR).right(8)), exeName(exeName)
 	{
         QString tp(QDir::tempPath());
@@ -1567,11 +1574,13 @@ namespace DAQ
     /*static*/ const double BugTask::MaxBER = -1.0;
     /*static*/ const double BugTask::MinBER = -5.0;
 
-    BugTask::BugTask(DAQ::Params & p, QObject *parent)
-    : SubprocessTask(p, parent, "Bug3", "bug3_spikegl.exe"), aoWriteThread(0), aoSampCount(0)
+    BugTask::BugTask(DAQ::Params & p, QObject *parent, const PagedScanReader & psr)
+        : SubprocessTask(p, parent, "Bug3", "bug3_spikegl.exe", psr), req_shm_pg_sz(requiredShmPageSize(p.nVAIChans)), aoWriteThread(0), aoSampCount(0)
 	{
 		state = 0; nblocks = 0; nlines = 0;
 		debugTTLStart = 0;
+        if (writer.pageSize() != req_shm_pg_sz)
+            Error() << "INTERNAL ERROR: BugTask needs a shm with page size == requiredShmPageSize()!  FIXME!!";
 	}
 
     BugTask::~BugTask() {
@@ -1581,6 +1590,11 @@ namespace DAQ
 #else // !FAKEDAQ == real NI platform
         if (aoWriteThread) delete aoWriteThread; aoWriteThread=0;
 #endif
+    }
+
+    unsigned BugTask::requiredShmPageSize() const { return req_shm_pg_sz; }
+    /*static*/ unsigned BugTask::requiredShmPageSize(unsigned nChans) {
+        return sizeof(BlockMetaData) + (nChans * NeuralSamplesPerFrame * FramesPerBlock * sizeof(int16));
     }
 
     unsigned BugTask::numChans() const { return params.nVAIChans; }
@@ -1598,7 +1612,11 @@ namespace DAQ
 	
     int BugTask::readTimeoutMaxSecs() const
     {
+#ifdef Q_OS_DARWIN
+        return 60*5; // 5 mins enough?!
+#else
         return 10;
+#endif
     }
 
 
@@ -1977,7 +1995,9 @@ namespace DAQ
         handleAOPassthru(samps);
 
 		//Debug() << "Enq: " << samps.size() << " samps, firstSamp: " << oldTotalRead;
-		enqueueBuffer(samps, oldTotalRead, false, 0, QByteArray(reinterpret_cast<char *>(&meta),sizeof(meta)));
+        if (!writer.write(&samps[0],samps.size()/nchans,&meta)) {
+            Error() << "Bug3: INTERNAL PROBLEM, writer.write() returned false!";
+        }
 		if (!oldTotalRead) emit(gotFirstScan());
 	}
 		
@@ -2075,10 +2095,8 @@ namespace DAQ
 	
 
 
-    FGTask::FGTask(void *shm, size_t shmsz, size_t pgsz,
-                    Params & ap, QObject *parent, bool isDummy)
-        : SubprocessTask(ap, parent, "Framegrabber", "FG_SpikeGL.exe", ap.fg.isCalinsConfig ? SAMPLE_BUF_Q_SIZE_FG_CALIN : SAMPLE_BUF_Q_SIZE_FG_JANELIA),
-          pager(shm, shmsz, pgsz)
+    FGTask::FGTask(Params & ap, QObject *parent, const PagedScanReader &psr, bool isDummy)
+        : SubprocessTask(ap, parent, "Framegrabber", "FG_SpikeGL.exe", psr)
 	{
         killAllInstancesOfProcessWithImageName(exeName);                
 
@@ -2154,7 +2172,7 @@ namespace DAQ
         pushCmd(x);
     }
 
-    FGTask::FrameReader::FrameReader(FGTask *t) : QThread(0), task(t), pleaseStop(false) {}
+    FGTask::FrameReader::FrameReader(FGTask *t) : QThread(0), task(t), pager(t->writer.scanSizeSamps(), 0, t->writer.rawData(), t->writer.pageSize()), pleaseStop(false) {}
 
     FGTask::FrameReader::~FrameReader() {
         pleaseStop = true;
@@ -2162,58 +2180,26 @@ namespace DAQ
         if (isRunning()) terminate();
     }
 
-    void FGTask::FrameReader::enqueueScans(std::vector<int16> & scans, quint64 fake) {
-        task->totalReadMut.lock();
-        quint64 oldTotalRead = task->totalRead;
-        task->totalRead += fake ? fake : (quint64)scans.size();
-        task->totalReadMut.unlock();
-        task->enqueueBuffer(scans, oldTotalRead, true, fake);
-        if (!oldTotalRead) task->emit_gotFirstScan();
-    }
-
     void FGTask::FrameReader::run() {
-        int nChansPerScan = task->numChans();
-        if (nChansPerScan < 0) /* divide by 0 guard for below */ nChansPerScan = 1;
-        int nScansPerPage = (task->pager.pageSize()/sizeof(int16)) / nChansPerScan;
-        if (nScansPerPage <= 0) {
-            nScansPerPage = 1;
-            Error() << "FrameGrabber task scans don't fit in shared memory pages!! FIXME!";
-        }
-        int minScansPerQueued = (task->samplingRate() / Util::getTaskReadFreqHz()) / 3;
-        if (minScansPerQueued <= 0) minScansPerQueued = 1;
-        Debug() << "FG Queue stats -- minScansPerQueued: " << minScansPerQueued  << "  size per q'd(MB): " << ((minScansPerQueued*nChansPerScan*2)/(1024.0*1024.)) << "  qcapacity(MB): " << (task->dataQueueMaxSize*(minScansPerQueued*nChansPerScan*2)/(1024.*1024.));
-        std::vector<int16> scans;
-        scans.reserve(nChansPerScan*minScansPerQueued);
         int sleepct = 0;
         while (!pleaseStop) {
-            int skips = 0;
-            const int16 *scans_in = task->scansNext(&skips);
+            int skips = 0; unsigned nscans = 0;
+            const int16 *scans_in = pager.next(&skips, 0, &nscans);
             if (scans_in) {
+                qint64 nSkipped = 0;
                 if (skips > 0) {
                     Error() << "FrameGrabbar task ring buffer overrun! Dropped scans for xfer number " << task->xferCt;
-                    qint64 nSkipped = skips*nScansPerPage;
+                    nSkipped = skips*pager.scansPerPage();
                     task->scanSkipCt += nSkipped;
-                    // put fake data in data pipe that matches the number of dropped frames (set to 0)
-                    // in order to indicate in data file exactly which scans were dropped.
-                    // uses the 'fake data' mechanism for this!
-					std::vector<int16> dummy;
-                    enqueueScans(dummy, nSkipped*nChansPerScan);
                 }
-                scans.insert(scans.end(), scans_in, scans_in+(nScansPerPage*nChansPerScan));
-
+                task->totalReadMut.lock();
+                // update stats...
+                task->totalRead += pager.scansPerPage() * (nSkipped+1) * pager.scanSizeSamps();
+                task->totalReadMut.unlock();
                 task->xferCt++;
-
-                if (int(scans.size()/nChansPerScan) >= minScansPerQueued) {
-                    // enqueue throttling -- note that Janelia's FG sends scans 1 at a time.  SO we need to bunch them up in order to avoid spamming
-                    // the queues with tiny packets of data. This caused the app to stall (see Feb. 2016 emails)
-                    enqueueScans(scans);
-                    scans.clear();
-                    unsigned cap = MAX( (nScansPerPage * nChansPerScan), (nChansPerScan * minScansPerQueued) );
-                    scans.reserve(cap);
-                }
                 sleepct = 0;
             } else {
-                long usecs = ((1e6/task->samplingRate()) * nScansPerPage)/2;
+                long usecs = ((1e6/task->samplingRate()) * pager.scansPerPage())/2;
                 this->usleep(usecs);
                 ++sleepct;
                 if (qint64(sleepct)*qint64(usecs) > 5000000LL ) {
@@ -2360,9 +2346,9 @@ namespace DAQ
         // grab frames.. does stuff with Sapera API in the slave process
         XtCmdGrabFrames x;
         if (params.fg.isCalinsConfig)
-            x.init(SAMPLES_SHM_NAME, pager.totalSize(), pager.pageSize(), "B_a2040_FreeRun_8Tap_Default.ccf", 2048, 2048/4, NumChansCalinsTest);
+            x.init(SAMPLES_SHM_NAME, writer.totalSize(), writer.pageSize(), "B_a2040_FreeRun_8Tap_Default.ccf", 2048, 2048/4, NumChansCalinsTest);
         else
-            x.init(SAMPLES_SHM_NAME, pager.totalSize(), pager.pageSize(), "J_2000+_Electrode_8tap_8bit.ccf", 144, 32, NumChans);
+            x.init(SAMPLES_SHM_NAME, writer.totalSize(), writer.pageSize(), "J_2000+_Electrode_8tap_8bit.ccf", 144, 32, NumChans);
         pushCmd(x);
     }
 
@@ -2376,7 +2362,8 @@ namespace DAQ
     void FGTask::probeHardware() {
         double t0 = getTime();
         DAQ::Params dummy;
-        FGTask task(0,0,0,dummy,0,true);
+        PagedScanReader dummy2(0,0,0,0,0);
+        FGTask task(dummy,0,dummy2,true);
         if (!task.platformSupported()) return;
 
         int wflags = Qt::Window|Qt::FramelessWindowHint|Qt::MSWindowsFixedSizeDialogHint|Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowStaysOnTopHint;

@@ -33,7 +33,11 @@
 #define SAMPLE_BUF_Q_SIZE_FG_CALIN 300
 
 #define SAMPLES_SHM_NAME "SpikeGL_SampleData"
-#define SAMPLES_SHM_SIZE (1024*1024*100) /* 100 MB samples shm */
+#ifdef Q_OS_WIN
+#define SAMPLES_SHM_SIZE (1024*1024*512) /* 512 MB samples shm */
+#else
+#define SAMPLES_SHM_SIZE (2*1024*1024) // 1MB for testing
+#endif
 #define SAMPLES_SHM_DESIRED_PAGETIME_MS (33) /* 33 ms  */
 #define SAMPLES_SHM_PAGESIZE_BYTES(samplingRateHz) (qRound(((samplingRateHz)*1000.0)/double(SAMPLES_SHM_DESIRED_PAGETIME_MS)))
 

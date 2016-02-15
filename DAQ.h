@@ -220,11 +220,11 @@ namespace DAQ
 
     class AOWriteThread;
 
-	class Task : public QThread, public SampleBufQ
+    class Task : public QThread
 	{
 		Q_OBJECT
 	public:
-		Task(QObject *parent, const QString & name, unsigned maxQSize);
+        Task(QObject *parent, const QString & name, const PagedScanReader & reference_reader);
 		virtual ~Task(); ///< default impl. does nothing.  probably should make it call stop() in a subclass..
         virtual void stop() = 0;
 		
@@ -246,6 +246,7 @@ namespace DAQ
 	protected:
         u64 totalRead;
         mutable QMutex totalReadMut;
+        PagedScanWriter writer;
 	};
 	
 	
@@ -256,7 +257,7 @@ namespace DAQ
     {
         Q_OBJECT
     public:
-        NITask(const Params & acqParams, QObject *parent);
+        NITask(const Params & acqParams, QObject *parent, const PagedScanReader &psr);
 		~NITask(); ///< calls stop()
 
         void stop(); ///< stops and joins thr
@@ -293,8 +294,9 @@ namespace DAQ
         static int computeTaskReadFreq(double srate);
 		
 		static void mergeDualDevData(std::vector<int16> & output, const std::vector<int16> & data, const std::vector<int16> & data2, int NCHANS1, int NCHANS2, int nExtraChans, int nExtraChans2);
-		/// only used in Windows / Real (non fake) mode to break up the incoming data into manageable chunks
-		void breakupDataIntoChunksAndEnqueue(std::vector<int16> & data, u64 sampCount, bool putFakeDataOnOverrun);
+
+        // used on all platforms
+        void doFinalDemuxAndEnqueue(std::vector<int16> & data);
 
         AOWriteThread *aoWriteThr;
         QVector<QPair<int,int> > aoAITab;
@@ -339,7 +341,7 @@ namespace DAQ
         SubprocessTask(Params & acqParams, QObject *parent,
 					   const QString & shortName,
                        const QString & exeName,
-                       unsigned bufQSize = SAMPLE_BUF_Q_SIZE);
+                       const PagedScanReader &ref_reader);
         virtual ~SubprocessTask();
 
         void stop();
@@ -415,12 +417,15 @@ namespace DAQ
         static const double MinBER;// = -5.0;
 		
 		
-        BugTask(Params & acqParams, QObject * parent);
+        BugTask(Params & acqParams, QObject * parent, const PagedScanReader & ref_reader);
         ~BugTask();
 		
         unsigned numChans() const;
         unsigned samplingRate() const;
-		
+
+        unsigned requiredShmPageSize() const;
+        static unsigned requiredShmPageSize(unsigned nChans);
+
         Params::Bug & bugParams() { return params.bug; }
 
 		struct BlockMetaData {
@@ -461,6 +466,8 @@ namespace DAQ
         int readTimeoutMaxSecs() const;
 
 	private:
+        unsigned req_shm_pg_sz;
+
 		int state;
 		static const int nstates = 36;
 		quint64 nblocks, nlines;
@@ -493,8 +500,7 @@ namespace DAQ
         static double lastProbeTS() { return last_hw_probe_ts; }
         static void probeHardware();
 
-        FGTask(void *samplesShm, size_t samplesShmSize, size_t pageSize,
-               Params & acqParams, QObject * parent, bool isDummyTask = false);
+        FGTask(Params & acqParams, QObject * parent, const PagedScanReader & psr, bool isDummyTask = false);
         ~FGTask();
 		
         unsigned numChans() const;
@@ -545,21 +551,16 @@ namespace DAQ
         Ui::FG_Controls *dialog;
         volatile quint64 xferCt, scanSkipCt;
 
-        PagedRingBuffer pager;
-
-        const int16 *scansCur() { return reinterpret_cast<int16 *>(pager.getCurrentReadPage()); }
-        const int16 *scansNext(int *skips = 0) { return reinterpret_cast<int16 *>(pager.nextReadPage(skips));  }
-
         void emit_gotFirstScan() { emit(gotFirstScan()); }
 
         struct FrameReader : public QThread {
             FGTask *task;
+            PagedScanReader pager;
             volatile bool pleaseStop;
             FrameReader(FGTask *);
             ~FrameReader();
         protected:
             void run();
-            void enqueueScans(std::vector<int16> & scans, quint64 fake = 0);
         };
 
         FrameReader *frameReader;
