@@ -34,7 +34,7 @@
 
 #define SAMPLES_SHM_NAME "SpikeGL_SampleData"
 #ifdef Q_OS_WIN
-#define SAMPLES_SHM_SIZE (1024*1024*512) /* 512 MB samples shm */
+#define SAMPLES_SHM_SIZE (1024*1024*384) /* 512 MB samples shm */
 #else
 #define SAMPLES_SHM_SIZE (2*1024*1024) // 1MB for testing
 #endif

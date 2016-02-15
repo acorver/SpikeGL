@@ -28,10 +28,8 @@ std::string shmName("COMES_FROM_XtCmd");
 unsigned shmSize(0), shmPageSize(0);
 
 void *sharedMemory = 0;
-PagedRingbufferWriter *pager = 0;
-void *page = 0; int pageOffset = 0; 
-unsigned nChansPerScan = 0 /*in samples*/, nScansPerPage = 0;
-static void nextPage() { if (sharedMemory && pager) { if (page) pager->commitCurrentWritePage(); page = pager->grabNextPageForWrite(); pageOffset = 0; } }
+PagedScanWriter *writer = 0;
+unsigned nChansPerScan = 0;
 
 static HANDLE hShm = 0;
 
@@ -68,15 +66,11 @@ static void acqCallback(SapXferCallbackInfo *info)
 
     const size_t oneScanBytes = nChansPerScan * sizeof(short);
 
-    int scansLeftInPage = (shmPageSize - pageOffset) / int(oneScanBytes);
-
-    if (!page || scansLeftInPage <= 0) nextPage();
-    if (!page) {
+    if (!sharedMemory) {
         spikeGL->pushConsoleError("INTERNAL ERROR.. not attached to shm, cannot send frames!");
         return;
     }
-    scansLeftInPage = (shmPageSize - pageOffset) / int(oneScanBytes);
-    if (!scansLeftInPage) {
+    if (!writer->scansPerPage()) {
         spikeGL->pushConsoleError("INTERNAL ERROR.. shm page, cannot fit at least 1 scan! FIXME!");
         return;
     }
@@ -93,7 +87,7 @@ static void acqCallback(SapXferCallbackInfo *info)
         return;
     }
 
-    BYTE *pDest = ((BYTE *)page);    BYTE *pData = 0;
+    const short *pData = 0;
 
     buffers->GetAddress((void **)(&pData));			// Get image buffer start memory address.
 
@@ -102,16 +96,11 @@ static void acqCallback(SapXferCallbackInfo *info)
         return;
     }
 
-    size_t frameOffset = 0;
-    while (nScansInFrame) {
-        memcpy(pDest + pageOffset, pData + frameOffset, oneScanBytes);
-        pageOffset += int(oneScanBytes); frameOffset += oneScanBytes; --nScansInFrame;
-        scansLeftInPage = (shmPageSize - pageOffset) / int(oneScanBytes);
-        if (scansLeftInPage <= 0) nextPage();
+    if (!writer->write(pData, unsigned(nScansInFrame))) {
+        spikeGL->pushConsoleError("PagedScanWriter::write returned false!");
     }
 
-
-    buffers->ReleaseAddress(pData); // Need to release it to return it to the hardware!
+    buffers->ReleaseAddress((void *)pData); // Need to release it to return it to the hardware!
     
 
     /// FPS RATE CODE
@@ -199,8 +188,8 @@ static bool setupAndStartAcq()
             CloseHandle(hShm); hShm = 0;
             return false;
         }
-        if (pager) delete pager;
-        pager = new PagedRingbufferWriter(sharedMemory, shmSize, shmPageSize);
+        if (writer) delete writer;
+        writer = new PagedScanWriter(nChansPerScan, 0, sharedMemory, shmSize, shmPageSize);
         _snprintf_c(tmp, sizeof(tmp), "Connected to shared memory \"%s\" size: %u  pagesize: %u", shmName.c_str(), shmSize, shmPageSize);
         spikeGL->pushConsoleDebug(tmp);
     }
@@ -296,11 +285,6 @@ static void handleSpikeGLCommand(XtCmd *xt)
         shmPageSize = x->shmPageSize;
         shmSize = x->shmSize;
         shmName = x->shmName;
-        nScansPerPage = shmPageSize / (nChansPerScan*sizeof(short));
-        if (nScansPerPage*sizeof(short) > shmPageSize ) {
-            spikeGL->pushConsoleError("INTERNAL ERROR.. a shm page cannot even hold 1 scan! This should never happen! Fixme!");
-            break;
-        }        
         if (!setupAndStartAcq())
             spikeGL->pushConsoleWarning("Failed to start acquisition.");
         break;

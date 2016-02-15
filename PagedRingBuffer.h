@@ -4,12 +4,11 @@
 #include <string.h>
 
 #define PAGED_RINGBUFFER_MAGIC 0x4a6ef00d
-#define PAGED_RINGBUFFER_DEFAULT_PAGESIZE 65536
 
 class PagedRingBuffer
 {
 public:
-    PagedRingBuffer(void *mem, unsigned long size_bytes, unsigned long page_size = PAGED_RINGBUFFER_DEFAULT_PAGESIZE);
+    PagedRingBuffer(void *mem, unsigned long size_bytes, unsigned long page_size);
 
     unsigned long pageSize() const { return page_size; }
     unsigned long totalSize() const { return size_bytes; }
@@ -47,7 +46,7 @@ protected:
 class PagedRingBufferWriter : public PagedRingBuffer
 {
 public:
-    PagedRingBufferWriter(void *mem, unsigned long size_bytes, unsigned long page_size = PAGED_RINGBUFFER_DEFAULT_PAGESIZE);
+    PagedRingBufferWriter(void *mem, unsigned long size_bytes, unsigned long page_size);
     ~PagedRingBufferWriter();
 
     unsigned long nPagesWritten() const { return nWritten; }
@@ -74,13 +73,9 @@ private:
 class PagedScanReader : public PagedRingBuffer
 {
 public:
-    PagedScanReader(unsigned scan_size_samples, unsigned meta_data_size_bytes, void *mem, unsigned long size_bytes, unsigned long page_size = PAGED_RINGBUFFER_DEFAULT_PAGESIZE)
-        : PagedRingBuffer(mem, size_bytes, page_size), scan_size_samps(scan_size_samples), meta_data_size_bytes(meta_data_size_bytes)
-    {
-        if (meta_data_size_bytes > page_size) meta_data_size_bytes = page_size;
-        nScansPerPage = ((page_size-meta_data_size_bytes)/(scan_size_samps*sizeof(short)));
-        scanCt = scanCtV = 0;
-    }
+    PagedScanReader(unsigned scan_size_samples,
+                    unsigned meta_data_size_bytes,
+                    void *mem, unsigned long mem_size_bytes, unsigned long page_size);
 
     unsigned metaDataSizeBytes() const { return meta_data_size_bytes; }
     unsigned long long scansRead() const { return scanCt; }
@@ -95,21 +90,7 @@ public:
     /// in samples
     unsigned scanSizeSamps() const { return scan_size_samps; }
 
-    const short *next(int *nSkips, void **metaPtr = 0, unsigned *scans_returned = 0) {
-        int sk = 0;
-        const short *scans = (short *)nextReadPage(&sk);
-        if (nSkips) *nSkips = sk;
-        if (scans_returned) *scans_returned = 0;
-        if (metaPtr) *metaPtr = 0;
-        if (scans) {
-            if (scans_returned) *scans_returned = nScansPerPage;
-            scanCtV += static_cast<unsigned long long>(nScansPerPage*(sk+1));
-            scanCt += static_cast<unsigned long long>(nScansPerPage);
-            if (metaPtr && meta_data_size_bytes)
-                *metaPtr = const_cast<short *>(scans+(nScansPerPage*scan_size_samps));
-        }
-        return scans;
-    }
+    const short *next(int *nSkips, void **metaPtr = 0, unsigned *scans_returned = 0);
 
 private:
     unsigned scan_size_samps, meta_data_size_bytes;
@@ -120,21 +101,8 @@ private:
 class PagedScanWriter : public PagedRingBufferWriter
 {
 public:
-    PagedScanWriter(unsigned scan_size_samples, unsigned meta_data_size_bytes, void *mem, unsigned long size_bytes, unsigned long page_size = PAGED_RINGBUFFER_DEFAULT_PAGESIZE)
-        : PagedRingBufferWriter(mem, size_bytes, page_size), scan_size_samps(scan_size_samples), scan_size_bytes(scan_size_samples*sizeof(short)), meta_data_size_bytes(meta_data_size_bytes)
-    {
-        if (meta_data_size_bytes > page_size) meta_data_size_bytes = page_size;
-        nScansPerPage = ((page_size-meta_data_size_bytes)/scan_size_bytes);
-        nBytesPerPage = nScansPerPage * scan_size_bytes;
-        pageOffset = 0;
-        scanCt = 0;
-        sampleCt = 0;
-        currPage = 0;
-    }
+    PagedScanWriter(unsigned scan_size_samples, unsigned meta_data_size_bytes, void *mem, unsigned long size_bytes, unsigned long page_size);
 
-    ~PagedScanWriter() {
-        //commit(); // commented-out because we don't want to commit partial writes...
-    }
     /// in samples
     unsigned scanSizeSamps() const { return scan_size_samps; }
     unsigned scanSizeBytes() const { return scan_size_bytes; }
@@ -142,41 +110,10 @@ public:
     unsigned long long scansWritten() const { return scanCt; }
     unsigned long long samplesWritten() const { return sampleCt; }
 
-    bool write(const short *scans, unsigned nScans, const void *meta = 0) {
-        unsigned scansOff = 0; //in scans
-        if (meta_data_size_bytes && (!meta || nScans != nScansPerPage))
-            // if we are using metadata mode, we require caller to pass a meta data pointer
-            // and we have to write scans in units of 1 page at a time... yes, it sucks, i know.
-            return false;
-        while (nScans) {
-            if (!currPage) { currPage = (short *)grabNextPageForWrite(); pageOffset = 0; }
-            unsigned spaceLeft = nScansPerPage - pageOffset;
-            if (!spaceLeft) { return false; /* this should *NEVER* be reached!! A safeguard, though, in case of improper use of class and/or too small a pagesize */ }
-            unsigned n2write = nScans > spaceLeft ? spaceLeft : nScans;
-            memcpy(currPage+(pageOffset*scan_size_samps), scans+(scansOff*scan_size_samps), n2write*scan_size_bytes);
-            pageOffset += n2write;
-            scansOff += n2write;
-            scanCt += static_cast<unsigned long long>(n2write);
-            sampleCt += static_cast<unsigned long long>(n2write*scan_size_samps);
-            nScans -= n2write;
-            spaceLeft -= n2write;
+    bool write(const short *scans, unsigned nScans, const void *meta = 0);
 
-            if (!spaceLeft) {  // if clause here is needed as above block may modify spaceLeft
-                if (meta_data_size_bytes)
-                    // append metadata to end of each page
-                    memcpy(currPage+(pageOffset*scan_size_samps), meta, meta_data_size_bytes);
-                commit(); // 'commit' the page
-            }
-        }
-        return true;
-    }
 protected:
-    void commit() {
-        if (currPage) {
-            commitCurrentWritePage();
-            currPage = 0; pageOffset = 0;
-        }
-    }
+    void commit(); ///< called by write to commit the current page
 
 private:
     short *currPage;

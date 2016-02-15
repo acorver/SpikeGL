@@ -1214,6 +1214,7 @@ void MainApp::taskReadFunc()
 		}
 		if (!gotSomething) break;
         if (skips>0) fakeDataSz = skips*reader->scansPerPage()*reader->scanSizeSamps();
+        else fakeDataSz = -1;
         firstSamp += skips ? fakeDataSz : 0;
 
         const bool wasFakeData = fakeDataSz > -1;
@@ -1223,15 +1224,17 @@ void MainApp::taskReadFunc()
             putRestarts(p, firstSamp, u64(fakeDataSz/p.nVAIChans));
 		}
 		
-		const bool lastIter = !((ct < ctMax || taskShouldStop) && !needToStop);
 		const DAQ::BugTask::BlockMetaData *bugMeta = 0;
 
+        tNow = getTime();
+
         if (bugWindow && bugTask() && reader->metaDataSizeBytes() >= (int)sizeof(DAQ::BugTask::BlockMetaData) && metaPtr) {
+            static double lastBugUpd = 0.;
             bugMeta = reinterpret_cast<const DAQ::BugTask::BlockMetaData *>(metaPtr);
-            bugWindow->plotMeta(*bugMeta, lastIter ); ///< performance hack on the second param there..
+            bugWindow->plotMeta(*bugMeta, (tNow - lastBugUpd) >= 0.33); ///< performance hack on the second param there..
+            if (tNow - lastBugUpd >= 0.33) lastBugUpd = tNow;
 		}
 		
-        tNow = getTime();
         lastScanSz = reader->scansPerPage()*reader->scanSizeSamps();
         scanCt = firstSamp/p.nVAIChans;
 		i32 triggerOffset = 0;

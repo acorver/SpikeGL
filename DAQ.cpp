@@ -717,9 +717,14 @@ namespace DAQ
         const double tFudge = tNow - lastEnq;
         u64 samps2Fudge = static_cast<u64>(p.srate * tFudge) * static_cast<u64>(p.nVAIChans);
         Debug() << "Fudging " << (tFudge*1e3) << "ms worth of data (" << samps2Fudge << " samples)..";
-        std::vector<int16> dummy;
-        enqueueBuffer(dummy, totalRead, true, samps2Fudge);
+        std::vector<int16> dummy(p.nVAIChans,0x7fff);
+        while (samps2Fudge) {
+            if (!writer.write(&dummy[0],1))
+                Error() << "PagedScanWriter::write() returned false in NITask::fudgeDataDueToReadRetry()!  Fixme!";
+            samps2Fudge -= p.nVAIChans;
+        }
         if (aoWriteThr) {
+            dummy.clear();
             u64 aosamps2fudge = static_cast<u64>(p.srate * tFudge) * static_cast<u64>(aoAITab.size());
             Debug() << "Fudging " << (tFudge*1e3) << "ms worth of AO data as well (" << aosamps2fudge << " samples)..";
             aoWriteThr->enqueueBuffer(dummy, aoSampCount, true, aosamps2fudge);
@@ -1336,10 +1341,10 @@ namespace DAQ
         return unk;
     }
 
-    Task::Task(QObject *parent, const QString & name, const PagedScanReader & prb)
+    Task::Task(QObject *parent, const QString & nam, const PagedScanReader & prb)
         : QThread(parent), totalRead(0ULL), writer(prb.scanSizeSamps(),prb.metaDataSizeBytes(),prb.rawData(),prb.totalSize(),prb.pageSize())
 	{
-	
+        setObjectName(nam);
 	}
 	
 	Task::~Task() { }
@@ -2172,7 +2177,7 @@ namespace DAQ
         pushCmd(x);
     }
 
-    FGTask::FrameReader::FrameReader(FGTask *t) : QThread(0), task(t), pager(t->writer.scanSizeSamps(), 0, t->writer.rawData(), t->writer.pageSize()), pleaseStop(false) {}
+    FGTask::FrameReader::FrameReader(FGTask *t) : QThread(0), task(t), pager(t->writer.scanSizeSamps(), 0, t->writer.rawData(), t->writer.totalSize(), t->writer.pageSize()), pleaseStop(false) {}
 
     FGTask::FrameReader::~FrameReader() {
         pleaseStop = true;
