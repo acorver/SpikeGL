@@ -93,6 +93,8 @@ MainApp::MainApp(int & argc, char ** argv)
     reader = 0;
     gthread = 0;
     dthread = 0;
+    samplesBuffer = 0;
+    need2FreeSamplesBuffer = false;
 
 	QLocale::setDefault(QLocale::c());
 	setApplicationName("SpikeGL");
@@ -688,6 +690,15 @@ void MainApp::initActions()
 	sortGraphsByElectrodeAct->setChecked(m_sortGraphsByElectrodeId);
 }
 
+static inline size_t computeSamplesShmPageSize(double samplingRateHz, unsigned scanSizeSamps, bool lowLatency) {
+    unsigned oneScanBytes = scanSizeSamps * sizeof(int16);
+    unsigned nScansPerPage = qRound(samplingRateHz * double((double)SAMPLES_SHM_DESIRED_PAGETIME_MS/1000.0));
+    if (lowLatency) nScansPerPage /= 2;
+    if (!nScansPerPage) nScansPerPage = 1;
+    return nScansPerPage * oneScanBytes;
+}
+
+
 bool MainApp::startAcq(QString & errTitle, QString & errMsg) 
 {
 	QMutexLocker ml (&mut);
@@ -722,19 +733,27 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         if (!queuedParams.isEmpty()) stimGL_SaveParams("", queuedParams);
     }
 
-    if (!shm.isAttached()) {
+    if (samplesBuffer && need2FreeSamplesBuffer)  free(samplesBuffer);
+    samplesBuffer = 0; need2FreeSamplesBuffer = false;
+
+    const int shmSizeMB = SAMPLES_SHM_SIZE/(1024*1024);
+
+    if (doFGAcqInstead) {
+        if (!shm.isAttached()) {
 #if QT_VERSION >= 0x040800
             shm.setNativeKey(SAMPLES_SHM_NAME);
 #else
             shm.setKey(SAMPLES_SHM_NAME);
 #endif
-            int shmSizeMB = SAMPLES_SHM_SIZE/(1024*1024);
             if (shm.attach()) {
-                shm.detach();
-                errTitle = "Shared Memory Error";
-                errMsg = QString("The shared memory segment already exists.\n\nPlease kill all instances of SpikeGL and its subprocesses to continue.");
-                Error() << errTitle << ": " << errMsg;
-                return false;
+                shm.detach(); // for some reason doing this under windows often 'fixes' the problem
+                if (shm.attach()) {
+                    shm.detach();
+                    errTitle = "Shared Memory Error";
+                    errMsg = QString("The shared memory segment already exists.\n\nPlease kill all instances of SpikeGL and its subprocesses to continue.");
+                    Error() << errTitle << ": " << errMsg;
+                    return false;
+                }
             }
             if (!shm.create(SAMPLES_SHM_SIZE)) {
                 errTitle = "Shared Memory Error";
@@ -742,6 +761,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
                 return false;
             } else {
                 if ( shm.size() < SAMPLES_SHM_SIZE ) {
+                    shm.detach();
                     errTitle = "Shm Segment Wrong Size";
                     errMsg = QString("Shm segment attached ok, but it is too small.  Required size: ") + QString::number(SAMPLES_SHM_SIZE) + " Current size: " + QString::number(shm.size());
                     return false;
@@ -749,8 +769,25 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
                     Log() << "Successfully created '" << SAMPLES_SHM_NAME <<"' shm segment of size " << QString::number(shmSizeMB) << "MB";
                 }
             }
+        } else if ( shm.size() < SAMPLES_SHM_SIZE ) {
+            shm.detach();
+            errTitle = "Shm Segment Wrong Size";
+            errMsg = QString("Shm segment attached ok, but it is too small.  Required size: ") + QString::number(SAMPLES_SHM_SIZE) + " Current size: " + QString::number(shm.size());
+            return false;
+        }
+        samplesBuffer = shm.data();
+        need2FreeSamplesBuffer = false;
+    } else { // not framegrabber acq, so don't use  a SHM, instead just malloc the required memory
+        need2FreeSamplesBuffer = false;
+        samplesBuffer = malloc(SAMPLES_SHM_SIZE);
+        if (!samplesBuffer) {
+            errTitle = "Not Enough Memory";
+            errMsg = QString("Failed to allocate a sample buffer of size ") + QString::number(shmSizeMB) + " MB.\n\nSpikeGL requires a large sample buffer to avoid potential overruns.  Free up some memory or upgrade your system! ";
+            return false;
+        }
+        need2FreeSamplesBuffer = true;
+        Log() << "Successfully created '" << SAMPLES_SHM_NAME <<"' sample buffer size " << QString::number(shmSizeMB) << "MB";
     }
-
 
 	// re-set the data temp file, delete it, etc
 	tmpDataFile.close();		
@@ -846,7 +883,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         graphsWindow->setTrigOverrideEnabled(false);
 
     if (reader) delete reader, reader = 0;
-    reader = new PagedScanReader(params.nVAIChans, 0, shm.data(), SAMPLES_SHM_SIZE, SAMPLES_SHM_PAGESIZE_BYTES(params.srate));
+    reader = new PagedScanReader(params.nVAIChans, 0, samplesBuffer, SAMPLES_SHM_SIZE, computeSamplesShmPageSize(params.srate,params.nVAIChans,params.lowLatency));
     reader->bzero();
 
 	DAQ::NITask *nitask = 0;
@@ -856,11 +893,12 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         task = nitask = new DAQ::NITask(params, this, *reader);
     } else if (doBugAcqInstead) {
         delete reader;  // need to force the page size to something smaller.. for bug's metadata requirements
-        reader = new PagedScanReader(params.nVAIChans, sizeof(DAQ::BugTask::BlockMetaData), shm.data(), SAMPLES_SHM_SIZE, DAQ::BugTask::requiredShmPageSize(params.nVAIChans));
+        reader = new PagedScanReader(params.nVAIChans, sizeof(DAQ::BugTask::BlockMetaData), samplesBuffer, SAMPLES_SHM_SIZE, DAQ::BugTask::requiredShmPageSize(params.nVAIChans));
         task = bugtask = new DAQ::BugTask(params, this, *reader);
     } else if (doFGAcqInstead) {
         task = fgtask = new DAQ::FGTask(params, this, *reader);
     }
+    Debug() << "SamplesSHM Page Size: " << reader->pageSize() << " bytes (" << reader->scansPerPage() << " scans per page), " << reader->nPages() << " total pages";
 
     if (gthread) delete gthread, gthread = 0;
     if (dthread) delete dthread, dthread = 0;
@@ -888,12 +926,13 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	}	
 	
     if (fgtask) { // HACK, testing for now!!
-        datafile_desired_q_size = params.fg.isCalinsConfig ? SAMPLE_BUF_Q_SIZE_FG_CALIN : SAMPLE_BUF_Q_SIZE_FG_JANELIA;
         graphsWindow->setDownsampling(true);
         graphsWindow->setDownsamplingCheckboxEnabled(false);
         delete acqStartingDialog; acqStartingDialog = 0;
         fgtask->dialogW->show();
         fgtask->dialogW->activateWindow();
+    } else {
+        graphsWindow->setDownsamplingCheckboxEnabled(true);
     }
 	
     stopAcq->setEnabled(true);
@@ -1029,10 +1068,15 @@ void MainApp::stopTask()
     updateWindowTitles();
 	if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
     if (reader) delete reader, reader = 0;
+    if (need2FreeSamplesBuffer && samplesBuffer) {
+        free(samplesBuffer); samplesBuffer = 0;
+        Log() << "Freed `" << SAMPLES_SHM_NAME << "' sample buffer of size " << (SAMPLES_SHM_SIZE/(1024*1024)) << "MB";
+    }
     if (shm.isAttached()) {
         shm.detach();
         Log() << "Deleted `" << SAMPLES_SHM_NAME << "' shm of size " << (SAMPLES_SHM_SIZE/(1024*1024)) << "MB";
     }
+    samplesBuffer = 0; need2FreeSamplesBuffer = false;
     //Systray() << "Acquisition stopped";
 }
 
@@ -1206,12 +1250,10 @@ void MainApp::taskReadFunc()
     while ((ct++ < ctMax || taskShouldStop) ///< on taskShouldStop, keep trying to empty queue!
            && !needToStop ) {
 		bool gotSomething = false;
-        //dataQLeft = 0;
-        if (task) {
-            scans = reader->next(&skips,&metaPtr,&scans_ret);
-            gotSomething = scans; //task->dequeueBuffer(scans, firstSamp, false,true, &fakeDataSz,true,&metaData);
-            //dataQLeft = task->dataQueueSize();
-		}
+
+        scans = reader->next(&skips,&metaPtr,&scans_ret);
+        gotSomething = !!scans;
+
 		if (!gotSomething) break;
         if (skips>0) fakeDataSz = skips*reader->scansPerPage()*reader->scanSizeSamps();
         else fakeDataSz = -1;
@@ -1236,7 +1278,7 @@ void MainApp::taskReadFunc()
 		}
 		
         lastScanSz = reader->scansPerPage()*reader->scanSizeSamps();
-        scanCt = firstSamp/p.nVAIChans;
+        scanCt = firstSamp/u64(p.nVAIChans) + u64(reader->scansPerPage());
 		i32 triggerOffset = 0;
 		int prebufCopied = 0;
 		
@@ -1365,7 +1407,10 @@ void MainApp::taskReadFunc()
                 if (taskWaitingForStop && p.acqStartEndMode == DAQ::Timed) {
                     taskEndStr = QString(" - task will auto-stop in ") + QString::number((stopScanCt-scanCt)/p.srate) + " secs";
                 }
-                Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz - " << dataFile.sampleCount() << " samples read - " <<  qFillPct << "% buffer fill - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
+                QString dfScanStr = "";
+                if (dataFile.isOpen()) dfScanStr = QString(" - ") + QString::number(dataFile.scanCount()) + " scans";
+
+                Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz" << dfScanStr << " - " <<  qFillPct << "% buffer fill - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
                 lastSBUpd = tNow;
             }
 
@@ -1388,22 +1433,7 @@ void MainApp::taskReadFunc()
 		for (QList<SampleBufQ *>::iterator it = overThresh.begin(); it != overThresh.end(); ++it) {	
 			SampleBufQ *buf = *it; 
 			Warning() << "The buffer: `" << (*it)->name << "' is " << double((buf->dataQueueSize()/double(buf->dataQueueMaxSize))*100.) << "% full! System too slow for the specified acquisition?";
-		}
-				
-		// SPATIAL VIS TESTING 
-        if (!gthread && spatialWindow && !spatialWindow->isHidden()) {
-            if (!daqIsOver && qFillPct <= 70.0)
-                spatialWindow->putScans(scans, lastScanSz, firstSamp);
-		}
-		
-        if (!gthread && graphsWindow && !graphsWindow->isHidden()) {
-            if (daqIsOver || qFillPct > 70.0) {
-                Warning() << "Some scans were dropped from graphing due to queue limits being nearly reached!  Try downsampling graphs or displaying fewer seconds per graph!";
-             } else { 
-                 graphsWindow->putScans(scans, lastScanSz, firstSamp);
-				 //Debug() << "graphsWindow->putScans(" << scans.size() <<" scans,firstSamp=" << firstSamp << ")";
-             }
-        }
+		}				
 		
 		// normally *always* pre-buffer the scans since we may need them at any time on a re-trigger event
         preBuf.putData(&scans[0], lastScanSz*sizeof(scans[0]));
@@ -1438,6 +1468,7 @@ bool MainApp::detectTriggerEvent(const int16 * scans, unsigned sz, u64 firstSamp
     case DAQ::Timed:  
         if (p.isImmediate || scanCt >= startScanCt) {
             triggered = true;
+            Debug() << "Triggered start.  startScanCt=" << startScanCt << " scanCt=" << scanCt;
         }
         break;
     case DAQ::PDStartEnd:

@@ -232,6 +232,9 @@ namespace DAQ
         virtual unsigned samplingRate() const = 0;
 		        
         u64 lastReadScan() const;
+
+        const PagedRingBuffer & pagedBuffer() const { return writer; }
+
 	protected:
 		/// reimplemented from QThread, just calls daqThr
         void run() { daqThr(); }  

@@ -22,7 +22,8 @@ void *PagedRingBuffer::getCurrentReadPage()
     if (!mem || !npages || !size_bytes) return 0;
     if (pageIdx < 0 || pageIdx >= (int)npages) return 0;
     Header *h = reinterpret_cast<Header *>(&mem[ (page_size+sizeof(Header)) * pageIdx ]);
-    if (h->magic != unsigned(PAGED_RINGBUFFER_MAGIC) || h->pageNum != lastPageRead) return 0;
+    Header hdr; memcpy(&hdr, h, sizeof(hdr)); // hopefully avoid some potential race conditions
+    if (hdr.magic != unsigned(PAGED_RINGBUFFER_MAGIC) || hdr.pageNum != lastPageRead) return 0;
     return reinterpret_cast<char *>(h)+sizeof(Header);
 }
 
@@ -32,9 +33,10 @@ void *PagedRingBuffer::nextReadPage(int *nSkips)
     int nxt = (pageIdx+1) % npages;
     if (nxt < 0) nxt = 0;
     Header *h = reinterpret_cast<Header *>(&mem[ (page_size+sizeof(Header)) * nxt ]);
-    if (h->magic == unsigned(PAGED_RINGBUFFER_MAGIC) && h->pageNum >= lastPageRead+1U) {
-        if (nSkips) *nSkips = int(h->pageNum-(lastPageRead+1)); // record number of overflows/lost pages here!
-        lastPageRead = h->pageNum;
+    Header hdr; memcpy(&hdr, h, sizeof(hdr)); // hopefully avoid some potential race conditions
+    if (hdr.magic == unsigned(PAGED_RINGBUFFER_MAGIC) && hdr.pageNum >= lastPageRead+1U) {
+        if (nSkips) *nSkips = int(hdr.pageNum-(lastPageRead+1)); // record number of overflows/lost pages here!
+        lastPageRead = hdr.pageNum;
         pageIdx = nxt;
         return reinterpret_cast<char *>(h)+sizeof(Header);
     }

@@ -1353,7 +1353,7 @@ namespace DAQ
     {
         u64 ret (0);
         totalReadMut.lock();
-        ret = totalRead / numChans();
+        ret = totalRead / u64(numChans());
         totalReadMut.unlock();
         return ret;
     }

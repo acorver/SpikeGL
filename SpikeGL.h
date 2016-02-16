@@ -28,18 +28,11 @@
 #define SETTINGS_DOMAIN "janelia.hhmi.org"
 #define SETTINGS_APP APPNAME
 #define MAX_NUM_GRAPHS_PER_GRAPH_TAB 36
-#define SAMPLE_BUF_Q_SIZE 512
-#define SAMPLE_BUF_Q_SIZE_FG_JANELIA 400
-#define SAMPLE_BUF_Q_SIZE_FG_CALIN 300
+#define SAMPLE_BUF_Q_SIZE 128
 
 #define SAMPLES_SHM_NAME "SpikeGL_SampleData"
-#ifdef Q_OS_WIN
-#define SAMPLES_SHM_SIZE (1024*1024*384) /* 512 MB samples shm */
-#else
-#define SAMPLES_SHM_SIZE (2*1024*1024) // 1MB for testing
-#endif
+#define SAMPLES_SHM_SIZE (1024*1024*384) /* 384 MB samples shm/buffer size */
 #define SAMPLES_SHM_DESIRED_PAGETIME_MS (33) /* 33 ms  */
-#define SAMPLES_SHM_PAGESIZE_BYTES(samplingRateHz) (qRound(((samplingRateHz)*1000.0)/double(SAMPLES_SHM_DESIRED_PAGETIME_MS)))
 
 extern bool excessiveDebug; ///< If true, print lots of debug output.. mainly daq related.. enable in console with control-D
 #endif

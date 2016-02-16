@@ -386,6 +386,8 @@ private:
 
     int datafile_desired_q_size;
 
+    void *samplesBuffer; ///< may point to shm.data() below or may point to a buffer allocated with malloc() if not using framegrabber.  Check the bool 'need2FreeSamplesBuffer' on task stop to determine whether to delete it
+    bool need2FreeSamplesBuffer;
     QSharedMemory shm; /* the giant buffer that scans get dumped to for reading from other app subsystems.
                           note that for now just the framegrabber task uses this */
     PagedScanReader *reader; ///< used to copy-construct other pagers/readers, among other things
