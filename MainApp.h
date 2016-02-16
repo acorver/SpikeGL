@@ -409,10 +409,10 @@ private:
     struct DataSavingThread : public QThread {
         DataFile_Fn_Shm & f;
         TempDataFile *t;
-        PagedRingBuffer pager;
+        PagedScanReader reader;
         volatile bool pleaseStop;
 
-        DataSavingThread(DataFile_Fn_Shm & f, TempDataFile *t, const PagedRingBuffer &prb);
+        DataSavingThread(DataFile_Fn_Shm & f, TempDataFile *t, const PagedScanReader &psr);
         ~DataSavingThread();
     protected:
         void run();

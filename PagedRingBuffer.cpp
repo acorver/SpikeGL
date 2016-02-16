@@ -98,6 +98,23 @@ PagedScanReader::PagedScanReader(unsigned scan_size_samples, unsigned meta_data_
     scanCt = scanCtV = 0;
 }
 
+PagedScanReader::PagedScanReader(const PagedScanReader &o)
+    : PagedRingBuffer(o.rawData(), o.totalSize(), o.pageSize()), scan_size_samps(o.scanSizeSamps()), meta_data_size_bytes(o.meta_data_size_bytes)
+{
+    if (meta_data_size_bytes > page_size) meta_data_size_bytes = page_size;
+    nScansPerPage = scan_size_samps ? ((page_size-meta_data_size_bytes)/(scan_size_samps*sizeof(short))) : 0;
+    scanCt = scanCtV = 0;
+}
+
+PagedScanReader::PagedScanReader(const PagedScanWriter &o)
+    : PagedRingBuffer(o.rawData(), o.totalSize(), o.pageSize()), scan_size_samps(o.scanSizeSamps()), meta_data_size_bytes(o.metaDataSizeBytes())
+{
+    if (meta_data_size_bytes > page_size) meta_data_size_bytes = page_size;
+    nScansPerPage = scan_size_samps ? ((page_size-meta_data_size_bytes)/(scan_size_samps*sizeof(short))) : 0;
+    scanCt = scanCtV = 0;
+}
+
+
 const short *PagedScanReader::next(int *nSkips, void **metaPtr, unsigned *scans_returned)
 {
     int sk = 0;
@@ -114,6 +131,7 @@ const short *PagedScanReader::next(int *nSkips, void **metaPtr, unsigned *scans_
     }
     return scans;
 }
+
 
 PagedScanWriter::PagedScanWriter(unsigned scan_size_samples, unsigned meta_data_size_bytes, void *mem, unsigned long size_bytes, unsigned long page_size)
     : PagedRingBufferWriter(mem, size_bytes, page_size), scan_size_samps(scan_size_samples), scan_size_bytes(scan_size_samples*sizeof(short)), meta_data_size_bytes(meta_data_size_bytes)

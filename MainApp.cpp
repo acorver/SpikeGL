@@ -1266,17 +1266,14 @@ void MainApp::taskReadFunc()
             putRestarts(p, firstSamp, u64(fakeDataSz/p.nVAIChans));
 		}
 		
-		const DAQ::BugTask::BlockMetaData *bugMeta = 0;
+        const DAQ::BugTask::BlockMetaData *bugMeta = 0;
 
         tNow = getTime();
 
         if (bugWindow && bugTask() && reader->metaDataSizeBytes() >= (int)sizeof(DAQ::BugTask::BlockMetaData) && metaPtr) {
-            static double lastBugUpd = 0.;
             bugMeta = reinterpret_cast<const DAQ::BugTask::BlockMetaData *>(metaPtr);
-            bugWindow->plotMeta(*bugMeta, (tNow - lastBugUpd) >= 0.33); ///< performance hack on the second param there..
-            if (tNow - lastBugUpd >= 0.33) lastBugUpd = tNow;
-		}
-		
+        }
+
         lastScanSz = reader->scansPerPage()*reader->scanSizeSamps();
         scanCt = firstSamp/u64(p.nVAIChans) + u64(reader->scansPerPage());
 		i32 triggerOffset = 0;

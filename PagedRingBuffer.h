@@ -70,12 +70,17 @@ private:
 
 };
 
+class PagedScanWriter;
+
 class PagedScanReader : public PagedRingBuffer
 {
 public:
     PagedScanReader(unsigned scan_size_samples,
                     unsigned meta_data_size_bytes,
                     void *mem, unsigned long mem_size_bytes, unsigned long page_size);
+
+    PagedScanReader(const PagedScanReader &r);
+    PagedScanReader(const PagedScanWriter &w);
 
     unsigned metaDataSizeBytes() const { return meta_data_size_bytes; }
     unsigned long long scansRead() const { return scanCt; }
@@ -109,6 +114,7 @@ public:
     unsigned scansPerPage() const { return nScansPerPage; }
     unsigned long long scansWritten() const { return scanCt; }
     unsigned long long samplesWritten() const { return sampleCt; }
+    unsigned metaDataSizeBytes() const { return meta_data_size_bytes; }
 
     bool write(const short *scans, unsigned nScans, const void *meta = 0);
 

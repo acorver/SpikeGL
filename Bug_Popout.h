@@ -9,11 +9,14 @@
 #include <QRectF>
 #include <QColor>
 #include <QSet>
+#include <QMutex>
+
 #include "DAQ.h"
 #include "ui_Bug_Popout.h"
 #include "DataFile.h"
 
 class Bug_Graph;
+class Bug_MetaPlotThread;
 
 class Bug_Popout : public QWidget
 {
@@ -22,12 +25,14 @@ public:
 	Bug_Popout(DAQ::BugTask *task, QWidget *parent = 0);
 	~Bug_Popout();
 
-	void plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_QWidget_update = true);
+    void plotMeta(const DAQ::BugTask::BlockMetaData & meta);
 	void writeMetaToBug3File(const DataFile & dataFile, const DAQ::BugTask::BlockMetaData & meta, int fudge_scanct = 0);
-	
+
 private slots:
 	void filterSettingsChanged();
     void aoControlsChanged();
+
+    void updateDisplay();
 	
 private:
 	void setupGraphs();
@@ -36,11 +41,17 @@ private:
 	DAQ::BugTask *task;
     DAQ::Params::Bug & p;
     DAQ::Params & ap;
-	double avgPower; int nAvg;
+    double avgPower; int nAvg; double logBER;
 	Ui::Bug_Popout *ui;
 	double lastStatusT; qint64 lastStatusBlock; double lastRate;
 	
 	Bug_Graph *vgraph, *errgraph;
+
+    QMutex mut;
+    volatile bool hasMeta;
+    DAQ::BugTask::BlockMetaData lastMeta;
+
+    Bug_MetaPlotThread *plotThread;
 };
 
 
@@ -68,5 +79,6 @@ private:
 	unsigned barsCount;
 	QVector<QColor> colors;
 	QList<QPair<QRectF, QColor> > bgs;
+    QMutex mut;
 };
 #endif

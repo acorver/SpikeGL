@@ -2,12 +2,58 @@
 #include "Util.h"
 #include <QPainter>
 #include <QMutexLocker>
+#include <QTimer>
+#include <QThread>
 #include "MainApp.h"
 #include "ConfigureDialogController.h"
+#include "PagedRingBuffer.h"
+
+class Bug_MetaPlotThread : public QThread
+{
+public:
+    Bug_MetaPlotThread(Bug_Popout *popout, unsigned taskRateHz, const PagedScanWriter & psw);
+    ~Bug_MetaPlotThread();
+protected:
+    void run(); ///< reimplemented from QThread
+private:
+    Bug_Popout *popout;
+    PagedScanReader reader;
+    const unsigned taskRateHz;
+    volatile bool pleaseStop;
+};
+
+Bug_MetaPlotThread::Bug_MetaPlotThread(Bug_Popout *popout, unsigned taskRateHz, const PagedScanWriter &psw)
+    : QThread(popout), popout(popout), reader(psw), taskRateHz(taskRateHz), pleaseStop(false)
+{}
+
+Bug_MetaPlotThread::~Bug_MetaPlotThread()
+{
+    if (isRunning()) { pleaseStop = true; wait(); }
+}
+
+void Bug_MetaPlotThread::run()
+{
+    const unsigned sleeptime_ms = taskRateHz ? qRound(double(reader.scansPerPage()) / (double(taskRateHz)/1000.0)) : 1 ;
+
+    Debug() << "Bug_MetaPlotThread sleeptime_ms = " << sleeptime_ms;
+
+    while (!pleaseStop) {
+        DAQ::BugTask::BlockMetaData *meta = 0;
+        int skips = 0; unsigned nscans = 0;
+        const int16 *scan = reader.next(&skips,(void **)&meta, &nscans);
+        if (scan && meta) {
+            popout->plotMeta(*meta);
+        } else {
+            msleep(sleeptime_ms);
+        }
+    }
+}
 
 Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
-: QWidget(parent), task(task), p(task->bugParams()), ap(task->allParams()), avgPower(0.0), nAvg(0)
+    : QWidget(parent), task(task), p(task->bugParams()), ap(task->allParams()), avgPower(0.0), nAvg(0), logBER(0.0), mut(QMutex::Recursive)
 {
+    hasMeta = false;
+
 	ui = new Ui::Bug_Popout;
 	ui->setupUi(this);	
 	
@@ -28,10 +74,20 @@ Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
 	lastStatusT = getTime();
 	lastStatusBlock = -1;
 	lastRate = 0.;
+
+    QTimer *t = new QTimer(this);
+    t->setInterval(250);
+    t->setSingleShot(false);
+    Connect(t, SIGNAL(timeout()), this, SLOT(updateDisplay()));
+    t->start();
+
+    plotThread = new Bug_MetaPlotThread(this,task->samplingRate(),task->pagedWriter());
+    plotThread->start(QThread::LowPriority);
 }
 
 Bug_Popout::~Bug_Popout()
 {
+    if (plotThread) delete plotThread, plotThread = 0;
 	mainApp()->sortGraphsByElectrodeAct->setEnabled(true);
 	delete ui; ui = 0;
 }
@@ -93,15 +149,17 @@ void Bug_Popout::writeMetaToBug3File(const DataFile &df, const DAQ::BugTask::Blo
 	ts.flush();
 }
 
-void Bug_Popout::plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_update)
+void Bug_Popout::plotMeta(const DAQ::BugTask::BlockMetaData & meta)
 {		
+    QMutexLocker l(&mut);
+
     avgPower = (avgPower*double(nAvg) + meta.avgVunreg)/double(nAvg+1);
     if (++nAvg > DAQ::BugTask::MaxMetaData) nAvg = DAQ::BugTask::MaxMetaData;
 
 	vgraph->pushPoint(1.0-((meta.avgVunreg-1.)/4.0));
 	
 	// BER/WER handling...
-	double BER(meta.BER), WER (meta.WER), logBER, logWER;
+    double BER(meta.BER), WER (meta.WER), logWER;
 	
 	if (BER > 0.0) {
 		logBER = ::log10(BER);
@@ -165,21 +223,30 @@ void Bug_Popout::plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_up
 		errgraph->pushBar(QColor(200,0,0,alpha/*64*/));
 	}
 	
-	
-	if (call_update) { // last iteration, update the labels with the "most recent" info
-		ui->chipIdLbl->setText(QString::number(meta.chipID[DAQ::BugTask::FramesPerBlock-1]));
-		ui->dataFoundLbl->setText(QString::number((meta.blockNum+1)*DAQ::BugTask::FramesPerBlock - (meta.missingFrameCount+meta.falseFrameCount)));
-		ui->missingLbl->setText(QString::number(meta.missingFrameCount));
-		ui->falseLbl->setText(QString::number(meta.falseFrameCount));
-		ui->recVolLbl->setText(QString::number(avgPower,'f',3));
-		ui->berLbl->setText(QString::number(logBER,'3',4));
-		const quint64 samplesPerBlock = task->usbDataBlockSizeSamps();
-		const double now = getTime(), diff = now - lastStatusT;
-		if (diff >= 1.0) {
-			lastRate = ((meta.blockNum-lastStatusBlock) * samplesPerBlock)/diff;
-			lastStatusT = now;
-			lastStatusBlock = meta.blockNum;
-		}
+    lastMeta = meta;
+    hasMeta = true;
+}
+
+void Bug_Popout::updateDisplay()
+{
+    QMutexLocker l(&mut);
+
+    if (hasMeta) { // last iteration, update the labels with the "most recent" info
+        const DAQ::BugTask::BlockMetaData & meta(lastMeta);
+
+        ui->chipIdLbl->setText(QString::number(meta.chipID[DAQ::BugTask::FramesPerBlock-1]));
+        ui->dataFoundLbl->setText(QString::number((meta.blockNum+1)*DAQ::BugTask::FramesPerBlock - (meta.missingFrameCount+meta.falseFrameCount)));
+        ui->missingLbl->setText(QString::number(meta.missingFrameCount));
+        ui->falseLbl->setText(QString::number(meta.falseFrameCount));
+        ui->recVolLbl->setText(QString::number(avgPower,'f',3));
+        ui->berLbl->setText(QString::number(logBER,'3',4));
+        const quint64 samplesPerBlock = task->usbDataBlockSizeSamps();
+        const double now = getTime(), diff = now - lastStatusT;
+        if (diff >= 1.0) {
+            lastRate = ((meta.blockNum-lastStatusBlock) * samplesPerBlock)/diff;
+            lastStatusT = now;
+            lastStatusBlock = meta.blockNum;
+        }
         QString statusTxt = QString("Read %1 USB blocks (%2 MS) - %3 KS/sec").arg(meta.blockNum+1).arg((meta.blockNum*samplesPerBlock)/1e6,3,'f',2).arg(lastRate/1e3);
 #ifdef Q_OS_WIN
         if (mainApp()->isDebugMode()) {
@@ -196,10 +263,9 @@ void Bug_Popout::plotMeta(const DAQ::BugTask::BlockMetaData & meta, bool call_up
         }
 #endif
         ui->statusLabel->setText(statusTxt);
-		errgraph->update();
-		vgraph->update();
-
-	}	
+        errgraph->update();
+        vgraph->update();
+    }
 }
 
 void Bug_Popout::filterSettingsChanged()
@@ -284,7 +350,7 @@ void Bug_Popout::aoControlsChanged()
 }
 
 Bug_Graph::Bug_Graph(QWidget *parent, unsigned nplots, unsigned maxPts)
-: QWidget(parent), maxPts(maxPts), pen_width(2.0f)
+    : QWidget(parent), maxPts(maxPts), pen_width(2.0f), mut(QMutex::Recursive)
 {
 	if (nplots == 0) nplots = 1;
 	if (nplots > 10) nplots = 10;
@@ -298,6 +364,8 @@ Bug_Graph::Bug_Graph(QWidget *parent, unsigned nplots, unsigned maxPts)
 
 void Bug_Graph::pushPoint(float y, unsigned plotNum)
 {
+    QMutexLocker l(&mut);
+
 	if (plotNum >= (unsigned)pts.size()) plotNum = pts.size()-1;
 	pts[plotNum].push_back(y);
 	++ptsCounts[plotNum];
@@ -309,6 +377,8 @@ void Bug_Graph::pushPoint(float y, unsigned plotNum)
 
 void Bug_Graph::pushBar(const QColor & c)
 {
+    QMutexLocker l(&mut);
+
 	bars.push_back(c);
 	++barsCount;
 	while (barsCount > maxPts) {
@@ -319,17 +389,20 @@ void Bug_Graph::pushBar(const QColor & c)
 
 void Bug_Graph::setBGRects(const QList<QPair<QRectF,QColor> > & bgs_in)
 {
+    QMutexLocker l(&mut);
 	bgs = bgs_in;
 }
 
 void Bug_Graph::setPlotColor(unsigned p, const QColor & c)
 {
+    QMutexLocker l(&mut);
 	if (p >= (unsigned)colors.size()) p = colors.size()-1;
 	colors[p] = c;
 }
 
 void Bug_Graph::paintEvent(QPaintEvent *e)
 {
+    QMutexLocker l(&mut);
 	(void) e;
 	QPainter p(this);
 	for (QList<QPair<QRectF, QColor> >::iterator it = bgs.begin(); it != bgs.end(); ++it) {

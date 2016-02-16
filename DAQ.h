@@ -233,7 +233,7 @@ namespace DAQ
 		        
         u64 lastReadScan() const;
 
-        const PagedRingBuffer & pagedBuffer() const { return writer; }
+        const PagedScanWriter & pagedWriter() const { return writer; }
 
 	protected:
 		/// reimplemented from QThread, just calls daqThr
