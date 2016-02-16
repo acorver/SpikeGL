@@ -68,6 +68,13 @@ public:
 	    fail unconditionally */
     bool writeScans(const std::vector<int16> & scan, bool asynch = false, unsigned asynch_queue_size = 0);
 	
+
+    /// *synchronous* write of a scan to a file.  File must have been opened for write
+    /// using openForWrite()
+    /// A scan is defined as a unit of numChans() samples.  Pass the scanCt to tell this function how many scans
+    /// are in `scans'.
+    bool writeScans(const int16 *scans, unsigned scanCt);
+
 	/// Returns true iff we did an asynch write and we have writes that still haven't finished.  False otherwise.
 	bool hasPendingWrites() const;
 	
@@ -120,6 +127,7 @@ public:
 
 protected:
 	bool doFileWrite(const std::vector<int16> & scans);
+    bool doFileWrite(const int16 *scans, unsigned nScans);
 	
 private:
     

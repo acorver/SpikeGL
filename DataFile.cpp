@@ -103,6 +103,29 @@ bool DataFile::closeAndFinalize()
 	return false; // not normally reached...
 }
 
+bool DataFile::writeScans(const int16 *scans, unsigned nScans)
+{
+    if (!isOpen()) return false;
+    if (!nScans) return true; // for now, we allow empty writes!
+    if (scanCt == 0) {
+        // special case -- Leonardo lab requested that timestamp on data files be the timestamp of when first scan arrived
+        // so, to fudge this we need to close the data file, delete it, and quickly reopen it
+        // the reason we had it open in the first place was to 'reserve' that spot on the disk ;)
+        QString fileName(dataFile.fileName());
+
+        dataFile.remove(); /// remove the 0-byte file
+        dataFile.setFileName(fileName);
+        if (!dataFile.open(QIODevice::WriteOnly|QIODevice::Truncate)) { // reopen it to reset the timestamp
+            Error() << "Failed to open data file " << fileName << " for write!";
+            return false;
+        }
+    }
+
+    scanCt += nScans;
+    // synchronous write..
+    return doFileWrite(scans, nScans);
+}
+
 bool DataFile::writeScans(const std::vector<int16> & scans, bool asynch, unsigned threaded_queueSize)
 {
     if (!isOpen()) return false;
@@ -154,11 +177,16 @@ void DataFile::writeCommentToMetaFile(const QString & cmt, bool prepend)
 
 bool DataFile::doFileWrite(const std::vector<int16> & scans)
 {
-	const int n2Write = scans.size()*sizeof(int16);
+    return doFileWrite(&scans[0], scans.size()/numChans());
+}
+
+bool DataFile::doFileWrite(const int16 *scans, unsigned nScans)
+{
+    const int n2Write = nScans*numChans()*sizeof(int16);
 	
 	double tWrite = getTime();
 	
-	int nWrit = dataFile.write((const char *)&scans[0], n2Write);
+    int nWrit = dataFile.write((const char *)scans, n2Write);
 
 	if (nWrit != n2Write) {
 		Error() << "DataFile::doFileWrite: Error returned from write call: " << nWrit;

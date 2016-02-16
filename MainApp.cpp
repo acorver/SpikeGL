@@ -127,6 +127,9 @@ MainApp::MainApp(int & argc, char ** argv)
 	windowMenuAdd(consoleWindow);
 #endif
 	
+    Connect(this, SIGNAL(do_updateWindowTitles()), this, SLOT(updateWindowTitles()));
+    Connect(this, SIGNAL(do_stopTask()), this, SLOT(stopTask()));
+
     defaultLogColor = consoleWindow->textEdit()->textColor();
     consoleWindow->setAttribute(Qt::WA_DeleteOnClose, false);
 	
@@ -823,6 +826,9 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen());
     graphsWindow->setAttribute(Qt::WA_DeleteOnClose, false);
     
+    Connect(this, SIGNAL(do_setPDTrigLED(bool)), graphsWindow, SLOT(setPDTrig(bool)));
+    Connect(this, SIGNAL(do_setManualTrigEnabled(bool)), graphsWindow, SLOT(setTrigOverrideEnabled(bool)));
+
     graphsWindow->setWindowIcon(appIcon);
     hideUnhideGraphsAct->setEnabled(true);
     graphsWindow->installEventFilter(this);
@@ -906,14 +912,9 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 
 	doBugAcqInstead = false;
 	doFGAcqInstead = false;
-    taskReadTimer = new QTimer(this);
     Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
     Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
     Connect(task, SIGNAL(daqWarning(const QString &)), this, SLOT(gotDaqWarning(const QString &)));
-    Connect(taskReadTimer, SIGNAL(timeout()), this, SLOT(taskReadFunc()));
-    taskReadTimer->setSingleShot(false);
-    
-    taskReadTimer->start(1000/DEF_TASK_READ_FREQ_HZ);
 	
     datafile_desired_q_size = SAMPLE_BUF_Q_SIZE;
 
@@ -938,8 +939,10 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     stopAcq->setEnabled(true);
     aoPassthruAct->setEnabled(params.aoPassthru && !bugtask && !fgtask);
     Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));
+    gthread->start(QThread::LowPriority);
+    dthread = new DataSavingThread(this);
+    dthread->start(QThread::HighPriority);
     task->start();
-    if (gthread) gthread->start(QThread::LowPriority);
     updateWindowTitles();
     //Systray() << "DAQ task starting up ...";
     Status() << "DAQ task starting up ...";
@@ -1037,7 +1040,8 @@ void MainApp::stopTask()
 	QMutexLocker ml (&mut);
 	
     if (!task) return;
-	if (bugWindow) {
+    if (dthread) delete dthread, dthread = 0;
+    if (bugWindow) {
 		windowMenuRemove(bugWindow);
 		delete bugWindow, bugWindow = 0;
 	}
@@ -1045,7 +1049,6 @@ void MainApp::stopTask()
 	doBugAcqInstead = false;
 	doFGAcqInstead = false;
     fastSettleRunning = false;
-    if (taskReadTimer) delete taskReadTimer, taskReadTimer = 0;
     if (gthread) delete gthread, gthread = 0;
     if (graphsWindow) {
 		windowMenuRemove(graphsWindow);
@@ -1058,7 +1061,6 @@ void MainApp::stopTask()
     hideUnhideGraphsAct->setEnabled(false);
     Log() << "Task " << dataFile.fileName() << " stopped.";
     Status() << "Task stopped.";
-    if (dthread) delete dthread, dthread = 0;
     dataFile.closeAndFinalize();
     queuedParams.clear();
     stopAcq->setEnabled(false);
@@ -1070,7 +1072,7 @@ void MainApp::stopTask()
 	if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
     if (reader) delete reader, reader = 0;
     if (need2FreeSamplesBuffer && samplesBuffer) {
-        free(samplesBuffer); samplesBuffer = 0;
+        free(samplesBuffer);
         Log() << "Freed `" << SAMPLES_SHM_NAME << "' sample buffer of size " << (SAMPLES_SHM_SIZE/(1024*1024)) << "MB";
     }
     if (shm.isAttached()) {
@@ -1233,6 +1235,218 @@ void MainApp::GraphingThread::run()
     Debug() << "GraphingThread ending.";
 }
 
+MainApp::DataSavingThread::DataSavingThread(MainApp *mainApp)
+    : QThread(mainApp), app(mainApp), pleaseStop(false)
+{}
+
+MainApp::DataSavingThread::~DataSavingThread()
+{
+    pleaseStop = true;
+    if (isRunning()) wait();
+}
+
+void MainApp::DataSavingThread::run()
+{
+    unsigned sleeptime_ms = qRound(((app->configCtl->acceptedParams.srate / double(app->reader->scansPerPage())) * 1000.0) / DEF_TASK_READ_FREQ_HZ);
+    if (!sleeptime_ms) sleeptime_ms = 1;
+    Debug() << "MainApp::DataSavingThread sleeptime_ms=" << sleeptime_ms;
+
+    while (!pleaseStop) {
+        app->taskReadFunc2();
+        msleep(sleeptime_ms);
+    }
+}
+
+///< called from a timer at 30Hz
+void MainApp::taskReadFunc2()
+{
+    std::vector<int16> scans_subsetted;
+    const int16 *scans = 0;
+    bool needToStop = false;
+    static double lastSBUpd = 0;
+    const DAQ::Params & p (configCtl->acceptedParams);
+    u64 firstSamp = scanCt * u64(p.nVAIChans);
+    int fakeDataSz = -1, skips = 0;
+    void *metaPtr = 0;
+    unsigned scans_ret = 0;
+    int ct = 0, ctMax = 10;
+    while (!needToStop || (taskShouldStop && ++ct <= ctMax) ) {
+        bool gotSomething = false;
+
+        scans = reader->next(&skips,&metaPtr,&scans_ret);
+        gotSomething = !!scans;
+
+        if (!gotSomething) { break; }
+        if (skips>0) fakeDataSz = skips*reader->scansPerPage()*reader->scanSizeSamps();
+        else fakeDataSz = -1;
+        firstSamp += skips ? fakeDataSz : 0;
+
+        const bool wasFakeData = fakeDataSz > -1;
+        // TODO XXX FIXME -- implement detection of fake data (DAQ restart!) properly
+        if (wasFakeData) {
+            Warning() << "Skipped " << skips << " pages in sample buffer, FIXME...";
+            putRestarts(p, firstSamp, u64(fakeDataSz/p.nVAIChans));
+        }
+
+        const DAQ::BugTask::BlockMetaData *bugMeta = 0;
+
+        tNow = getTime();
+
+        if (bugWindow && bugTask() && reader->metaDataSizeBytes() >= (int)sizeof(DAQ::BugTask::BlockMetaData) && metaPtr) {
+            bugMeta = reinterpret_cast<const DAQ::BugTask::BlockMetaData *>(metaPtr);
+        }
+
+        lastScanSz = reader->scansPerPage()*reader->scanSizeSamps();
+        scanCt = firstSamp/u64(p.nVAIChans) + u64(reader->scansPerPage());
+        i32 triggerOffset = 0;
+        int prebufCopied = 0;
+
+        if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
+            if (!taskHasManualTrigOverride) {
+                detectTriggerEvent(scans, lastScanSz, firstSamp, triggerOffset); // may set taskWaitingForTrigger...
+                if (taskWaitingForTrigger && tNow-lastSBUpd > 0.25) { // every 1/4th of a second
+                    if (p.acqStartEndMode == DAQ::Timed) {
+                        Status() << "Acquisition will auto-start in " << (startScanCt-scanCt)/p.srate << " seconds.";
+                        lastSBUpd = tNow;
+                    } else if (p.acqStartEndMode == DAQ::StimGLStart
+                               || p.acqStartEndMode == DAQ::StimGLStartEnd) {
+                        Status() << "Acquisition waiting for start trigger from StimGL program";
+                    } else if (p.acqStartEndMode == DAQ::PDStart
+                               || p.acqStartEndMode == DAQ::PDStartEnd) {
+                        Status() << "Acquisition waiting for start trigger from photo-diode";
+                    } else if (p.acqStartEndMode == DAQ::Bug3TTLTriggered) {
+                        Status() << "Acquisition waiting for start trigger from Bug3 TTL line " << p.bug.ttlTrig;
+                    } else if (p.acqStartEndMode == DAQ::AITriggered) {
+                        Status() << "Acquisition waiting for start trigger from AI";
+                    }
+                }
+            } else { //taskHasManualTrigOverride
+                emit do_setPDTrigLED(true); // just always say it's high.  Note the led should be yellow here, to indicate an override
+            }
+        }
+
+        // not an 'else' because both 'if' clauses are true on first trigger
+        if (!taskWaitingForTrigger || taskHasManualTrigOverride) { // task not waiting from trigger, normal acq.. OR task has manual trigger override so save NOW
+            const u64 scanSz = lastScanSz;
+
+            if ((p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::Bug3TTLTriggered) && !dataFile.isOpen()) {
+                // HACK!
+                QString fn = getNewDataFileName();
+                if (!dataFile.openForWrite(p, fn)) {
+                    Error() << "Could not open data file `" << fn << "'!";
+                }
+                emit do_updateWindowTitles();
+            }
+
+            if (!taskHasManualTrigOverride
+                && !needToStop && !taskShouldStop && taskWaitingForStop) {
+                needToStop = detectStopTask(scans, lastScanSz, firstSamp);
+            }
+
+            if (dataFile.isOpen()) {
+                bool doStopRecord = false;
+                const int16 *scansPtr = scans;
+                std::vector<int16> scans_orig,
+                        scans; // DEBUG XXX TODO FIXME FUCK.. fixme.  This defeats the purpose of our 0-copy shm
+                i64 n = scanSz;
+                scans.resize(n); memcpy(&scans[0], scansPtr, scanSz*sizeof(int16));
+                 if (stopRecordAtSamp > -1 && (doStopRecord = (i64(firstSamp + scanSz) >= stopRecordAtSamp))) {
+                    // ok, scheduled a stop, make scans be the subset of scans we want to keep for the datafile, and save the full scan to scans_full
+                    scans_orig.swap(scans);
+                    n = i64(stopRecordAtSamp) - i64(firstSamp);
+                    if (n < 0) n = 0;
+                    else if (n > i64(scanSz)) n = scanSz;
+                }
+                if (triggerOffset > 0 && !scans_orig.size()) {
+                    scans_orig.swap(scans);
+                }
+                int bugMetaFudge = 0;
+                if (triggerOffset && preBuf.size()) {
+                    prependPrebufToScans(preBuf, scans, prebufCopied, triggerOffset);
+                    bugMetaFudge = prebufCopied;
+                }
+                if (scans_orig.size() && n > 0) {
+                    scans.reserve(scans.size()+n);
+                    scans.insert(scans.end(), scans_orig.begin(), scans_orig.begin() + n);
+                }
+                if (wasFakeData) {
+                    // indicate bad data in output file..
+                    dataFile.pushBadData(dataFile.scanCount(), fakeDataSz/p.nVAIChans);
+                }
+                if (dataFile.numChans() != p.nVAIChans) {
+                    const double ratio = dataFile.numChans() / double(p.nVAIChans ? p.nVAIChans : 1.);
+                    scans_subsetted.resize(0);
+                    scans_subsetted.reserve(scans.size() * ratio + 256);
+                    const int n = scans.size();
+                    for (int i = 0; i < n; ++i) {
+                        const int rel = i % p.nVAIChans;
+                        if (p.demuxedBitMap.at(rel)) {
+                            scans_subsetted.push_back(scans[i]);
+                        }
+                    }
+                    if (bugWindow && bugMeta) {
+                        int bmf = qRound(bugMetaFudge*ratio);
+                        while (bmf%dataFile.numChans()) ++bmf;
+                        bugWindow->writeMetaToBug3File(dataFile, *bugMeta, bmf); // bugMetaFudge explanation: puts a scan offset in the table generated in the meta data so that the scans in the data file line up with the scans in the comments...
+                    }
+                    dataFile.writeScans(scans_subsetted);
+                } else {
+                    if (bugWindow && bugMeta)
+                        bugWindow->writeMetaToBug3File(dataFile, *bugMeta, bugMetaFudge); // bugMetaFudge explanation: puts a scan offset in the table generated in the meta data so that the scans in the data file line up with the scans in the comments...
+                    dataFile.writeScans(scans);
+                }
+                // and.. swap back if we have anything in scans_orig
+                if (scans_orig.size())
+                    scans.swap(scans_orig);
+                if (doStopRecord) {
+                    if (!p.stimGlTrigResave && p.acqStartEndMode != DAQ::AITriggered && p.acqStartEndMode != DAQ::Bug3TTLTriggered)
+                        needToStop = true;
+                    Debug() << "Post-untrigger window detection: Closing datafile because passed samp# stopRecordAtSamp=" << stopRecordAtSamp;
+                    dataFile.closeAndFinalize();
+                    stopRecordAtSamp = -1;
+                    emit do_updateWindowTitles();
+                    if (p.stimGlTrigResave || p.acqStartEndMode == DAQ::AITriggered || p.acqStartEndMode == DAQ::Bug3TTLTriggered) {
+                        taskWaitingForTrigger = true;
+                        emit do_updateWindowTitles();
+                    }
+                }
+            }
+
+            if (isDSFacilityEnabled())
+                tmpDataFile.writeScans(scans, lastScanSz); // write all scans
+
+
+            if (tNow-lastSBUpd > 0.25) { // every 1/4th of a second
+                QString taskEndStr = "";
+                if (taskWaitingForStop && p.acqStartEndMode == DAQ::Timed) {
+                    taskEndStr = QString(" - task will auto-stop in ") + QString::number((stopScanCt-scanCt)/p.srate) + " secs";
+                }
+                QString dfScanStr = "";
+                if (dataFile.isOpen()) dfScanStr = QString(" - ") + QString::number(dataFile.scanCount()) + " scans";
+
+                Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz" << dfScanStr << " - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
+                lastSBUpd = tNow;
+            }
+
+            firstSamp += reader->scansPerPage()*reader->scanSizeSamps();
+        }
+
+        QList<SampleBufQ *> overThresh = SampleBufQ::allQueuesAbove(90.0);
+        for (QList<SampleBufQ *>::iterator it = overThresh.begin(); it != overThresh.end(); ++it) {
+            SampleBufQ *buf = *it;
+            Warning() << "The buffer: `" << (*it)->name << "' is " << double((buf->dataQueueSize()/double(buf->dataQueueMaxSize))*100.) << "% full! System too slow for the specified acquisition?";
+        }
+
+        // normally *always* pre-buffer the scans since we may need them at any time on a re-trigger event
+        preBuf.putData(&scans[0], lastScanSz*sizeof(scans[0]));
+
+    }
+
+    if (taskShouldStop || needToStop)
+        emit do_stopTask();
+}
+
+#if 0
 ///< called from a timer at 30Hz
 void MainApp::taskReadFunc() 
 { 
@@ -1441,6 +1655,7 @@ void MainApp::taskReadFunc()
     if (taskShouldStop || needToStop)
         stopTask();
 }
+#endif
 
 void MainApp::gotManualTrigOverride(bool b)
 {
@@ -1476,7 +1691,7 @@ bool MainApp::detectTriggerEvent(const int16 * scans, unsigned sz, u64 firstSamp
         // NB: photodiode channel is always the last channel.. unless in bug mode then it can be any of the last few TTL lines
         if (p.idxOfPdChan < 0) {
             Error() << "INTERNAL ERROR, acqStartMode is PD based but no PD channel specified in DAQ params!";
-            stopTask();
+            emit do_stopTask();
             return false;
         }
         for (int i = p.idxOfPdChan; i < int(sz); i += p.nVAIChans) {
@@ -1554,9 +1769,9 @@ bool MainApp::detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp)
 				stopped = true;
 			}
             if (graphsWindow) {
-                graphsWindow->setPDTrig(false);
+                emit do_setPDTrigLED(false);
                 if (p.acqStartEndMode == DAQ::Bug3TTLTriggered)
-                    graphsWindow->setTrigOverrideEnabled(true);
+                    emit do_setManualTrigEnabled(true);
             }
             Log() << "PD/AI un-trig due to input line being off for >" << p.pdStopTime << " seconds.";
         }
@@ -1579,7 +1794,7 @@ void MainApp::triggerTask()
 {
     if (task && taskWaitingForTrigger) {
         taskWaitingForTrigger = false;
-        updateWindowTitles();
+        emit do_updateWindowTitles();
         //Systray() << "Acquisition triggered ON";
         Status() << "Task triggered";
         DAQ::Params & p(configCtl->acceptedParams);

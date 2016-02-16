@@ -48,9 +48,7 @@ public:
 
     const QLineEdit *saveFileLineEdit() const  { return saveFileLE; }
 
-	void setPDTrig(bool);
 	void setSGLTrig(bool);
-    void setTrigOverrideEnabled(bool);
 
 	void hideUnhideSaveChannelCBs();
 	
@@ -69,6 +67,9 @@ signals:
     void manualTrig(bool);
 
 public slots:
+    void setPDTrig(bool);
+    void setTrigOverrideEnabled(bool);
+
 	void highlightGraphsById(const QVector<unsigned> & electrode_ids);
 	void openGraphsById(const QVector<unsigned> & electrode_ids); ///< really just opens the first graph
     void setDownsampling(bool checked);

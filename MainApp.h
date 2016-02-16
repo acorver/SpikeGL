@@ -242,7 +242,7 @@ protected slots:
     void gotBufferOverrun();
     void gotDaqError(const QString & e);
     void gotDaqWarning(const QString & e);
-    void taskReadFunc(); ///< called from a timer at 30Hz
+    //void taskReadFunc(); ///< called from a timer at 30Hz
 
     void sha1VerifySuccess();
     void sha1VerifyFailure();
@@ -267,6 +267,8 @@ protected slots:
 protected:
     void customEvent(QEvent *); ///< actually implemented in CommandServer.cpp since it is used to handle events from network connection threads
 
+    void taskReadFunc2(); ///< called from our new DataSavingThread
+
 private slots:
     void par2WinForCommandConnectionEnded(); ///< implemented in CommandServer.cpp
     void par2WinForCommandConnectionGotLines(const QString & lines); ///< implemented in CommandServer.cpp
@@ -282,6 +284,8 @@ private slots:
 	void optionsSortGraphsByElectrode(); ///< slot triggered by Options->sort graph by electrode menu action
     void gotManualTrigOverride(bool); ///< sent from GraphsWindow UI when user wants to temporarily manually override all the triggers and save immediately
 
+    void stopTask();
+
 private:
     /// Display a message to the status bar
     void statusMsg(const QString & message, int timeout_msecs = 0);
@@ -291,7 +295,6 @@ private:
     void saveSettings();
     void createIcons();
     bool processKey(QKeyEvent *);
-    void stopTask();
     bool setupStimGLIntegration(bool doQuitOnFail=true);
     bool setupCommandServer(bool doQuitOnFail=true);
     bool detectTriggerEvent(const int16 * scans, unsigned sz,  u64 firstSamp, i32 & triggerOffset);
@@ -347,8 +350,8 @@ private:
     double tNow;
     u64 lastSeenPD, pdOffTimeSamps;
     DAQ::Task *task;
-    bool taskWaitingForTrigger, taskHasManualTrigOverride, taskWaitingForStop,
-        taskShouldStop; ///< used for StimGL trigger to stop the task when the queue empties
+    volatile bool taskWaitingForTrigger, taskHasManualTrigOverride, taskWaitingForStop,
+                  taskShouldStop; ///< used for StimGL trigger to stop the task when the queue empties
     i64 scanCt, startScanCt, stopScanCt, lastScanSz, stopRecordAtSamp;
     DataFile_Fn_Shm dataFile; ///< the OUTPUT save file (this member var never used for input)
     std::vector<int16> lastNPDSamples;
@@ -406,14 +409,16 @@ private:
         void run();
     };
 
+    friend class DataSavingThread;
+
     struct DataSavingThread : public QThread {
-        DataFile_Fn_Shm & f;
-        TempDataFile *t;
-        PagedScanReader reader;
+        MainApp *app;
+        
         volatile bool pleaseStop;
 
-        DataSavingThread(DataFile_Fn_Shm & f, TempDataFile *t, const PagedScanReader &psr);
+        DataSavingThread(MainApp *mainApp);
         ~DataSavingThread();
+                
     protected:
         void run();
     };
@@ -435,6 +440,12 @@ public:
 	
 /// Used by GraphsWindow to re-sort graphs according to current app state...
 	bool sortGraphsByElectrodeId() const; 
+
+signals:
+    void do_updateWindowTitles();
+    void do_stopTask();
+    void do_setPDTrigLED(bool);
+    void do_setManualTrigEnabled(bool);
 };
 
 class HelpWindow : public QDialog
