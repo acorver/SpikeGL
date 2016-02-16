@@ -981,6 +981,7 @@ void MainApp::bugAcq()
     noHotKeys = false;
     if (ret == QDialog::Accepted) {
 		doBugAcqInstead = true;
+        doFGAcqInstead = false;
 		if (pregraphs.count() < maxPreGraphs) {
 			acqWaitingForPrecreate = true;
 			noHotKeys = true;
