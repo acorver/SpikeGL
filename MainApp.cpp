@@ -476,7 +476,11 @@ void MainApp::statusMsg(const QString &msg, int timeout)
         if (!default_pointsize) default_pointsize = f.pointSize();
         else f.setPointSize(default_pointsize);
         if (task && task->isRunning())
+#ifdef Q_OS_WIN
+            f.setPointSize(default_pointsize-1);
+#else
             f.setPointSize(default_pointsize-2);
+#endif
 //        while (QFontMetrics(f).width(msg) > sbar->width()) {
 //            f.setPointSize(f.pointSize()-1);
 //            if (f.pointSize() == 5) break;
@@ -1453,17 +1457,18 @@ bool MainApp::taskReadFunc()
                 if (taskWaitingForStop && p.acqStartEndMode == DAQ::Timed) {
                     taskEndStr = QString(" - task will auto-stop in ") + QString::number((stopScanCt-scanCt)/p.srate) + " secs";
                 }
+
                 QString dfScanStr = "";
                 if (dataFile.isOpen()) dfScanStr = QString(" - ") + QString::number(dataFile.scanCount()) + " scans saved";
 
                 double bufferFill = (double(reader->latest() - reader->latestPageRead()) / reader->nPages()) * 1e2;
                 QString bufStr = QString(" - ") + QString::number(bufferFill,'f',2) + "% buf. lag ";
 
-
                 QString droppedScanStr = "";
                 if (scanSkipCt) {
                     droppedScanStr = QString(" - ") + QString::number(scanSkipCt) + "/" + QString::number(scanCt) + " scans overflowed";
                 }
+
                 Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz" << bufStr << dfScanStr << droppedScanStr << " - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
                 lastSBUpd = tNow;
             }

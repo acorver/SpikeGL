@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>488</width>
+    <width>440</width>
     <height>86</height>
    </rect>
   </property>
@@ -21,7 +21,7 @@
     <rect>
      <x>10</x>
      <y>11</y>
-     <width>411</width>
+     <width>361</width>
      <height>25</height>
     </rect>
    </property>
@@ -135,9 +135,9 @@
   <widget class="QCheckBox" name="nowCB">
    <property name="geometry">
     <rect>
-     <x>430</x>
-     <y>14</y>
-     <width>80</width>
+     <x>380</x>
+     <y>10</y>
+     <width>60</width>
      <height>21</height>
     </rect>
    </property>
@@ -148,9 +148,9 @@
   <widget class="QCheckBox" name="indefCB">
    <property name="geometry">
     <rect>
-     <x>430</x>
-     <y>41</y>
-     <width>80</width>
+     <x>380</x>
+     <y>40</y>
+     <width>60</width>
      <height>21</height>
     </rect>
    </property>
@@ -163,7 +163,7 @@
     <rect>
      <x>10</x>
      <y>42</y>
-     <width>411</width>
+     <width>361</width>
      <height>25</height>
     </rect>
    </property>
