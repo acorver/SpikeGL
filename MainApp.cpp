@@ -470,6 +470,18 @@ void MainApp::saveSettings()
 void MainApp::statusMsg(const QString &msg, int timeout)
 {
     if (consoleWindow && consoleWindow->statusBar()) {
+        QStatusBar *sbar = consoleWindow->statusBar();
+        QFont f(sbar->font());
+        static unsigned default_pointsize = 0;
+        if (!default_pointsize) default_pointsize = f.pointSize();
+        else f.setPointSize(default_pointsize);
+        if (task && task->isRunning())
+            f.setPointSize(default_pointsize-2);
+//        while (QFontMetrics(f).width(msg) > sbar->width()) {
+//            f.setPointSize(f.pointSize()-1);
+//            if (f.pointSize() == 5) break;
+//        }
+        sbar->setFont(f);
         consoleWindow->statusBar()->showMessage(msg, timeout);
     }
 }
@@ -492,11 +504,12 @@ void MainApp::setSBString(const QString &msg, int timeout)
     QMutexLocker ml(&mut);
     sb_String = msg;
     sb_Timeout = timeout;
-    sysTray->setToolTip(msg);
 }
 
 void MainApp::updateStatusBar()
 {
+    QMutexLocker ml(&mut);
+    sysTray->setToolTip(sb_String);
     statusMsg(sb_String, sb_Timeout);
 }
 
@@ -1284,6 +1297,7 @@ bool MainApp::taskReadFunc()
     int fakeDataSz = -1, skips = 0;
     void *metaPtr = 0;
     unsigned scans_ret = 0;
+
     while (!needToStop || taskShouldStop) { ///< if taskShouldStop, stimGl signalled us, and task->stop() has been called.  So we keep emptying the queue to save all pending data.  Hence the reasosn for this while
         bool gotSomething = false;
 
@@ -1298,7 +1312,6 @@ bool MainApp::taskReadFunc()
         else fakeDataSz = -1;
         firstSamp += skips ? u64(fakeDataSz) : 0ULL;
         scanSkipCt += skips ? static_cast<unsigned long>(fakeDataSz/reader->scanSizeSamps()) : 0UL;
-
         const bool wasFakeData = fakeDataSz > -1;
         // TODO XXX FIXME -- implement detection of fake data (DAQ restart!) properly
         if (wasFakeData) {
@@ -1443,11 +1456,15 @@ bool MainApp::taskReadFunc()
                 QString dfScanStr = "";
                 if (dataFile.isOpen()) dfScanStr = QString(" - ") + QString::number(dataFile.scanCount()) + " scans saved";
 
+                double bufferFill = (double(reader->latest() - reader->latestPageRead()) / reader->nPages()) * 1e2;
+                QString bufStr = QString(" - ") + QString::number(bufferFill,'f',2) + "% buf. lag ";
+
+
                 QString droppedScanStr = "";
                 if (scanSkipCt) {
                     droppedScanStr = QString(" - ") + QString::number(scanSkipCt) + "/" + QString::number(scanCt) + " scans overflowed";
                 }
-                Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz" << dfScanStr << droppedScanStr << " - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
+                Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz" << bufStr << dfScanStr << droppedScanStr << " - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
                 lastSBUpd = tNow;
             }
 

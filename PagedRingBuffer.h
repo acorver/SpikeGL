@@ -11,7 +11,7 @@ public:
     PagedRingBuffer(void *mem, unsigned long size_bytes, unsigned long page_size);
 
     unsigned long pageSize() const { return page_size; }
-    unsigned long totalSize() const { return size_bytes; }
+    unsigned long totalSize() const { return real_size_bytes; }
     unsigned int nPages() const { return npages; }
 
     void resetToBeginning();
@@ -23,11 +23,21 @@ public:
     /// clear the contents to 0.
     void bzero();
 
-    void *rawData() const { return const_cast<char *>(mem); }
+    void *rawData() const { return const_cast<void *>(memBuffer); }
+
+    /// the latest page number written by the writer.  This gets modified for each page but since it's declared 'volatile', reading
+    /// it *should* be atomic on x86 and x86_64.  Use this as an indicator of how "behind" the reader is..
+    unsigned int latest() const { if (latestPNum) return *latestPNum; return 0; }
+    /// Returns the last page this reader saw.  Compare it to latest() to get an idea of how far behind this reader is.
+    unsigned int latestPageRead() const { return lastPageRead; }
 
 protected:
-    char *mem;
-    unsigned long size_bytes, page_size;
+    union {
+        void *memBuffer;
+        volatile unsigned int *latestPNum;
+    };
+    char *mem; // points one unsigned int past memBuffer
+    unsigned long real_size_bytes, avail_size_bytes, page_size;
     unsigned int npages, lastPageRead;
     int pageIdx;
 
