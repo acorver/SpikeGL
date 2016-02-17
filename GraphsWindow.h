@@ -186,6 +186,7 @@ private:
 	QVector <int> sorting, naming;
 	QSet<GLGraph *> extraGraphs;
 	QTimer *tabHighlightTimer;
+    std::vector<int16> scanTmp;
 
     mutable QMutex graphsMut; ///< recursive mutex.  locked whenever this class accesses graph data.  used because we are transitioning over to a threaded graphing data reader model as of Feb. 2016
 };

@@ -535,7 +535,7 @@ void GraphsWindow::putScans(const int16 * data, unsigned DSIZE, u64 firstSamp)
             sidx += -startpt;
             startpt = 0;
         }
-        std::vector<int16> scanTmp; scanTmp.resize(NGRAPHS);
+
 
         double t = double(double(sidx) / NGRAPHS) / double(SRATE);
         const double deltaT =  1.0/SRATE * downsampleRatio;
@@ -545,6 +545,7 @@ void GraphsWindow::putScans(const int16 * data, unsigned DSIZE, u64 firstSamp)
         const int maximizedIdx = (maximized ? parseGraphNum(maximized) : -1);
 
         bool needFilter = filter;
+        if (needFilter) scanTmp.resize(NGRAPHS);
         for (int i = startpt; i < (int)DSIZE; ++i) {
             if (needFilter) {
                 memcpy(&scanTmp[0], &data[i], NGRAPHS*sizeof(int16));
