@@ -89,7 +89,6 @@ MainApp * MainApp::singleton = 0;
 MainApp::MainApp(int & argc, char ** argv)
     : QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), graphsWindow(0), spatialWindow(0), bugWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), doBugAcqInstead(false)
 {
-    datafile_desired_q_size = SAMPLE_BUF_Q_SIZE;
     reader = 0;
     gthread = 0;
     dthread = 0;
@@ -936,8 +935,6 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
     Connect(task, SIGNAL(daqWarning(const QString &)), this, SLOT(gotDaqWarning(const QString &)));
 	
-    datafile_desired_q_size = SAMPLE_BUF_Q_SIZE;
-
 	if (bugtask) {
 		bugWindow = new Bug_Popout(bugtask,0);
 		bugWindow->setAttribute(Qt::WA_DeleteOnClose, false);	

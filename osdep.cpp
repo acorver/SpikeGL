@@ -515,6 +515,7 @@ int killAllInstancesOfProcessWithImageName(const QString &imgName)
 
     return ct;
 #else
+    (void)imgName;
     return 0;
 #endif
 }

@@ -144,7 +144,7 @@ int Bug_ConfigDialog::exec()
 					p.usePD = true;
 					p.pdChanIsVirtual = true;
 					p.pdChan = ttlIdx;
-					p.pdThresh = 2.5; // volts.. 
+                    p.pdThresh = 10000; // in sample vals.. high TTL line is always above 0 in sample vals.. so 10000 is safe
 					p.pdThreshW = static_cast<unsigned>(dialog->trigWSB->value());
 					p.pdPassThruToAO = -1;
 					p.pdStopTime = dialog->trigStopTimeSB->value();

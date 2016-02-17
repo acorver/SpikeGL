@@ -34,7 +34,6 @@ public:
     static void deleteAllActiveConnections();
 
 private:
-    MainApp *app;
     int timeout_msecs;    
 };
 

@@ -24,7 +24,7 @@
 
 
 CommandServer::CommandServer(MainApp *parent)
-: QTcpServer(parent), app(parent), timeout_msecs(DEFAULT_COMMAND_TIMEOUT_MS)
+: QTcpServer(parent), timeout_msecs(DEFAULT_COMMAND_TIMEOUT_MS)
 {
 }
 
