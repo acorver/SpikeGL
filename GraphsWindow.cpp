@@ -1017,11 +1017,13 @@ void GraphsWindow::setToggleSaveLE(const QString & fname)
 }
 
 void GraphsWindow::setPDTrig(bool b) {
-	pdTrigLed->setValue(b);
+    if ( (pdTrigLed->value()?1:0) != (b?1:0) ) // performance optimization since this may get called a lot
+        pdTrigLed->setValue(b);
 }
 
 void GraphsWindow::setSGLTrig(bool b) {
-	stimTrigLed->setValue(b);
+    if ( (stimTrigLed->value()?1:0) != (b?1:0) ) // performance optimization since this may get called a lot
+        stimTrigLed->setValue(b);
 }
 
 void GraphsWindow::setTrigOverrideEnabled(bool b)

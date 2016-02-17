@@ -390,10 +390,10 @@ namespace DAQ
             return;
         }
         std::vector<int16> data;
-        const double onePd = int(params.srate/double(computeTaskReadFreq(params.srate)));
+        const double onePd = writer.scansPerPage()/params.srate;
         while (!pleaseStop) {
 			double ts = getTime();
-            data.resize(unsigned(params.nVAIChans*onePd));
+            data.resize(unsigned(params.nVAIChans*writer.scansPerPage()));
             qint64 nread = f.read((char *)&data[0], data.size()*sizeof(int16));
             if (nread != data.size()*sizeof(int16)) {
                 f.seek(0);
@@ -408,7 +408,7 @@ namespace DAQ
                 totalRead += nread;
                 totalReadMut.unlock();
             }
-			int sleeptime = int((1e6/params.srate)*onePd) - (getTime()-ts)*1e6;
+            int sleeptime = int(onePd*1e6) - int((getTime()-ts)*1e6);
 			if (sleeptime > 0) 
 				usleep(sleeptime);
 			else

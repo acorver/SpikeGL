@@ -1214,7 +1214,7 @@ void MainApp::GraphingThread::run()
         int skips = 0;
         const int16 *scans = reader.next(&skips);
         if (!scans) {
-            int sleepms = (1000/DEF_TASK_READ_FREQ_HZ)/2;
+            int sleepms = ((reader.scansPerPage()/p.srate) * 1e3)/2;
             if (sleepms < 1) sleepms = 1;
             if (sleepms > 200) sleepms = 200;
             msleep(sleepms);
@@ -1236,7 +1236,7 @@ void MainApp::GraphingThread::run()
         }
     }
 
-    Debug() << "GraphingThread ending.";
+    Debug() << "GraphingThread ending after processing " << (sampCount/nChansPerScan) << " scans.";
 }
 
 MainApp::DataSavingThread::DataSavingThread(MainApp *mainApp)
@@ -1262,7 +1262,7 @@ void MainApp::DataSavingThread::run()
             pleaseStop = true;
     }
 
-    Debug() << "MainApp::DataSavingThread ended.";
+    Debug() << "MainApp::DataSavingThread ended after processing " << app->scanCount() << " scans.";
 }
 
 ///< called from a timer at 30Hz
@@ -1284,15 +1284,18 @@ bool MainApp::taskReadFunc()
         gotSomething = !!scans;
 
         if (!gotSomething) { break; }
+        if (scans_ret != reader->scansPerPage()) {
+            Error() << "MainApp::taskReadFunc INTERNAL ERROR: scans_ret != scansPerPage -- FIXME!";
+        }
         if (skips>0) fakeDataSz = skips*reader->scansPerPage()*reader->scanSizeSamps();
         else fakeDataSz = -1;
-        firstSamp += skips ? fakeDataSz : 0;
+        firstSamp += skips ? u64(fakeDataSz) : 0ULL;
         scanSkipCt += skips ? static_cast<unsigned long>(fakeDataSz/reader->scanSizeSamps()) : 0UL;
 
         const bool wasFakeData = fakeDataSz > -1;
         // TODO XXX FIXME -- implement detection of fake data (DAQ restart!) properly
         if (wasFakeData) {
-            Warning() << "Skipped " << skips << " pages in sample buffer, FIXME...";
+            Warning() << "Skipped " << skips << " pages in sample buffer -- buffer overflow -- data may be corrupted or incomplete!";
             putRestarts(p, firstSamp, u64(fakeDataSz/p.nVAIChans));
         }
 
@@ -1314,7 +1317,8 @@ bool MainApp::taskReadFunc()
                 detectTriggerEvent(scans, lastScanSz, firstSamp, triggerOffset); // may set taskWaitingForTrigger...
                 if (taskWaitingForTrigger && tNow-lastSBUpd > 0.25) { // every 1/4th of a second
                     if (p.acqStartEndMode == DAQ::Timed) {
-                        Status() << "Acquisition will auto-start in " << (startScanCt-scanCt)/p.srate << " seconds.";
+                        Status() << "Acquisition will auto-start in " << (double(startScanCt-scanCt)/p.srate) << " seconds.";
+                        //Debug() << "scanCt: " << scanCt << " startScanCt: " << startScanCt << " srate: "  << p.srate << "  tdiff: " << (double(startScanCt-scanCt)/p.srate);
                         lastSBUpd = tNow;
                     } else if (p.acqStartEndMode == DAQ::StimGLStart
                                || p.acqStartEndMode == DAQ::StimGLStartEnd) {
@@ -1440,7 +1444,6 @@ bool MainApp::taskReadFunc()
                 lastSBUpd = tNow;
             }
 
-            firstSamp += reader->scansPerPage()*reader->scanSizeSamps();
         }
 
         QList<SampleBufQ *> overThresh = SampleBufQ::allQueuesAbove(90.0);
@@ -1452,6 +1455,7 @@ bool MainApp::taskReadFunc()
         // normally *always* pre-buffer the scans since we may need them at any time on a re-trigger event
         preBuf.putData(&scans[0], lastScanSz*sizeof(scans[0]));
 
+        firstSamp += reader->scansPerPage()*reader->scanSizeSamps();
     }
 
     if (taskShouldStop || needToStop) {
@@ -1740,10 +1744,10 @@ bool MainApp::detectTriggerEvent(const int16 * scans, unsigned sz, u64 firstSamp
     }
     }
     if (triggered) {
-        if (graphsWindow) graphsWindow->setTrigOverrideEnabled(false);
+        emit do_setManualTrigEnabled(false);
         triggerTask();
     }
-	if (graphsWindow) graphsWindow->setPDTrig(triggered);
+    emit do_setPDTrigLED(triggered);
     
     return triggered;
 }

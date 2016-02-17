@@ -92,6 +92,7 @@ bool DataFile::closeAndFinalize()
             ts.flush();
             params["badData"] = bdString;
         }
+        Debug() << fileName() << " closing after saving " << scanCount() << " scans @ "  << (writeSpeedBytesSec()/1024.0/1024.0) << " MB/s avg";
 		dataFile.close();
 		QString mf = metaFile.fileName();
 		metaFile.close(); // close it.. we mostly reserved it in the FS.. however we did write to it if writeCommentToMetaFile() as called, otherwise we just reserved it on the FS    
