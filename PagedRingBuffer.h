@@ -12,6 +12,7 @@ public:
 
     unsigned long pageSize() const { return page_size; }
     unsigned long totalSize() const { return real_size_bytes; }
+    unsigned long availableCapacity() const { return avail_size_bytes; }
     unsigned int nPages() const { return npages; }
 
     void resetToBeginning();
