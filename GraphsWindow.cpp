@@ -29,6 +29,8 @@
 #include <QStackedWidget>
 #include <QComboBox>
 #include <QMutexLocker>
+#include <QShowEvent>
+#include <QHideEvent>
 #include <string.h>
 #include "MainApp.h"
 #include "HPFilter.h"
@@ -75,7 +77,7 @@ static void initIcons()
 }
 
 GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
-    : QMainWindow(parent), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false), graphsMut(QMutex::Recursive)
+    : QMainWindow(parent), threadsafe_is_visible(false), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false), graphsMut(QMutex::Recursive)
 {
     sharedCtor(p, isSaving);
 }
@@ -1448,3 +1450,7 @@ void GraphsWindow::openGraphsById(const QVector<unsigned> & ids) ///< really jus
 		}		
 	}
 }
+
+void GraphsWindow::showEvent(QShowEvent *e) { QMainWindow::showEvent(e); threadsafe_is_visible = e->isAccepted() || isVisible(); }
+void GraphsWindow::hideEvent(QHideEvent *e) { QMainWindow::hideEvent(e); threadsafe_is_visible = !(e->isAccepted() || isHidden()); }
+

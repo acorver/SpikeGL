@@ -33,6 +33,8 @@ public:
     GraphsWindow(DAQ::Params & params, QWidget *parent = 0, bool isSaving = true);
     ~GraphsWindow();
 
+    bool threadsafeIsVisible() const { return threadsafe_is_visible; }
+
     void putScans(const std::vector<int16> & scans, u64 firstSamp);
     void putScans(const int16 *data, unsigned data_size_samps, u64 firstSamp);
 
@@ -74,6 +76,10 @@ public slots:
 	void openGraphsById(const QVector<unsigned> & electrode_ids); ///< really just opens the first graph
     void setDownsampling(bool checked);
     void setDownsamplingCheckboxEnabled(bool en);
+
+protected:
+    void showEvent(QShowEvent *);
+    void hideEvent(QHideEvent *);
 
 private slots:
     void updateGraphs();
@@ -126,6 +132,9 @@ private:
 	static void SetupNumGraphsPerGraphTab();
 
     int getNumGraphsPerGraphTab() const;
+
+    volatile bool threadsafe_is_visible;
+
     int NUM_GRAPHS_PER_GRAPH_TAB, nGraphTabs, nColsGraphTab, nRowsGraphTab;
 
 	

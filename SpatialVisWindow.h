@@ -32,6 +32,8 @@ public:
     void putScans(const std::vector<int16> & scans, u64 firstSamp);
     void putScans(const int16 *scans, unsigned scans_size_samps, u64 firstSamp);
 		
+    bool threadsafeIsVisible() const { return threadsafe_is_visible; }
+
 public slots:
 	void selectBlock(int tabNum);
 
@@ -44,7 +46,9 @@ protected:
 	void resizeEvent(QResizeEvent *event);
 	void keyPressEvent(QKeyEvent *event);
     void closeEvent(QCloseEvent *);
-	
+    void showEvent(QShowEvent *);
+    void hideEvent(QHideEvent *);
+
 private slots:
     void updateGraph();
 //    void selectGraph(int num);
@@ -81,6 +85,8 @@ private:
 	Vec2 glyphMargins01Coords() const;
 	void ovlSetNoData();
 	
+    volatile bool threadsafe_is_visible;
+
     DAQ::Params & params;
 	const int nvai, nextra;
 	int nblks, nbx, nby, nGraphsPerBlock, blocknx, blockny;

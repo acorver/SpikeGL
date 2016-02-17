@@ -1204,19 +1204,19 @@ MainApp::GraphingThread::~GraphingThread() {
 
 void MainApp::GraphingThread::run()
 {
-    Debug() << "GraphingThread started.";
-
     int nChansPerScan = reader.scanSizeSamps();
     int nScansPerPage = reader.scansPerPage();
     const std::vector<int16> droppedPageScans(nScansPerPage*nChansPerScan, 0x7fff);
+    int sleepms = ((reader.scansPerPage()/p.srate) * 1e3)/2;
+    if (sleepms < 1) sleepms = 1;
+    if (sleepms > 200) sleepms = 200;
+
+    Debug() << "Graphing thread started, sleeptime_ms = " << sleepms;
 
     while (!pleaseStop) {
         int skips = 0;
         const int16 *scans = reader.next(&skips);
         if (!scans) {
-            int sleepms = ((reader.scansPerPage()/p.srate) * 1e3)/2;
-            if (sleepms < 1) sleepms = 1;
-            if (sleepms > 200) sleepms = 200;
             msleep(sleepms);
         } else {
             if (skips) {
@@ -1226,12 +1226,12 @@ void MainApp::GraphingThread::run()
                 if (n > 2) n = 2;
                 sampCount += u64((skips-n)*droppedPageScans.size());
                 for (int i = 0; i < n; ++i) {
-                    if (!g->isHidden()) g->putScans(droppedPageScans, sampCount);
+                    if (g->threadsafeIsVisible()) g->putScans(droppedPageScans, sampCount);
                     sampCount += u64(droppedPageScans.size());
                 }
             }
-            if (!g->isHidden()) g->putScans(scans, nChansPerScan*nScansPerPage, sampCount);
-            if (!s->isHidden()) s->putScans(scans, nChansPerScan*nScansPerPage, sampCount);
+            if (g->threadsafeIsVisible()) g->putScans(scans, nChansPerScan*nScansPerPage, sampCount);
+            if (s->threadsafeIsVisible()) s->putScans(scans, nChansPerScan*nScansPerPage, sampCount);
             sampCount += u64(nChansPerScan*nScansPerPage);
         }
     }
@@ -1251,9 +1251,9 @@ MainApp::DataSavingThread::~DataSavingThread()
 
 void MainApp::DataSavingThread::run()
 {
-    unsigned sleeptime_ms = qRound(((app->configCtl->acceptedParams.srate / double(app->reader->scansPerPage())) * 1000.0) / DEF_TASK_READ_FREQ_HZ);
+    unsigned sleeptime_ms = qRound( (((double(app->reader->scansPerPage()) / app->configCtl->acceptedParams.srate) * 1000.0)) / DEF_TASK_READ_FREQ_HZ);
     if (!sleeptime_ms) sleeptime_ms = 1;
-    Debug() << "MainApp::DataSavingThread sleeptime_ms=" << sleeptime_ms;
+    Debug() << "MainApp::DataSavingThread started, sleeptime_ms=" << sleeptime_ms;
 
     while (!pleaseStop) {
         if (app->taskReadFunc())

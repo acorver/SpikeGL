@@ -318,7 +318,10 @@ namespace DAQ
         setDO(false); // assert DO is low when stopped...
     }
 	
-	NITask::~NITask() { stop(); }
+    NITask::~NITask() {
+        stop();
+        Debug() << "NITask `" << objectName() << "' deleted after processing " << totalRead/u64(numChans()) << " scans.";
+    }
 
 
     void NITask::stop() 
@@ -1347,7 +1350,7 @@ namespace DAQ
         setObjectName(nam);
 	}
 	
-	Task::~Task() { }
+    Task::~Task() {   }
 	
 	u64 Task::lastReadScan() const
     {
@@ -1595,6 +1598,7 @@ namespace DAQ
 #else // !FAKEDAQ == real NI platform
         if (aoWriteThread) delete aoWriteThread; aoWriteThread=0;
 #endif
+        Debug() << "Bug Task `" << objectName() << "' deleted after processing " << totalRead/u64(numChans()) << " scans.";
     }
 
     unsigned BugTask::requiredShmPageSize() const { return req_shm_pg_sz; }
@@ -2128,6 +2132,7 @@ namespace DAQ
 
     FGTask::~FGTask() {
         if (isRunning()) { stop(); wait(); }
+        Debug() << "FGTask `" << objectName() << "' deleted after processing " << totalRead/u64(numChans()) << " scans.";
         if (dialogW) mainApp()->windowMenuRemove(dialogW);
         if (dialog) delete dialog; dialog = 0;
         if (dialogW) delete dialogW; dialogW = 0;

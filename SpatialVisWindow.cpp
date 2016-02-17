@@ -13,6 +13,8 @@
 #include <QSettings>
 #include <QColorDialog>
 #include <QKeyEvent>
+#include <QShowEvent>
+#include <QHideEvent>
 #include <QSpinBox>
 #include <QSlider>
 #include <QMatrix>
@@ -27,7 +29,7 @@
 #define BlockScaleFactor 1.0 /**< set this to less than 1 to give blocks a margin */
 
 SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims, QWidget * parent)
-: QMainWindow(parent), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2), 
+: QMainWindow(parent), threadsafe_is_visible(false), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2),
   graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xffffffff), last_fs_frame_tsc(getAbsTimeNS()), mut(QMutex::Recursive)
 {
 	static bool registeredMetaType = false;
@@ -660,4 +662,16 @@ void SpatialVisWindow::ovlFpsChanged(int fps)
 	}
 //	if (sender() == ovlFps)
 //		saveSettings(); // uncomment if you want to save the state of this in the settings...
+}
+
+void SpatialVisWindow::showEvent(QShowEvent *e)
+{
+     QMainWindow::showEvent(e);
+     threadsafe_is_visible = e->isAccepted() || isVisible();
+}
+
+void SpatialVisWindow::hideEvent(QHideEvent *e)
+{
+    QMainWindow::hideEvent(e);
+    threadsafe_is_visible = !(e->isAccepted() || isHidden());
 }
