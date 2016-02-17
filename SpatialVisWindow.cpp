@@ -227,7 +227,7 @@ void SpatialVisWindow::updateGlyphSize()
 
 void SpatialVisWindow::putScans(const std::vector<int16> & scans, u64 firstSamp)
 {
-    putScans(&scans[0], scans.size(), firstSamp);
+    putScans(&scans[0], unsigned(scans.size()), firstSamp);
 }
 
 void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u64 firstSamp)

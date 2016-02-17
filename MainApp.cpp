@@ -711,9 +711,9 @@ void MainApp::initActions()
 	sortGraphsByElectrodeAct->setChecked(m_sortGraphsByElectrodeId);
 }
 
-static inline size_t computeSamplesShmPageSize(double samplingRateHz, unsigned scanSizeSamps, bool lowLatency) {
-    unsigned oneScanBytes = scanSizeSamps * sizeof(int16);
-    unsigned nScansPerPage = qRound(samplingRateHz * double((double)SAMPLES_SHM_DESIRED_PAGETIME_MS/1000.0));
+static inline unsigned long computeSamplesShmPageSize(double samplingRateHz, unsigned scanSizeSamps, bool lowLatency) {
+    unsigned long oneScanBytes = scanSizeSamps * sizeof(int16);
+    unsigned long nScansPerPage = (unsigned long)qRound(samplingRateHz * double((double)SAMPLES_SHM_DESIRED_PAGETIME_MS/1000.0));
     if (lowLatency) nScansPerPage /= 2;
     if (!nScansPerPage) nScansPerPage = 1;
     return nScansPerPage * oneScanBytes;
@@ -869,6 +869,23 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     if (!params.suppressGraphs) {
 		//spatialWindow->show();
         graphsWindow->show();
+
+#if QT_VERSION >= 0x050000
+    // Iff app built with Qt Creator, then graphs window
+    // will not get any mouse events until a modal dialog
+    // shows on top and is then destroyed!! That's what we
+    // do here...make an invisible message box.
+
+        {
+            QMessageBox XX( consoleWindow );
+            XX.setWindowModality( Qt::ApplicationModal );
+            XX.setAttribute( Qt::WA_DontShowOnScreen, true );
+            XX.move( QApplication::desktop()->screen()->rect().topLeft() );
+            XX.show();
+            // auto-destroyed
+        }
+#endif
+
     } else {
 		spatialWindow->hide();
         graphsWindow->hide();
@@ -1410,7 +1427,7 @@ bool MainApp::taskReadFunc()
                 if (dataFile.numChans() != p.nVAIChans) {
                     //double ts = getTime();
                     // need to subset the chans in-place here.  a bit costly performance-wise.. we can optimize this further if need be by doing it on multiple cores at once using QConcurrent or somesuch mechanism
-                    const int pbs = prebuf_scans.size();
+                    const int pbs = (int)prebuf_scans.size();
                     const double ratio = dataFile.numChans() / double(p.nVAIChans ? p.nVAIChans : 1.);
                     save_subset.resize(0);
                     save_subset.reserve(qRound((pbs + n) * ratio) + 256);
@@ -1484,7 +1501,7 @@ bool MainApp::taskReadFunc()
         }
 
         // normally *always* pre-buffer the scans since we may need them at any time on a re-trigger event
-        preBuf.putData(&scans[0], lastScanSz*sizeof(scans[0]));
+        preBuf.putData(&scans[0], unsigned(lastScanSz*sizeof(scans[0])));
 
         firstSamp += reader->scansPerPage()*reader->scanSizeSamps();
     }

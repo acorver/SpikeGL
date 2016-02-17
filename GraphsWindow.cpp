@@ -512,7 +512,7 @@ void GraphsWindow::update_nPtsAllGs()
 
 void GraphsWindow::putScans(const std::vector<int16> & data, u64 firstSamp)
 {
-    if (data.size())  putScans(&data[0], data.size(), firstSamp);
+    if (data.size())  putScans(&data[0], unsigned(data.size()), firstSamp);
 }
 
 void GraphsWindow::putScans(const int16 * data, unsigned DSIZE, u64 firstSamp)

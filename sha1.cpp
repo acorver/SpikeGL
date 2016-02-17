@@ -199,7 +199,7 @@ bool SHA1::HashFile(const std::string & fileName)
 
 	for(i = 0; i < ulBlocks; i++)
 	{
-		int nread = fread(uData, 1, SHA1_MAX_FILE_BUFFER, fIn);
+        int nread = (int)fread(uData, 1, SHA1_MAX_FILE_BUFFER, fIn);
                 if (nread < 0) {
                     perror("fread");
                     return false;
@@ -209,7 +209,7 @@ bool SHA1::HashFile(const std::string & fileName)
 
 	if(ulRest)
 	{
-		int nread = fread(uData, 1, ulRest, fIn);
+        int nread = (int)fread(uData, 1, ulRest, fIn);
                 if (nread < 0) {
                     perror("fread");
                     return false;

@@ -6,7 +6,7 @@
 #else
 #include <GL/gl.h>
 #endif
-#ifdef Q_WS_WIN32
+#ifdef Q_OS_WINDOWS
 #  include <GL/GLU.h>
 #ifndef GL_TEXTURE_RECTANGLE_ARB
 #define GL_TEXTURE_RECTANGLE_ARB          0x84F5
@@ -81,8 +81,12 @@ void GLSpatialVis::resizeGL(int w, int h)
 {    
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glViewport(0, 0, w, h);
+    glViewport(0, 0, w, h);    
+#ifdef WIN64
+    glOrtho( 0., 1., 0., 1., -1., 1.);
+#else
     gluOrtho2D( 0., 1., 0., 1.);
+#endif
 	w_pix = w; h_pix = h;
 	if (glyphType() == Square) updateVertexBuf();
 }

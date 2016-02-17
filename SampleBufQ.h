@@ -22,7 +22,7 @@ public:
 	const QString name;
     const unsigned dataQueueMaxSize; 
 
-    unsigned dataQueueSize() const { QMutexLocker l(&dataQMut); return dataQ.size(); }
+    unsigned dataQueueSize() const { QMutexLocker l(&dataQMut); return unsigned(dataQ.size()); }
 	
     /// put data in buffer.  calls overflowWarning() if buffer overflows
     /// swaps in src with an empty buffer if successful, calls overflowWarning() on overflow

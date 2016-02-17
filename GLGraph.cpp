@@ -6,7 +6,7 @@
 #else
 #include <GL/gl.h>
 #endif
-#ifdef Q_WS_WIN32
+#ifdef Q_OS_WINDOWS
 #  include <GL/GLU.h>
 #endif
 #include <QPainter>
@@ -97,7 +97,11 @@ void GLGraph::resizeGL(int w, int h)
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glViewport(0, 0, w, h);
+#ifdef WIN64
+    glOrtho( 0., 1., -1., 1., -1., 1.);
+#else
     gluOrtho2D( 0., 1., -1., 1.);
+#endif
 }
 
 void GLGraph::paintGL()
@@ -201,13 +205,13 @@ void GLGraph::drawPoints() const
     const size_t len = l1+l2;
     QVector<Vec2f> & points ( pointsDisplayBuf );
     // copy point to display vertex buffer
-    if (size_t(points.size()) != len) points.resize(len);
+    if (size_t(points.size()) != len) points.resize((int)len);
     if (l1)  memcpy(points.data(), pv1, l1*sizeof(Vec2f));
     if (l2)  memcpy(points.data()+l1, pv2, l2*sizeof(Vec2f));
-    for (size_t i = 0; i < len; ++i) points[i].x -= min_x; /// xform relative to min_x
+    for (int i = 0; i < int(len); ++i) points[i].x -= min_x; /// xform relative to min_x
     
     glVertexPointer(2, GL_FLOAT, 0, points.constData());
-    glDrawArrays(GL_LINE_STRIP, 0, len);
+    glDrawArrays(GL_LINE_STRIP, 0, (GLsizei)len);
 
     
     // restore saved values

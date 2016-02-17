@@ -239,17 +239,17 @@ Systray::~Systray()
 	 std::vector<float> inf(input.size()), outf(input.size()*ratio + numChannelsPerFrame + 32);
 	 SRC_DATA d;
 	 memset(&d, 0, sizeof(d));
-	 src_short_to_float_array(&input[0], (d.data_in=&inf[0]), input.size());
+     src_short_to_float_array(&input[0], (d.data_in=&inf[0]), int(input.size()));
 	 d.data_out = &outf[0];
-	 d.input_frames = input.size()/numChannelsPerFrame;
-	 d.output_frames = outf.size()/numChannelsPerFrame;
+     d.input_frames = long(input.size())/numChannelsPerFrame;
+     d.output_frames = long(outf.size())/numChannelsPerFrame;
 	 d.end_of_input = isEndOfInput ? 1 : 0;
 	 d.src_ratio = ratio;
 	 int errcode = src_simple(&d, (int)alg, numChannelsPerFrame);
 	 if (errcode) { output.clear(); return src_strerror(errcode); }
 	 output.resize(d.output_frames_gen*numChannelsPerFrame);
 	 output.reserve(output.size());
-	 src_float_to_short_array(&outf[0], &output[0], output.size());
+     src_float_to_short_array(&outf[0], &output[0], (long)output.size());
 	 return "";
  }
 
@@ -307,17 +307,17 @@ QString Resampler::resample(const std::vector<int16> & input, std::vector<int16>
 	 std::vector<float> inf(input.size()), outf(input.size()*p->ratio + p->numChannelsPerFrame + 32);
 	 SRC_DATA d;
 	 memset(&d, 0, sizeof(d));
-	 src_short_to_float_array(&input[0], (d.data_in=&inf[0]), input.size());
+     src_short_to_float_array(&input[0], (d.data_in=&inf[0]), long(input.size()));
 	 d.data_out = &outf[0];
-	 d.input_frames = input.size()/p->numChannelsPerFrame;
-	 d.output_frames = outf.size()/p->numChannelsPerFrame;
+     d.input_frames = long(input.size())/p->numChannelsPerFrame;
+     d.output_frames = long(outf.size())/p->numChannelsPerFrame;
 	 d.end_of_input = isEndOfInput ? 1 : 0;
 	 d.src_ratio = p->ratio;
 	 int errcode = src_process(p->s, &d);
 	 if (errcode) { output.clear(); return src_strerror(errcode); }
 	 output.resize(d.output_frames_gen*p->numChannelsPerFrame);
 	 output.reserve(output.size());
-	 src_float_to_short_array(&outf[0], &output[0], output.size());
+     src_float_to_short_array(&outf[0], &output[0], int(output.size()));
 	 return "";
 }
 

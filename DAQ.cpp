@@ -512,7 +512,7 @@ namespace DAQ
                 }
                 //if (leftOver.size()) samps.insert(samps.begin(), leftOver.begin(), leftOver.end());
                 //leftOver.clear();
-                unsigned sampsSize = samps.size(), rem = sampsSize % aoChansSize;
+                unsigned sampsSize = (unsigned)samps.size(), rem = sampsSize % aoChansSize;
                 if (rem) {
                     Warning() << "AOWrite thread got scan data that has invalid size.. throwing away last " << rem << " chans (writect " << aoWriteCt << ")";
                     //sampsSize -= rem;
@@ -878,7 +878,7 @@ namespace DAQ
             data2.clear();
             if (leftOver.size()) data.swap(leftOver);            
             if (leftOver2.size()) data2.swap(leftOver2);
-            unsigned long oldS = data.size(), oldS2 = data2.size();
+            unsigned long oldS = (unsigned long)data.size(), oldS2 = (unsigned long)data2.size();
             data.reserve(pointsToRead+oldS);
             data.resize(pointsToRead+oldS);
 
@@ -1000,7 +1000,7 @@ namespace DAQ
 
                 */
                 std::vector<int16> tmp, tmp2;
-                const int datasz = data.size(), datasz2 = data2.size();
+                const int datasz = int(data.size()), datasz2 = int(data2.size());
                 tmp.reserve(datasz);
                 tmp2.reserve(datasz2);
                 const int nMx = nChans-nExtraChans1, nMx2 = nChans2-nExtraChans2;
@@ -1032,8 +1032,8 @@ namespace DAQ
                         tmp2.insert(tmp2.end(), data2.begin()+i, data2.begin()+i+nChans2);
                     }
                 }
-                if (tmp.size()) { data.swap(tmp); nRead = data.size(); }
-                if (tmp2.size()) { data2.swap(tmp2); nRead2 = data2.size(); }
+                if (tmp.size()) { data.swap(tmp); nRead = (int32)data.size(); }
+                if (tmp2.size()) { data2.swap(tmp2); nRead2 = (int32)data2.size(); }
                 if ((data.size()+data2.size()) % (NCHANS1+NCHANS2)) {
                     // data didn't end on scan-boundary -- we have leftover scans!
                     Error() << "INTERNAL ERROR SCAN DIDN'T END ON A SCAN BOUNDARY FIXME!!! in " << __FILE__ << ":" << __LINE__;                 
@@ -1079,7 +1079,7 @@ namespace DAQ
                         aoWriteThr->start();
                     }
                 }
-                const int dsize = data.size();
+                const int dsize = int(data.size());
                 aoData.reserve(aoData.size()+dsize);
                 for (int i = 0; i < dsize; i += NCHANS1+NCHANS2) { // for each scan..
                     for (QVector<QPair<int,int> >::const_iterator it = aoAITab.begin(); it != aoAITab.end(); ++it) { // take ao channels
@@ -1156,7 +1156,7 @@ namespace DAQ
                                 int NCHANS1, int NCHANS2, 
                                 int nExtraChans1, int nExtraChans2)
     {
-        const int nMx = NCHANS1-nExtraChans1, nMx2 = NCHANS2-nExtraChans2, s1 = data.size(), s2 = data2.size();
+        const int nMx = NCHANS1-nExtraChans1, nMx2 = NCHANS2-nExtraChans2, s1 = int(data.size()), s2 = int(data2.size());
         out.clear();
         out.reserve(s1+s2);
         int i,j;
@@ -1282,7 +1282,7 @@ namespace DAQ
                 ApplyNewIntanDemuxToScan(&data[i], DAQ::ModeNumChansPerIntan[p.mode], DAQ::ModeNumIntans[p.mode]*(p.dualDevMode && !p.secondDevIsAuxOnly ? 2 : 1));
             }
         }
-        if (!writer.write(&data[0],data.size()/p.nVAIChans)) {
+        if (!writer.write(&data[0],unsigned(data.size())/p.nVAIChans)) {
             Error() << "NITask::daqThr writer.write() returned false! FIXME!";
         }
         data.clear();
@@ -2006,7 +2006,7 @@ namespace DAQ
         handleAOPassthru(samps);
 
 		//Debug() << "Enq: " << samps.size() << " samps, firstSamp: " << oldTotalRead;
-        if (!writer.write(&samps[0],samps.size()/nchans,&meta)) {
+        if (!writer.write(&samps[0],unsigned(samps.size())/nchans,&meta)) {
             Error() << "Bug3: INTERNAL PROBLEM, writer.write() returned false!";
         }
 		if (!oldTotalRead) emit(gotFirstScan());
@@ -2034,7 +2034,7 @@ namespace DAQ
             }
         }
         if (aoWriteThread) {
-            const int dsize = samps.size();
+            const int dsize = int(samps.size());
             std::vector<int16> aoData;
             aoData.reserve(dsize);
             const int NCHANS = params.nVAIChans;
@@ -2347,8 +2347,11 @@ namespace DAQ
         foreach (QAbstractButton *b, buts) {
             mb.removeButton(b);
         }
+        mb.setModal(true);
+        mb.setWindowModality(Qt::ApplicationModal);
         mb.setWindowFlags((Qt::WindowFlags)wflags);
         mb.show();
+        mb.raise();
         mb.repaint();
 
         QString err;

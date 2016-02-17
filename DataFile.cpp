@@ -178,7 +178,8 @@ void DataFile::writeCommentToMetaFile(const QString & cmt, bool prepend)
 
 bool DataFile::doFileWrite(const std::vector<int16> & scans)
 {
-    return doFileWrite(&scans[0], scans.size()/numChans());
+    if (!numChans()) return false;
+    return doFileWrite(&scans[0], unsigned(scans.size()/numChans()));
 }
 
 bool DataFile::doFileWrite(const int16 *scans, unsigned nScans)
@@ -604,8 +605,8 @@ i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, c
 					scans_out[i_out + i] = int16(avgs[i]);
 			} else {
 				// not all chans on, put subset 1 by 1 in the output vector
-				i64 i_out = nout*nChansOn;
-				const int n = onChans.size();
+                i64 i_out = nout*i64(nChansOn);
+                const int n = int(onChans.size());
 				for (int i = 0; i < n; ++i)
 					scans_out[i_out++] = int16(avgs[onChans[i]]);
 			}

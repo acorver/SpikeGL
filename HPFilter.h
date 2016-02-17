@@ -14,7 +14,7 @@ public:
     double cutoffFreqHz() const { return cutoffHz; }
     
     void setScanSize(unsigned);
-    unsigned scanSize() const { return state.size(); }
+    unsigned scanSize() const { return unsigned(state.size()); }
 
     /// Convolves the scan in-place using the filter
     void apply(short *scan, double dt);

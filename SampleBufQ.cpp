@@ -36,7 +36,7 @@ void SampleBufQ::enqueueBuffer(std::vector<int16> &src, u64 sampCount, bool putF
 
 			if (putFakeDataOnOverrun) {
 				// overrun, indicate buffer is empty but should contain 'fake' data on dequeue
-				buf.fakeSize = fakeDataOverride ? fakeDataOverride : src.size();
+                buf.fakeSize = fakeDataOverride ? fakeDataOverride : int(src.size());
 				buf.fakeMetaSize = metaData.size();
 			} else {
 		        dataQ.pop_front();

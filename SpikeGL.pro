@@ -48,7 +48,6 @@ QT += opengl network svg
 
 RESOURCES += qled.qrc bug3.qrc framegrabber.qrc
 
-
 win32 {
         LIBS += $${PWD}/NI/NIDAQmx.lib WS2_32.lib DelayImp.lib Psapi.lib
         DEFINES += HAVE_NIDAQmx _CRT_SECURE_NO_WARNINGS WIN32 PSAPI_VERSION=1
@@ -61,6 +60,14 @@ win32 {
         QMAKE_CFLAGS_RELEASE += -arch:SSE2 -Ox
         QMAKE_CXXFLAGS_RELEASE += -arch:SSE2 -Ox
         QMAKE_LFLAGS += /DELAYLOAD:"nicaiu.dll"
+}
+
+contains(QMAKE_TARGET.arch, x86_64) {
+    DEFINES += WIN64
+    LIBS -= $${PWD}/NI/NIDAQmx.lib
+    LIBS += $${PWD}/NI/x64/NIDAQmx.lib opengl32.lib
+    QMAKE_CFLAGS_RELEASE -= -arch:SSE2
+    QMAKE_CXXFLAGS_RELEASE -= -arch:SSE2
 }
 
 unix {

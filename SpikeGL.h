@@ -31,7 +31,11 @@
 #define SAMPLE_BUF_Q_SIZE 128
 
 #define SAMPLES_SHM_NAME "SpikeGL_SampleData"
+#ifdef WIN64
+#define SAMPLES_SHM_SIZE (1024UL*1024UL*2000UL) /* 2GB samples shm/buffer size */
+#else
 #define SAMPLES_SHM_SIZE (1024*1024*384) /* 384 MB samples shm/buffer size */
+#endif
 #define SAMPLES_SHM_DESIRED_PAGETIME_MS (33) /* 33 ms  */
 
 extern bool excessiveDebug; ///< If true, print lots of debug output.. mainly daq related.. enable in console with control-D
