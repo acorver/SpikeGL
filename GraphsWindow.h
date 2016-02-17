@@ -170,7 +170,8 @@ private:
 	QVector<GLGraphState> graphStates; ///< used to maintain internal glgraph state for graph re-use...
     QVector<i64> nptsAll;
     i64 nPtsAllGs; ///< sum of each element of nptsAll array above..
-    double downsampleRatio, tNow, tLast, tAvg, tNum;
+    volatile double downsampleRatio;
+    double tNow, tLast, tAvg, tNum;
     int pdChan, firstExtraChan;
     QAction *pauseAct, *maxAct, *applyAllAct;
     GLGraph *maximized; ///< if not null, a graph is maximized 

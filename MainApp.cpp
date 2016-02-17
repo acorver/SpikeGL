@@ -1040,11 +1040,13 @@ void MainApp::maybeQuit()
 
 void MainApp::stopTask()
 {
-	QMutexLocker ml (&mut);
+    // This was causing deadlocks in new threaded graphing/data saving scheme.  So line is removed.
+    // it appears no locking is needed here.  But.. TODO: *more thoroughly verify* that no locking is needed here!
+    //QMutexLocker ml (&mut);
 	
     if (!task) return;
     if (task->isRunning()) task->stop();
-    if (dthread) delete dthread, dthread = 0;
+    if (dthread) delete dthread, dthread = 0; // delete data saving thread.  this may block for a little bit as the data saving thread reads old data, depending on the stop condition.
     if (bugWindow) {
 		windowMenuRemove(bugWindow);
 		delete bugWindow, bugWindow = 0;
@@ -1054,6 +1056,9 @@ void MainApp::stopTask()
 	doFGAcqInstead = false;
     fastSettleRunning = false;
     if (gthread) delete gthread, gthread = 0;
+
+    // . <--- at this point there is no more threading going on, everything is on main thread.
+
     if (graphsWindow) {
 		windowMenuRemove(graphsWindow);
 		delete graphsWindow, graphsWindow = 0;
@@ -1245,8 +1250,10 @@ MainApp::DataSavingThread::DataSavingThread(MainApp *mainApp)
 
 MainApp::DataSavingThread::~DataSavingThread()
 {
+    double t0 = getTime();
     pleaseStop = true;
     if (isRunning()) wait();
+    Debug() << "Waited " << ((getTime()-t0)*1e3) << "ms for DataSavingThread to complete.";
 }
 
 void MainApp::DataSavingThread::run()

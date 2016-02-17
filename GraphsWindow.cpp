@@ -521,8 +521,9 @@ void GraphsWindow::putScans(const int16 * data, unsigned DSIZE, u64 firstSamp)
 
         //const double t0 = getTime(); /// XXX debug
         const int NGRAPHS (graphs.size());
-        const int DOWNSAMPLE_RATIO(qRound(downsampleRatio));
-        const double SRATE (params.srate);
+        const int dsr = qRound(downsampleRatio);
+        const int DOWNSAMPLE_RATIO(dsr<1?1:dsr);
+        const double SRATE (params.srate > 0. ? params.srate : 0.01);
         // avoid some operator[] and others..
         const int16 * DPTR = &data[0];
         const bool * const pgraphs = &pausedGraphs[0];
