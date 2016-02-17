@@ -33,7 +33,7 @@ Bug_MetaPlotThread::~Bug_MetaPlotThread()
 
 void Bug_MetaPlotThread::run()
 {
-    const unsigned sleeptime_ms = taskRateHz ? qRound(double(reader.scansPerPage()) / (double(taskRateHz)/1000.0)) : 1 ;
+    const unsigned sleeptime_ms = taskRateHz ? qRound((double(reader.scansPerPage()) / double(taskRateHz)) * 1e3 * 0.5) : 1 ;
 
     Debug() << "Bug_MetaPlotThread sleeptime_ms = " << sleeptime_ms;
 
