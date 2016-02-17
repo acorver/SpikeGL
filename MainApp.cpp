@@ -154,7 +154,7 @@ MainApp::MainApp(int & argc, char ** argv)
     par2Win->setWindowIcon(QPixmap(ParWindowIcon_xpm));
 	Connect(par2Win, SIGNAL(closed()), this, SLOT(par2WinClosed()));
 
-    Log() << VERSION_STR;
+    Log() << VERSION_STR << " - " << prettyVersionStrGit();
 	Log() << "Application started";
 
     if (getNProcessors() > 1)
@@ -527,7 +527,7 @@ volatile int ReentrancyPreventer::ct = 0;
 void MainApp::about()
 {
     QMessageBox::about(consoleWindow, "About "APPNAME,
-                       VERSION_STR
+                       QString(VERSION_STR) + " - " + prettyVersionStrGit() +
                        "\n\n(C) 2010-2015 Calin A. Culianu <calin.culianu@gmail.com>\n\n"
                        "Developed for the Anthony Leonardo lab at\n"
                        "Janelia Farm Research Campus, HHMI\n\n"

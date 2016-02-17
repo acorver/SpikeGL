@@ -2,6 +2,7 @@
 #define Version_H
 
 #define VERSION 0x20161702
-#define VERSION_STR "SpikeGL v.20161702 - $Id$"
-
+#define VERSION_STR "SpikeGL v.20161702"
+#define VERSION_STR_GIT "$Id$"
+extern const char *prettyVersionStrGit(void);
 #endif

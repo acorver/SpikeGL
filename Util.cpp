@@ -334,3 +334,13 @@ bool feqf(float a, float b, float epsilon)
 }
 	
 } // end namespace Util
+
+const char * prettyVersionStrGit(void)
+{
+    static QString ident(VERSION_STR_GIT);
+    if (ident.startsWith("$Id")) {
+        ident.replace(QRegExp("^[$]Id: *"),"");
+        ident.replace(QRegExp(" *[$]$"), "");
+    }
+    return ident.toUtf8().constData();
+}
