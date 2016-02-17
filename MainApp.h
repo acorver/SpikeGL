@@ -269,7 +269,7 @@ protected slots:
 protected:
     void customEvent(QEvent *); ///< actually implemented in CommandServer.cpp since it is used to handle events from network connection threads
 
-    bool taskReadFunc(); ///< called from our new DataSavingThread
+    bool taskReadFunc(); ///< called from our new DataSavingThread -- so be careful when modifying it to not touch GUI directly, etc
 
 private slots:
     void par2WinForCommandConnectionEnded(); ///< implemented in CommandServer.cpp
@@ -286,7 +286,7 @@ private slots:
 	void optionsSortGraphsByElectrode(); ///< slot triggered by Options->sort graph by electrode menu action
     void gotManualTrigOverride(bool); ///< sent from GraphsWindow UI when user wants to temporarily manually override all the triggers and save immediately
 
-    void stopTask();
+    void stopTask(); ///< called from a signal emitted in the DataSavingThread 'taskReadFunc()', so it's safe
 
 private:
     /// Display a message to the status bar
@@ -298,10 +298,14 @@ private:
     void createIcons();
     bool processKey(QKeyEvent *);
     bool setupStimGLIntegration(bool doQuitOnFail=true);
-    bool setupCommandServer(bool doQuitOnFail=true);
+    bool setupCommandServer(bool doQuitOnFail=true);    
+    /// CAREFUL with this function -- it's called from within the DataSavingThread and as such should be fairly thread-safe and not directly touch the GUI
     bool detectTriggerEvent(const int16 * scans, unsigned sz,  u64 firstSamp, i32 & triggerOffset);
+    /// CAREFUL with this function -- it's called from within the DataSavingThread and as such should be fairly thread-safe and not directly touch the GUI
     void triggerTask();
+    /// CAREFUL with this function -- it's called from within the DataSavingThread and as such should be fairly thread-safe and not directly touch the GUI
     bool detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp);
+    /// CAREFUL with this function -- it's called from within the DataSavingThread and as such should be fairly thread-safe and not directly touch the GUI
     static void prependPrebufToScans(const WrapBuffer & wb, std::vector<int16> & scans, int & numAdded, int skip);
     void precreateOneGraph(bool noGLGraph = false);
     bool startAcq(QString & errTitle, QString & errMsg);
@@ -309,6 +313,7 @@ private:
 	void precreateDone();
 	void startAcqWithPossibleErrDialog();
 	
+    /// CAREFUL with this function -- it's called from within the DataSavingThread and as such should be fairly thread-safe and not directly touch the GUI
     void putRestarts(const DAQ::Params & p, u64 firstSamp, u64 restartSize) const;
 	
     QMap<QString, QVariant> queuedParams;    
@@ -445,10 +450,10 @@ public:
 	bool sortGraphsByElectrodeId() const; 
 
 signals:
-    void do_updateWindowTitles();
-    void do_stopTask();
-    void do_setPDTrigLED(bool);
-    void do_setManualTrigEnabled(bool);
+    void do_updateWindowTitles(); ///< helper signal so that DataSavingThread can effect changes into GUI
+    void do_stopTask(); ///< helper signal so that DataSavingThread can effect changes into GUI
+    void do_setPDTrigLED(bool); ///< helper signal so that DataSavingThread can effect changes into GUI
+    void do_setManualTrigEnabled(bool); ///< helper signal so that DataSavingThread can effect changes into GUI
 };
 
 class HelpWindow : public QDialog
