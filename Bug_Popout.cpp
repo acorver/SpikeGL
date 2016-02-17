@@ -92,7 +92,7 @@ Bug_Popout::~Bug_Popout()
 	delete ui; ui = 0;
 }
 
-void Bug_Popout::writeMetaToBug3File(const DataFile &df, const DAQ::BugTask::BlockMetaData &m, int fudge)
+void Bug_Popout::writeMetaToBug3File(const DataFile &df, const DAQ::BugTask::BlockMetaData &m/*, int fudge*/)
 {
 	QString fname (df.metaFileName());
 	static const QString metaExt(".meta");
@@ -108,8 +108,8 @@ void Bug_Popout::writeMetaToBug3File(const DataFile &df, const DAQ::BugTask::Blo
 	QTextStream ts(&f);
 	ts << "[ block " << m.blockNum << " ]\n";
 	ts << "framesThisBlock = " << DAQ::BugTask::FramesPerBlock << "\n";
-	ts << "spikeGL_DataFile_ScanCount = " << (df.scanCount()+u64(fudge/task->numChans())) << "\n";
-	ts << "spikeGL_DataFile_SampleCount = " << (df.sampleCount()+u64(fudge)) << "\n";
+    ts << "spikeGL_DataFile_ScanCount = " << (df.scanCount()/*+u64(fudge/task->numChans())*/) << "\n";
+    ts << "spikeGL_DataFile_SampleCount = " << (df.sampleCount()/*+u64(fudge)*/) << "\n";
 	ts << "spikeGL_ScansInBlock = " << DAQ::BugTask::SpikeGLScansPerBlock << "\n";
 	ts << "boardFrameCounter = ";
 	for (int i = 0; i < DAQ::BugTask::FramesPerBlock; ++i) {

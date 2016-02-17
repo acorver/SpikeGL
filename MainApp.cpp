@@ -1060,7 +1060,20 @@ void MainApp::stopTask()
 	
     if (!task) return;
     if (task->isRunning()) task->stop();
-    if (dthread) delete dthread, dthread = 0; // delete data saving thread.  this may block for a little bit as the data saving thread reads old data, depending on the stop condition.
+    if (dthread) {
+        QMessageBox *mb = 0;
+        if ((reader->latest() - reader->latestPageRead()) * SAMPLES_SHM_DESIRED_PAGETIME_MS > 500) {
+            // if we are more than 500ms behind in data saving, indicate there will be a delay
+            // in ending the acquisition to the user via a messagebox..
+            mb=new QMessageBox ( QMessageBox::Information, "Saving Data...", "Saving pending data, please wait...", QMessageBox::Ok, consoleWindow, Qt::WindowFlags(Qt::Dialog| Qt::MSWindowsFixedSizeDialogHint));
+            mb->setWindowModality(Qt::ApplicationModal);
+            QAbstractButton *but = mb->button(QMessageBox::Ok);
+            if (but) but->hide();
+            mb->show();
+        }
+        delete dthread, dthread = 0; // delete data saving thread.  this may block for a little bit as the data saving thread reads old data, depending on the stop condition.
+        if (mb) delete mb;
+    }
     if (bugWindow) {
 		windowMenuRemove(bugWindow);
 		delete bugWindow, bugWindow = 0;
@@ -1378,59 +1391,51 @@ bool MainApp::taskReadFunc()
 
             if (dataFile.isOpen()) {
                 bool doStopRecord = false;
-                const int16 *scansPtr = scans;
-                std::vector<int16> scans_orig,
-                        scans; // DEBUG XXX TODO FIXME FUCK.. fixme.  This defeats the purpose of our 0-copy shm
                 i64 n = scanSz;
-                scans.resize(n); memcpy(&scans[0], scansPtr, scanSz*sizeof(int16));
-                 if (stopRecordAtSamp > -1 && (doStopRecord = (i64(firstSamp + scanSz) >= stopRecordAtSamp))) {
+                prebuf_scans.resize(0);
+
+                if (stopRecordAtSamp > -1 && (doStopRecord = (i64(firstSamp + scanSz) >= stopRecordAtSamp))) {
                     // ok, scheduled a stop, make scans be the subset of scans we want to keep for the datafile, and save the full scan to scans_full
-                    scans_orig.swap(scans);
                     n = i64(stopRecordAtSamp) - i64(firstSamp);
                     if (n < 0) n = 0;
                     else if (n > i64(scanSz)) n = scanSz;
                 }
-                if (triggerOffset > 0 && !scans_orig.size()) {
-                    scans_orig.swap(scans);
-                }
-                int bugMetaFudge = 0;
                 if (triggerOffset && preBuf.size()) {
-                    prependPrebufToScans(preBuf, scans, prebufCopied, triggerOffset);
-                    bugMetaFudge = prebufCopied;
-                }
-                if (scans_orig.size() && n > 0) {
-                    scans.reserve(scans.size()+n);
-                    scans.insert(scans.end(), scans_orig.begin(), scans_orig.begin() + n);
+                    prependPrebufToScans(preBuf, prebuf_scans, prebufCopied, triggerOffset);
                 }
                 if (wasFakeData) {
                     // indicate bad data in output file..
                     dataFile.pushBadData(dataFile.scanCount(), fakeDataSz/p.nVAIChans);
                 }
                 if (dataFile.numChans() != p.nVAIChans) {
+                    //double ts = getTime();
+                    // need to subset the chans in-place here.  a bit costly performance-wise.. we can optimize this further if need be by doing it on multiple cores at once using QConcurrent or somesuch mechanism
+                    const int pbs = prebuf_scans.size();
                     const double ratio = dataFile.numChans() / double(p.nVAIChans ? p.nVAIChans : 1.);
-                    scans_subsetted.resize(0);
-                    scans_subsetted.reserve(scans.size() * ratio + 256);
-                    const int n = scans.size();
-                    for (int i = 0; i < n; ++i) {
+                    save_subset.resize(0);
+                    save_subset.reserve(qRound((pbs + n) * ratio) + 256);
+                    for (int i = 0; i < int(n+pbs); ++i) {
                         const int rel = i % p.nVAIChans;
-                        if (p.demuxedBitMap.at(rel)) {
-                            scans_subsetted.push_back(scans[i]);
+                        if (p.demuxedBitMap.testBit(rel)) {
+                            if (i < pbs)
+                                save_subset.push_back(prebuf_scans[i]);
+                            else
+                                save_subset.push_back(scans[i-pbs]);
                         }
                     }
+                    //Debug() << "subsetting took: " << ((getTime()-ts)*1e3) << " ms";
+                    dataFile.writeScans(save_subset);
                     if (bugWindow && bugMeta) {
-                        int bmf = qRound(bugMetaFudge*ratio);
-                        while (bmf%dataFile.numChans()) ++bmf;
-                        bugWindow->writeMetaToBug3File(dataFile, *bugMeta, bmf); // bugMetaFudge explanation: puts a scan offset in the table generated in the meta data so that the scans in the data file line up with the scans in the comments...
+                        bugWindow->writeMetaToBug3File(dataFile, *bugMeta); // bugMetaFudge explanation: in order to make sure scan numbers in file line up with scan numbers in data file, make sure to writeScans() to the data file *before* calling this!
                     }
-                    dataFile.writeScans(scans_subsetted);
                 } else {
+                    dataFile.writeScans(prebuf_scans);
+                    //if (prebuf_scans.size()) Debug() << "prebuf: wrote " << prebuf_scans.size()/p.nVAIChans << " prebuf scans";
+                    dataFile.writeScans(scans, n/p.nVAIChans);
+                    //if (n != i64(scanSz)) Debug() << "writeScans: n=,scanSz=" << n << "," << scanSz << " difference is " << ((scanSz-n)/p.nVAIChans) << " scans.." << (n%p.nVAIChans ? "NOT ALIGNED" : "ALIGNED") ;
                     if (bugWindow && bugMeta)
-                        bugWindow->writeMetaToBug3File(dataFile, *bugMeta, bugMetaFudge); // bugMetaFudge explanation: puts a scan offset in the table generated in the meta data so that the scans in the data file line up with the scans in the comments...
-                    dataFile.writeScans(scans);
+                        bugWindow->writeMetaToBug3File(dataFile, *bugMeta); // bugMetaFudge explanation: in order to make sure scan numbers in file line up with scan numbers in data file, make sure to writeScans() to the data file *before* calling this!
                 }
-                // and.. swap back if we have anything in scans_orig
-                if (scans_orig.size())
-                    scans.swap(scans_orig);
                 if (doStopRecord) {
                     if (!p.stimGlTrigResave && p.acqStartEndMode != DAQ::AITriggered && p.acqStartEndMode != DAQ::Bug3TTLTriggered)
                         needToStop = true;

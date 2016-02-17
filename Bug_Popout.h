@@ -26,7 +26,7 @@ public:
 	~Bug_Popout();
 
     void plotMeta(const DAQ::BugTask::BlockMetaData & meta);
-	void writeMetaToBug3File(const DataFile & dataFile, const DAQ::BugTask::BlockMetaData & meta, int fudge_scanct = 0);
+    void writeMetaToBug3File(const DataFile & dataFile, const DAQ::BugTask::BlockMetaData & meta/*, int fudge_sampct = 0*/);
 
 private slots:
 	void filterSettingsChanged();

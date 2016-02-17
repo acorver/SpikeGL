@@ -432,6 +432,8 @@ private:
     GraphingThread *gthread;
     DataSavingThread *dthread;
 
+    std::vector<int16> save_subset, prebuf_scans; ///< working vars used by taskReadFunc().. it may be faster to keep these around across calls to taskReadFunc()
+
 public:
 
 /// Main application actions!
