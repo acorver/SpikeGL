@@ -2107,7 +2107,7 @@ namespace DAQ
 
         dialogW = 0; dialog = 0;
         didImgSizeWarn = sentFGCmd = false;
-        scanSkipCt = xferCt = 0;
+        need2EmitFirstScan = true;
         if (!isDummy) {
             dialogW = new QDialog(0,Qt::CustomizeWindowHint|Qt::Dialog|Qt::WindowTitleHint);
             dialog = new Ui::FG_Controls;
@@ -2124,8 +2124,6 @@ namespace DAQ
             dialogW->show();
             mainApp()->windowMenuAdd(dialogW);
         }
-        //frameSize = params.fg.isCalinsConfig ? 2048*(2048/4) + sizeof(XtCmdImg) : 144*32+sizeof(XtCmdImg);
-        frameReader = 0;
     }
 
     FGTask::~FGTask() {
@@ -2133,7 +2131,6 @@ namespace DAQ
         if (dialogW) mainApp()->windowMenuRemove(dialogW);
         if (dialog) delete dialog; dialog = 0;
         if (dialogW) delete dialogW; dialogW = 0;
-        if (frameReader) delete frameReader; frameReader = 0;
     }
 
 	QStringList FGTask::filesList() const 
@@ -2175,44 +2172,6 @@ namespace DAQ
         XtCmdServerResource x;
         x.init("","",p.fg.sidx,p.fg.ridx,0,true);
         pushCmd(x);
-    }
-
-    FGTask::FrameReader::FrameReader(FGTask *t) : QThread(0), task(t), pager(t->writer.scanSizeSamps(), 0, t->writer.rawData(), t->writer.totalSize(), t->writer.pageSize()), pleaseStop(false) {}
-
-    FGTask::FrameReader::~FrameReader() {
-        pleaseStop = true;
-        if (isRunning()) wait(2000);
-        if (isRunning()) terminate();
-    }
-
-    void FGTask::FrameReader::run() {
-        int sleepct = 0;
-        while (!pleaseStop) {
-            int skips = 0; unsigned nscans = 0;
-            const int16 *scans_in = pager.next(&skips, 0, &nscans);
-            if (scans_in) {
-                qint64 nSkipped = 0;
-                if (skips > 0) {
-                    Error() << "FrameGrabbar task ring buffer overrun! Dropped scans for xfer number " << task->xferCt;
-                    nSkipped = skips*pager.scansPerPage();
-                    task->scanSkipCt += nSkipped;
-                }
-                task->totalReadMut.lock();
-                // update stats...
-                task->totalRead += pager.scansPerPage() * (nSkipped+1) * pager.scanSizeSamps();
-                task->totalReadMut.unlock();
-                task->xferCt++;
-                sleepct = 0;
-            } else {
-                long usecs = ((1e6/task->samplingRate()) * pager.scansPerPage())/2;
-                this->usleep(usecs);
-                ++sleepct;
-                if (qint64(sleepct)*qint64(usecs) > 5000000LL ) {
-                    Warning() << "FrameGrabber subprocess hasn't sent us any frames in quite some time.  Check to make sure everyting is working.";
-                    sleepct = 0;
-                }
-            }
-        }
     }
 
 	unsigned FGTask::gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p) 
@@ -2282,6 +2241,10 @@ namespace DAQ
 	}
 	
     void FGTask::updateClkSignals(int param) {
+        if (need2EmitFirstScan) {
+            emit gotFirstScan();
+            need2EmitFirstScan = false;
+        }
         XtCmdClkSignals dummy; dummy.init(0,0,0,0,0); dummy.param = param;
         dialog->pxClk1Lbl->setText(dummy.isPxClk1() ? "<font color=green>+</font>" : "<font color=red>-</font>");
         dialog->pxClk2Lbl->setText(dummy.isPxClk2() ? "<font color=green>+</font>" : "<font color=red>-</font>");
@@ -2290,6 +2253,10 @@ namespace DAQ
         dialog->vsyncLbl->setText(dummy.isVSync() ? "<font color=green>+</font>" : "<font color=red>-</font>");
         unsigned long ctr = dialog->clkCtLbl->text().toULong();
         dialog->clkCtLbl->setText(QString::number(ctr+1UL));
+        quint64 scanSkipCt = mainApp()->scanSkipCount(),
+                xferCt = (mainApp()->scanCount()-scanSkipCt)/static_cast<quint64>(writer.scansPerPage());
+
+
         dialog->xferCtLbl->setText(QString::number(xferCt));
         dialog->scanSkipsLbl->setText(
                     QString( !scanSkipCt ?  "<font color=green>" : "<font color=red>")
@@ -2342,11 +2309,6 @@ namespace DAQ
 
     void FGTask::grabFramesClicked() {
         appendTE("Grab frames clicked.", QColor(Qt::gray));
-
-        if (!frameReader) {
-            frameReader = new FrameReader(this);
-            frameReader->start();
-        }
 
         // grab frames.. does stuff with Sapera API in the slave process
         XtCmdGrabFrames x;

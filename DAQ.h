@@ -552,24 +552,7 @@ namespace DAQ
         static double last_hw_probe_ts;
         bool sentFGCmd, didImgSizeWarn;
         Ui::FG_Controls *dialog;
-        volatile quint64 xferCt, scanSkipCt;
-
-        void emit_gotFirstScan() { emit(gotFirstScan()); }
-
-        struct FrameReader : public QThread {
-            FGTask *task;
-            PagedScanReader pager;
-            volatile bool pleaseStop;
-            FrameReader(FGTask *);
-            ~FrameReader();
-        protected:
-            void run();
-        };
-
-        FrameReader *frameReader;
-
-        friend struct DAQ::FGTask::FrameReader;
-
+        bool need2EmitFirstScan;
 	};
 	
 }

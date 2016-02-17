@@ -87,7 +87,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), taskReadTimer(0), graphsWindow(0), spatialWindow(0), bugWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), doBugAcqInstead(false)
+    : QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), graphsWindow(0), spatialWindow(0), bugWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), doBugAcqInstead(false)
 {
     datafile_desired_q_size = SAMPLE_BUF_Q_SIZE;
     reader = 0;
@@ -95,6 +95,8 @@ MainApp::MainApp(int & argc, char ** argv)
     dthread = 0;
     samplesBuffer = 0;
     need2FreeSamplesBuffer = false;
+    scanCt = 0;
+    scanSkipCt = 0;
 
 	QLocale::setDefault(QLocale::c());
 	setApplicationName("SpikeGL");
@@ -713,6 +715,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         return false;
     }
     scanCt = 0;
+    scanSkipCt = 0;
     lastScanSz = 0;
 	stopRecordAtSamp = -1;
     tNow = getTime();
@@ -1040,6 +1043,7 @@ void MainApp::stopTask()
 	QMutexLocker ml (&mut);
 	
     if (!task) return;
+    if (task->isRunning()) task->stop();
     if (dthread) delete dthread, dthread = 0;
     if (bugWindow) {
 		windowMenuRemove(bugWindow);
@@ -1252,13 +1256,17 @@ void MainApp::DataSavingThread::run()
     Debug() << "MainApp::DataSavingThread sleeptime_ms=" << sleeptime_ms;
 
     while (!pleaseStop) {
-        app->taskReadFunc2();
-        msleep(sleeptime_ms);
+        if (app->taskReadFunc())
+            msleep(sleeptime_ms);
+        else
+            pleaseStop = true;
     }
+
+    Debug() << "MainApp::DataSavingThread ended.";
 }
 
 ///< called from a timer at 30Hz
-void MainApp::taskReadFunc2()
+bool MainApp::taskReadFunc()
 {
     std::vector<int16> scans_subsetted;
     const int16 *scans = 0;
@@ -1269,8 +1277,7 @@ void MainApp::taskReadFunc2()
     int fakeDataSz = -1, skips = 0;
     void *metaPtr = 0;
     unsigned scans_ret = 0;
-    int ct = 0, ctMax = 10;
-    while (!needToStop || (taskShouldStop && ++ct <= ctMax) ) {
+    while (!needToStop || taskShouldStop) { ///< if taskShouldStop, stimGl signalled us, and task->stop() has been called.  So we keep emptying the queue to save all pending data.  Hence the reasosn for this while
         bool gotSomething = false;
 
         scans = reader->next(&skips,&metaPtr,&scans_ret);
@@ -1280,6 +1287,7 @@ void MainApp::taskReadFunc2()
         if (skips>0) fakeDataSz = skips*reader->scansPerPage()*reader->scanSizeSamps();
         else fakeDataSz = -1;
         firstSamp += skips ? fakeDataSz : 0;
+        scanSkipCt += skips ? static_cast<unsigned long>(fakeDataSz/reader->scanSizeSamps()) : 0UL;
 
         const bool wasFakeData = fakeDataSz > -1;
         // TODO XXX FIXME -- implement detection of fake data (DAQ restart!) properly
@@ -1422,9 +1430,13 @@ void MainApp::taskReadFunc2()
                     taskEndStr = QString(" - task will auto-stop in ") + QString::number((stopScanCt-scanCt)/p.srate) + " secs";
                 }
                 QString dfScanStr = "";
-                if (dataFile.isOpen()) dfScanStr = QString(" - ") + QString::number(dataFile.scanCount()) + " scans";
+                if (dataFile.isOpen()) dfScanStr = QString(" - ") + QString::number(dataFile.scanCount()) + " scans saved";
 
-                Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz" << dfScanStr << " - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
+                QString droppedScanStr = "";
+                if (scanSkipCt) {
+                    droppedScanStr = QString(" - ") + QString::number(scanSkipCt) + "/" + QString::number(scanCt) + " scans overflowed";
+                }
+                Status() << task->numChans() << "-channel acquisition running @ " << task->samplingRate()/1000. << " kHz" << dfScanStr << droppedScanStr << " - " << dataFile.writeSpeedBytesSec()/1e6 << " MB/s disk speed (" << dataFile.minimalWriteSpeedRequired()/1e6 << " MB/s required)" <<  taskEndStr;
                 lastSBUpd = tNow;
             }
 
@@ -1442,8 +1454,12 @@ void MainApp::taskReadFunc2()
 
     }
 
-    if (taskShouldStop || needToStop)
+    if (taskShouldStop || needToStop) {
         emit do_stopTask();
+        return false;
+    }
+
+    return true;
 }
 
 #if 0

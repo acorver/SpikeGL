@@ -184,6 +184,9 @@ public:
     void windowMenuRemove(QWidget *w);
     void windowMenuAdd(QWidget *w);
 
+    u64 scanCount() const { return scanCt; }
+    u64 scanSkipCount() const { return scanSkipCt; }
+
 public slots:    
     /// Set/unset the application-wide 'debug' mode setting.  If the application is in debug mode, Debug() messages are printed to the console window, otherwise they are not
     void toggleDebugMode(); 
@@ -242,7 +245,6 @@ protected slots:
     void gotBufferOverrun();
     void gotDaqError(const QString & e);
     void gotDaqWarning(const QString & e);
-    //void taskReadFunc(); ///< called from a timer at 30Hz
 
     void sha1VerifySuccess();
     void sha1VerifyFailure();
@@ -267,7 +269,7 @@ protected slots:
 protected:
     void customEvent(QEvent *); ///< actually implemented in CommandServer.cpp since it is used to handle events from network connection threads
 
-    void taskReadFunc2(); ///< called from our new DataSavingThread
+    bool taskReadFunc(); ///< called from our new DataSavingThread
 
 private slots:
     void par2WinForCommandConnectionEnded(); ///< implemented in CommandServer.cpp
@@ -352,10 +354,11 @@ private:
     DAQ::Task *task;
     volatile bool taskWaitingForTrigger, taskHasManualTrigOverride, taskWaitingForStop,
                   taskShouldStop; ///< used for StimGL trigger to stop the task when the queue empties
-    i64 scanCt, startScanCt, stopScanCt, lastScanSz, stopRecordAtSamp;
+    volatile i64 scanCt;
+    i64 startScanCt, stopScanCt, lastScanSz, stopRecordAtSamp;
+    volatile unsigned long scanSkipCt;
     DataFile_Fn_Shm dataFile; ///< the OUTPUT save file (this member var never used for input)
     std::vector<int16> lastNPDSamples;
-    QTimer *taskReadTimer;
     GraphsWindow *graphsWindow;
 	SpatialVisWindow *spatialWindow;
 	Bug_Popout *bugWindow;
