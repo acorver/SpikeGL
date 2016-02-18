@@ -58,6 +58,7 @@ static void acqCallback(SapXferCallbackInfo *info)
         char tmp[512];
         _snprintf_c(tmp, sizeof(tmp), "acqCallback got a frame of size %dx%d, but expected a frame of size %dx%d", w, h, desiredWidth, desiredHeight);
         spikeGL->pushConsoleError(tmp);
+        xfer->Abort();
         return;
     }
     if (w > desiredWidth) w = desiredWidth;
@@ -68,15 +69,12 @@ static void acqCallback(SapXferCallbackInfo *info)
 
     if (!sharedMemory) {
         spikeGL->pushConsoleError("INTERNAL ERROR.. not attached to shm, cannot send frames!");
+        xfer->Abort();
         return;
     }
     if (!writer->scansPerPage()) {
         spikeGL->pushConsoleError("INTERNAL ERROR.. shm page, cannot fit at least 1 scan! FIXME!");
-        return;
-    }
-
-    if (pitch != w) {
-        spikeGL->pushConsoleError("Frame pitch must equal frame width! FIXME!");
+        xfer->Abort();
         return;
     }
 
@@ -84,6 +82,7 @@ static void acqCallback(SapXferCallbackInfo *info)
 
     if (!nScansInFrame) {
         spikeGL->pushConsoleError("Frame must contain at least 1 full scan! FIXME!");
+        xfer->Abort();
         return;
     }
 
@@ -93,11 +92,36 @@ static void acqCallback(SapXferCallbackInfo *info)
 
     if (!pData) {
         spikeGL->pushConsoleError("SapBuffers::GetAddress() returned a NULL pointer!");
+        xfer->Abort();
         return;
     }
 
-    if (!writer->write(pData, unsigned(nScansInFrame))) {
-        spikeGL->pushConsoleError("PagedScanWriter::write returned false!");
+    if (pitch != w) {
+        // pith != w, so write scan by taking each valid row of the frame... using our new writer->writePartial() method
+        const char *pc = reinterpret_cast<const char *>(pData);
+        writer->writePartialBegin();
+        for (int line = 0; line < h; ++line) {
+            if (!writer->writePartial(pc + (line*pitch), w)) {
+                spikeGL->pushConsoleError("PagedScanWriter::writePartial() returned false!");
+                buffers->ReleaseAddress((void *)pData);
+                writer->writePartialEnd();
+                xfer->Abort();
+                return;
+            }
+        }
+        if (!writer->writePartialEnd()) {
+            spikeGL->pushConsoleError("PagedScanWriter::writePartialEnd() returned false!");
+            buffers->ReleaseAddress((void *)pData);
+            xfer->Abort();
+            return;
+        }
+    } else {
+        if (!writer->write(pData, unsigned(nScansInFrame))) {
+            spikeGL->pushConsoleError("PagedScanWriter::write returned false!");
+            buffers->ReleaseAddress((void *)pData); // Need to release it to return it to the hardware!
+            xfer->Abort();
+            return;
+        }
     }
 
     buffers->ReleaseAddress((void *)pData); // Need to release it to return it to the hardware!

@@ -139,10 +139,48 @@ PagedScanWriter::PagedScanWriter(unsigned scan_size_samples, unsigned meta_data_
     if (meta_data_size_bytes > page_size) meta_data_size_bytes = page_size;
     nScansPerPage = scan_size_bytes ? ((page_size-meta_data_size_bytes)/scan_size_bytes) : 0;
     nBytesPerPage = nScansPerPage * scan_size_bytes;
-    pageOffset = 0;
+    pageOffset = 0; partial_offset = 0; partial_bytes_written = 0;
     scanCt = 0;
     sampleCt = 0;
     currPage = 0;
+}
+
+void PagedScanWriter::writePartialBegin()
+{
+    partial_offset = pageOffset*scan_size_bytes; 
+    partial_bytes_written = 0;
+}
+bool PagedScanWriter::writePartialEnd()
+{
+    bool ret = !(partial_offset % scan_size_bytes); // should always be aligned.  if not, return false and indicate to caller something is off.
+
+    pageOffset = partial_offset / scan_size_bytes;
+    scanCt += static_cast<unsigned long long>(partial_bytes_written / scan_size_bytes);
+    sampleCt += static_cast<unsigned long long>(partial_bytes_written / sizeof(short));
+    partial_bytes_written = 0; // guard against shitty use of class
+
+    if (pageOffset > nScansPerPage) return false; // should never happen.  indicates bug in this code.
+    if (pageOffset == nScansPerPage) commit();  // should never happen!
+    return ret;
+}
+bool PagedScanWriter::writePartial(const void *data, unsigned nbytes)
+{
+    unsigned dataOffset = 0;
+    while (nbytes) {
+        if (!currPage) { currPage = (short *)grabNextPageForWrite(); pageOffset = 0; partial_offset = 0; }
+        unsigned spaceLeft = (nScansPerPage*scan_size_bytes) - partial_offset;
+        if (!spaceLeft) return false; // should not be reached.. a safeguard in case of improper pagesize of improper use of class
+        unsigned n2write = nbytes > spaceLeft ? spaceLeft : nbytes;
+        memcpy(reinterpret_cast<char *>(currPage)+partial_offset, reinterpret_cast<const char *>(data)+dataOffset, n2write);
+        dataOffset += n2write;
+        partial_offset += n2write;
+        partial_bytes_written += n2write;
+        nbytes -= n2write;
+        spaceLeft -= n2write;
+
+        if (!spaceLeft) commit();
+    }
+    return true;
 }
 
 bool PagedScanWriter::write(const short *scans, unsigned nScans, const void *meta) {
@@ -158,6 +196,7 @@ bool PagedScanWriter::write(const short *scans, unsigned nScans, const void *met
         unsigned n2write = nScans > spaceLeft ? spaceLeft : nScans;
         memcpy(currPage+(pageOffset*scan_size_samps), scans+(scansOff*scan_size_samps), n2write*scan_size_bytes);
         pageOffset += n2write;
+        partial_offset = pageOffset * scan_size_bytes;
         scansOff += n2write;
         scanCt += static_cast<unsigned long long>(n2write);
         sampleCt += static_cast<unsigned long long>(n2write*scan_size_samps);
@@ -178,7 +217,7 @@ void PagedScanWriter::commit()
 {
     if (currPage) {
         commitCurrentWritePage();
-        currPage = 0; pageOffset = 0;
+        currPage = 0; pageOffset = 0; partial_offset = 0;
     }
 }
 

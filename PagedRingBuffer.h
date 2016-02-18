@@ -127,7 +127,14 @@ public:
     unsigned long long samplesWritten() const { return sampleCt; }
     unsigned metaDataSizeBytes() const { return meta_data_size_bytes; }
 
+
+    /// write full scans, optionally writing metadata
     bool write(const short *scans, unsigned nScans, const void *meta = 0);
+
+    /// write partial scans -- optimization for pitch != w in FG_SpikeGL.exe.. no metadata support
+    void writePartialBegin();
+    bool writePartial(const void *partialData, unsigned bytes);
+    bool writePartialEnd(); // call this when your partial write is done and you are *sure* you have a multiple of 1 or more full scans written
 
 protected:
     void commit(); ///< called by write to commit the current page
@@ -135,7 +142,7 @@ protected:
 private:
     short *currPage;
     unsigned scan_size_samps, scan_size_bytes, meta_data_size_bytes;
-    unsigned nScansPerPage, nBytesPerPage, pageOffset /*in scans*/;
+    unsigned nScansPerPage, nBytesPerPage, pageOffset /*in scans*/, partial_offset /* in bytes */, partial_bytes_written;  
     unsigned long long scanCt, sampleCt;
 };
 
