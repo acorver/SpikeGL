@@ -16,6 +16,7 @@
 FG_ConfigDialog::FG_ConfigDialog(DAQ::Params & params, QObject *parent)
 : QObject(parent), acceptedParams(params)
 {
+    mb = 0;
 	dialogW = new QDialog(0);
 	dialogW->setAttribute(Qt::WA_DeleteOnClose, false);
 	dialog = new Ui::FG_ConfigDialog;
@@ -25,6 +26,7 @@ FG_ConfigDialog::FG_ConfigDialog(DAQ::Params & params, QObject *parent)
 
 FG_ConfigDialog::~FG_ConfigDialog()
 {
+    delete mb, mb = 0;
 	delete dialogW; dialogW = 0;
 	delete dialog; dialog = 0;
 }
@@ -41,11 +43,38 @@ void FG_ConfigDialog::browseButClicked()
 	}
 }
 
+void FG_ConfigDialog::createAndShowPleaseWaitDialog()
+{
+    int wflags = Qt::Window|Qt::FramelessWindowHint|Qt::MSWindowsFixedSizeDialogHint|Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowStaysOnTopHint;
+    if (mb) delete mb;
+    mb = new QMessageBox(QMessageBox::Information, "Probing Hardware", "Probing framegrabber hardware, please wait...", QMessageBox::Abort, (QWidget *)(mainApp()->console()), (Qt::WindowFlags)wflags);
+    QList<QAbstractButton *> buts = mb->buttons();
+    foreach (QAbstractButton *b, buts) {
+        mb->removeButton(b);
+    }
+    mb->setModal(true);
+    mb->setWindowModality(Qt::ApplicationModal);
+    mb->setWindowFlags((Qt::WindowFlags)wflags);
+    mb->show();
+    mb->activateWindow();
+    mb->raise();
+    mb->update();
+    mb->exec();
+}
+void FG_ConfigDialog::actuallyDoHardwareProbe()
+{
+    DAQ::FGTask::probeHardware();
+    if (!mb) return;
+    QTimer::singleShot(1,mb,SLOT(reject()));
+}
 
 int FG_ConfigDialog::exec()
 {
-    if (DAQ::FGTask::probedHardware.empty() || Util::getTime() - DAQ::FGTask::lastProbeTS() > 10.0)
-        DAQ::FGTask::probeHardware();
+    if (DAQ::FGTask::probedHardware.empty() || Util::getTime() - DAQ::FGTask::lastProbeTS() > 10.0) {
+        QTimer::singleShot(1,this,SLOT(actuallyDoHardwareProbe()));
+        createAndShowPleaseWaitDialog();
+    }
+    delete mb, mb = 0;
 
     if (DAQ::FGTask::probedHardware.empty()) {
         QMessageBox::critical((QWidget *)(mainApp()->console()),"No Valid Framegrabbers", "No compatible framegrabbers appear to be present on the system.  If you believe this message is in error, try disabling then re-enabling your framegrabber card in the Windows device manager.");

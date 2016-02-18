@@ -822,7 +822,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     acqStartingDialog->setWindowModality(Qt::ApplicationModal);
     QAbstractButton *but = acqStartingDialog->button(QMessageBox::Ok);
     if (but) but->hide();
-    acqStartingDialog->show();
+    acqStartingDialog->open();
     // end acq starting dialog block
     
     preBuf.clear();

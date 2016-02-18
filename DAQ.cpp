@@ -2342,20 +2342,6 @@ namespace DAQ
         FGTask task(dummy,0,dummy2,true);
         if (!task.platformSupported())  return;
 
-        int wflags = Qt::Window|Qt::FramelessWindowHint|Qt::MSWindowsFixedSizeDialogHint|Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowStaysOnTopHint;
-        QMessageBox mb(QMessageBox::Information, "Probing Hardware", "Probing framegrabber hardware, please wait...", QMessageBox::Abort, (QWidget *)(mainApp()->console()), (Qt::WindowFlags)wflags);
-        QList<QAbstractButton *> buts = mb.buttons();
-        foreach (QAbstractButton *b, buts) {
-            mb.removeButton(b);
-        }
-        mb.setModal(true);
-        mb.setWindowModality(Qt::ApplicationModal);
-        mb.setWindowFlags((Qt::WindowFlags)wflags);
-        mb.show();
-        mb.activateWindow();
-        mb.raise();
-        mb.repaint();
-
         QString err;
         if (!task.setupExeDir(&err)) {
             Error() << "Failed to probe Sapera for active hardware: " << err;

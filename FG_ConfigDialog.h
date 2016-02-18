@@ -18,6 +18,7 @@
 class QSettings;
 class QDialog;
 class QCheckBox;
+class QMessageBox;
 
 class FG_ConfigDialog : public QObject
 {
@@ -35,6 +36,8 @@ public:
     bool isDialogVisible() const { return dialogW->isVisible(); }
 private slots:
 	void browseButClicked();
+    void actuallyDoHardwareProbe();
+
 private:
 	
    enum ValidationResult {
@@ -49,7 +52,10 @@ private:
 	void guiFromSettings(); 
 	void saveSettings();
 	
+    void createAndShowPleaseWaitDialog();
+
     QDialog *dialogW;
+    QMessageBox *mb;
 };
 
 
