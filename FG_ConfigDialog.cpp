@@ -64,7 +64,6 @@ void FG_ConfigDialog::createAndShowPleaseWaitDialog()
 void FG_ConfigDialog::actuallyDoHardwareProbe()
 {
     DAQ::FGTask::probeHardware();
-    if (!mb) return;
 }
 
 int FG_ConfigDialog::exec()
