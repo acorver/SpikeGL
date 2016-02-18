@@ -28,8 +28,12 @@ public:
     bool beginListening(const QString & iface = "0.0.0.0", unsigned short port = DEFAULT_COMMAND_PORT, unsigned timeout_ms = DEFAULT_COMMAND_TIMEOUT_MS);
    
 protected:    
-    void incomingConnection (int socketDescr); ///< reimplemented from QTcpServer    
-    
+#if QT_VERSION >= 0x050000
+    void incomingConnection (qintptr socketDescr); ///< reimplemented from QTcpServer
+#else
+    void incomingConnection (int socketDescr); ///< reimplemented from QTcpServer
+#endif
+
 public:
     static void deleteAllActiveConnections();
 

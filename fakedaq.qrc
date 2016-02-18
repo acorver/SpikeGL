@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/fakedaq">
+        <file>fakedaqdata.bin</file>
+    </qresource>
+</RCC>

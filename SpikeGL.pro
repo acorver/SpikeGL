@@ -83,6 +83,13 @@ unix {
 macx {
 	LIBS += -framework CoreServices
 	DEFINES += MACX
+
+
+}
+
+!contains(DEFINES,HAVE_NIDAQmx) {
+    RESOURCES += fakedaq.qrc
+    DEFINES += FAKEDAQ
 }
 
 RESOURCES += CommonResources.qrc

@@ -63,7 +63,7 @@ bool TempDataFile::writeScans(const int16 * scans, unsigned nsamps)
 
     nWritten = tempFile.write((const char *)&scans[nWritten0*nChans], bytes2Write) / scanSz;
 	pos += bytes2Write;
-    if (nWritten*scanSz != bytes2Write)
+    if (nWritten*scanSz != qint64(bytes2Write))
     {
         Warning() << "Writing to temporary file failed (expected to write " << (bytes2Write/scanSz) << " scans, wrote " << nWritten << " scans)";		
 		tempFile.seek(pos);

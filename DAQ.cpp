@@ -4,10 +4,10 @@
 #  include "NI/NIDAQmx.h"
 #  include "AOWriteThread.h"
 #else
-#  define FAKEDAQ
-#ifndef Q_OS_WIN
+#  ifndef FAKEDAQ
+#    define FAKEDAQ
+#  endif
 #  warning Not a real NI platform.  All acquisition related functions are emulated!
-#endif
 #endif
 
 #include <string.h>
@@ -379,7 +379,7 @@ namespace DAQ
 {
     void NITask::daqThr()
     {
-        static QString fname("fakedaqdata.bin");
+        static QString fname(":/fakedaq/fakedaqdata.bin");
         char *e;
         if ((e=getenv("FAKEDAQ"))) {
             fname = e;
@@ -399,7 +399,7 @@ namespace DAQ
 			double ts = getTime();
             data.resize(unsigned(params.nVAIChans*writer.scansPerPage()));
             qint64 nread = f.read((char *)&data[0], data.size()*sizeof(int16));
-            if (nread != data.size()*sizeof(int16)) {
+            if (nread != qint64(data.size()*sizeof(int16))) {
                 f.seek(0);
             } else if (nread > 0) {
                 nread /= sizeof(int16);
@@ -2335,11 +2335,12 @@ namespace DAQ
 
     /* static */
     void FGTask::probeHardware() {
+
         double t0 = getTime();
         DAQ::Params dummy;
         PagedScanReader dummy2(0,0,0,0,0);
         FGTask task(dummy,0,dummy2,true);
-        if (!task.platformSupported()) return;
+        if (!task.platformSupported())  return;
 
         int wflags = Qt::Window|Qt::FramelessWindowHint|Qt::MSWindowsFixedSizeDialogHint|Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowStaysOnTopHint;
         QMessageBox mb(QMessageBox::Information, "Probing Hardware", "Probing framegrabber hardware, please wait...", QMessageBox::Abort, (QWidget *)(mainApp()->console()), (Qt::WindowFlags)wflags);
@@ -2351,6 +2352,7 @@ namespace DAQ
         mb.setWindowModality(Qt::ApplicationModal);
         mb.setWindowFlags((Qt::WindowFlags)wflags);
         mb.show();
+        mb.activateWindow();
         mb.raise();
         mb.repaint();
 

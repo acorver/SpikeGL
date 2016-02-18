@@ -53,7 +53,11 @@ class CommandConnection : public QThread
 {
     volatile bool stop;
     QTcpSocket *sock;
+#if QT_VERSION >= 0x050000
+    qintptr sockFd;
+#else
     int sockFd;
+#endif
     int timeout;
     QString resp; ///< response to client
     QString errMsg; ///< errMsg response to client
@@ -69,7 +73,11 @@ class CommandConnection : public QThread
     void sendError(const QString &);
     
 public:
+#if QT_VERSION >= 0x050000
+    CommandConnection(qintptr sockFd, int timeout);
+#else
     CommandConnection(int sockFd, int timeout);
+#endif
     ~CommandConnection();
         
     void setResponseAndWake(const QVariant & r = QVariant()); 
@@ -90,10 +98,13 @@ protected:
     void postEventToAppAndWaitForContinuousReplies(QEvent *e);
 };
 
-
-void CommandServer::incomingConnection(int sockFd) 
+#if QT_VERSION >= 0x050000
+void CommandServer::incomingConnection (qintptr socketDescr)
+#else
+void CommandServer::incomingConnection(int socketDescr)
+#endif
 {
-    CommandConnection *conn = new CommandConnection(sockFd, timeout_msecs);
+    CommandConnection *conn = new CommandConnection(socketDescr, timeout_msecs);
     conn->start();
 }
 
@@ -107,8 +118,12 @@ void CommandServer::deleteAllActiveConnections()
     }
 }
 
+#if QT_VERSION >= 0x050000
+CommandConnection::CommandConnection(qintptr sockFd, int timeout)
+#else
 CommandConnection::CommandConnection(int sockFd, int timeout)
-: QThread(mainApp()), stop(false), sock(0), sockFd(sockFd), timeout(timeout)
+#endif
+    : QThread(mainApp()), stop(false), sock(0), sockFd(sockFd), timeout(timeout)
 {    
 }
 

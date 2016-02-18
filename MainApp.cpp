@@ -982,6 +982,13 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     Status() << "DAQ task starting up ...";
     Log() << "DAQ task starting up ...";
     
+
+    // New: Qt5 doesn't raise the windows like the old Qt did, so we have to explicitly do it
+    if (graphsWindow) graphsWindow->raise();
+    if (consoleWindow) consoleWindow->raise(), consoleWindow->activateWindow();
+    if (bugWindow) bugWindow->raise(), bugWindow->activateWindow();
+    if (fgtask && fgtask->dialogW) fgtask->dialogW->raise(), fgtask->dialogW->activateWindow();
+
     return true;
 }
 

@@ -152,6 +152,7 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
         dialog->doCtlCB->setCurrentIndex(p.doCtlChan);
     dialog->channelListLE->setText(p.aiString);
     dialog->channelListLE_2->setText(p.aiString2);
+    if (p.acqStartEndMode == DAQ::Bug3TTLTriggered) p.acqStartEndMode = DAQ::Immediate;
     dialog->acqStartEndCB->setCurrentIndex((int)p.acqStartEndMode);
 	dialog->lowLatencyChk->setChecked(p.lowLatency);
 	dialog->preJuly2011DemuxCB->setChecked(p.doPreJuly2011IntanDemux);
