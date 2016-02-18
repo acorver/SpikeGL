@@ -285,6 +285,7 @@ private slots:
 	void fileOpen(); ///< slot triggered from the File->Open menu to open a new data file for perusal in the app.	
 	void optionsSortGraphsByElectrode(); ///< slot triggered by Options->sort graph by electrode menu action
     void gotManualTrigOverride(bool); ///< sent from GraphsWindow UI when user wants to temporarily manually override all the triggers and save immediately
+    void activateWindowsAfterAcqStart(); ///< needed on Qt5 to properly activate the windows after the acquisition starts
 
     void stopTask(); ///< called from a signal emitted in the DataSavingThread 'taskReadFunc()', so it's safe
 

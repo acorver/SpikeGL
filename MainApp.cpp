@@ -982,14 +982,19 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     Status() << "DAQ task starting up ...";
     Log() << "DAQ task starting up ...";
     
-
-    // New: Qt5 doesn't raise the windows like the old Qt did, so we have to explicitly do it
-    if (graphsWindow) graphsWindow->raise();
-    if (consoleWindow) consoleWindow->raise(), consoleWindow->activateWindow();
-    if (bugWindow) bugWindow->raise(), bugWindow->activateWindow();
-    if (fgtask && fgtask->dialogW) fgtask->dialogW->raise(), fgtask->dialogW->activateWindow();
+    QTimer::singleShot(10, this, SLOT(activateWindowsAfterAcqStart()));
 
     return true;
+}
+
+void MainApp::activateWindowsAfterAcqStart()
+{
+    // New: Qt5 doesn't raise the windows like the old Qt did, so we have to explicitly do it
+    //if (graphsWindow) graphsWindow->raise();
+    if (consoleWindow && !consoleWindow->isHidden()) consoleWindow->activateWindow(), consoleWindow->raise();
+    if (bugWindow && !bugWindow->isHidden()) bugWindow->activateWindow(), bugWindow->raise();
+    DAQ::FGTask *fgtask = dynamic_cast<DAQ::FGTask *>(task);
+    if (fgtask && fgtask->dialogW && !fgtask->dialogW->isHidden()) fgtask->dialogW->activateWindow(), fgtask->dialogW->raise();
 }
 
 void MainApp::newAcq() 

@@ -45,7 +45,7 @@ void FG_ConfigDialog::browseButClicked()
 
 void FG_ConfigDialog::createAndShowPleaseWaitDialog()
 {
-    int wflags = Qt::Window|Qt::FramelessWindowHint|Qt::MSWindowsFixedSizeDialogHint|Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowStaysOnTopHint;
+    int wflags = Qt::Window|/*Qt::FramelessWindowHint|Qt::MSWindowsFixedSizeDialogHint|Qt::CustomizeWindowHint|*/Qt::WindowTitleHint|Qt::WindowStaysOnTopHint;
     if (mb) delete mb;
     mb = new QMessageBox(QMessageBox::Information, "Probing Hardware", "Probing framegrabber hardware, please wait...", QMessageBox::Abort, (QWidget *)(mainApp()->console()), (Qt::WindowFlags)wflags);
     QList<QAbstractButton *> buts = mb->buttons();
@@ -59,20 +59,20 @@ void FG_ConfigDialog::createAndShowPleaseWaitDialog()
     mb->activateWindow();
     mb->raise();
     mb->update();
-    mb->exec();
+    mb->open();
 }
 void FG_ConfigDialog::actuallyDoHardwareProbe()
 {
     DAQ::FGTask::probeHardware();
     if (!mb) return;
-    QTimer::singleShot(1,mb,SLOT(reject()));
 }
 
 int FG_ConfigDialog::exec()
 {
     if (DAQ::FGTask::probedHardware.empty() || Util::getTime() - DAQ::FGTask::lastProbeTS() > 10.0) {
-        QTimer::singleShot(1,this,SLOT(actuallyDoHardwareProbe()));
         createAndShowPleaseWaitDialog();
+        mainApp()->processEvents(QEventLoop::ExcludeUserInputEvents|QEventLoop::ExcludeSocketNotifiers,100);
+        actuallyDoHardwareProbe();
     }
     delete mb, mb = 0;
 
