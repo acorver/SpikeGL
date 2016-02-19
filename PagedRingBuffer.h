@@ -146,5 +146,6 @@ private:
     unsigned long long scanCt, sampleCt;
 };
 
+
 #endif // PAGEDRINGBUFFER_H
 

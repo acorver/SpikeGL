@@ -114,7 +114,6 @@ PagedScanReader::PagedScanReader(const PagedScanWriter &o)
     scanCt = scanCtV = 0;
 }
 
-
 const short *PagedScanReader::next(int *nSkips, void **metaPtr, unsigned *scans_returned)
 {
     int sk = 0;
@@ -147,9 +146,10 @@ PagedScanWriter::PagedScanWriter(unsigned scan_size_samples, unsigned meta_data_
 
 void PagedScanWriter::writePartialBegin()
 {
-    partial_offset = pageOffset*scan_size_bytes; 
+    partial_offset = pageOffset*scan_size_bytes;
     partial_bytes_written = 0;
 }
+
 bool PagedScanWriter::writePartialEnd()
 {
     bool ret = !(partial_offset % scan_size_bytes); // should always be aligned.  if not, return false and indicate to caller something is off.
@@ -163,6 +163,7 @@ bool PagedScanWriter::writePartialEnd()
     if (pageOffset == nScansPerPage) commit();  // should never happen!
     return ret;
 }
+
 bool PagedScanWriter::writePartial(const void *data, unsigned nbytes)
 {
     unsigned dataOffset = 0;

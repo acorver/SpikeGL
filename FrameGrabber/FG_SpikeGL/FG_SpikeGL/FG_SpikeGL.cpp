@@ -96,8 +96,15 @@ static void acqCallback(SapXferCallbackInfo *info)
         return;
     }
 
+    //double t0write = getTime(); /// XXX
+
     if (pitch != w) {
+#if 1 /* 10% slower but more elegant */
+        /* the below code is about 10% slower than the #else clause after it, but so far all of this processing only takes up 13% of our CPUs time on my system, so we're ok
+         with this code here, which is more maintainable (I think) and flexible in case we change setups later.. */
+
         // pith != w, so write scan by taking each valid row of the frame... using our new writer->writePartial() method
+
         const char *pc = reinterpret_cast<const char *>(pData);
         writer->writePartialBegin();
         for (int line = 0; line < h; ++line) {
@@ -115,6 +122,25 @@ static void acqCallback(SapXferCallbackInfo *info)
             xfer->Abort();
             return;
         }
+#else /* 10% faster but less elegant. */
+        static std::vector<char> fullPage; static char *pfp = 0;
+        static int scansPerPage = 0, pageBytePos = 0, fullPageSize = 0;
+        if (!scansPerPage) {
+            scansPerPage = writer->scansPerPage();
+            fullPage.resize(fullPageSize = scansPerPage * writer->scanSizeBytes());
+            pfp = &fullPage[0];
+        }
+        const char *pc = reinterpret_cast<const char *>(pData);
+        for (int line = 0; line < h; ++line) {
+            if (pageBytePos+w <= fullPageSize)
+                memcpy(pfp + pageBytePos, pc + (line*pitch), w);
+            pageBytePos += w;
+            if (pageBytePos >= fullPageSize) {
+                writer->write((short *)pfp, scansPerPage);
+                pageBytePos = 0;
+            }
+        }
+#endif
     } else {
         if (!writer->write(pData, unsigned(nScansInFrame))) {
             spikeGL->pushConsoleError("PagedScanWriter::write returned false!");
@@ -124,6 +150,8 @@ static void acqCallback(SapXferCallbackInfo *info)
         }
     }
 
+    //double tfwrite = getTime(); /// XXX
+
     buffers->ReleaseAddress((void *)pData); // Need to release it to return it to the hardware!
     
 
@@ -132,12 +160,18 @@ static void acqCallback(SapXferCallbackInfo *info)
     static int ctr = 0;
     ++ctr;
     ++frameNum;
+    //static double tWriteSum = 0.;
+    //tWriteSum += tfwrite - t0write;
+
     double now = getTime();
     if (frameNum > 1 && now - lastPrt >= 1.0) {
         double rate = 1.0 / ((now - lastPrt)/ctr);
+        /// xxx
         //char tmp[512];
-        //_snprintf_c(tmp, sizeof(tmp), "DEBUG: frame %u - avg.interval %f ms - avg.rate %f FPS", (unsigned)frameNum, 1000.0/rate, rate );
+        //_snprintf_c(tmp, sizeof(tmp), "DEBUG: frame %u - avg.twrite: %2.6f ms (avg of %d frames)", (unsigned)frameNum, tWriteSum/double(ctr) * 1e3, ctr);
         //spikeGL->pushConsoleDebug(tmp);
+        //tWriteSum = 0.;
+        /// /XXX
         lastPrt = now;
         ctr = 0;
         XtCmdFPS fps;
