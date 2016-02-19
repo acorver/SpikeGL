@@ -2385,7 +2385,6 @@ void MainApp::gotFirstScan()
 }
 
 bool MainApp::isSaving() const {
-	QMutexLocker ml (&mut);
     return dataFile.isOpen();
 }
 
@@ -2792,6 +2791,7 @@ DataFile_Fn_Shm::~DataFile_Fn_Shm()
 
 bool DataFile_Fn_Shm::openForWrite(const DAQ::Params & params, const QString & filename_override)
 {
+    QMutexLocker ml(&mut);
 	bool ret = DataFile::openForWrite(params, filename_override);
 	if (hMapFile && pBuf) {
 		QString fn = fileName();
@@ -2804,6 +2804,7 @@ bool DataFile_Fn_Shm::openForWrite(const DAQ::Params & params, const QString & f
 
 bool DataFile_Fn_Shm::closeAndFinalize()
 {
+    QMutexLocker ml(&mut);
 	bool ret = DataFile::closeAndFinalize();
 	if (hMapFile && pBuf) {
 		CopyMemory((PVOID)pBuf, (PVOID)"", 1); // null string..

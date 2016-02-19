@@ -10,6 +10,7 @@
 #include "SampleBufQ.h"
 #include <QMessageBox>
 #include <QTextStream>
+#include <QMutexLocker>
 
 class DFWriteThread : public QThread, public SampleBufQ
 {
@@ -56,7 +57,7 @@ static QString metaFileForFileName(const QString &fname)
  }
  
 DataFile::DataFile()
-    : mode(Undefined), scanCt(0), nChans(0), sRate(0), writeRateAvg_for_ui(0), writeRateAvg(0.), nWritesAvg(0), nWritesAvgMax(1), dfwt(0)
+    : mut(QMutex::Recursive), mode(Undefined), scanCt(0), nChans(0), sRate(0), writeRateAvg_for_ui(0), writeRateAvg(0.), nWritesAvg(0), nWritesAvgMax(1), dfwt(0)
 {
 }
 
@@ -66,6 +67,8 @@ DataFile::~DataFile() {
 
 bool DataFile::closeAndFinalize() 
 {
+    QMutexLocker ml(&mut);
+
     if (!isOpen()) return false;
 	if (mode == Input) {
 		dataFile.close();
@@ -106,6 +109,8 @@ bool DataFile::closeAndFinalize()
 
 bool DataFile::writeScans(const int16 *scans, unsigned nScans)
 {
+    QMutexLocker ml(&mut);
+
     if (!isOpen()) return false;
     if (!nScans) return true; // for now, we allow empty writes!
     if (scanCt == 0) {
@@ -129,6 +134,7 @@ bool DataFile::writeScans(const int16 *scans, unsigned nScans)
 
 bool DataFile::writeScans(const std::vector<int16> & scans, bool asynch, unsigned threaded_queueSize)
 {
+    QMutexLocker ml(&mut);
     if (!isOpen()) return false;
     if (!scans.size()) return true; // for now, we allow empty writes!
     if (scans.size() % nChans) {
@@ -151,8 +157,11 @@ bool DataFile::writeScans(const std::vector<int16> & scans, bool asynch, unsigne
 	
 	scanCt += scans.size()/nChans;
 
-	if (asynch) {
-		if (!dfwt) {
+    if (asynch) {
+        (void)threaded_queueSize;
+        Error() << "INTERNAL ERROR: DataFile `asynch'' writeScans mode is no longer supported! Fix the caller!";
+        return false;
+        /*if (!dfwt) {
             if (threaded_queueSize == 0) threaded_queueSize = SAMPLE_BUF_Q_SIZE;
             dfwt = new DFWriteThread(this, threaded_queueSize);
 			dfwt->start();
@@ -161,7 +170,7 @@ bool DataFile::writeScans(const std::vector<int16> & scans, bool asynch, unsigne
 		scansCopy.reserve(scans.size());
 		scansCopy.insert(scansCopy.begin(), scans.begin(), scans.end());
 		dfwt->enqueueBuffer(scansCopy, 0);
-		return dfwt->dataQueueSize() < dfwt->dataQueueMaxSize;
+        return dfwt->dataQueueSize() < dfwt->dataQueueMaxSize;*/
 	} else if (dfwt) { // !asynch but we have a dfwt!! wtf?!
 		Error() << "INTERNAL: Previous call to DataFile::writeScans() was asynch, now we are synch! This is unsupported! FIXME!";
 		delete dfwt;
@@ -183,7 +192,7 @@ bool DataFile::doFileWrite(const std::vector<int16> & scans)
 }
 
 bool DataFile::doFileWrite(const int16 *scans, unsigned nScans)
-{
+{    
     const int n2Write = nScans*numChans()*sizeof(int16);
 	
 	double tWrite = getTime();
@@ -219,6 +228,7 @@ bool DataFile::doFileWrite(const int16 *scans, unsigned nScans)
 	return true;
 }
 
+// not threadsafe
 bool DataFile::openForReWrite(const DataFile & other, const QString & filename, const QVector<unsigned> & chanNumSubset)
 {
 	if (!other.isOpenForRead()) {
@@ -287,8 +297,11 @@ bool DataFile::openForReWrite(const DataFile & other, const QString & filename, 
 	return true;
 }
 
+/// threadsafe
 bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_override) 
 {
+    QMutexLocker ml(&mut);
+
 	const int nOnChans = dp.demuxedBitMap.count(true);
     if (!dp.aiChannels.size() || !nOnChans) {
         Error() << "DataFile::openForWrite Error cannot open a datafile with scansize of 0!";
@@ -403,12 +416,12 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     return true;
 }
 
-/// param management
+/// param management -- not threadsafe
 void DataFile::setParam(const QString & name, const QVariant & value)
 {
     params[name] = value;
 }
-/// param management
+/// param management -- not threadsafe
 const QVariant & DataFile::getParam(const QString & name) const
 {
     Params::const_iterator it = params.find(name);
@@ -463,6 +476,7 @@ const QVariant & DataFile::getParam(const QString & name) const
 	return true;
 }
 
+/// not threadsafe
 bool DataFile::openForRead(const QString & file_in) 
 {
 	QString file(file_in);
@@ -553,6 +567,7 @@ bool DataFile::openForRead(const QString & file_in)
 	return true;
 }
 
+/// not threadsafe
 i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, const QBitArray & channelSubset, unsigned downSampleFactor)
 {
 	if (pos > scanCt) return -1;
@@ -705,6 +720,9 @@ DFWriteThread::~DFWriteThread()
 
 void DFWriteThread::run()
 {
+    Error() << "DFWriteThread is no longer supported, but was created in SpikeGL!  FIXME!";
+    return;
+/*
     unsigned bufct = 0, noDataCt = 0;
 	u64 bytect = 0;
     Debug() << "DFWriteThread started for " << d->fileName() << "  with queueSize " << dataQueueMaxSize << "...";
@@ -720,6 +738,7 @@ void DFWriteThread::run()
         if (++noDataCt > 10000) msleep(1);
 	}
 	Debug() << "DFWriteThread stopped after writing " << bufct << " buffers (" << bytect << " bytes in " << d->scanCount() << " scans).";
+*/
 }
 
 bool DFWriteThread::write(const std::vector<int16> & scans)

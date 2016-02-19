@@ -1,14 +1,14 @@
+#ifndef DataFile_H
+#define DataFile_H
 #include <QString>
 #include <QFile>
 #include <QPair>
-#include <QMutex>
 #include <QList>
 #include <QVector>
 #include <QMutexLocker>
+#include <QMutex>
 #include "TypeDefs.h"
 #include "Params.h"
-#ifndef DataFile_H
-#define DataFile_H
 
 #include "sha1.h"
 #include "DAQ.h"
@@ -30,24 +30,27 @@ public:
 	    NULL, optionally sets *error to an appropriate error message. */
 	static bool isValidInputFile(const QString & filename, QString * error = 0);
 	
+    /// this function is threadsafe
     bool openForWrite(const DAQ::Params & params, const QString & filename_override = "");
 	
 	/** Normally you won't use this method.  This is used by the FileViewerWindow export code to reopen a new file for output
 	    based on a previous input file.  It computes the channel subset and other parameters correctly from the input file.
 	    The passed-in chanNumSubset is a subset of channel indices (not chan id's!) to use in the export.  So if the 
 	    channel id's you are reading in are 0,1,2,3,6,7,8 and you want to export the last 3 of these using openForRewrite, you would 
-	    pass in [4,5,6] (not [6,7,8]) as the chanNumSubset. */
+        pass in [4,5,6] (not [6,7,8]) as the chanNumSubset.
+        Note: this function is not threadsafe as it was written to be used in unthreaded code. */
 	bool openForReWrite(const DataFile & other, const QString & filename, const QVector<unsigned> & chanNumSubset);
 
 	/** Returns true if binFileName was successfully opened, false otherwise. If 
-	    opened, puts this instance into Input mode. */
+        opened, puts this instance into Input mode.
+        Note: this function is not threadsafe as it was never intended to be called by threaded code. */
 	bool openForRead(const QString & binFileName);
 
-    bool isOpen() const { return dataFile.isOpen() && metaFile.isOpen(); }
-	bool isOpenForRead() const { return isOpen() && mode == Input; }
-	bool isOpenForWrite() const { return isOpen() && mode == Output; }
-    QString fileName() const { return dataFile.fileName(); }
-    QString metaFileName() const { return metaFile.fileName(); }
+    bool isOpen() const { QMutexLocker ml(&mut); return dataFile.isOpen() && metaFile.isOpen(); }
+    bool isOpenForRead() const { QMutexLocker ml(&mut); return isOpen() && mode == Input; }
+    bool isOpenForWrite() const { QMutexLocker ml(&mut); return isOpen() && mode == Output; }
+    QString fileName() const { QMutexLocker ml(&mut); return dataFile.fileName(); }
+    QString metaFileName() const { QMutexLocker ml(&mut); return metaFile.fileName(); }
 
     /// param management
     void setParam(const QString & name, const QVariant & value);
@@ -89,9 +92,12 @@ public:
 		NB: Note that return value is normally num2read / downSampleFactor. 
 	    NB 2: Short reads are supported -- that is, if pos + num2read is past 
 	    the end of file, the number of scans available is read instead.  
-	    The return value will reflect this.	 */
+        The return value will reflect this.
+        Note: this function is not threadsafe as it was never intended to be called by threaded code. */
 	i64 readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, const QBitArray & channelSubset = QBitArray(), unsigned downSampleFactor = 1);
 	
+    // all below functions are not threadsafe.. they are not called by anything other than the main thread typically, or if they are.
+    // they use volatile ints and such or return 'non-critical' data...
     u64 sampleCount() const { return scanCt*(u64)nChans; }
     u64 scanCount() const { return scanCt; }
     unsigned numChans() const { return nChans; }
@@ -120,6 +126,7 @@ public:
 	/// acquisition device.  Note that acquisitions using this method will produce LOTS of comments in the 
 	/// meta file, because they record the word error rate, bit error rate, and avg voltage per "block"
 	/// of data
+    /// NOT THREADSAFE
 	void writeCommentToMetaFile(const QString & comment, bool prepend_hash_symbol = true);
 	
     /// STATIC METHODS
@@ -128,7 +135,9 @@ public:
 protected:
 	bool doFileWrite(const std::vector<int16> & scans);
     bool doFileWrite(const int16 *scans, unsigned nScans);
-	
+
+    mutable QMutex mut;
+
 private:
     
 	enum { Undefined, Input, Output } mode;
@@ -136,7 +145,7 @@ private:
 	/// member vars used for Input and Output mode
     QFile dataFile, metaFile;
     Params params;
-    u64 scanCt;
+    volatile u64 scanCt;
     int nChans;
     double sRate;
 
