@@ -97,7 +97,7 @@ void GLGraph::resizeGL(int w, int h)
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glViewport(0, 0, w, h);
-#ifdef WIN64
+#ifdef Q_OS_WIN
     glOrtho( 0., 1., -1., 1., -1., 1.);
 #else
     gluOrtho2D( 0., 1., -1., 1.);

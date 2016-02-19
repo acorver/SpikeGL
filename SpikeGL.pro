@@ -49,7 +49,7 @@ QT += opengl network svg
 RESOURCES += qled.qrc bug3.qrc framegrabber.qrc
 
 win32 {
-        LIBS += $${PWD}/NI/NIDAQmx.lib WS2_32.lib DelayImp.lib Psapi.lib
+        LIBS += $${PWD}/NI/NIDAQmx.lib WS2_32.lib DelayImp.lib Psapi.lib opengl32.lib
         DEFINES += HAVE_NIDAQmx _CRT_SECURE_NO_WARNINGS WIN32 PSAPI_VERSION=1
         RESOURCES += Resources.qrc
         RC_FILE += WinResources.rc
@@ -65,7 +65,7 @@ win32 {
 contains(QMAKE_TARGET.arch, x86_64) {
     DEFINES += WIN64
     LIBS -= $${PWD}/NI/NIDAQmx.lib
-    LIBS += $${PWD}/NI/x64/NIDAQmx.lib opengl32.lib
+    LIBS += $${PWD}/NI/x64/NIDAQmx.lib
     QMAKE_CFLAGS_RELEASE -= -arch:SSE2
     QMAKE_CXXFLAGS_RELEASE -= -arch:SSE2
 }
