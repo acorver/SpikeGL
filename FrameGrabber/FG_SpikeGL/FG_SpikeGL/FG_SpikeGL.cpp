@@ -212,6 +212,20 @@ static void sapStatusCallback(SapManCallbackInfo *p)
     }
 }
 
+// Resets server.. as per Jim Chen's recommendation 2/18/2016 email
+static void resetHardware(int serverIndex, int timeout_ms = 3500 /* default 3.5 sec reset timeout */)
+{    
+    char tmp[512];
+    SapManager::SetResetTimeout(timeout_ms); 
+    if (!SapManager::ResetServer(serverIndex, 1)) {
+        _snprintf_c(tmp, sizeof(tmp), "Reset hardware device %d: FAIL (Sapera Error: '%s')", serverIndex, SapManager::GetLastStatus());
+        spikeGL->pushConsoleWarning(tmp);
+    } else {
+        _snprintf_c(tmp, sizeof(tmp), "Reset hardware device %d: success", serverIndex);
+        spikeGL->pushConsoleMsg(tmp);
+    }
+}
+
 static bool setupAndStartAcq()
 {
     SapManager::SetDisplayStatusMode(SapManager::StatusCallback, sapStatusCallback, 0); // so we get errors reported properly from SAP
@@ -256,11 +270,11 @@ static bool setupAndStartAcq()
     if (resourceIndex < 0) resourceIndex = 0;
 
     char acqServerName[128], acqResName[128];
+    char tmp[512];
 
     SapLocation loc(serverIndex, resourceIndex);
     SapManager::GetServerName(serverIndex, acqServerName, sizeof(acqServerName));
     SapManager::GetResourceName(loc, SapManager::ResourceAcq, acqResName, sizeof(acqResName));
-    char tmp[512];
     _snprintf_c(tmp, sizeof(tmp), "Server name: %s   Resource name: %s  ConfigFile: %s", acqServerName, acqResName, configFilename.c_str());
     spikeGL->pushConsoleDebug(tmp);
 
@@ -282,7 +296,7 @@ static bool setupAndStartAcq()
             return false;
         }
     } else  {
-        spikeGL->pushConsoleError("GetResrouceCount() returned <= 0");
+        spikeGL->pushConsoleError("GetResourceCount() returned <= 0");
         freeSapHandles();
         return false;
     }
@@ -479,7 +493,7 @@ static void probeHardware()
     if (spikeGL) spikeGL->pushConsoleDebug(buf);
     else fprintf(stderr, "%s\n", buf);
     for (int i = 0; i < nServers; ++i) {
-        //SapManager::ResetServer(i, 1, 0, 0);
+        resetHardware(i);
         int nRes;
         if ((nRes = SapManager::GetResourceCount(i, SapManager::ResourceAcq)) > 0) {
             char sname[64]; int type; BOOL accessible = SapManager::IsServerAccessible(i);

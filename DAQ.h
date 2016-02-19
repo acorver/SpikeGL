@@ -541,6 +541,7 @@ namespace DAQ
         void setupRegsClicked();
         void contAdcClicked();
         void grabFramesClicked();
+        void stopGrabClicked();
         void appendTE(const QString &s, const QColor & color = QColor(Qt::black));
         void updateClkSignals(int param);
         void updateFPS(int fps);

@@ -2118,10 +2118,12 @@ namespace DAQ
             dialogW = new QDialog(0,Qt::CustomizeWindowHint|Qt::Dialog|Qt::WindowTitleHint);
             dialog = new Ui::FG_Controls;
             dialog->setupUi(dialogW);
+            dialog->stopGrabBut->hide();
             Connect(dialog->calibAdcBut, SIGNAL(clicked()), this, SLOT(calibClicked()));
             Connect(dialog->setupRegsBut, SIGNAL(clicked()), this, SLOT(setupRegsClicked()));
             Connect(dialog->contAdcBut, SIGNAL(clicked()), this, SLOT(contAdcClicked()));
             Connect(dialog->grabFramesBut, SIGNAL(clicked()), this, SLOT(grabFramesClicked()));
+            Connect(dialog->stopGrabBut, SIGNAL(clicked()), this, SLOT(stopGrabClicked()));
             Connect(this, SIGNAL(gotMsg(QString,QColor)), this, SLOT(appendTE(QString,QColor)));
             Connect(this, SIGNAL(gotClkSignals(int)), this, SLOT(updateClkSignals(int)));
             Connect(this, SIGNAL(gotFPS(int)), this, SLOT(updateFPS(int)));
@@ -2317,6 +2319,13 @@ namespace DAQ
 
     void FGTask::grabFramesClicked() {
         appendTE("Grab frames clicked.", QColor(Qt::gray));
+        dialog->grabFramesBut->hide();
+        dialog->stopGrabBut->show();
+
+        // as per Jim's email 2/18/2016
+        XtCmdFPGAProto f;
+        f.init(7,0,0);
+        pushCmd(f);
 
         // grab frames.. does stuff with Sapera API in the slave process
         XtCmdGrabFrames x;
@@ -2325,6 +2334,17 @@ namespace DAQ
         else
             x.init(SAMPLES_SHM_NAME, writer.totalSize(), writer.pageSize(), "J_2000+_Electrode_8tap_8bit.ccf", 144, 32, NumChans);
         pushCmd(x);
+    }
+
+    void FGTask::stopGrabClicked() {
+        appendTE("Stop grab clicked.", QColor(Qt::gray));
+        dialog->grabFramesBut->show();
+        dialog->stopGrabBut->hide();
+
+        // as per Jim's email 2/18/2016
+        XtCmdFPGAProto f;
+        f.init(8,0,0);
+        pushCmd(f);
     }
 
     /* static */
