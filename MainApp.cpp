@@ -446,8 +446,13 @@ void MainApp::loadSettings()
     }
     {
         BufSizesParams & p (bufSizesParams);
+#ifdef WIN64
+        p.regularMB = settings.value("BufSize_RegularAcq_MBx64", unsigned(DEF_SAMPLES_SHM_SIZE_REG)/(1024U*1024U)).toUInt();
+        p.fgShmMB = settings.value("BufSize_FGAcq_MBx64", unsigned(DEF_SAMPLES_SHM_SIZE_FG)/(1024U*1024U)).toUInt();
+#else
         p.regularMB = settings.value("BufSize_RegularAcq_MB", unsigned(DEF_SAMPLES_SHM_SIZE_REG)/(1024U*1024U)).toUInt();
         p.fgShmMB = settings.value("BufSize_FGAcq_MB", unsigned(DEF_SAMPLES_SHM_SIZE_FG)/(1024U*1024U)).toUInt();
+#endif
     }
 }
 
@@ -485,8 +490,13 @@ void MainApp::saveSettings()
     }    
     {
         BufSizesParams & p (bufSizesParams);
+#ifdef WIN64
+        settings.setValue("BufSize_RegularAcq_MBx64", p.regularMB);
+        settings.setValue("BufSize_FGAcq_MBx64", p.fgShmMB);
+#else
         settings.setValue("BufSize_RegularAcq_MB", p.regularMB);
         settings.setValue("BufSize_FGAcq_MB", p.fgShmMB);
+#endif
     }
 }
 
