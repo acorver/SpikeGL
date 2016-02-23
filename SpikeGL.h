@@ -35,7 +35,7 @@
 #define DEF_SAMPLES_SHM_SIZE_FG (1024ULL*1024ULL*2000ULL) /* 2GB samples shm/buffer size */
 #define DEF_SAMPLES_SHM_SIZE_REG (1024ULL*1024ULL*384ULL) /* 384 MB samples shm/buffer size */
 #else
-#define DEF_SAMPLES_SHM_SIZE (1024*1024*384) /* 384 MB samples shm/buffer size */
+#define DEF_SAMPLES_SHM_SIZE_FG (1024*1024*384) /* 384 MB samples shm/buffer size */
 #define DEF_SAMPLES_SHM_SIZE_REG (1024*1024*384) /* 384 MB samples shm/buffer size */
 #endif
 #define SAMPLES_SHM_DESIRED_PAGETIME_MS (33) /* 33 ms  */
