@@ -87,7 +87,7 @@ namespace {
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
-    : QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), graphsWindow(0), spatialWindow(0), bugWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), doBugAcqInstead(false)
+    : QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), graphsWindow(0), spatialWindow(0), bugWindow(0), fgWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), doBugAcqInstead(false)
 {
     reader = 0;
     gthread = 0;
@@ -256,7 +256,7 @@ bool MainApp::isShiftPressed()
 }
 
 bool MainApp::processKey(QKeyEvent *event) 
-{
+{        
     switch (event->key()) {
     case 'd':
     case 'D':
@@ -267,30 +267,44 @@ bool MainApp::processKey(QKeyEvent *event)
         return true;
     case 'c':
     case 'C':
+        if (event->modifiers()) // trap for hotkey if no ctrl of shift pressed unmodified.
+            return false;
         hideUnhideConsoleAct->trigger();
         return true;
     case 'g':
     case 'G':
+        if (event->modifiers()) // trap for hotkey if no ctrl of shift pressed unmodified.
+            return false;
         hideUnhideGraphsAct->trigger();
         return true;
 	case 'n':
 	case 'N':
-		newAcqAct->trigger();
+        if (event->modifiers()) // trap for hotkey if no ctrl of shift pressed unmodified.
+            return false;
+        newAcqAct->trigger();
 		return true;
 	case 'b':
 	case 'B':
-		bugAcqAct->trigger();
+        if (event->modifiers()) // trap for hotkey if no ctrl of shift pressed unmodified.
+            return false;
+        bugAcqAct->trigger();
 		return true;
 	case 'f':
 	case 'F':
-		fgAcqAct->trigger();
+        if (event->modifiers()) // trap for hotkey if no ctrl of shift pressed unmodified.
+            return false;
+        fgAcqAct->trigger();
 		return true;
 	case 'o':
 	case 'O':
-		fileOpenAct->trigger();
+        if (event->modifiers()) // trap for hotkey if no ctrl of shift pressed unmodified.
+            return false;
+        fileOpenAct->trigger();
 		return true;
 	case Qt::Key_Escape:
-		stopAcq->trigger();
+        if (event->modifiers()) // trap for hotkey if no ctrl of shift pressed unmodified.
+            return false;
+        stopAcq->trigger();
 		return true;
     }
 
@@ -307,7 +321,7 @@ bool MainApp::eventFilter(QObject *watched, QEvent *event)
         if (k && !noHotKeys 
             && watched != helpWindow && (!helpWindow || !Util::objectHasAncestor(watched, helpWindow)) 
             && watched != par2Win && (!par2Win || !Util::objectHasAncestor(watched, par2Win)) 
-            && (watched == graphsWindow || watched == consoleWindow || (spatialWindow && watched == spatialWindow) || (bugWindow && watched == bugWindow) || watched == consoleWindow->textEdit() || ((!graphsWindow || watched != graphsWindow->saveFileLineEdit()) && Util::objectHasAncestor(watched, graphsWindow)))) {
+            && (watched == graphsWindow || watched == consoleWindow || (spatialWindow && watched == spatialWindow) || (bugWindow && watched == bugWindow) || (fgWindow && watched == fgWindow) || watched == consoleWindow->textEdit() || ((!graphsWindow || watched != graphsWindow->saveFileLineEdit()) && Util::objectHasAncestor(watched, graphsWindow)))) {
             if (processKey(k)) {
                 event->accept();
                 return true;
@@ -730,6 +744,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         errMsg = "The acquisition is already running.  Please stop it first.";
         return false;
     }
+    fgWindow = 0;
     scanCt = 0;
     scanSkipCt = 0;
     lastScanSz = 0;
@@ -939,6 +954,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         task = bugtask = new DAQ::BugTask(params, this, *reader);
     } else if (doFGAcqInstead) {
         task = fgtask = new DAQ::FGTask(params, this, *reader);
+        fgWindow = fgtask->dialogW;
     }
     Debug() << "SamplesSHM Page Size: " << reader->pageSize() << " bytes (" << reader->scansPerPage() << " scans per page), " << reader->nPages() << " total pages";
 
@@ -1089,6 +1105,7 @@ void MainApp::stopTask()
 	
     if (!task) return;
     if (task->isRunning()) task->stop();
+    if (gthread) delete gthread, gthread = 0;
     if (dthread) {
         QMessageBox *mb = 0;
         if ((reader->latest() - reader->latestPageRead()) * SAMPLES_SHM_DESIRED_PAGETIME_MS > 500) {
@@ -1111,7 +1128,7 @@ void MainApp::stopTask()
 	doBugAcqInstead = false;
 	doFGAcqInstead = false;
     fastSettleRunning = false;
-    if (gthread) delete gthread, gthread = 0;
+    fgWindow = 0;
 
     // . <--- at this point there is no more threading going on, everything is on main thread.
 

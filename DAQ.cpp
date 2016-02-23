@@ -2131,6 +2131,8 @@ namespace DAQ
             Connect(this, SIGNAL(justStarted()), this, SLOT(openComPort()));
             dialogW->show();
             mainApp()->windowMenuAdd(dialogW);
+            dialogW->setAttribute(Qt::WA_DeleteOnClose, false);
+            dialogW->installEventFilter(mainApp());
         }
     }
 

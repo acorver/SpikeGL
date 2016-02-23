@@ -367,7 +367,7 @@ private:
     std::vector<int16> lastNPDSamples;
     GraphsWindow *graphsWindow;
 	SpatialVisWindow *spatialWindow;
-	Bug_Popout *bugWindow;
+    Bug_Popout *bugWindow;  QDialog *fgWindow;
     Par2Window *par2Win;
     StimGL_SpikeGL_Integration::NotifyServer *notifyServer;
     CommandServer *commandServer;
