@@ -45,6 +45,8 @@ ConsoleWindow::ConsoleWindow(QWidget *p, Qt::WindowFlags f)
     m->addAction(app->enableDSFacilityAct);
 	m->addAction(app->tempFileSizeAct);
 	m->addAction(app->sortGraphsByElectrodeAct);
+    m->addAction(app->bufferSizesDialogAct);
+
 	m = mb->addMenu("&Tools");
     m->addAction(app->verifySha1Act);
     m->addAction(app->par2Act);

@@ -48,6 +48,7 @@
 #include "Bug_ConfigDialog.h"
 #include "Bug_Popout.h"
 #include "FG_ConfigDialog.h"
+#include "ui_SampleBuf_Dialog.h"
 
 Q_DECLARE_METATYPE(unsigned);
 
@@ -443,6 +444,11 @@ void MainApp::loadSettings()
         p.timeout_ms = settings.value("CmdSrvr_TimeoutMS", DEFAULT_COMMAND_TIMEOUT_MS).toInt();
         p.enabled = settings.value("CmdSrvr_Enabled", true).toBool();
     }
+    {
+        BufSizesParams & p (bufSizesParams);
+        p.regularMB = settings.value("BufSize_RegularAcq_MB", unsigned(DEF_SAMPLES_SHM_SIZE_REG)/(1024U*1024U)).toUInt();
+        p.fgShmMB = settings.value("BufSize_FGAcq_MB", unsigned(DEF_SAMPLES_SHM_SIZE_FG)/(1024U*1024U)).toUInt();
+    }
 }
 
 void MainApp::saveSettings()
@@ -476,6 +482,11 @@ void MainApp::saveSettings()
         settings.setValue("CmdSrvr_Port",  p.port);
         settings.setValue("CmdSrvr_TimeoutMS", p.timeout_ms); 
         settings.setValue("CmdSrvr_Enabled", p.enabled); 
+    }    
+    {
+        BufSizesParams & p (bufSizesParams);
+        settings.setValue("BufSize_RegularAcq_MB", p.regularMB);
+        settings.setValue("BufSize_FGAcq_MB", p.fgShmMB);
     }
 }
 
@@ -713,8 +724,10 @@ void MainApp::initActions()
 
 	Connect( tempFileSizeAct = new QAction("Matlab Data API Tempfile...", this),
              SIGNAL(triggered()), this, SLOT(execDSTempFileDialog()) );
+    tempFileSizeAct->setEnabled(isDSFacilityEnabled());
 
-	tempFileSizeAct->setEnabled(isDSFacilityEnabled());
+    Connect( bufferSizesDialogAct = new QAction("Specify Realtime Buffer Sizes...", this),
+             SIGNAL(triggered()), this, SLOT(execBufferSizesDialog()) );
 	
 	Connect( fileOpenAct = new QAction("Open... &O", this), SIGNAL(triggered()), this, SLOT(fileOpen())); 
 	
@@ -773,7 +786,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     if (samplesBuffer && need2FreeSamplesBuffer)  free(samplesBuffer);
     samplesBuffer = 0; need2FreeSamplesBuffer = false;
 
-    const int shmSizeMB = SAMPLES_SHM_SIZE/(1024*1024);
+    const int shmSizeMB = doFGAcqInstead ? bufSizesParams.fgShmMB : bufSizesParams.regularMB;
+    const long shmSizeBytes = long(shmSizeMB)*1024L*1024L;
 
     if (doFGAcqInstead) {
         if (!shm.isAttached()) {
@@ -792,31 +806,31 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
                     return false;
                 }
             }
-            if (!shm.create(SAMPLES_SHM_SIZE)) {
+            if (!shm.create(shmSizeBytes)) {
                 errTitle = "Shared Memory Error";
                 errMsg = QString("Error creating the shared memory segment.\n\nError was: `") + shm.errorString() + "'\n\nSpikeGL requires enough memory to create a buffer of size " + QString::number(shmSizeMB) + " MB.";
                 return false;
             } else {
-                if ( shm.size() < SAMPLES_SHM_SIZE ) {
+                if ( shm.size() < shmSizeBytes ) {
                     shm.detach();
                     errTitle = "Shm Segment Wrong Size";
-                    errMsg = QString("Shm segment attached ok, but it is too small.  Required size: ") + QString::number(SAMPLES_SHM_SIZE) + " Current size: " + QString::number(shm.size());
+                    errMsg = QString("Shm segment attached ok, but it is too small.  Required size: ") + QString::number(shmSizeBytes) + " Current size: " + QString::number(shm.size());
                     return false;
                 } else {
                     Log() << "Successfully created '" << SAMPLES_SHM_NAME <<"' shm segment of size " << QString::number(shmSizeMB) << "MB";
                 }
             }
-        } else if ( shm.size() < SAMPLES_SHM_SIZE ) {
+        } else if ( shm.size() < shmSizeBytes ) {
             shm.detach();
             errTitle = "Shm Segment Wrong Size";
-            errMsg = QString("Shm segment attached ok, but it is too small.  Required size: ") + QString::number(SAMPLES_SHM_SIZE) + " Current size: " + QString::number(shm.size());
+            errMsg = QString("Shm segment attached ok, but it is too small.  Required size: ") + QString::number(shmSizeBytes) + " Current size: " + QString::number(shm.size());
             return false;
         }
         samplesBuffer = shm.data();
         need2FreeSamplesBuffer = false;
     } else { // not framegrabber acq, so don't use  a SHM, instead just malloc the required memory
         need2FreeSamplesBuffer = false;
-        samplesBuffer = malloc(SAMPLES_SHM_SIZE);
+        samplesBuffer = malloc(shmSizeBytes);
         if (!samplesBuffer) {
             errTitle = "Not Enough Memory";
             errMsg = QString("Failed to allocate a sample buffer of size ") + QString::number(shmSizeMB) + " MB.\n\nSpikeGL requires a large sample buffer to avoid potential overruns.  Free up some memory or upgrade your system! ";
@@ -940,7 +954,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         graphsWindow->setTrigOverrideEnabled(false);
 
     if (reader) delete reader, reader = 0;
-    reader = new PagedScanReader(params.nVAIChans, 0, samplesBuffer, SAMPLES_SHM_SIZE, computeSamplesShmPageSize(params.srate,params.nVAIChans,params.lowLatency));
+    reader = new PagedScanReader(params.nVAIChans, 0, samplesBuffer, shmSizeBytes, computeSamplesShmPageSize(params.srate,params.nVAIChans,params.lowLatency));
     reader->bzero();
 
 	DAQ::NITask *nitask = 0;
@@ -950,7 +964,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         task = nitask = new DAQ::NITask(params, this, *reader);
     } else if (doBugAcqInstead) {
         delete reader;  // need to force the page size to something smaller.. for bug's metadata requirements
-        reader = new PagedScanReader(params.nVAIChans, sizeof(DAQ::BugTask::BlockMetaData), samplesBuffer, SAMPLES_SHM_SIZE, DAQ::BugTask::requiredShmPageSize(params.nVAIChans));
+        reader = new PagedScanReader(params.nVAIChans, sizeof(DAQ::BugTask::BlockMetaData), samplesBuffer, shmSizeBytes, DAQ::BugTask::requiredShmPageSize(params.nVAIChans));
         task = bugtask = new DAQ::BugTask(params, this, *reader);
     } else if (doFGAcqInstead) {
         task = fgtask = new DAQ::FGTask(params, this, *reader);
@@ -1152,14 +1166,15 @@ void MainApp::stopTask()
 	stopRecordAtSamp = -1;
     updateWindowTitles();
 	if (acqStartingDialog) delete acqStartingDialog, acqStartingDialog = 0;
+    unsigned long bufSize = reader ? reader->totalSize() : 0;
     if (reader) delete reader, reader = 0;
     if (need2FreeSamplesBuffer && samplesBuffer) {
         free(samplesBuffer);
-        Log() << "Freed `" << SAMPLES_SHM_NAME << "' sample buffer of size " << (SAMPLES_SHM_SIZE/(1024*1024)) << "MB";
+        Log() << "Freed `" << SAMPLES_SHM_NAME << "' sample buffer of size " << (bufSize/(1024*1024)) << "MB";
     }
     if (shm.isAttached()) {
         shm.detach();
-        Log() << "Deleted `" << SAMPLES_SHM_NAME << "' shm of size " << (SAMPLES_SHM_SIZE/(1024*1024)) << "MB";
+        Log() << "Deleted `" << SAMPLES_SHM_NAME << "' shm of size " << (bufSize/(1024*1024)) << "MB";
     }
     samplesBuffer = 0; need2FreeSamplesBuffer = false;
     //Systray() << "Acquisition stopped";
@@ -2209,6 +2224,66 @@ void MainApp::execDSTempFileDialog()
     while (again);
 
 	saveSettings();
+}
+
+void MainApp::execBufferSizesDialog()
+{
+    QDialog bufferSizesDialog(consoleWindow, Qt::Dialog);
+    Ui::SampleBuf_Dialog w;
+    w.setupUi(&bufferSizesDialog);
+    unsigned long mem = static_cast<unsigned long>(getTotalPhysicalMemory() / (1024ULL*1024ULL));
+    loadSettings();
+    BufSizesParams & p(bufSizesParams);
+    w.memLbl->setText(QString::number(mem) + " MB");
+    w.fgShmSB->setValue(p.fgShmMB);
+    w.fgShmSlider->setValue(p.fgShmMB);
+    w.regularSB->setValue(p.regularMB);
+    w.regularSlider->setValue(p.regularMB);
+    int ret = -999;
+    bool again = false;
+    while (ret == -999 || again) {
+        again = false;
+        ret = bufferSizesDialog.exec();
+
+        if (ret == QDialog::Accepted) {
+            unsigned long fval = (unsigned long)w.fgShmSB->value(), rval = (unsigned long)w.regularSB->value();
+            if (rval >= mem || fval >= mem) {
+                QMessageBox::critical(consoleWindow, "Buffers Too Large", "Specified buffer sizes exceed physical memory! Go back and try again!",QMessageBox::Ok);
+                again = true;
+                continue;
+            }
+            if (rval >= mem/2 || fval >= mem/2) {
+                int r = QMessageBox::warning(consoleWindow, "Are You Sure?", "One of the specified buffers would exceed 1/2 of physical memory!\n\nContinue anyway?", QMessageBox::Yes, QMessageBox::Cancel);
+                if (r == QMessageBox::Cancel) {
+                    again = true;
+                    continue;
+                }
+                again = false;
+            }
+            if (rval > 2047 || fval > 2047) {
+                QMessageBox::warning(consoleWindow,"Unsupported Size", "At present, only buffers of up to 2047 MB are supported due to limitations in Qt's QSharedMemory class.\n\nPlease try again.", QMessageBox::Ok);
+                again = true;
+                continue;
+            }
+            if (!fval || !rval) {
+                QMessageBox::warning(consoleWindow,"Invalid Size", "Buffer size cannot be 0 MB!\n\nPlease try again.", QMessageBox::Ok);
+                again = true;
+                continue;
+            }
+            if (fval < 64) {
+                QMessageBox::warning(consoleWindow,"Invalid Size", "Framegrabber buffer needs to be at least 64MB (and even that's tiny) to prevent dropped frames!\n\nPlease try again.", QMessageBox::Ok);
+                again = true;
+                continue;
+            }
+
+            /// else.. all good
+            p.fgShmMB = fval;
+            p.regularMB = rval;
+            saveSettings();
+            Log() << "User configued realtime sample buffer sizes as: NI/Bug=" << rval << " MB, FGShm=" << fval << " MB.";
+            return;
+        }
+    }
 }
 
 bool MainApp::setupStimGLIntegration(bool doQuitOnFail)

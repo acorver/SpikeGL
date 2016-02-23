@@ -42,7 +42,7 @@ FORMS += ConfigureDialog.ui AcqPDParams.ui AcqTimedParams.ui Par2Window.ui \
          ApplyDialog.ui TextBrowser.ui CommandServerOptions.ui \
          TempFileDialog.ui ExportDialog.ui FVW_OptionsDialog.ui \
          Bug_ConfigDialog.ui Bug_Popout.ui FG_ConfigDialog.ui \
-         FG_Controls.ui
+         FG_Controls.ui SampleBuf_Dialog.ui
 
 QT += opengl network svg
 
@@ -70,7 +70,7 @@ win32 {
         }
 
         greaterThan(QT_MAJOR_VERSION, 4) {
-            LIBS += opengl32.lib GDI32.lib GLU32.lib user32.lib
+            LIBS += opengl32.lib GDI32.lib GLU32.lib user32.lib kernel32.lib
 #            QMAKE_LFLAGS += /VERBOSE:LIB
         }
 

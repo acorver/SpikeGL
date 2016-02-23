@@ -571,3 +571,23 @@ int killAllInstances(const char *nam)
 }
 }
 #endif
+
+namespace Util {
+#ifdef Q_OS_WIN
+    quint64 getTotalPhysicalMemory() {
+        MEMORYSTATUSEX m;
+        memset(&m, 0, sizeof(m));
+        m.dwLength = sizeof(m);
+        if (!GlobalMemoryStatusEx(&m)) {
+            Error() << "Unable to determine physical memory of machine.  GlobalMemoryStatusEx() returned error: " << GetLastError();
+            return 8192ULL*1024ULL*1024ULL;
+        }
+        return m.ullTotalPhys;
+    }
+#else
+    quint64 getTotalPhysicalMemory() {
+        Warning() << "Platform getTotalPhysicalMemory() call unimplemented in osdep.cpp. Will simply always return 8GB.";
+        return 8192ULL*1024ULL*1024ULL;
+    }
+#endif
+}

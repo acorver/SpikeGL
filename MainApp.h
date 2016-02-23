@@ -257,6 +257,7 @@ protected slots:
     void execStimGLIntegrationDialog();    
     void execCommandServerOptionsDialog();
 	void execDSTempFileDialog();
+    void execBufferSizesDialog();
 
     void stimGL_PluginStarted(const QString &, const QMap<QString, QVariant>  &);
     void stimGL_SaveParams(const QString & unused, const QMap<QString, QVariant> & pm);
@@ -349,6 +350,11 @@ private:
         bool enabled;
     } commandServerParams;
     
+    struct BufSizesParams {
+        unsigned int regularMB; ///< how many megabytes to use in sample buffer for regular acquisitions (NI and Bug)
+        unsigned int fgShmMB; ///< how many megabytes to use in the Framegrabbet task shared memory structure for sample data
+    } bufSizesParams;
+
 #ifndef Q_OS_WIN
     unsigned refresh;
 #endif
@@ -442,7 +448,7 @@ public:
         *quitAct, *toggleDebugAct, *toggleExcessiveDebugAct, *chooseOutputDirAct, *hideUnhideConsoleAct, 
         *hideUnhideGraphsAct, *aboutAct, *aboutQtAct, *newAcqAct, *stopAcq, *verifySha1Act, *par2Act, *stimGLIntOptionsAct, *aoPassthruAct, *helpAct, *commandServerOptionsAct,
 		*showChannelSaveCBAct, *enableDSFacilityAct, *fileOpenAct, *tempFileSizeAct, *bringAllToFrontAct,
-        *sortGraphsByElectrodeAct, *bugAcqAct, *fgAcqAct;
+        *sortGraphsByElectrodeAct, *bugAcqAct, *fgAcqAct, *bufferSizesDialogAct;
 
 /// Appliction icon! Made public.. why the hell not?
     QIcon appIcon, bugIcon;

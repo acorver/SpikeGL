@@ -80,6 +80,10 @@ namespace Util
 /// returns the number of real CPUs (cores) on the system
  unsigned getNProcessors(); 
 
+ /// returns the total amount of physical memory, in bytes, of the system.  Only returns a real value
+ /// on Windows.  On other platforms, always returns 8GB.
+ quint64 getTotalPhysicalMemory();
+
 /// returns the PID of the current process.
 extern unsigned getPid();
 
