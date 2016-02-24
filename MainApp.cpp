@@ -796,7 +796,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     if (samplesBuffer && need2FreeSamplesBuffer)  free(samplesBuffer);
     samplesBuffer = 0; need2FreeSamplesBuffer = false;
 
-    const int shmSizeMB = doFGAcqInstead ? bufSizesParams.fgShmMB : bufSizesParams.regularMB;
+    int shmSizeMB = doFGAcqInstead ? bufSizesParams.fgShmMB : bufSizesParams.regularMB;
+    if (sizeof(void *) <= 4 && shmSizeMB > 2047) shmSizeMB = 2047;
     const long shmSizeBytes = long(shmSizeMB)*1024L*1024L;
 
     if (doFGAcqInstead) {
@@ -2241,14 +2242,20 @@ void MainApp::execBufferSizesDialog()
     QDialog bufferSizesDialog(consoleWindow, Qt::Dialog);
     Ui::SampleBuf_Dialog w;
     w.setupUi(&bufferSizesDialog);
-    unsigned long mem = static_cast<unsigned long>(getTotalPhysicalMemory() / (1024ULL*1024ULL));
+    const unsigned long mem = static_cast<unsigned long>(getTotalPhysicalMemory() / (1024ULL*1024ULL));
     loadSettings();
+    unsigned long max = mem;
+    if (sizeof(void *) <= 4 && max > 2047) max = 2047;
     BufSizesParams & p(bufSizesParams);
+    if (mem > 64) {
+        w.fgShmSB->setMinimum(1); w.fgShmSB->setMaximum(max); w.fgShmSlider->setMinimum(1); w.fgShmSlider->setMaximum(max); w.fgShmSlider->setTickInterval(max/100 > 4 ? max/100 : 1);
+        w.regularSB->setMinimum(1); w.regularSB->setMaximum(max); w.regularSlider->setMinimum(1); w.regularSlider->setMaximum(max); w.regularSlider->setTickInterval(max/100 > 4 ? max/100 : 1);
+    }
     w.memLbl->setText(QString::number(mem) + " MB");
-    w.fgShmSB->setValue(p.fgShmMB);
-    w.fgShmSlider->setValue(p.fgShmMB);
-    w.regularSB->setValue(p.regularMB);
-    w.regularSlider->setValue(p.regularMB);
+    w.fgShmSB->setValue(p.fgShmMB > max ? max : p.fgShmMB);
+    w.fgShmSlider->setValue(p.fgShmMB > max ? max : p.fgShmMB);
+    w.regularSB->setValue(p.regularMB > max ? max : p.regularMB);
+    w.regularSlider->setValue(p.regularMB > max ? max : p.regularMB);
     int ret = -999;
     bool again = false;
     while (ret == -999 || again) {
