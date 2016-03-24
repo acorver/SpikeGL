@@ -519,6 +519,8 @@ namespace DAQ
 
         QDialog *dialogW;
 
+        void updateTimesampLabel(unsigned long long ts);
+
     protected:
 #ifndef Q_OS_WINDOWS
 		bool platformSupported() const { return false; }
@@ -547,6 +549,7 @@ namespace DAQ
         void updateFPS(int fps);
         void openComPort();
         void setSaperaDevice();
+        void do_updateTimestampLabel();
 
 	private:
 
@@ -554,6 +557,7 @@ namespace DAQ
         bool sentFGCmd, didImgSizeWarn;
         Ui::FG_Controls *dialog;
         bool need2EmitFirstScan;
+        volatile unsigned long long lastScanTS; QMutex lastScanTSMut;
 	};
 	
 }

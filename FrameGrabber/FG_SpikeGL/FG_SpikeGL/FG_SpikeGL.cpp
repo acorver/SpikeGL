@@ -5,6 +5,7 @@
 #include "XtCmd.h"
 #include "FPGA.h"
 #include "../../../PagedRingbuffer.h"
+#include <varargs.h>
 
 SapAcquisition *acq = 0;
 SapBuffer      *buffers = 0;
@@ -25,7 +26,9 @@ int desiredHeight = 32;
 unsigned long long frameNum = 0;
 
 std::string shmName("COMES_FROM_XtCmd");
-unsigned shmSize(0), shmPageSize(0);
+unsigned shmSize(0), shmPageSize(0), shmMetaSize(0);
+std::vector<char> metaBuffer; unsigned long long *metaPtr = 0; int metaIdx = 0, metaMaxIdx = 0;
+std::vector<int> chanMapping;
 
 void *sharedMemory = 0;
 PagedScanWriter *writer = 0;
@@ -36,6 +39,36 @@ static HANDLE hShm = 0;
 // some static functions..
 static void probeHardware();
 static double getTime();
+
+static inline void metaPtrInc() { if (++metaIdx >= metaMaxIdx) metaIdx = 0; }
+static inline unsigned long long & metaPtrCur() { 
+    static unsigned long long dummy = 0; 
+    if (metaPtr && metaIdx < metaMaxIdx) return metaPtr[metaIdx];
+    return dummy;
+}
+
+static int PSWDbgFunc(const char *fmt, ...) 
+{
+    char buf[1024];
+    va_list l;
+    int ret = 0;
+    va_start(l, fmt);
+    ret = vsnprintf_s(buf, sizeof(buf), fmt, l);
+    spikeGL->pushConsoleDebug(buf);
+    va_end(l);
+    return ret;
+}
+static int PSWErrFunc(const char *fmt, ...)
+{
+    char buf[1024];
+    va_list l;
+    int ret = 0;
+    va_start(l, fmt);
+    ret = vsnprintf_s(buf, sizeof(buf), fmt, l);
+    spikeGL->pushConsoleError(buf);
+    va_end(l);
+    return ret;
+}
 
 static void acqCallback(SapXferCallbackInfo *info)
 {
@@ -99,16 +132,36 @@ static void acqCallback(SapXferCallbackInfo *info)
     //double t0write = getTime(); /// XXX
 
     if (pitch != w) {
-#if 1 /* 10% slower but more elegant */
-        /* the below code is about 10% slower than the #else clause after it, but so far all of this processing only takes up 13% of our CPUs time on my system, so we're ok
-         with this code here, which is more maintainable (I think) and flexible in case we change setups later.. */
+        // WARNING:
+        // THIS IS A HACK TO SUPPORT THE FPGA FRAMEGRABBER FORMAT AND IS VERY SENSITIVE TO THE EXACT
+        // LAYOUT OF DATA IN THE FRAMEGRABBER!! EDIT THIS CODE IF THE LAYOUT CHANGES AND/OR WE NEED SOMETHING
+        // MORE GENERIC!
 
         // pith != w, so write scan by taking each valid row of the frame... using our new writer->writePartial() method
+        // note we only support basically frames where pitch is exactly 8 bytes larger than width, because these are from the FPGA
+        // and we take the ENTIRE line (all the way up to pitch bytes) for data.  The first 8 bytes in the line is the timestamp
+        // See emails form Jim Chen in March 2016
+        if (pitch - w != 8) {
+            spikeGL->pushConsoleError("Unsupported frame format! We are expecting a frame where pitch is 8 bytes larger than width!");
+            buffers->ReleaseAddress((void *)pData);
+            xfer->Abort();
+            return;
+        }
+        if (nScansInFrame != 1) {
+            spikeGL->pushConsoleError("Unsupported frame format! We are expecting a frame where there is exactly one complete scan per frame!");
+            buffers->ReleaseAddress((void *)pData);
+            xfer->Abort();
+            return;
+        }
 
         const char *pc = reinterpret_cast<const char *>(pData);
         writer->writePartialBegin();
         for (int line = 0; line < h; ++line) {
-            if (!writer->writePartial(pc + (line*pitch), w)) {
+            if (line + 1 == h) {
+                metaPtrCur() = *reinterpret_cast<const unsigned long long *>(pc + line*pitch);
+                metaPtrInc();
+            }
+            if (!writer->writePartial(pc + /* <HACK> */ 8 /* </HACK> */ + (line*pitch), w, metaPtr)) {
                 spikeGL->pushConsoleError("PagedScanWriter::writePartial() returned false!");
                 buffers->ReleaseAddress((void *)pData);
                 writer->writePartialEnd();
@@ -122,27 +175,23 @@ static void acqCallback(SapXferCallbackInfo *info)
             xfer->Abort();
             return;
         }
-#else /* 10% faster but less elegant. */
-        static std::vector<char> fullPage; static char *pfp = 0;
-        static int scansPerPage = 0, pageBytePos = 0, fullPageSize = 0;
-        if (!scansPerPage) {
-            scansPerPage = writer->scansPerPage();
-            fullPage.resize(fullPageSize = scansPerPage * writer->scanSizeBytes());
-            pfp = &fullPage[0];
-        }
-        const char *pc = reinterpret_cast<const char *>(pData);
-        for (int line = 0; line < h; ++line) {
-            if (pageBytePos+w <= fullPageSize)
-                memcpy(pfp + pageBytePos, pc + (line*pitch), w);
-            pageBytePos += w;
-            if (pageBytePos >= fullPageSize) {
-                writer->write((short *)pfp, scansPerPage);
-                pageBytePos = 0;
-            }
-        }
-#endif
     } else {
-        if (!writer->write(pData, unsigned(nScansInFrame))) {
+        // NOTE: this case is calin's test code.. we fudge the metadata .. even though it makes no sense at all.. to make sure SpikeGL is reading it properly
+        metaIdx = metaMaxIdx - 1;
+        metaPtrCur() = frameNum;  // HACK!
+
+        /*
+        // test channel reordering here..
+        short *scan = (short *)pData;
+        while ( (scan - ((short *)pData))/nChansPerScan < (int)nScansInFrame) {
+            for (int i = 0; i < (int)nChansPerScan; ++i)
+                scan[i] = i + 1;
+            scan += nChansPerScan;
+        }
+        // end testing..
+        */
+
+        if (!writer->write(pData, unsigned(nScansInFrame),metaPtr)) {
             spikeGL->pushConsoleError("PagedScanWriter::write returned false!");
             buffers->ReleaseAddress((void *)pData); // Need to release it to return it to the hardware!
             xfer->Abort();
@@ -232,6 +281,10 @@ static bool setupAndStartAcq()
 
     freeSapHandles();
 
+    metaBuffer.resize(shmMetaSize,0);
+    metaPtr = shmMetaSize ? reinterpret_cast<unsigned long long *>(&metaBuffer[0]) : 0;
+    metaIdx = 0; metaMaxIdx = shmMetaSize / sizeof(unsigned long long);
+
     if (!sharedMemory) {
         char tmp[512];
 
@@ -261,8 +314,9 @@ static bool setupAndStartAcq()
             return false;
         }
         if (writer) delete writer;
-        writer = new PagedScanWriter(nChansPerScan, 0, sharedMemory, shmSize, shmPageSize);
-        _snprintf_c(tmp, sizeof(tmp), "Connected to shared memory \"%s\" size: %u  pagesize: %u", shmName.c_str(), shmSize, shmPageSize);
+        writer = new PagedScanWriter(nChansPerScan, shmMetaSize, sharedMemory, shmSize, shmPageSize, chanMapping);
+        writer->ErrFunc = &PSWErrFunc; writer->DbgFunc = &PSWDbgFunc;
+        _snprintf_c(tmp, sizeof(tmp), "Connected to shared memory \"%s\" size: %u  pagesize: %u metadatasize: %u", shmName.c_str(), shmSize, shmPageSize, shmMetaSize);
         spikeGL->pushConsoleDebug(tmp);
     }
 
@@ -357,6 +411,14 @@ static void handleSpikeGLCommand(XtCmd *xt)
         shmPageSize = x->shmPageSize;
         shmSize = x->shmSize;
         shmName = x->shmName;
+        shmMetaSize = x->shmMetaSize;
+        chanMapping.clear();
+        if (x->use_map) {
+            chanMapping.resize(nChansPerScan);
+            const int maxsize = sizeof(x->mapping) / sizeof(*x->mapping);
+            if (chanMapping.size() > maxsize) chanMapping.resize(maxsize);
+            memcpy(&chanMapping[0], x->mapping, chanMapping.size()*sizeof(int));
+        }
         if (!setupAndStartAcq())
             spikeGL->pushConsoleWarning("Failed to start acquisition.");
         break;

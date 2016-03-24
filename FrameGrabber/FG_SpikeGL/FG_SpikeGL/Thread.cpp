@@ -3,7 +3,7 @@
 
 
 Thread::Thread()
-    : running(false), threadId(0), threadHandle(0)
+    : running(false), started_but_not_yet_running(false), threadId(0), threadHandle(0)
 {
 }
 
@@ -14,9 +14,9 @@ Thread::~Thread()
     threadHandle = 0; threadId = 0;
 }
 
-bool Thread::wait(DWORD timeout)
+bool Thread::wait(unsigned timeout)
 {
-    if (threadHandle && running) {
+    if (threadHandle && running || started_but_not_yet_running) {
         DWORD r = WaitForSingleObject(threadHandle, timeout);
         return r == WAIT_OBJECT_0;
     }
@@ -28,6 +28,7 @@ void Thread::kill()
     if (threadHandle && running) {
         if (TerminateThread(threadHandle, -1)) {
             running = false;
+            started_but_not_yet_running = false;
         }
     }
 }
@@ -36,6 +37,7 @@ DWORD WINAPI Thread::threadRoutine(LPVOID param)
 {
     Thread *thiz = (Thread *)param;
     thiz->running = true;
+    thiz->started_but_not_yet_running = false;
     thiz->threadFunc();
     thiz->running = false;
     return 0;
@@ -43,7 +45,8 @@ DWORD WINAPI Thread::threadRoutine(LPVOID param)
 
 bool Thread::start()
 {
-    if (running) return false;
+    if (running || started_but_not_yet_running) return false;
+    started_but_not_yet_running = true;
 
     threadHandle = 
         CreateThread(
@@ -53,6 +56,7 @@ bool Thread::start()
         this,       // thread function argument
         0,          // default creation flags
         &threadId); // receive thread identifier
+    if (!threadId) started_but_not_yet_running = false;
     return !!threadHandle;
 }
 
@@ -66,7 +70,7 @@ Mutex::~Mutex()
     CloseHandle(h);
 }
 
-bool Mutex::lock(DWORD timeout)
+bool Mutex::lock(unsigned timeout)
 {
     DWORD res = WaitForSingleObject(h, timeout);
     return (res == WAIT_OBJECT_0);
@@ -75,4 +79,28 @@ bool Mutex::lock(DWORD timeout)
 void Mutex::unlock()
 {
     ReleaseMutex(h);
+}
+
+Semaphore::Semaphore(unsigned max, unsigned cur) 
+{
+    h = CreateSemaphore(NULL, cur, max, NULL);
+}
+
+Semaphore::~Semaphore()
+{
+    if (h) CloseHandle(h);
+}
+
+bool Semaphore::acquire(unsigned timeout)
+{
+    if (!h) return false;
+    DWORD res = WaitForSingleObject(h, timeout);
+    if (res == WAIT_OBJECT_0) return true;
+    return false;
+}
+
+void Semaphore::release(int ct) {
+    if (ct > 0 && h) {
+        ReleaseSemaphore(h, ct, NULL);
+    }
 }

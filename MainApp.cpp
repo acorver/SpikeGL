@@ -748,12 +748,13 @@ void MainApp::initActions()
 	sortGraphsByElectrodeAct->setChecked(m_sortGraphsByElectrodeId);
 }
 
-static inline unsigned long computeSamplesShmPageSize(double samplingRateHz, unsigned scanSizeSamps, bool lowLatency) {
+static inline unsigned long computeSamplesShmPageSize(double samplingRateHz, unsigned scanSizeSamps, bool lowLatency, unsigned metaBytesPerScan = 0, unsigned *metaBytesPerPage = 0) {
     unsigned long oneScanBytes = scanSizeSamps * sizeof(int16);
     unsigned long nScansPerPage = (unsigned long)qRound(samplingRateHz * double((double)SAMPLES_SHM_DESIRED_PAGETIME_MS/1000.0));
     if (lowLatency) nScansPerPage /= 2;
     if (!nScansPerPage) nScansPerPage = 1;
-    return nScansPerPage * oneScanBytes;
+    if (metaBytesPerPage) *metaBytesPerPage = nScansPerPage * metaBytesPerScan;
+    return nScansPerPage*oneScanBytes + metaBytesPerScan*nScansPerPage;
 }
 
 
@@ -978,6 +979,10 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         reader = new PagedScanReader(params.nVAIChans, sizeof(DAQ::BugTask::BlockMetaData), samplesBuffer, shmSizeBytes, DAQ::BugTask::requiredShmPageSize(params.nVAIChans));
         task = bugtask = new DAQ::BugTask(params, this, *reader);
     } else if (doFGAcqInstead) {
+        delete reader; // need to force the page size to something that supports metadata
+        unsigned metaSzPerPage = 0, metaBytesPerScan = sizeof(unsigned long long); // just take the latest 64-bit timestamp value per scan.. even though FPGA gives us a value per row
+        unsigned pgSize = computeSamplesShmPageSize(params.srate, params.nVAIChans, params.lowLatency, metaBytesPerScan, &metaSzPerPage);
+        reader = new PagedScanReader(params.nVAIChans, metaSzPerPage, samplesBuffer, shmSizeBytes, pgSize);
         task = fgtask = new DAQ::FGTask(params, this, *reader);
         fgWindow = fgtask->dialogW;
     }
@@ -1371,7 +1376,7 @@ void MainApp::DataSavingThread::run()
     Debug() << "MainApp::DataSavingThread ended after processing " << app->scanCount() << " scans.";
 }
 
-///< called from a timer at 30Hz
+///< called from a thread!  BE CAREFUL! ALL CODE HERE SHOULD BE THREADSAFE!
 bool MainApp::taskReadFunc()
 {
     std::vector<int16> scans_subsetted;
@@ -1411,6 +1416,10 @@ bool MainApp::taskReadFunc()
 
         if (bugWindow && bugTask() && reader->metaDataSizeBytes() >= (int)sizeof(DAQ::BugTask::BlockMetaData) && metaPtr) {
             bugMeta = reinterpret_cast<const DAQ::BugTask::BlockMetaData *>(metaPtr);
+        } else if (metaPtr && reader->metaDataSizeBytes() && fgTask()) {
+            const unsigned long long *m = reinterpret_cast<unsigned long long *>(metaPtr); // recast metadata to a series of 64 bit ints
+            int idx = (reader->metaDataSizeBytes() - sizeof(*m)) / sizeof(*m); // take the last 64bit int from the buffer
+            if (idx > -1) fgTask()->updateTimesampLabel(m[idx]);
         }
 
         lastScanSz = reader->scansPerPage()*reader->scanSizeSamps();

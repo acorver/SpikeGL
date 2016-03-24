@@ -1,6 +1,10 @@
 #ifndef PAGEDRINGBUFFER_H
 #define PAGEDRINGBUFFER_H
 
+#include <vector>
+
+#include "Thread_Compat.h"
+
 #include <string.h>
 
 #define PAGED_RINGBUFFER_MAGIC 0x4a6ef00d
@@ -58,7 +62,7 @@ class PagedRingBufferWriter : public PagedRingBuffer
 {
 public:
     PagedRingBufferWriter(void *mem, unsigned long size_bytes, unsigned long page_size);
-    ~PagedRingBufferWriter();
+    virtual ~PagedRingBufferWriter();
 
     unsigned long nPagesWritten() const { return nWritten; }
 
@@ -66,7 +70,7 @@ public:
     /// note that grabbing more than 1 page at a time will result in an error.
     /// Grab the page, write to it, then commit it sometime later before grabbing
     /// another one.
-    void *grabNextPageForWrite();
+    virtual void *grabNextPageForWrite();
     /// Updates the magic header info so that the current write page can now
     /// be effectively written by reading processes/tasks.  Call this after
     /// being done with a page returned from grabNextPageForWrite(), and before
@@ -117,7 +121,13 @@ private:
 class PagedScanWriter : public PagedRingBufferWriter
 {
 public:
-    PagedScanWriter(unsigned scan_size_samples, unsigned meta_data_size_bytes, void *mem, unsigned long size_bytes, unsigned long page_size);
+    typedef int(*ErrFunc_t)(const char *fmt,...);
+
+    ErrFunc_t ErrFunc, DbgFunc;
+
+    PagedScanWriter(unsigned scan_size_samples, unsigned meta_data_size_bytes, void *mem, unsigned long size_bytes, unsigned long page_size,
+                    const std::vector<int> & chan_mapping = std::vector<int>());
+    ~PagedScanWriter();
 
     /// in samples
     unsigned scanSizeSamps() const { return scan_size_samps; }
@@ -133,8 +143,12 @@ public:
 
     /// write partial scans -- optimization for pitch != w in FG_SpikeGL.exe.. no metadata support
     void writePartialBegin();
-    bool writePartial(const void *partialData, unsigned bytes);
+    bool writePartial(const void *partialData, unsigned bytes, const void *meta_of_size_metaDataSizeBytes = 0);
     bool writePartialEnd(); // call this when your partial write is done and you are *sure* you have a multiple of 1 or more full scans written
+
+
+    // same as super class but also initializes the ScanRemapper
+    /*virtual*/ void *grabNextPageForWrite();
 
 protected:
     void commit(); ///< called by write to commit the current page
@@ -142,8 +156,27 @@ protected:
 private:
     short *currPage;
     unsigned scan_size_samps, scan_size_bytes, meta_data_size_bytes;
-    unsigned nScansPerPage, nBytesPerPage, pageOffset /*in scans*/, partial_offset /* in bytes */, partial_bytes_written;  
+    unsigned nScansPerPage, nBytesPerPage, pageOffset /*in scans*/, partial_offset /* in bytes */, partial_bytes_written, partial_rem;
     unsigned long long scanCt, sampleCt;
+
+    class ScanRemapper : public Thread, public Semaphore {
+    public:
+        ErrFunc_t ErrFunc, DbgFunc;
+
+        ScanRemapper(short *page, unsigned nScansPerPage, unsigned scanLen, const std::vector<int> & mapping);
+        ~ScanRemapper();
+        void wait() { Thread::wait(0xffffffff); }
+    protected:
+        void threadFunc();
+    private:
+        volatile bool pleaseStop;
+        short *scans;
+        unsigned nScansPerPage, scanLen;
+        const std::vector<int> & map;
+    };
+
+    const std::vector<int> chan_mapping;
+    ScanRemapper *mapper;
 };
 
 

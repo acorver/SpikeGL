@@ -195,20 +195,28 @@ struct XtCmdServerResource : public XtCmd {
 struct XtCmdGrabFrames : public XtCmd {
     char ccfFile[256]; ///< which .ccf file should sapera use?
     char shmName[256];
-    int shmSize, shmPageSize;
+    int shmSize, shmPageSize, shmMetaSize;
     int frameW, frameH; ///< in 8-bit pixels
     int numChansPerScan; ///< size of 1 full scan, in 16-bit samples.  If the incoming frame is larger than 1 scan, it will be chopped up into multiple frames, 1 per scan, when sent back to spikegl
+    int use_map;
+    int mapping[8192];
 
-    void init(const std::string & nam, unsigned shmSz, unsigned pageSz, const std::string &ccf, unsigned w, unsigned h, unsigned scanSize) {
+    void init(const std::string & nam, unsigned shmSz, unsigned pageSz, unsigned metaSz, const std::string &ccf, unsigned w, unsigned h, unsigned scanSize, const int *map = 0) {
         XtCmd::init();
         cmd = XtCmd_GrabFrames;
         strncpy(ccfFile, ccf.c_str(), sizeof(ccfFile) - 1);  ccfFile[sizeof(ccfFile)-1] = 0;
         strncpy(shmName, nam.c_str(), sizeof(shmName) - 1);  shmName[sizeof(shmName)-1] = 0;
         shmSize = (int)shmSz;
         shmPageSize = (int)pageSz;
+        shmMetaSize = (int)metaSz;
         frameW = int(w); frameH = int(h);
         numChansPerScan = scanSize;
         len = static_cast<int>((sizeof(XtCmdGrabFrames) - sizeof(XtCmd)) + sizeof(int));
+        if ((use_map = !!map)) {
+            int nbytes = sizeof(*map) * scanSize;
+            if (nbytes > sizeof(mapping)) nbytes = sizeof(mapping);
+            memcpy(mapping, map, nbytes);
+        }
     }
 };
 
