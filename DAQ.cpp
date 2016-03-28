@@ -2302,7 +2302,7 @@ namespace DAQ
         QString chStr(QString("AD %1").arg(num));
         if (cmp && num < unsigned(cmp->size())) {
             const ChanMapDesc &desc(cmp->at(num));
-            chStr.sprintf("%d [INTAN:%u CHAN:%u]",num,desc.intan,desc.intanCh,desc.electrodeId);
+            chStr.sprintf("%d [INTAN:%u CHAN:%u ELEC:%u]",num,desc.intan,desc.intanCh,desc.electrodeId);
         }
         return chStr;
 	}
@@ -2481,6 +2481,7 @@ namespace DAQ
             for (int i = 0; i < n; ++i) --hardcoded2[i];
             didDec = true;
         }
+        const int *retarray = which ? hardcoded1 : hardcoded2;
         if (cm_out) {
             // setup SpikeGL-native chanmap
             static const int N_INTANS = 36, N_CHANS_PER_INTAN = 64;
@@ -2489,13 +2490,12 @@ namespace DAQ
             for (int i = 0; i < n_chans; ++i) {
                 int intan = i % N_INTANS, intan_chan = i / N_INTANS;
                 ChanMapDesc & d(cm[i]);
-                d.electrodeId = i;
+                d.electrodeId = retarray[i];
                 d.intan = intan;
                 d.intanCh = intan_chan;
             }
         }
-
-        return which ? hardcoded1 : hardcoded2;
+        return retarray;
     }
 
     void FGTask::grabFramesClicked() {
