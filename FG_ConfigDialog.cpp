@@ -149,7 +149,7 @@ int FG_ConfigDialog::exec()
 				p.isImmediate = true;
 				p.acqStartEndMode = DAQ::Immediate;
 				p.usePD = 0;
-				p.chanMap = ChanMap();
+                /*p.chanMap SET HERE ---> */ DAQ::FGTask::getDefaultMapping(p.fg.isCalinsConfig?1:0, &p.chanMap);
 				
 				if (AGAIN == ConfigureDialogController::setFilenameTakingIntoAccountIncrementHack(p, p.acqStartEndMode, dialog->outputFileLE->text(), dialogW)) {
 					vr = AGAIN;
@@ -185,10 +185,11 @@ int FG_ConfigDialog::exec()
 					if (rminmax.min > r.min) rminmax.min = r.min;
 					if (rminmax.max < r.max) rminmax.max = r.max;
 					p.customRanges[i] = r;
-                    p.chanDisplayNames[i] = DAQ::FGTask::getChannelName(chan_id_for_display);
+                    p.chanDisplayNames[i] = DAQ::FGTask::getChannelName(chan_id_for_display, &p.chanMap);
 				}
 				p.range = rminmax;
 				p.auxGain = 1.0;
+                p.overrideGraphsPerTab = 36;
 				
 			} else if (vr==AGAIN) {
 				if (errTit.length() && errMsg.length())

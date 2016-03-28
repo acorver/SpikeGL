@@ -34,6 +34,8 @@ public:
 		
     bool threadsafeIsVisible() const { return threadsafe_is_visible; }
 
+    void setStaticBlockLayout(int nrows, int ncols);
+
 public slots:
 	void selectBlock(int tabNum);
 

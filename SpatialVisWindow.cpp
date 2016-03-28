@@ -509,6 +509,16 @@ void SpatialVisWindow::loadSettings()
 	settings.endGroup();
 }
 
+void SpatialVisWindow::setStaticBlockLayout(int nrows, int ncols) {
+    if (nrows * ncols * nGraphsPerBlock < nvai) return;
+    sbRows->setValue(nrows);
+    sbCols->setValue(ncols);
+    sbRows->setDisabled(true);
+    sbCols->setDisabled(true);
+    sbRows->setToolTip("Layout is fixed in this acq. mode");
+    sbCols->setToolTip("Layout is fixed in this acq. mode");
+}
+
 Vec2 SpatialVisWindow::glyphMargins01Coords() const 
 {
 	Vec2 ret(graph->glyphSize().x/GlyphScaleFactor, graph->glyphSize().y/GlyphScaleFactor);

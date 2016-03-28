@@ -2297,9 +2297,14 @@ namespace DAQ
     }
 
 	/* static */
-	QString FGTask::getChannelName(unsigned num)
+    QString FGTask::getChannelName(unsigned num, const ChanMap *cmp)
 	{ 
-		return QString("AD %1").arg(num); 
+        QString chStr(QString("AD %1").arg(num));
+        if (cmp && num < unsigned(cmp->size())) {
+            const ChanMapDesc &desc(cmp->at(num));
+            chStr.sprintf("%d [INTAN:%u CHAN:%u]",num,desc.intan,desc.intanCh,desc.electrodeId);
+        }
+        return chStr;
 	}
 	
     void FGTask::pushCmd(const XtCmd * c)
@@ -2335,7 +2340,8 @@ namespace DAQ
         pushCmd(p);
     }
 
-    static const int *getDummyDefaultMapping(int which) {
+    /* static */
+    const int *FGTask::getDefaultMapping(int which /* 1=calin 0=janelia*/, ChanMap *cm_out /*= 0*/) {
         static int hardcoded1[] =       { 1, 65, 129, 193, 257, 321, 385, 449, 513, 577, 641, 705, 769, 833, 897, 961, 1025, 1089, 1153, 1217, 1281, 1345, 1409, 1473, 1537, 1601, 1665, 1729, 1793, 1857, 1921, 1985,
                                          2, 66, 130, 194, 258, 322, 386, 450, 514, 578, 642, 706, 770, 834, 898, 962, 1026, 1090, 1154, 1218, 1282, 1346, 1410, 1474, 1538, 1602, 1666, 1730, 1794, 1858, 1922, 1986,
                                          3, 67, 131, 195, 259, 323, 387, 451, 515, 579, 643, 707, 771, 835, 899, 963, 1027, 1091, 1155, 1219, 1283, 1347, 1411, 1475, 1539, 1603, 1667, 1731, 1795, 1859, 1923, 1987,
@@ -2465,7 +2471,7 @@ namespace DAQ
                                          62, 126, 190, 254, 318, 382, 446, 510, 574, 638, 702, 766, 830, 894, 958, 1022, 1086, 1150, 1214, 1278, 1342, 1406, 1470, 1534, 1598, 1662, 1726, 1790, 1854, 1918, 1982, 2046, 2110, 2174, 2238, 2302,
                                          63, 127, 191, 255, 319, 383, 447, 511, 575, 639, 703, 767, 831, 895, 959, 1023, 1087, 1151, 1215, 1279, 1343, 1407, 1471, 1535, 1599, 1663, 1727, 1791, 1855, 1919, 1983, 2047, 2111, 2175, 2239, 2303,
                                          64, 128, 192, 256, 320, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024, 1088, 1152, 1216, 1280, 1344, 1408, 1472, 1536, 1600, 1664, 1728, 1792, 1856, 1920, 1984, 2048, 2112, 2176, 2240, 2304
-                                       };
+                                       };        
 
         static bool didDec = false;
         if (!didDec) {
@@ -2475,6 +2481,20 @@ namespace DAQ
             for (int i = 0; i < n; ++i) --hardcoded2[i];
             didDec = true;
         }
+        if (cm_out) {
+            // setup SpikeGL-native chanmap
+            static const int N_INTANS = 36, N_CHANS_PER_INTAN = 64;
+            int n_chans = which ? (sizeof (hardcoded1)/sizeof(int)) : (sizeof(hardcoded2)/sizeof(int));
+            ChanMap & cm(*cm_out);  cm.resize(n_chans);
+            for (int i = 0; i < n_chans; ++i) {
+                int intan = i % N_INTANS, intan_chan = i / N_INTANS;
+                ChanMapDesc & d(cm[i]);
+                d.electrodeId = i;
+                d.intan = intan;
+                d.intanCh = intan_chan;
+            }
+        }
+
         return which ? hardcoded1 : hardcoded2;
     }
 
@@ -2494,9 +2514,9 @@ namespace DAQ
         XtCmdGrabFrames x;
 
         if (params.fg.isCalinsConfig)
-            x.init(SAMPLES_SHM_NAME, writer.totalSize(), writer.pageSize(), writer.metaDataSizeBytes(), "B_a2040_FreeRun_8Tap_Default.ccf", 2048, 2048/4, NumChansCalinsTest, getDummyDefaultMapping(1));
+            x.init(SAMPLES_SHM_NAME, writer.totalSize(), writer.pageSize(), writer.metaDataSizeBytes(), "B_a2040_FreeRun_8Tap_Default.ccf", 2048, 2048/4, NumChansCalinsTest, getDefaultMapping(1));
         else
-            x.init(SAMPLES_SHM_NAME, writer.totalSize(), writer.pageSize(), writer.metaDataSizeBytes(), "J_2000+_Electrode_8tap_8bit.ccf", 144, 32, NumChans, getDummyDefaultMapping(0));
+            x.init(SAMPLES_SHM_NAME, writer.totalSize(), writer.pageSize(), writer.metaDataSizeBytes(), "J_2000+_Electrode_8tap_8bit.ccf", 144, 32, NumChans, getDefaultMapping(0));
         pushCmd(x);
     }
 

@@ -896,7 +896,9 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	windowMenuAdd(graphsWindow);
 
 	// TESTING OF SPATIAL VISUALIZATION WINDOW -- REMOVE ME TO NOT USE SPATIAL VIS
-	spatialWindow = new SpatialVisWindow(params, Vec2(graphsWindow->numColsPerGraphTab(),graphsWindow->numRowsPerGraphTab()), 0);
+    Vec2 blockDims = doFGAcqInstead ? Vec2(graphsWindow->numGraphsPerTab(),1) : Vec2(graphsWindow->numColsPerGraphTab(),graphsWindow->numRowsPerGraphTab());
+    spatialWindow = new SpatialVisWindow(params, blockDims, 0);
+    if (doFGAcqInstead) spatialWindow->setStaticBlockLayout(32,2);
 	spatialWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
 	spatialWindow->setWindowIcon(appIcon);
     spatialWindow->installEventFilter(this);

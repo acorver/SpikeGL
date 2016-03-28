@@ -506,10 +506,12 @@ namespace DAQ
         FGTask(Params & acqParams, QObject * parent, const PagedScanReader & psr, bool isDummyTask = false);
         ~FGTask();
 		
+        static const int *getDefaultMapping(int which /* 1=calin 0=janelia*/, ChanMap *cm_out = 0);
+
         unsigned numChans() const;
         unsigned samplingRate() const;
 		
-		static QString getChannelName(unsigned num);
+        static QString getChannelName(unsigned num, const ChanMap *chanMap=0);
 		
         static const double SamplingRate, SamplingRateCalinsTest;
         static const int NumChans /*= 2304 == 72 * 32 */, NumChansCalinsTest /*= 2048*/;
