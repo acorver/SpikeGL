@@ -2488,9 +2488,10 @@ namespace DAQ
             int n_chans = which ? (sizeof (hardcoded1)/sizeof(int)) : (sizeof(hardcoded2)/sizeof(int));
             ChanMap & cm(*cm_out);  cm.resize(n_chans);
             for (int i = 0; i < n_chans; ++i) {
-                int intan = i % N_INTANS, intan_chan = i / N_INTANS;
-                ChanMapDesc & d(cm[i]);
-                d.electrodeId = retarray[i];
+                int intan = i % N_INTANS, intan_chan = i / N_INTANS, electrode = retarray[i];
+                if (electrode < 0 || electrode >= n_chans) electrode = 0;
+                ChanMapDesc & d(cm[electrode]);
+                d.electrodeId = electrode;
                 d.intan = intan;
                 d.intanCh = intan_chan;
             }
