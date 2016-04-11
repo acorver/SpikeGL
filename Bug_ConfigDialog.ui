@@ -138,7 +138,7 @@
    <property name="geometry">
     <rect>
      <x>246</x>
-     <y>321</y>
+     <y>330</y>
      <width>261</width>
      <height>22</height>
     </rect>
@@ -652,8 +652,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QGroupBox" name="trigParams">
    <property name="geometry">
     <rect>
-     <x>298</x>
-     <y>199</y>
+     <x>310</x>
+     <y>208</y>
      <width>184</width>
      <height>115</height>
     </rect>
@@ -919,8 +919,8 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="geometry">
     <rect>
-     <x>298</x>
-     <y>199</y>
+     <x>310</x>
+     <y>208</y>
      <width>184</width>
      <height>115</height>
     </rect>
