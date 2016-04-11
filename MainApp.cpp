@@ -1444,7 +1444,10 @@ bool MainApp::taskReadFunc()
                                || p.acqStartEndMode == DAQ::PDStartEnd) {
                         Status() << "Acquisition waiting for start trigger from photo-diode";
                     } else if (p.acqStartEndMode == DAQ::Bug3TTLTriggered) {
-                        Status() << "Acquisition waiting for start trigger from Bug3 TTL line " << p.bug.ttlTrig;
+                        if (p.bug.ttlTrig > -1)
+                            Status() << "Acquisition waiting for start trigger from Bug3 TTL line " << p.bug.ttlTrig;
+                        else if (p.bug.auxTrig > -1)
+                            Status() << "Acquisition waiting for start trigger from Bug3 AUX line " << p.bug.auxTrig;
                     } else if (p.acqStartEndMode == DAQ::AITriggered) {
                         Status() << "Acquisition waiting for start trigger from AI";
                     }

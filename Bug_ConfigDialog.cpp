@@ -80,19 +80,26 @@ int Bug_ConfigDialog::exec()
 				p.bug.reset();
 				p.bug.enabled = true;
 				p.bug.rate = dialog->acqRateCB->currentIndex();
-                if (dialog->ttlTrigCB->currentIndex() > 0) {
-					p.bug.ttlTrig = dialog->ttlTrigCB->currentIndex()-1;
+                if (dialog->ttlTrigCB->currentIndex() > 2) {
+                    p.bug.ttlTrig = dialog->ttlTrigCB->currentIndex()-3;
                     p.bug.whichTTLs |= (0x1 << p.bug.ttlTrig);
-				}
+                } else if (dialog->ttlTrigCB->currentIndex() > 0) {
+                    p.bug.auxTrig = dialog->ttlTrigCB->currentIndex()-1;
+                }
                 p.bug.altTTL = dialog->ttlAltChk->isChecked();
 				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
 					if (ttls[i]->isChecked()) p.bug.whichTTLs |= 0x1 << i;  
 				}
-				int ttlIdx = DAQ::BugTask::BaseNChans;
-				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
-					if (i == p.bug.ttlTrig) break;
-					if (p.bug.whichTTLs & (0x1<<i)) ++ttlIdx;
-				}
+                const bool hasAuxTrig = p.bug.auxTrig > -1, hasTtlTrig = p.bug.ttlTrig > -1;
+                int trigIdx = hasAuxTrig ? DAQ::BugTask::FirstAuxChan : DAQ::BugTask::BaseNChans;
+                if (!hasAuxTrig && hasTtlTrig) {
+                    for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
+                        if (i == p.bug.ttlTrig) break;
+                        if (p.bug.whichTTLs & (0x1<<i)) ++trigIdx;
+                    }
+                } else if (hasAuxTrig && !hasTtlTrig) {
+                    trigIdx += p.bug.auxTrig;
+                }
 				p.bug.clockEdge = dialog->clkEdgeCB->currentIndex();
 				p.bug.hpf = dialog->hpfChk->isChecked() ? dialog->hpfSB->value(): 0;
 				p.bug.snf = dialog->notchFilterChk->isChecked();
@@ -139,14 +146,15 @@ int Bug_ConfigDialog::exec()
 				p.acqStartEndMode = DAQ::Immediate;
 				p.usePD = 0;
 				p.chanMap = ChanMap();
-				if (p.bug.ttlTrig > -1) {
+                if (hasAuxTrig || hasTtlTrig) {
 					p.acqStartEndMode = DAQ::Bug3TTLTriggered;
 					p.isImmediate = false;
-					p.idxOfPdChan = ttlIdx;
+                    p.idxOfPdChan = trigIdx;
 					p.usePD = true;
 					p.pdChanIsVirtual = true;
-					p.pdChan = ttlIdx;
-                    p.pdThresh = 10000; // in sample vals.. high TTL line is always above 0 in sample vals.. so 10000 is safe
+                    p.pdChan = trigIdx;
+                    p.bug.trigThreshV = p.bug.altTTL ? dialog->trigAltThreshSB->value() : dialog->trigThreshSB->value();
+                    p.pdThresh = 10000; // in sample vals.. high TTL line is always above 0 in sample vals.. so 10000 is safe NOTE: we get this from GUI in the ugly RANGE code a few dozen lines below!!!
                     p.pdThreshW = p.bug.altTTL ? static_cast<unsigned>(dialog->trigWSB_2->value()) : static_cast<unsigned>(dialog->trigWSB->value());
 					p.pdPassThruToAO = -1;
                     p.pdStopTime = p.bug.altTTL ? dialog->trigPost->value()/1000.0 : dialog->trigStopTimeSB->value();
@@ -213,10 +221,17 @@ int Bug_ConfigDialog::exec()
 						r.min = -(2.3*2048/2.0)/1e6 /*-2.4/1e3*/, r.max = 2.3*2048/2.0/1e6/*2.4/1e3*/;
 					} else if (i < (unsigned)DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans) { //EMG
 						r.min = -(23.0*2048)/2.0/1e6 /*-24.0/1e3*/, r.max = (23.0*2048)/2.0/1e6/*24.0/1e3*/;
-					} else if (i < (unsigned)DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans+DAQ::BugTask::TotalAuxChans) {
+                    } else if (i < (unsigned)DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans+DAQ::BugTask::TotalAuxChans) { // AUX
 						//r.min = 1.2495+.62475, r.max = 1.2495*2;				
 						//r.min = -(2.4*2048)/2./1e3, r.max = (2.4*2048)/2./1e3;
 						r.min = DAQ::BugTask::ADCStep*1024., r.max = DAQ::BugTask::ADCStep*1024.+DAQ::BugTask::ADCStep*2048.;
+                        if (hasAuxTrig && trigIdx == (int)i) {
+                            // acq is using AUX line for triggering.. convert Volts from GUI to a sample value for MainApp:taskReadFunc()
+                            int samp = static_cast<int>(( ( (p.bug.trigThreshV-r.min)/(r.max-r.min) ) * 65535.0 ) - 32768.0);
+                            if (samp < -32767) samp = -32767;
+                            if (samp > 32767) samp = 32767;
+                            p.pdThresh = static_cast<int16>(samp);
+                        }
 					} else { // ttl lines
 						r.min = -5., r.max = 5.;
                         // since ttl lines may be missing in channel set, renumber the ones that are missing for display purposes
@@ -224,7 +239,14 @@ int Bug_ConfigDialog::exec()
                         for (int j=0; j < lim && j < DAQ::BugTask::TotalTTLChans ; ++j)
                             if (!(p.bug.whichTTLs & (0x1<<j))) ++chan_id_for_display, ++lim;
 
-					}
+                        if (hasTtlTrig && trigIdx == (int)i) {
+                            // acq is using TTL line for triggering.. convert Volts from GUI to a sample value for MainApp:taskReadFunc().. note this is ill defined really as TTL lines are always either 0 or 5V
+                            int samp = static_cast<int>(( ( (p.bug.trigThreshV-r.min)/(r.max-r.min) ) * 65535.0 ) - 32768.0);
+                            if (samp < -32767) samp = -32767;
+                            if (samp > 32767) samp = 32767;
+                            p.pdThresh = static_cast<int16>(samp);
+                        }
+                    }
 					if (rminmax.min > r.min) rminmax.min = r.min;
 					if (rminmax.max < r.max) rminmax.max = r.max;
 					p.customRanges[i] = r;
@@ -232,6 +254,8 @@ int Bug_ConfigDialog::exec()
 				}
 				p.range = rminmax;
 				p.auxGain = 1.0;
+
+//                if (hasAuxTrig || hasTtlTrig) Debug() << "p.pdThresh=" << p.pdThresh << " p.pdChan=" << p.pdChan << " p.idxOfPdChan=" << p.idxOfPdChan;
 				
 			} else if (vr==AGAIN) {
 				if (errTit.length() && errMsg.length())
@@ -250,8 +274,13 @@ void Bug_ConfigDialog::guiFromSettings()
 	for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
 		ttls[i]->setChecked(p.bug.whichTTLs & (0x1<<i));
 	}
-	dialog->ttlTrigCB->setCurrentIndex(p.bug.ttlTrig+1);
-	dialog->clkEdgeCB->setCurrentIndex(p.bug.clockEdge);
+    if (p.bug.ttlTrig > -1)
+        dialog->ttlTrigCB->setCurrentIndex(p.bug.ttlTrig+3);
+    else if (p.bug.auxTrig > -1)
+        dialog->ttlTrigCB->setCurrentIndex(p.bug.auxTrig+1);
+    else
+        dialog->ttlTrigCB->setCurrentIndex(0);
+    dialog->clkEdgeCB->setCurrentIndex(p.bug.clockEdge);
 	if (p.bug.hpf > 0) {
 		dialog->hpfSB->setValue(p.bug.hpf);
 		dialog->hpfChk->setChecked(true);
@@ -271,6 +300,7 @@ void Bug_ConfigDialog::guiFromSettings()
 	dialog->trigStopTimeSB->setValue(p.pdStopTime);
 	dialog->trigPre->setValue(p.silenceBeforePD*1000.);
 	dialog->trigParams->setEnabled(p.bug.ttlTrig >= 0);
+    dialog->trigThreshSB->setValue(p.bug.trigThreshV);
 
     mainApp()->configureDialogController()->probeDAQHardware();
     mainApp()->configureDialogController()->resetAOPassFromParams(aoPassThru, &p, &p.bug.aoSrate);
@@ -282,10 +312,12 @@ void Bug_ConfigDialog::guiFromSettings()
     dialog->trigPre_2->setValue(p.silenceBeforePD*1000.0);
     dialog->trigPost->setValue(p.pdStopTime*1000.0);
     dialog->trigWSB_2->setValue(p.pdThreshW);
+    dialog->trigAltThreshSB->setValue(p.bug.trigThreshV);
     ttlAltClicked(p.bug.altTTL);
 
     //polish
     aoDeviceCBChanged();
+    ttlTrigCBChanged();
 }
 
 void Bug_ConfigDialog::saveSettings()
@@ -321,8 +353,8 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
 {
 	for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i)
 		ttls[i]->setEnabled(true);
-	if (dialog->ttlTrigCB->currentIndex() > 0) {
-		ttls[dialog->ttlTrigCB->currentIndex()-1]->setEnabled(false);
+    if (dialog->ttlTrigCB->currentIndex() > 2) {
+        ttls[dialog->ttlTrigCB->currentIndex()-3]->setEnabled(false);
 	}
     const bool isLineSelected = dialog->ttlTrigCB->currentIndex() != 0;
     dialog->trigParams->setEnabled(isLineSelected);

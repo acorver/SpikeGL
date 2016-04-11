@@ -153,15 +153,17 @@ namespace DAQ
 			bool enabled; // if true, acquisition is in bug mode
 			int rate; // 0 = Low, 1 = Medium, 2 = High
 			int whichTTLs; // bitset of which TTLs to save/graph, TTLs from 1->11 maps to bits #0->10
-			int ttlTrig; // the TTL chanel to use for a trigger, or -1 if not using ttl to trigger
+            int ttlTrig; // the TTL channel to use for a trigger, or -1 if not using ttl to trigger. Note either this or auxTrig should be set to > -1, or neither, but never both
+            int auxTrig; // the AUX channel to use for a trigger, or -1 if not using aux to trigger. Note either this or ttlTrig should be set to > -1, or neither, but never both
 			int clockEdge; // 0 = rising, 1 = falling
 			int hpf; // if nonzero, the high pass filter is enabled at set to filter past this many Hz
 			bool snf; // if true, use the software notch filter at 60Hz
 			int errTol; // out of 144, default is 6
+            double trigThreshV; ///< for UI -- the actual trigger code uses .pdThresh
             QString aoPassthruString; // defaults to "", but can be something eg 0=1
             unsigned aoSrate;
             bool altTTL; ///< if true, use alternate TTL triggering scheme whereby a single TTL pulse has a pre window and a post window surrounding it in the data file
-            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; }
+            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; }
 		} bug;
 		
 		struct FG { // framegrabber
@@ -409,6 +411,7 @@ namespace DAQ
 		static const int TotalNeuralChans = 10;
 		static const int TotalEMGChans = 4;
 		static const int TotalAuxChans = 2;
+        static const int FirstAuxChan = TotalNeuralChans+TotalEMGChans;
 		static const int BaseNChans = TotalNeuralChans+TotalEMGChans+TotalAuxChans;
 		static const int TotalTTLChans = 11;
         static const double SamplingRate;// = 16.0 / 0.0006144;

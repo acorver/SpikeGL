@@ -1146,7 +1146,8 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	
 	p.bug.rate = settings.value("bug_rate", 2).toUInt();
 	p.bug.ttlTrig = settings.value("bug_ttlTrig", -1).toInt();
-	p.bug.whichTTLs = settings.value("bug_whichTTLs", 0).toInt();
+    p.bug.auxTrig = settings.value("bug_auxTrig", -1).toInt();
+    p.bug.whichTTLs = settings.value("bug_whichTTLs", 0).toInt();
 	p.bug.clockEdge = settings.value("bug_clockEdge", 0).toInt();
 	p.bug.hpf = settings.value("bug_hpf", 0).toInt();
 	p.bug.snf = settings.value("bug_snf", false).toBool();	
@@ -1154,6 +1155,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
     p.bug.aoPassthruString = settings.value("bug_aoPassthruString", "0=0").toString();
     p.bug.aoSrate = settings.value("bug_aoSrate", DAQ::BugTask::SamplingRate).toUInt();
     p.bug.altTTL = settings.value("bug_altTTL", true).toBool();
+    p.bug.trigThreshV = settings.value("bug_trigThreshV", 3.0).toDouble();
 
 
     p.fg.baud = settings.value("fg_baud", 1).toInt();
@@ -1249,6 +1251,7 @@ void ConfigureDialogController::saveSettings(int sc) const
     if (sc & BUG) {
         settings.setValue("bug_rate", p.bug.rate);
         settings.setValue("bug_ttlTrig", p.bug.ttlTrig);
+        settings.setValue("bug_auxTrig", p.bug.auxTrig);
         settings.setValue("bug_whichTTLs", p.bug.whichTTLs);
         settings.setValue("bug_clockEdge", p.bug.clockEdge);
         settings.setValue("bug_hpf", p.bug.hpf);
@@ -1257,6 +1260,7 @@ void ConfigureDialogController::saveSettings(int sc) const
         settings.setValue("bug_aoPassthruString", p.bug.aoPassthruString);
         settings.setValue("bug_aoSrate", p.bug.aoSrate);
         settings.setValue("bug_altTTL", p.bug.altTTL);
+        settings.setValue("bug_trigThreshV", p.bug.trigThreshV);
     }
 
     if (sc & FG) {
