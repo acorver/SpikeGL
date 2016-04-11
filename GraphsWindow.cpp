@@ -986,22 +986,44 @@ int GraphsWindow::parseGraphNum(QObject *graph)
 
 void GraphsWindow::toggleSaveChecked(bool b)
 {
-    if (b) {
-        params.outputFile = saveFileLE->text().trimmed();
-		if (sender() && !suppressRecursive && QFileInfo(params.outputFile).exists()) {
-			QMessageBox::StandardButton b = QMessageBox::question(this, "File Exists", "The specified output file exists.  Continue with save?", QMessageBox::Save|QMessageBox::Abort, QMessageBox::Save);
-			if (b == QMessageBox::Abort) {
-				toggleSaveChk->setChecked(false);
-				return;
-			}
-		}
-        saveFileLE->setEnabled(false);
-		suppressRecursive = true;
-        mainApp()->toggleSave(b);
-		suppressRecursive = false;
-    } else {
-        saveFileLE->setEnabled(true);
-        mainApp()->toggleSave(b);
+    if (sender()) {
+        /* UGLY HACK! XXX TODO FIXME
+         * After making the MainApp::taskReadFunc() be in a separate thread for the Framegrabber optimizations,
+         * all sorts of race conditions arose.  One of them was in this function.
+         * The original problem: updateWindowTitles() calles graphsWindow->setToggleSaveChkBox(), which calls this function.
+         * This function then tries to open and/or close the data file by calling mainApp->toggleSave(b).
+         *
+         * The problem is that taskReadFunc() which runs in a separate thread also opens
+         * the data file and closes it at the appropriate times when responding to a TTL trigger -- so there is a race condition.
+         * Basically when a TTL was triggered, this function would sometimes be called and close the data file early.
+         * The behavior we WANT:
+         * - if the user checks the toggleSave checkbox, then the file should be forced open from the GUI by calling
+         *   mainApp->toggleSave().
+         * - If the task is triggered by a TTL or whatever, then we don't want the file's open/close state touched.
+         *
+         * The HACK: in this function, check if sender() is NULL, if it is, don't touch mainApp->toggleSave().
+         *
+         * This appears to work.  The real solution of course is to have only 1 thread really responsible for opening and closing the data file
+         * (ideally the thread that runs MainApp::taskReadFunc()), and all other threads that want to open/close a data file
+         * can simply set boolean flags with MainApp::taskReadFunc() checks...)*/
+
+        if (b) {
+            params.outputFile = saveFileLE->text().trimmed();
+            if (sender() && !suppressRecursive && QFileInfo(params.outputFile).exists()) {
+                QMessageBox::StandardButton b = QMessageBox::question(this, "File Exists", "The specified output file exists.  Continue with save?", QMessageBox::Save|QMessageBox::Abort, QMessageBox::Save);
+                if (b == QMessageBox::Abort) {
+                    toggleSaveChk->setChecked(false);
+                    return;
+                }
+            }
+            saveFileLE->setEnabled(false);
+            suppressRecursive = true;
+            mainApp()->toggleSave(b);
+            suppressRecursive = false;
+        } else {
+            saveFileLE->setEnabled(true);
+            mainApp()->toggleSave(b);
+        }
     }
 	// hide/unhide all graph save checkboxes..
 	const int n = chks.size();

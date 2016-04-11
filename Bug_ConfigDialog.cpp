@@ -33,6 +33,7 @@ Bug_ConfigDialog::Bug_ConfigDialog(DAQ::Params & p, QObject *parent) : QObject(p
     Connect(aoPassThru->aoDeviceCB, SIGNAL(activated(const QString &)), this, SLOT(aoDeviceCBChanged()));
     Connect(dialog->ttlTrigCB, SIGNAL(currentIndexChanged(int)), this, SLOT(ttlTrigCBChanged()));
 	Connect(dialog->browseBut, SIGNAL(clicked()), this, SLOT(browseButClicked()));
+    Connect(dialog->ttlAltChk, SIGNAL(toggled(bool)), this, SLOT(ttlAltClicked(bool)));
 	for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
 		ttls[i] = new QCheckBox(QString::number(i), dialog->ttlW);
 		dialog->ttlLayout->addWidget(ttls[i]);
@@ -83,6 +84,7 @@ int Bug_ConfigDialog::exec()
 					p.bug.ttlTrig = dialog->ttlTrigCB->currentIndex()-1;
                     p.bug.whichTTLs |= (0x1 << p.bug.ttlTrig);
 				}
+                p.bug.altTTL = dialog->ttlAltChk->isChecked();
 				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
 					if (ttls[i]->isChecked()) p.bug.whichTTLs |= 0x1 << i;  
 				}
@@ -145,10 +147,10 @@ int Bug_ConfigDialog::exec()
 					p.pdChanIsVirtual = true;
 					p.pdChan = ttlIdx;
                     p.pdThresh = 10000; // in sample vals.. high TTL line is always above 0 in sample vals.. so 10000 is safe
-					p.pdThreshW = static_cast<unsigned>(dialog->trigWSB->value());
+                    p.pdThreshW = p.bug.altTTL ? static_cast<unsigned>(dialog->trigWSB_2->value()) : static_cast<unsigned>(dialog->trigWSB->value());
 					p.pdPassThruToAO = -1;
-					p.pdStopTime = dialog->trigStopTimeSB->value();
-					p.silenceBeforePD = dialog->trigPre->value()/1000.;
+                    p.pdStopTime = p.bug.altTTL ? dialog->trigPost->value()/1000.0 : dialog->trigStopTimeSB->value();
+                    p.silenceBeforePD = p.bug.altTTL ? dialog->trigPre_2->value()/1000.0 : dialog->trigPre->value()/1000.0;
 				}
 
 				if (AGAIN == ConfigureDialogController::setFilenameTakingIntoAccountIncrementHack(p, p.acqStartEndMode, dialog->outputFileLE->text(), dialogW)) {
@@ -275,6 +277,12 @@ void Bug_ConfigDialog::guiFromSettings()
     aoPassThru->aoPassthruGB->setCheckable(true);
     aoPassThru->aoPassthruGB->setChecked(p.aoPassthru && aoPassThru->aoDeviceCB->count());
     if (!aoPassThru->aoDeviceCB->count()) aoPassThru->aoPassthruGB->setEnabled(false);
+    // alt ttl stuff
+    dialog->ttlAltChk->setChecked(p.bug.altTTL);
+    dialog->trigPre_2->setValue(p.silenceBeforePD*1000.0);
+    dialog->trigPost->setValue(p.pdStopTime*1000.0);
+    dialog->trigWSB_2->setValue(p.pdThreshW);
+    ttlAltClicked(p.bug.altTTL);
 
     //polish
     aoDeviceCBChanged();
@@ -316,7 +324,10 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
 	if (dialog->ttlTrigCB->currentIndex() > 0) {
 		ttls[dialog->ttlTrigCB->currentIndex()-1]->setEnabled(false);
 	}
-	dialog->trigParams->setEnabled(dialog->ttlTrigCB->currentIndex() != 0);
+    const bool isLineSelected = dialog->ttlTrigCB->currentIndex() != 0;
+    dialog->trigParams->setEnabled(isLineSelected);
+    dialog->altTrigParams->setEnabled(isLineSelected);
+    dialog->ttlAltChk->setEnabled(isLineSelected);
 }
 
 void Bug_ConfigDialog::aoBufferSizeSliderChanged()
@@ -327,4 +338,12 @@ void Bug_ConfigDialog::aoBufferSizeSliderChanged()
 void Bug_ConfigDialog::aoDeviceCBChanged()
 {
     mainApp()->configureDialogController()->updateAORangeOnCBChange(aoPassThru);
+}
+
+void Bug_ConfigDialog::ttlAltClicked(bool b)
+{
+    dialog->altTrigParams->setEnabled(b);
+    dialog->altTrigParams->setHidden(!b);
+    dialog->trigParams->setEnabled(!b);
+    dialog->trigParams->setHidden(b);
 }

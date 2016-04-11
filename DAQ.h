@@ -160,7 +160,8 @@ namespace DAQ
 			int errTol; // out of 144, default is 6
             QString aoPassthruString; // defaults to "", but can be something eg 0=1
             unsigned aoSrate;
-            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false;  }
+            bool altTTL; ///< if true, use alternate TTL triggering scheme whereby a single TTL pulse has a pre window and a post window surrounding it in the data file
+            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; }
 		} bug;
 		
 		struct FG { // framegrabber

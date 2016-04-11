@@ -214,7 +214,7 @@ struct XtCmdGrabFrames : public XtCmd {
         len = static_cast<int>((sizeof(XtCmdGrabFrames) - sizeof(XtCmd)) + sizeof(int));
         if ((use_map = !!map)) {
             int nbytes = sizeof(*map) * scanSize;
-            if (nbytes > sizeof(mapping)) nbytes = sizeof(mapping);
+            if (nbytes > (int)sizeof(mapping)) nbytes = sizeof(mapping);
             memcpy(mapping, map, nbytes);
         }
     }

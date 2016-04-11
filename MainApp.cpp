@@ -1426,7 +1426,7 @@ bool MainApp::taskReadFunc()
 
         lastScanSz = reader->scansPerPage()*reader->scanSizeSamps();
         scanCt = firstSamp/u64(p.nVAIChans) + u64(reader->scansPerPage());
-        i32 triggerOffset = 0;
+        i32 triggerOffset = -1;
         int prebufCopied = 0;
 
         if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
@@ -1483,7 +1483,7 @@ bool MainApp::taskReadFunc()
                     if (n < 0) n = 0;
                     else if (n > i64(scanSz)) n = scanSz;
                 }
-                if (triggerOffset && preBuf.size()) {
+                if (triggerOffset >= 0 && preBuf.size()) {
                     prependPrebufToScans(preBuf, prebuf_scans, prebufCopied, triggerOffset);
                 }
                 if (wasFakeData) {
@@ -1808,7 +1808,7 @@ void MainApp::gotManualTrigOverride(bool b)
 
 bool MainApp::detectTriggerEvent(const int16 * scans, unsigned sz, u64 firstSamp, i32 & triggerOffset)
 {
-	triggerOffset = 0;
+    triggerOffset = -1;
     bool triggered = false;
     DAQ::Params & p (configCtl->acceptedParams);
     switch (p.acqStartEndMode) {
@@ -1870,6 +1870,8 @@ bool MainApp::detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp)
 {
     bool stopped = false;
     DAQ::Params & p (configCtl->acceptedParams);
+    const bool isBugAlt = p.acqStartEndMode == DAQ::Bug3TTLTriggered && p.bug.altTTL;
+
     switch (p.acqStartEndMode) {
     case DAQ::Timed:  
         if (!p.isIndefinite && scanCt >= stopScanCt) {
@@ -1894,9 +1896,10 @@ bool MainApp::detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp)
             } else
                 lastNPDSamples.clear();
         }
-        if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps) { // timeout PD after X scans..
+        if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps || isBugAlt) { // timeout PD after X scans..
 			if (dataFile.isOpen()) {
                 stopRecordAtSamp = lastSeenPD + MAX((preBuf.capacity()/sizeof(int16)),pdOffTimeSamps) /**< NB: preBuf.capacity() is the amount of silence time before/after PD, scan-aligned! */;
+                if (isBugAlt) stopRecordAtSamp = lastSeenPD + pdOffTimeSamps;
 				taskWaitingForStop = false;
 			} else {
 				Warning() << "PD/AI un-trig but datafile not open!  This is not really well-defined, but stopping task anyway.";

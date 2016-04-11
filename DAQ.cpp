@@ -2484,7 +2484,7 @@ namespace DAQ
         const int *retarray = which ? hardcoded1 : hardcoded2;
         if (cm_out) {
             // setup SpikeGL-native chanmap
-            static const int N_INTANS = 36, N_CHANS_PER_INTAN = 64;
+            static const int N_INTANS = 36/*, N_CHANS_PER_INTAN = 64*/;
             int n_chans = which ? (sizeof (hardcoded1)/sizeof(int)) : (sizeof(hardcoded2)/sizeof(int));
             ChanMap & cm(*cm_out);  cm.resize(n_chans);
             for (int i = 0; i < n_chans; ++i) {

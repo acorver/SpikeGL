@@ -1153,6 +1153,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.bug.errTol = settings.value("bug_errTol", 6).toInt();
     p.bug.aoPassthruString = settings.value("bug_aoPassthruString", "0=0").toString();
     p.bug.aoSrate = settings.value("bug_aoSrate", DAQ::BugTask::SamplingRate).toUInt();
+    p.bug.altTTL = settings.value("bug_altTTL", true).toBool();
 
 
     p.fg.baud = settings.value("fg_baud", 1).toInt();
@@ -1255,6 +1256,7 @@ void ConfigureDialogController::saveSettings(int sc) const
         settings.setValue("bug_errTol", p.bug.errTol);
         settings.setValue("bug_aoPassthruString", p.bug.aoPassthruString);
         settings.setValue("bug_aoSrate", p.bug.aoSrate);
+        settings.setValue("bug_altTTL", p.bug.altTTL);
     }
 
     if (sc & FG) {

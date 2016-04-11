@@ -47,6 +47,7 @@ private slots:
 	void browseButClicked();
     void aoBufferSizeSliderChanged();
     void aoDeviceCBChanged();
+    void ttlAltClicked(bool b);
 	
 private:
 	
