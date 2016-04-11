@@ -1882,19 +1882,22 @@ bool MainApp::detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp)
 	case DAQ::Bug3TTLTriggered:
 	case DAQ::AITriggered: 
     case DAQ::PDStartEnd: {
+
         if (p.idxOfPdChan < 0) {
             Error() << "INTERNAL ERROR, acqEndMode is PD/AI based but no PD/AI channel specified in DAQ params!";
             return true;
         }
-        for (int i = p.idxOfPdChan; i < int(sz); i += p.nVAIChans) {
-            const int16 samp = scans[i];
-            if (samp > p.pdThresh) {
-                if (lastNPDSamples.size() >= p.pdThreshW) 
-                    lastSeenPD = firstSamp+u64(i-p.idxOfPdChan)/*, lastNPDSamples.clear()*/;
-                else 
-                    lastNPDSamples.push_back(samp);
-            } else
-                lastNPDSamples.clear();
+        if (!isBugAlt) {
+            for (int i = p.idxOfPdChan; i < int(sz); i += p.nVAIChans) {
+                const int16 samp = scans[i];
+                if (samp > p.pdThresh) {
+                    if (lastNPDSamples.size() >= p.pdThreshW)
+                        lastSeenPD = firstSamp+u64(i-p.idxOfPdChan)/*, lastNPDSamples.clear()*/;
+                    else
+                        lastNPDSamples.push_back(samp);
+                } else
+                    lastNPDSamples.clear();
+            }
         }
         if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps || isBugAlt) { // timeout PD after X scans..
 			if (dataFile.isOpen()) {
@@ -1910,7 +1913,10 @@ bool MainApp::detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp)
                 if (p.acqStartEndMode == DAQ::Bug3TTLTriggered)
                     emit do_setManualTrigEnabled(true);
             }
-            Log() << "PD/AI un-trig due to input line being off for >" << p.pdStopTime << " seconds.";
+            if (!isBugAlt)
+                Log() << "PD/AI un-trig due to input line being off for >" << p.pdStopTime << " seconds.";
+            else
+                Log() << "Bug3 TTL append window reached at " << p.pdStopTime << " seconds; untriggering.";
         }
     }
         break;
