@@ -189,10 +189,10 @@ bool PagedScanWriter::writePartial(const void *data, unsigned nbytes, const void
         partial_bytes_written += n2write;
         nbytes -= n2write;
         spaceLeft -= n2write;
-        if (mapper) {
+        /*if (mapper) {
             mapper->release((partial_rem+n2write)/scan_size_bytes);
             partial_rem = (partial_rem+n2write) % scan_size_bytes;
-        }
+        }*/
 
         if (!spaceLeft) {
             if (meta_data_size_bytes) {
@@ -209,13 +209,16 @@ void *PagedScanWriter::grabNextPageForWrite()
 {
     if (mapper) delete mapper, mapper = 0;
     void *p = PagedRingBufferWriter::grabNextPageForWrite();
+    /* NOTE THAT CHANNEL MAPPING IS BROKEN FOR NOW.. or so it appears.  It lead to performance issues & hangs -- see 4/12/2016 email from Jim Chen.
+       So we disable it and just do the more kosher thing of having a correct channel mapping setup in SpikeGL GUI.
+       This means the data file will always have raw frame format.. but at least things work well.  
     if (chan_mapping.size()) {
         mapper = new ScanRemapper(reinterpret_cast<short *>(p), nScansPerPage, scan_size_samps, chan_mapping);
         mapper->ErrFunc = ErrFunc; mapper->DbgFunc = DbgFunc;
         if (!mapper->start()) {
             ErrFunc("FATAL! Failed to start ScanRemapper thread in PagedScanWriter::grabNextPageForWrite()");
         }
-    }
+    }*/
     return p;
 }
 
@@ -237,7 +240,7 @@ bool PagedScanWriter::write(const short *scans, unsigned nScans, const void *met
         sampleCt += static_cast<unsigned long long>(n2write*scan_size_samps);
         nScans -= n2write;
         spaceLeft -= n2write;
-        if (mapper) mapper->release(n2write); /// inform remapper that this many new scans arrived and can be reordered
+        /*if (mapper) mapper->release(n2write); /// inform remapper that this many new scans arrived and can be reordered*/
 
         if (!spaceLeft) {  // if clause here is needed as above block may modify spaceLeft
             if (meta_data_size_bytes) {
@@ -254,12 +257,12 @@ bool PagedScanWriter::write(const short *scans, unsigned nScans, const void *met
 void PagedScanWriter::commit()
 {
     if (currPage) {
-        if (mapper) { 
+        /*if (mapper) { 
             //DbgFunc("PagedScanWriter::commit() called, but mapper %d is still active. Releasing and waiting...", mapper->id());
             mapper->release(nScansPerPage); 
             mapper->wait(); 
             delete mapper; mapper = 0;
-        } // wait for mapper to complete channel reordering..
+        } // wait for mapper to complete channel reordering..*/
         commitCurrentWritePage();
         currPage = 0; pageOffset = 0; partial_offset = 0;
     }

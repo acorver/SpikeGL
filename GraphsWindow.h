@@ -64,9 +64,13 @@ public:
 
     const DAQ::Params & daqParams() const { return params; }
 
+    const QVector<int> & currentSorting() const { return sorting; }
+    const QVector<int> & currentNaming() const { return naming; }
+
 signals:
 	void tabChanged(int tabNum);
     void manualTrig(bool);
+    void sortingChanged(const QVector<int> & sorting, const QVector<int> & naming);
 
 public slots:
     void setPDTrig(bool);

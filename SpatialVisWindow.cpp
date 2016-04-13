@@ -132,8 +132,12 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	colors.resize(nvai);
 	chanVolts.resize(nvai);
 	
+    // default sorting
+    sorting.resize(nvai); naming.resize(nvai);
+
 	for (int chanid = 0; chanid < nvai; ++chanid) {
 		points[chanid] = chanId2Pos(chanid);
+        sorting[chanid] = naming[chanid] = chanid;
 	}
 
 	sbRows->setValue(nby);
@@ -238,7 +242,7 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
     int firstidx = scans_size_samps - nvai;
 	if (firstidx < 0) firstidx = 0;
     for (int i = firstidx; i < int(scans_size_samps); ++i) {
-		int chanid = i % nvai;
+        int chanid = sorting[i % nvai];
 		const QColor color (chanid < nvai-nextra ? fg : fg2);
 #ifdef HEADACHE_PROTECTION
 		double val = .9;
@@ -318,12 +322,13 @@ void SpatialVisWindow::mouseOverGraph(double x, double y)
 
 void SpatialVisWindow::selectBlock(int blk)
 {
+    QMutexLocker l(&mut);
 	const QVector<unsigned> oldIdxs(selIdxs);
 	selClear();
 	Vec4 r = blockBoundingRectNoMargins(blk);
 	selIdxs.reserve(nGraphsPerBlock);
 	for (int i = 0, ch = 0; i < nGraphsPerBlock && ((ch=i + blk*nGraphsPerBlock) < nvai); ++i) {
-		selIdxs.push_back(ch);
+        selIdxs.push_back(ch);
 	}
     //qDebug("selectBlock(%d) oldIdxs(%d) firstIdx(%d)", blk, oldIdxs.size() ? oldIdxs[0] : -1, selIdxs.size()?selIdxs[0]:-1);
 	if (blk >= 0 && blk < nblks) {
@@ -366,15 +371,16 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 		statusLabel->setText("");
     else {
         QMutexLocker l (&mut);
-		statusLabel->setText(QString("Chan: #%3 -- Volts: %4 V")
-							 .arg(chanId)
-							 .arg(chanId < (int)chanVolts.size() ? chanVolts[chanId] : 0.0));
+        statusLabel->setText(QString("Elec: %2 (Graph %1) -- Volts: %3 V")
+                             .arg(sorting[chanId])
+                             .arg(naming[chanId])
+                             .arg(chanId < (int)chanVolts.size() ? chanVolts[naming[chanId]] : 0.0));
     }
 	
 	if (selIdxs.size()) {
 		QString t = statusLabel->text();
 		if (t.length()) t = QString("(mouse at: %1)").arg(t);
-		statusLabel->setText(QString("Selected channels %1-%2 of %3, page %4/%5. %6").arg(selIdxs.first()).arg(selIdxs.last()).arg(nvai).arg(selIdxs.first()/nGraphsPerBlock + 1).arg(nblks).arg(t));
+        statusLabel->setText(QString("Selected %1-%2 of %3, page %4/%5. %6").arg(selIdxs.first()).arg(selIdxs.last()).arg(nvai).arg(selIdxs.first()/nGraphsPerBlock + 1).arg(nblks).arg(t));
 	}
 	if (fdelayStr.size()) {
 		QString t = statusLabel->text();
@@ -550,7 +556,7 @@ void SpatialVisWindow::blockLayoutChanged()
 		setupGridlines();
 		graph->setPoints(points);
 		if (selIdxs.size()) {
-			int blk = selIdxs[0] / nGraphsPerBlock;
+            int blk = selIdxs[0] / nGraphsPerBlock;
 			selectBlock(blk);
 		}
 		saveSettings();
@@ -684,4 +690,16 @@ void SpatialVisWindow::hideEvent(QHideEvent *e)
 {
     QMainWindow::hideEvent(e);
     threadsafe_is_visible = !(e->isAccepted() || isHidden());
+}
+
+void SpatialVisWindow::setSorting(const QVector<int> & s, const QVector<int> & n)
+{
+    //Debug() << "SpatialVisWindow sorting changed called...";
+    QMutexLocker l(&mut);
+    sorting = s;
+    naming = n;
+    if (selIdxs.size()) {
+        selectBlock(selIdxs[0] / nGraphsPerBlock);
+        updateMouseOver();
+    }
 }

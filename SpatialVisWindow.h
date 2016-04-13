@@ -38,6 +38,7 @@ public:
 
 public slots:
 	void selectBlock(int tabNum);
+    void setSorting(const QVector<int> & sorting, const QVector<int> & naming);
 
 signals:
 	void channelsSelected(const QVector<unsigned> & ids);
@@ -117,6 +118,7 @@ private:
 	quint64 last_fs_frame_tsc;
 	Avg frameDelayAvg;
 	QString fdelayStr;
+    QVector<int> sorting, naming;
 
     QMutex mut;
 };

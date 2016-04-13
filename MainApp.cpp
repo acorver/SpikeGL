@@ -56,6 +56,7 @@ namespace {
     struct Init {
         Init() {
             qRegisterMetaType<unsigned>("unsigned");
+            qRegisterMetaType<QVector<int> >("QVector<int>");
         }
     };
 
@@ -883,6 +884,12 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 		delete [] mem;
     }
     
+    if (doFGAcqInstead) {
+        // hardcoded .. make user experience be that by default, in framegrabber more, we sort graphs by electrode, so that the channel remapping thing looks right onscreen
+        m_sortGraphsByElectrodeId = true;
+        sortGraphsByElectrodeAct->setChecked(true);
+    }
+
     graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen());
     graphsWindow->setAttribute(Qt::WA_DeleteOnClose, false);
     
@@ -899,6 +906,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     Vec2 blockDims = doFGAcqInstead ? Vec2(graphsWindow->numGraphsPerTab(),1) : Vec2(graphsWindow->numColsPerGraphTab(),graphsWindow->numRowsPerGraphTab());
     spatialWindow = new SpatialVisWindow(params, blockDims, 0);
     if (doFGAcqInstead) spatialWindow->setStaticBlockLayout(32,2);
+    spatialWindow->setSorting(graphsWindow->currentSorting(), graphsWindow->currentNaming());
 	spatialWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
 	spatialWindow->setWindowIcon(appIcon);
     spatialWindow->installEventFilter(this);
@@ -908,6 +916,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	Connect(spatialWindow, SIGNAL(channelsOpened(const QVector<unsigned> &)), graphsWindow, SLOT(openGraphsById(const QVector<unsigned> &)));
 	Connect(graphsWindow, SIGNAL(tabChanged(int)), spatialWindow, SLOT(selectBlock(int)));
     Connect(graphsWindow, SIGNAL(manualTrig(bool)), this, SLOT(gotManualTrigOverride(bool)));
+    Connect(graphsWindow, SIGNAL(sortingChanged(const QVector<int> &, const QVector<int> &)), spatialWindow, SLOT(setSorting(const QVector<int> &, const QVector<int> &)));
 
     if (!params.suppressGraphs) {
 		//spatialWindow->show();

@@ -326,8 +326,8 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 				}
 				chks[num]->setObjectName(QString::number(num));
 				int gnum;
-				if (p.mode != DAQ::AIRegular && num < p.chanMap.size())
-					chks[num]->setText(QString("Save Elec. %1").arg(gnum=p.chanMap[num].electrodeId));
+                if ((p.mode != DAQ::AIRegular || p.fg.enabled) && num < p.chanMap.size())
+                    chks[num]->setText(QString("Save Elec. %1 (#%2)").arg(gnum=p.chanMap[num].electrodeId).arg(num));
 				else
 					chks[num]->setText(QString("Save Graph %1").arg(gnum=num));
 				if (first_graph_num < 0) first_graph_num = gnum;
@@ -1162,6 +1162,7 @@ void GraphsWindow::sortGraphsByElectrodeId() {
 	
 	retileGraphsAccordingToSorting();
 	selectGraph(selectedGraph); ///< redoes the top toolbar labeling
+    emit sortingChanged(sorting, naming);
 }
 
 void GraphsWindow::sortGraphsByIntan() {
@@ -1183,6 +1184,7 @@ void GraphsWindow::sortGraphsByIntan() {
 	for ( ; i < gs; ++i) naming.push_back(i);
 	retileGraphsAccordingToSorting();
 	selectGraph(selectedGraph); ///< redoes the top toolbar labeling
+    emit sortingChanged(sorting, naming);
 }
 
 void GraphsWindow::tabChange(int t)

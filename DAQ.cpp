@@ -2483,18 +2483,44 @@ namespace DAQ
         }
         const int *retarray = which ? hardcoded1 : hardcoded2;
         if (cm_out) {
+/*
+                RAW FRAME LAYOUT is as follows... (from Channel Map.pdf exchanged in emails from Jim Chen
+
+                                      chip 1                  chip 2                chip 3            ...   chip 36
+                                     Lower32ch   Higer32ch   Lower32ch   Higer32ch  Lower32ch   Higer32ch   Lower32ch   Higer32ch
+description       Frame Info        MSB   LSB   MSB   LSB   MSB  LSB   MSB   LSB   MSB   LSB   MSB   LSB   MSB   LSB   MSB   LSB
+channel #1 & #33   64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit
+channel #2 & #34   64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit
+channel #3 & #35   64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit
+channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8‐bit
+*/
             // setup SpikeGL-native chanmap
-            static const int N_INTANS = 36/*, N_CHANS_PER_INTAN = 64*/;
+            static const int N_INTANS = 36, N_CHANS_PER_INTAN = 64;
             int n_chans = which ? (sizeof (hardcoded1)/sizeof(int)) : (sizeof(hardcoded2)/sizeof(int));
-            ChanMap & cm(*cm_out);  cm.resize(n_chans);
+            int *revmap = (int *)calloc(sizeof(int),n_chans);
             for (int i = 0; i < n_chans; ++i) {
-                int intan = i % N_INTANS, intan_chan = i / N_INTANS, electrode = retarray[i];
-                if (electrode < 0 || electrode >= n_chans) electrode = 0;
-                ChanMapDesc & d(cm[electrode]);
+                int j = retarray[i];
+                if (j < 0 || j >= n_chans) { Warning() << "INTERNAL: DAQ.cpp::getDefaultMapping.. mapping array has invalid values!"; j = 0; }
+                revmap[j] = i;
+            }
+            ChanMap & cm(*cm_out);  cm.resize(n_chans);
+            for (int i = 0, chinc = -1, even = 1; i < n_chans; ++i, even = !even) {
+                if (!(i%(N_INTANS*2))) ++chinc;
+                const int intan = (i/2) % N_INTANS, intan_chan = even ? chinc : chinc+(N_CHANS_PER_INTAN/2);
+                int electrode = revmap[i];
+                if (electrode < 0 || electrode >= n_chans) {
+                    Warning() << "INTERNAL: DAQ.cpp::getDefaultMapping.. electrode is out of range!";
+                    electrode = 0;
+                }
+                if (intan_chan >= N_CHANS_PER_INTAN || intan_chan < 0) {
+                    Warning() << "INTERNAL: DAQ.cpp::getDefaultMapping.. intan_chan is out of range!";
+                }
+                ChanMapDesc & d(cm[/*electrode*/i]);
                 d.electrodeId = electrode;
                 d.intan = intan;
                 d.intanCh = intan_chan;
             }
+            free(revmap);
         }
         return retarray;
     }
@@ -2515,9 +2541,9 @@ namespace DAQ
         XtCmdGrabFrames x;
 
         if (params.fg.isCalinsConfig)
-            x.init(SAMPLES_SHM_NAME, writer.totalSize(), writer.pageSize(), writer.metaDataSizeBytes(), "B_a2040_FreeRun_8Tap_Default.ccf", 2048, 2048/4, NumChansCalinsTest, getDefaultMapping(1));
+            x.init(SAMPLES_SHM_NAME, writer.totalSize(), writer.pageSize(), writer.metaDataSizeBytes(), "B_a2040_FreeRun_8Tap_Default.ccf", 2048, 2048/4, NumChansCalinsTest, 0/*getDefaultMapping(1)*/);
         else
-            x.init(SAMPLES_SHM_NAME, writer.totalSize(), writer.pageSize(), writer.metaDataSizeBytes(), "J_2000+_Electrode_8tap_8bit.ccf", 144, 32, NumChans, getDefaultMapping(0));
+            x.init(SAMPLES_SHM_NAME, writer.totalSize(), writer.pageSize(), writer.metaDataSizeBytes(), "J_2000+_Electrode_8tap_8bit.ccf", 144, 32, NumChans, 0/*getDefaultMapping(0)*/);
         pushCmd(x);
     }
 
