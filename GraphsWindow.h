@@ -50,7 +50,6 @@ public:
 
     const QLineEdit *saveFileLineEdit() const  { return saveFileLE; }
 
-	void setSGLTrig(bool);
 
 	void hideUnhideSaveChannelCBs();
 	
@@ -73,6 +72,7 @@ signals:
     void sortingChanged(const QVector<int> & sorting, const QVector<int> & naming);
 
 public slots:
+    void setSGLTrig(bool);
     void setPDTrig(bool);
     void setTrigOverrideEnabled(bool);
 

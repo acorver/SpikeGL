@@ -131,6 +131,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	points.resize(nvai);
 	colors.resize(nvai);
 	chanVolts.resize(nvai);
+    chanRawSamps.resize(nvai);
 	
     // default sorting
     sorting.resize(nvai); naming.resize(nvai);
@@ -249,6 +250,7 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
 #else
 		double val = (double(scans[i])+32768.) / 65535.;
 #endif
+        chanRawSamps[chanid] = scans[i];
 		chanVolts[chanid] = val * (params.range.max-params.range.min)+params.range.min;
 		colors[chanid].x = color.redF()*val;
 		colors[chanid].y = color.greenF()*val;
@@ -371,10 +373,14 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 		statusLabel->setText("");
     else {
         QMutexLocker l (&mut);
-        statusLabel->setText(QString("Elec: %2 (Graph %1) -- Volts: %3 V")
+        int nid = chanId < (int)chanVolts.size() ? naming[chanId] : 0;
+        if (nid < 0 || nid >= (int)chanVolts.size()) nid = 0;
+        QString raw = QString("%1").arg(static_cast<short>(chanRawSamps[nid]), 4, 16, QLatin1Char('0')).toUpper();
+        statusLabel->setText(QString("Elec: %2 (Graph %1) -- %3 V [0x%4] ")
                              .arg(sorting[chanId])
                              .arg(naming[chanId])
-                             .arg(chanId < (int)chanVolts.size() ? chanVolts[naming[chanId]] : 0.0));
+                             .arg(chanVolts[nid])
+                             .arg(raw));
     }
 	
 	if (selIdxs.size()) {

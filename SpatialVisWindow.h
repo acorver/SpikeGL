@@ -96,6 +96,7 @@ private:
     QVector<Vec2> points;
     QVector<Vec4f> colors;
 	QVector<double> chanVolts;
+    QVector<int16> chanRawSamps;
     GLSpatialVis * graph;
     QFrame * graphFrame;
 	QColor fg, fg2;

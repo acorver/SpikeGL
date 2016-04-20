@@ -317,8 +317,18 @@ private:
 	
     /// CAREFUL with this function -- it's called from within the DataSavingThread and as such should be fairly thread-safe and not directly touch the GUI
     void putRestarts(const DAQ::Params & p, u64 firstSamp, u64 restartSize) const;
+
+    struct SGL_Parms { QString plugin; QMap<QString, QVariant> parms; };
+    SGL_Parms sgl_started, sgl_save, sgl_ended; ///< locked by mutex 'mut'
+    volatile bool got_sgl_started, got_sgl_save, got_sgl_ended; ///< locked by mutex 'mut'
+
+    void trf_stimGL_Process(); ///< checks above flags, if set, calls corresponding functions below
+    void trf_stimGL_PluginStarted(const QString &, const QMap<QString, QVariant>  &);
+    void trf_stimGL_SaveParams(const QString & unused, const QMap<QString, QVariant> & pm);
+    void trf_stimGL_PluginEnded(const QString &, const QMap<QString, QVariant>  &);
+
 	
-    QMap<QString, QVariant> queuedParams;    
+    QMap<QString, QVariant> queuedParams;  ///< for StimGL integration... this should also gets locked with mut
     QMap<Par2Window *, CommandConnection *> par2WinConnMap;
     QSet<CommandConnection *> fastSettleConns;  ///< connections waiting for fast settle...
     
@@ -461,6 +471,7 @@ signals:
     void do_stopTask(); ///< helper signal so that DataSavingThread can effect changes into GUI
     void do_setPDTrigLED(bool); ///< helper signal so that DataSavingThread can effect changes into GUI
     void do_setManualTrigEnabled(bool); ///< helper signal so that DataSavingThread can effect changes into GUI
+    void do_setSGLTrig(bool); ///< helper signal so that DataSavingThread can effect changes into GUI
 };
 
 class HelpWindow : public QDialog

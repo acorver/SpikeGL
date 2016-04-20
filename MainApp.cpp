@@ -91,6 +91,7 @@ MainApp * MainApp::singleton = 0;
 MainApp::MainApp(int & argc, char ** argv)
     : QApplication(argc, argv, true), mut(QMutex::Recursive), consoleWindow(0), debug(false), initializing(true), sysTray(0), nLinesInLog(0), nLinesInLogMax(1000), task(0), graphsWindow(0), spatialWindow(0), bugWindow(0), fgWindow(0), notifyServer(0), commandServer(0), fastSettleRunning(false), helpWindow(0), noHotKeys(false), pdWaitingForStimGL(false), precreateDialog(0), pregraphDummyParent(0), maxPreGraphs(MAX_NUM_GRAPHS_PER_GRAPH_TAB), tPerGraph(0.), acqStartingDialog(0), doBugAcqInstead(false)
 {
+    got_sgl_ended = got_sgl_save = got_sgl_started = false;
     reader = 0;
     gthread = 0;
     dthread = 0;
@@ -778,6 +779,9 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     taskShouldStop = false;
     pdWaitingForStimGL = false;
     queuedParams.clear();
+    sgl_ended = sgl_save = sgl_started = SGL_Parms();
+    got_sgl_ended = got_sgl_save = got_sgl_started = false;
+
     if (!configCtl || !bugConfig || !fgConfig) {
         errTitle = "Internal Error";
         errMsg = "configCtl and/or bugConfig and/or fgConfig pointer is NULL! Shouldn't happen!";
@@ -895,6 +899,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     
     Connect(this, SIGNAL(do_setPDTrigLED(bool)), graphsWindow, SLOT(setPDTrig(bool)));
     Connect(this, SIGNAL(do_setManualTrigEnabled(bool)), graphsWindow, SLOT(setTrigOverrideEnabled(bool)));
+    Connect(this, SIGNAL(do_setSGLTrig(bool)), graphsWindow, SLOT(setSGLTrig(bool)));
 
     graphsWindow->setWindowIcon(appIcon);
     hideUnhideGraphsAct->setEnabled(true);
@@ -1401,7 +1406,8 @@ bool MainApp::taskReadFunc()
     unsigned scans_ret = 0;
 
     while (!needToStop || taskShouldStop) { ///< if taskShouldStop, stimGl signalled us, and task->stop() has been called.  So we keep emptying the queue to save all pending data.  Hence the reasosn for this while
-        QMutexLocker ml(&mut); // fixes potential race condition with StimGL_PluginStarted/Stopped calls which also touch dataFile..
+
+        trf_stimGL_Process(); ///< polls the stimgl flags to see if stimgl asynch. announced us of a plugin start/end/save event and updates app state accordingly
 
         bool gotSomething = false;
 
@@ -2185,11 +2191,57 @@ QString MainApp::getNewDataFileName(const QString & suf) const
 	return p.outputFileOrig;  // should never be reached unless we have 2^31 file collisions!
 }
 
+// called from data save thread
+void MainApp::trf_stimGL_Process()
+{
+    bool got_sta, got_sav, got_end;
+    SGL_Parms p_sta, p_sav, p_end;
+
+    mut.lock();
+    /// cache params locally
+    if ((got_sta = got_sgl_started)) p_sta = sgl_started;
+    if ((got_sav = got_sgl_save))    p_sav = sgl_save;
+    if ((got_end = got_sgl_ended))   p_end = sgl_ended;
+    sgl_started = sgl_ended = sgl_save = SGL_Parms(); // unconditionally clear params
+    got_sgl_ended = got_sgl_save = got_sgl_started = false; // unconditionally clear flags
+    mut.unlock();
+    // reacy to any flags that were set
+    if (got_sta) trf_stimGL_PluginStarted(p_sta.plugin, p_sta.parms);
+    if (got_sav) trf_stimGL_SaveParams(p_sav.plugin, p_sav.parms);
+    if (got_end) trf_stimGL_PluginEnded(p_end.plugin, p_end.parms);
+}
+// called from main thread.. set flags and queue params for real implementation in DataSave thread
 void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QVariant>  &pm)
+{
+    mut.lock();
+    got_sgl_started = true;
+    sgl_started.plugin = plugin;
+    sgl_started.parms = pm;
+    mut.unlock();
+}
+// called from main thread.. set flags and queue params for real implementation in DataSave thread
+void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVariant>  &pm)
+{
+    mut.lock();
+    got_sgl_ended = true;
+    sgl_ended.plugin = plugin;
+    sgl_ended.parms = pm;
+    mut.unlock();
+}
+// called from main thread.. set flags and queue params for real implementation in DataSave thread
+void MainApp::stimGL_SaveParams(const QString &plugin, const QMap<QString, QVariant>  &pm)
+{
+    mut.lock();
+    got_sgl_save = true;
+    sgl_save.plugin = plugin;
+    sgl_save.parms = pm;
+    mut.unlock();
+}
+
+void MainApp::trf_stimGL_PluginStarted(const QString &plugin, const QMap<QString, QVariant>  &pm)
 {
     (void)pm;
     bool ignored = true;
-    QMutexLocker ml (&mut);
     DAQ::Params & p (configCtl->acceptedParams);
     if (task && p.stimGlTrigResave) {
         if (dataFile.isOpen()) {
@@ -2211,7 +2263,7 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
            taskWaitingForTrigger = true; // turns on the detect trigger code again, so we can get a constant-offset PD signal
            pdWaitingForStimGL = false;
        }           
-        updateWindowTitles();
+        emit do_updateWindowTitles();
         ignored = false;
     }
     if (task 
@@ -2231,14 +2283,13 @@ void MainApp::stimGL_PluginStarted(const QString &plugin, const QMap<QString, QV
     Debug() << "Received notification that Stim GL plugin `" << plugin << "' started." << (ignored ? " Ignored!" : "");
 
 	if (!ignored) {
-		stimGL_SaveParams(plugin, pm);
-		if (graphsWindow) graphsWindow->setSGLTrig(true);
+        trf_stimGL_SaveParams(plugin, pm);
+        emit do_setSGLTrig(true);
 	}
 }
 
-void MainApp::stimGL_SaveParams(const QString & plugin, const QMap<QString, QVariant> & pm) 
+void MainApp::trf_stimGL_SaveParams(const QString & plugin, const QMap<QString, QVariant> & pm)
 {
-   QMutexLocker ml(&mut);
     if (dataFile.isOpen()) {
 		dataFile.setParam("StimGL_PluginName", plugin);  
         for (QMap<QString, QVariant>::const_iterator it = pm.begin(); it != pm.end(); ++it)
@@ -2248,25 +2299,24 @@ void MainApp::stimGL_SaveParams(const QString & plugin, const QMap<QString, QVar
         queuedParams = pm;
 }
 
-void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVariant> & pm)
+void MainApp::trf_stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVariant> & pm)
 {
     (void)pm;
-    QMutexLocker ml(&mut);
     bool ignored = true;
     DAQ::Params & p (configCtl->acceptedParams);
     if (task && taskWaitingForStop && p.acqStartEndMode == DAQ::StimGLStartEnd) {
         Log() << "Triggered stop by Stim GL plugin `" << plugin << "'";
         taskShouldStop = true;
-        stimGL_SaveParams(plugin,pm);
+        trf_stimGL_SaveParams(plugin,pm);
         task->stop(); ///< stop the daq task now.. we will empty the queue later..
         Log() << "DAQ task no longer acquiring, emptying queue and saving to disk.";
         ignored = false;        
     } else if (task && p.stimGlTrigResave && dataFile.isOpen()) {
-        stimGL_SaveParams(plugin,pm);
+        trf_stimGL_SaveParams(plugin,pm);
 		if (p.acqStartEndMode != DAQ::PDStartEnd) {
 	        Log() << "Data file: " << dataFile.fileName() << " closed by StimulateOpenGL.";
 		    dataFile.closeAndFinalize();
-			updateWindowTitles();    
+            emit do_updateWindowTitles();
 		} else if (!taskWaitingForTrigger) {
 			taskWaitingForStop = true;
 		}
@@ -2278,12 +2328,11 @@ void MainApp::stimGL_PluginEnded(const QString &plugin, const QMap<QString, QVar
     if (task && p.stimGlTrigResave && p.acqStartEndMode == DAQ::PDStart) {
         taskWaitingForTrigger = true;
         pdWaitingForStimGL = true;
-        updateWindowTitles();        
+        emit do_updateWindowTitles();
         ignored = false;        
     }
-	if (graphsWindow) graphsWindow->setSGLTrig(false);
+    emit do_setSGLTrig(false);
 	Debug() << "Received notification that Stim GL plugin `" << plugin << "' ended." << (ignored ? " Ignored!" : "");
-
 }
 
 void MainApp::doFastSettle()
@@ -2325,25 +2374,28 @@ bool MainApp::isSaving() const {
 
 void MainApp::toggleSave(bool s)
 {
+    mut.lock();
     const DAQ::Params & p (configCtl->acceptedParams);
     if (s && !dataFile.isOpen()) {
         if (!dataFile.openForWrite(p)) {
+            mut.unlock();
 			if (!p.demuxedBitMap.count(true))
 				// Aha!  Error was due to trying ot save a datafile with 0 chans!
 				QMessageBox::critical(0, "Nothing to Save!", "Save channel subset is empty (cannot save an empty data file).");
 			else
-				QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(p.outputFile));
+				QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(p.outputFile));            
             return;
         }
         if (!queuedParams.isEmpty()) stimGL_SaveParams("", queuedParams);
         Log() << "Save file: " << dataFile.fileName() << " opened from GUI.";
         //graphsWindow->clearGraph(-1);
-        updateWindowTitles();
+        emit do_updateWindowTitles();
     } else if (!s && dataFile.isOpen()) {
         dataFile.closeAndFinalize();
         Log() << "Save file: " << dataFile.fileName() << " closed from GUI.";
-        updateWindowTitles();
+        emit do_updateWindowTitles();
     }
+    mut.unlock();
 }
 
 QString MainApp::outputFile() const { return configCtl->acceptedParams.outputFile; }
