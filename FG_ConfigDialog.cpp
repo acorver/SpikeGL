@@ -97,6 +97,7 @@ int FG_ConfigDialog::exec()
 				p.bug.reset();
 				p.fg.reset();
 				p.fg.enabled = true;
+                p.fg.disableChanMap = dialog->disableChanMapChk->isChecked();
 
 
 				// todo.. form-specific stuff here which affects p.fg struct...
@@ -149,7 +150,7 @@ int FG_ConfigDialog::exec()
 				p.isImmediate = true;
 				p.acqStartEndMode = DAQ::Immediate;
 				p.usePD = 0;
-                /*p.chanMap SET HERE ---> */ DAQ::FGTask::getDefaultMapping(p.fg.isCalinsConfig?1:0, &p.chanMap);
+                /*p.chanMap SET HERE ---> */ DAQ::FGTask::getDefaultMapping(p.fg.isCalinsConfig?1:0, &p.chanMap, p.fg.disableChanMap);
 				
 				if (AGAIN == ConfigureDialogController::setFilenameTakingIntoAccountIncrementHack(p, p.acqStartEndMode, dialog->outputFileLE->text(), dialogW)) {
 					vr = AGAIN;
@@ -179,7 +180,8 @@ int FG_ConfigDialog::exec()
 				for (unsigned i = 0; i < p.nVAIChans; ++i) {
 					DAQ::Range r;
                     int chan_id_for_display = i;
-					r.min = -5., r.max = 5.;
+                    //r.min = -5., r.max = 5.;
+                    r.min = -0.006389565; r.max = 0.006389565; // hardcoded range of framegrabber intan voltages...
 					// since ttl lines may be missing in channel set, renumber the ones that are missing for display purposes
 						
 					if (rminmax.min > r.min) rminmax.min = r.min;
@@ -216,7 +218,8 @@ void FG_ConfigDialog::guiFromSettings()
     dialog->com->setCurrentIndex(p.fg.com);
     dialog->bits->setCurrentIndex(p.fg.bits);
     dialog->parity->setCurrentIndex(p.fg.parity);
-    dialog->stop->setCurrentIndex(p.fg.stop);    
+    dialog->stop->setCurrentIndex(p.fg.stop);
+    dialog->disableChanMapChk->setChecked(p.fg.disableChanMap);
 
     if (!DAQ::FGTask::probedHardware.empty()) {
         dialog->sapdevCB->clear();

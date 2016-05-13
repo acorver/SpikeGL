@@ -168,10 +168,11 @@ namespace DAQ
 		
 		struct FG { // framegrabber
 			bool enabled;
+            bool disableChanMap;
             int sidx, ridx; ///< server and resource index
             int com,baud,bits,parity,stop;
             bool isCalinsConfig;
-            void reset() { enabled = false; com=1,baud=1,bits=0,parity=0,stop=0; sidx=1; ridx=0; isCalinsConfig = false; }
+            void reset() { enabled = false; com=1,baud=1,bits=0,parity=0,stop=0; sidx=1; ridx=0; isCalinsConfig = false; disableChanMap = false; }
 		} fg;
 		
         mutable QMutex mutex;
@@ -510,7 +511,7 @@ namespace DAQ
         FGTask(Params & acqParams, QObject * parent, const PagedScanReader & psr, bool isDummyTask = false);
         ~FGTask();
 		
-        static const int *getDefaultMapping(int which /* 1=calin 0=janelia*/, ChanMap *cm_out = 0);
+        static const int *getDefaultMapping(int which /* 1=calin 0=janelia*/, ChanMap *cm_out = 0, bool disableForTesting = false);
 
         unsigned numChans() const;
         unsigned samplingRate() const;

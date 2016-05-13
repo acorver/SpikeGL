@@ -20,6 +20,7 @@
 #include <QMatrix>
 #include <QCheckBox>
 #include <QMutexLocker>
+#include <stdio.h>
 #include "StimGL_SpikeGL_Integration.h"
 
 #include "no_data.xpm"
@@ -33,7 +34,8 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
   graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xffffffff), last_fs_frame_tsc(getAbsTimeNS()), mut(QMutex::Recursive)
 {
 	static bool registeredMetaType = false;
-		
+    treatDataAsUnsigned = false;
+
 	if (fshare.shm) {
 		Log() << "SpatialVisWindow: " << (fshare.createdByThisInstance ? "Created" : "Attatched to pre-existing") <<  " StimGL 'frame share' memory segment, size: " << (double(fshare.size())/1024.0/1024.0) << "MB.";
 		fshare.lock();
@@ -65,10 +67,14 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	toolBar = addToolBar("Spatial Visualization Controls");
 	
 	QLabel *label;
-	//toolBar->addWidget(label = new QLabel("Color: ", toolBar));
-	//toolBar->addWidget(colorBut = new QPushButton(toolBar));
+    toolBar->addWidget(label = new QLabel("Color: ", toolBar));
+    toolBar->addWidget(colorBut = new QPushButton(toolBar));
 	
-	//toolBar->addSeparator();
+    toolBar->addSeparator();
+
+    toolBar->addWidget(unsignedChk = new QCheckBox("Unsigned", toolBar));
+
+    toolBar->addSeparator();
 	
 	toolBar->addWidget(label = new QLabel("Layout: ", toolBar));
 	toolBar->addWidget(sbCols = new QSpinBox(toolBar));
@@ -101,7 +107,8 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	f.setPointSize(f.pointSize()-1);
 	ovlAlphaLbl->setFont(f);
 	Connect(overlayBut, SIGNAL(clicked(bool)), this, SLOT(overlayButPushed()));
-	//Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
+    Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
+    Connect(unsignedChk, SIGNAL(toggled(bool)), this, SLOT(unsignedChecked(bool)));
 	
 	toolBar->addWidget(ovlFFChk = new QCheckBox("Full Frame", toolBar));
 	ovlFFChk->setEnabled(!!fshare.shm);
@@ -242,13 +249,20 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
 	(void)firstSamp; // unused warning
     int firstidx = scans_size_samps - nvai;
 	if (firstidx < 0) firstidx = 0;
+    const bool nocm = params.fg.enabled && params.fg.disableChanMap;
     for (int i = firstidx; i < int(scans_size_samps); ++i) {
-        int chanid = sorting[i % nvai];
+        int chanid = nocm ? i%nvai: sorting[i % nvai];
 		const QColor color (chanid < nvai-nextra ? fg : fg2);
 #ifdef HEADACHE_PROTECTION
 		double val = .9;
 #else
-		double val = (double(scans[i])+32768.) / 65535.;
+        double val;
+        if (treatDataAsUnsigned) {
+            /// XXX 4/26/2016 Jim Chen complaints testing -- turns out 0x0 is the most negative and 0xffff is the brightest.. this is different from NI!
+            val = static_cast<double>(uint16(scans[i]))/65535.0;
+        } else {
+            val = (double(scans[i])+32767.) / 65535.;
+        }
 #endif
         chanRawSamps[chanid] = scans[i];
 		chanVolts[chanid] = val * (params.range.max-params.range.min)+params.range.min;
@@ -367,15 +381,35 @@ void SpatialVisWindow::mouseDoubleClickGraph(double x, double y)
 
 void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 {
+    char buf[64];
+
 	if (!statusLabel) return;
 	const int chanId = mouseOverChan;
 	if (chanId < 0 || chanId >= chanVolts.size()) 
 		statusLabel->setText("");
     else {
         QMutexLocker l (&mut);
-        int nid = chanId < (int)chanVolts.size() ? naming[chanId] : 0;
-        if (nid < 0 || nid >= (int)chanVolts.size()) nid = 0;
-        QString raw = QString("%1").arg(static_cast<short>(chanRawSamps[nid]), 4, 16, QLatin1Char('0')).toUpper();
+        int nid;
+        if (params.fg.enabled && params.fg.disableChanMap)
+            nid = chanId; // XXX this is for when we ENABLE sorting/remapping of framegrabber graphs
+        else
+            nid = chanId < (int)chanVolts.size() ? naming[chanId] : 0;
+        if (nid < 0 || nid >= (int)chanVolts.size()) {
+            Debug() << "naming weird? nid=" << nid << " chanid=" << chanId;
+            nid = 0;
+        }
+#ifdef Q_OS_WINDOWS
+        _snprintf_s
+#else
+        snprintf
+#endif
+                (buf,sizeof(buf),"%04hx",chanRawSamps[nid]);
+
+        QString raw = QString(buf).toUpper();
+        if (raw.length() > 4) {
+            Debug() << "Error in text formatting code.. raw: " << raw << " original value: " << chanRawSamps[nid];
+
+        }
         statusLabel->setText(QString("Elec: %2 (Graph %1) -- %3 V [0x%4] ")
                              .arg(sorting[chanId])
                              .arg(naming[chanId])
@@ -458,7 +492,7 @@ int SpatialVisWindow::pos2ChanId(double x, double y) const
 
 void SpatialVisWindow::updateToolBar()
 {
-/*	{ // update color button
+    { // update color button
         QPixmap pm(22,22);
         QPainter p;
         p.begin(&pm);
@@ -466,7 +500,6 @@ void SpatialVisWindow::updateToolBar()
         p.end();
         colorBut->setIcon(QIcon(pm));
     }
- */
 }
 
 void SpatialVisWindow::colorButPressed()
@@ -478,8 +511,12 @@ void SpatialVisWindow::colorButPressed()
     QColorDialog::setCustomColor(1,f2.rgba());
     QColor c = QColorDialog::getColor(f, this);
     if (c.isValid()) {
-        QMutexLocker l(&mut);
-		fg = c;
+        {
+            QMutexLocker l(&mut);
+            int olda = fg.alpha();
+            fg = c;
+            fg.setAlpha(olda);
+        }
         updateToolBar();
 		saveSettings();
     }	
@@ -492,7 +529,7 @@ void SpatialVisWindow::saveSettings()
 	QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 	settings.beginGroup(SETTINGS_GROUP);
 
-	settings.setValue("fgcolor1", static_cast<unsigned int>(fg.rgba())); 
+    settings.setValue("fgcolor1_new", static_cast<unsigned int>(fg.rgba()));
 	settings.setValue(QString("layout%1cols").arg(nblks), nbx);
 	settings.setValue(QString("layout%1rows").arg(nblks), nby);
 	settings.setValue(QString("UseStimGLOverlay"), overlayChk->isChecked());
@@ -507,7 +544,9 @@ void SpatialVisWindow::loadSettings()
 	QSettings settings(SETTINGS_DOMAIN, SETTINGS_APP);
 	settings.beginGroup(SETTINGS_GROUP);
 
-	fg = QColor::fromRgba(settings.value("fgcolor1", static_cast<unsigned int>(fg.rgba())).toUInt());
+    int olda = fg.alpha();
+    fg = QColor::fromRgba(settings.value("fgcolor1_new", static_cast<unsigned int>(fg.rgba())).toUInt());
+    fg.setAlpha(olda);
 	int sbcols = settings.value(QString("layout%1cols").arg(nblks), nbx).toInt();
 	int sbrows = settings.value(QString("layout%1rows").arg(nblks), nby).toInt();
 	if (sbrows > 0 && sbcols > 0 && sbrows <= 100 && sbcols <= 100 && sbrows * sbcols >= nblks) {
@@ -708,4 +747,9 @@ void SpatialVisWindow::setSorting(const QVector<int> & s, const QVector<int> & n
         selectBlock(selIdxs[0] / nGraphsPerBlock);
         updateMouseOver();
     }
+}
+
+void SpatialVisWindow::unsignedChecked(bool b)
+{
+    treatDataAsUnsigned = b;
 }

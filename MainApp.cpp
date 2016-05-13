@@ -889,9 +889,15 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     }
     
     if (doFGAcqInstead) {
-        // hardcoded .. make user experience be that by default, in framegrabber more, we sort graphs by electrode, so that the channel remapping thing looks right onscreen
-        m_sortGraphsByElectrodeId = true;
-        sortGraphsByElectrodeAct->setChecked(true);
+        if (params.fg.disableChanMap) {
+            // for testing 4/26/16 -- we just sort by intan for testing.
+            m_sortGraphsByElectrodeId = false;
+            sortGraphsByElectrodeAct->setChecked(false);
+        } else {
+            // hardcoded .. make user experience be that by default, in framegrabber more, we sort graphs by electrode, so that the channel remapping thing looks right onscreen
+            m_sortGraphsByElectrodeId = true;
+            sortGraphsByElectrodeAct->setChecked(true);
+        }
     }
 
     graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen());

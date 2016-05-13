@@ -2341,7 +2341,7 @@ namespace DAQ
     }
 
     /* static */
-    const int *FGTask::getDefaultMapping(int which /* 1=calin 0=janelia*/, ChanMap *cm_out /*= 0*/) {
+    const int *FGTask::getDefaultMapping(int which /* 1=calin 0=janelia*/, ChanMap *cm_out /*= 0*/, bool disableForTesting /* = false */) {
         static int hardcoded1[] =       { 1, 65, 129, 193, 257, 321, 385, 449, 513, 577, 641, 705, 769, 833, 897, 961, 1025, 1089, 1153, 1217, 1281, 1345, 1409, 1473, 1537, 1601, 1665, 1729, 1793, 1857, 1921, 1985,
                                          2, 66, 130, 194, 258, 322, 386, 450, 514, 578, 642, 706, 770, 834, 898, 962, 1026, 1090, 1154, 1218, 1282, 1346, 1410, 1474, 1538, 1602, 1666, 1730, 1794, 1858, 1922, 1986,
                                          3, 67, 131, 195, 259, 323, 387, 451, 515, 579, 643, 707, 771, 835, 899, 963, 1027, 1091, 1155, 1219, 1283, 1347, 1411, 1475, 1539, 1603, 1667, 1731, 1795, 1859, 1923, 1987,
@@ -2507,7 +2507,7 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
             for (int i = 0, chinc = -1, even = 1; i < n_chans; ++i, even = !even) {
                 if (!(i%(N_INTANS*2))) ++chinc;
                 const int intan = (i/2) % N_INTANS, intan_chan = even ? chinc : chinc+(N_CHANS_PER_INTAN/2);
-                int electrode = revmap[i];
+                int electrode = disableForTesting ? i : revmap[i];
                 if (electrode < 0 || electrode >= n_chans) {
                     Warning() << "INTERNAL: DAQ.cpp::getDefaultMapping.. electrode is out of range!";
                     electrode = 0;

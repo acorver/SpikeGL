@@ -157,18 +157,41 @@ static void acqCallback(SapXferCallbackInfo *info)
         const char *pc = reinterpret_cast<const char *>(pData);
         writer->writePartialBegin();
         for (int line = 0; line < h; ++line) {
-            if (line + 1 == h) {
-                metaPtrCur() = *reinterpret_cast<const unsigned long long *>(pc + line*pitch);
-                metaPtrInc();
+//            if (1) { // no swab
+                if (line + 1 == h) {
+                    metaPtrCur() = *reinterpret_cast<const unsigned long long *>(pc + line*pitch);
+                    metaPtrInc();
+                }
+                if (!writer->writePartial(pc + /* <HACK> */ 8 /* </HACK> */ + (line*pitch), w, metaPtr)) {
+                    spikeGL->pushConsoleError("PagedScanWriter::writePartial() returned false!");
+                    buffers->ReleaseAddress((void *)pData);
+                    writer->writePartialEnd();
+                    xfer->Abort();
+                    return;
+                }
+ /*           } else { // swab
+                if (line + 1 == h) {
+                    unsigned long long mts = *reinterpret_cast<const unsigned long long *>(pc + line*pitch);
+                    mts = ((mts >> 56) & 0x00000000000000ff) | ((mts >> 40) & 0x000000000000ff00) | ((mts >> 24) & 0x0000000000ff0000) | ((mts >> 8) & 0x00000000ff000000) | ((mts << 8) & 0x000000ff00000000) | ((mts << 24) & 0x0000ff0000000000) | ((mts << 40) & 0x00ff000000000000) | ((mts << 56) & 0xff000000000000);
+                    metaPtrCur() = mts;
+                    metaPtrInc();
+                }
+                static char btmp[262144]; // testing hacky buffer
+                for (int i = 0; i < w; i += 2) {
+                    btmp[i] = pc[8 + (line*pitch) + i+1];
+                    btmp[i+1] = pc[8 + (line*pitch) + i];
+                }
+                if (!writer->writePartial(btmp, w, metaPtr)) {
+                    spikeGL->pushConsoleError("PagedScanWriter::writePartial() returned false!");
+                    buffers->ReleaseAddress((void *)pData);
+                    writer->writePartialEnd();
+                    xfer->Abort();
+                    return;
+                }
             }
-            if (!writer->writePartial(pc + /* <HACK> */ 8 /* </HACK> */ + (line*pitch), w, metaPtr)) {
-                spikeGL->pushConsoleError("PagedScanWriter::writePartial() returned false!");
-                buffers->ReleaseAddress((void *)pData);
-                writer->writePartialEnd();
-                xfer->Abort();
-                return;
-            }
+*/
         }
+
         if (!writer->writePartialEnd()) {
             spikeGL->pushConsoleError("PagedScanWriter::writePartialEnd() returned false!");
             buffers->ReleaseAddress((void *)pData);
@@ -209,8 +232,8 @@ static void acqCallback(SapXferCallbackInfo *info)
     static int ctr = 0;
     ++ctr;
     ++frameNum;
-    //static double tWriteSum = 0.;
-    //tWriteSum += tfwrite - t0write;
+    //static double tWriteSum = 0.; /// XXX
+    //tWriteSum += tfwrite - t0write; /// XXX
 
     double now = getTime();
     if (frameNum > 1 && now - lastPrt >= 1.0) {

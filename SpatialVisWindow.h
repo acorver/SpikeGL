@@ -36,6 +36,9 @@ public:
 
     void setStaticBlockLayout(int nrows, int ncols);
 
+    QColor & glyphColor1() { return fg; }
+    QColor & glyphColor2() { return fg2; }
+
 public slots:
 	void selectBlock(int tabNum);
     void setSorting(const QVector<int> & sorting, const QVector<int> & naming);
@@ -71,6 +74,7 @@ private slots:
 	void ovlFFChecked(bool);
 	void ovlAlphaChanged(int);
 	void ovlFpsChanged(int);
+    void unsignedChecked(bool);
 	
 private:	
 	int pos2ChanId(double x, double y) const;
@@ -93,6 +97,7 @@ private:
     DAQ::Params & params;
 	const int nvai, nextra;
 	int nblks, nbx, nby, nGraphsPerBlock, blocknx, blockny;
+    bool treatDataAsUnsigned;
     QVector<Vec2> points;
     QVector<Vec4f> colors;
 	QVector<double> chanVolts;
@@ -105,9 +110,9 @@ private:
 	QVector<unsigned> selIdxs;
 	
 	QToolBar *toolBar;
-//	QPushButton *colorBut;
+    QPushButton *colorBut;
 	QSpinBox *sbCols, *sbRows;
-	QCheckBox *overlayChk, *ovlFFChk;
+    QCheckBox *overlayChk, *ovlFFChk, *unsignedChk;
 	QLabel *ovlAlphaLbl;
 	QPushButton *overlayBut;
 	QSlider *overlayAlpha;
@@ -121,7 +126,7 @@ private:
 	QString fdelayStr;
     QVector<int> sorting, naming;
 
-    QMutex mut;
+    QMutex mut;    
 };
 
 
