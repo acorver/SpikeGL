@@ -249,7 +249,7 @@ void ConfigureDialogController::aiRangeChanged()
     const QList<DAQ::Range> ranges = aiDevRanges.values(devStr);
 	if (!ranges.count()) {
 		QMessageBox::critical(dialogW, "NI Unknown Error", "Error with your NIDAQ setup.  Please make sure all ghost/phantom/unused devices are deleted from your NI Measurement & Autiomation Explorer", QMessageBox::Abort);
-		QApplication::exit(1);
+        mainApp()->quit();
 		return;
 	}
     const DAQ::Range r = ranges[dialog->aiRangeCB->currentIndex()];
@@ -422,7 +422,10 @@ void ConfigureDialogController::updateAORangeOnCBChange(Ui::AoPassThru *aoPassth
         QString errMsg(QString("AO on device '") + devStr + "' seems to be invalid or improperly configured.  Please run NI-MAX and delete any ghost/unused devices and restart SpikeGL.");
         Warning() << errMsg;
         int but = QMessageBox::warning(0, "AO Device Invalid", errMsg, QMessageBox::Ignore|QMessageBox::Abort, QMessageBox::Abort);
-        if (but != QMessageBox::Ignore) mainApp()->quit();
+        if (but != QMessageBox::Ignore) {
+            mainApp()->quit();
+            return;
+        }
         aoPassthru->aoRangeCB->insertItem(0, "-10 - 10");
         aoPassthru->aoRangeCB->insertItem(1, "-5 - 5");
     }

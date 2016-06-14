@@ -89,6 +89,7 @@ private slots:
 	void clickedCloseLbl(GLGraph *g);
 	void sortGraphsByIntan();
 	void sortGraphsByElectrode();
+    void graphsPerPageChanged(int);
 	
 private:
 	void loadSettings();
@@ -106,6 +107,7 @@ private:
 	void setFilePos64(qint64 pos, bool noupdate = false);
 	void printStatusMessage();
 	void doExport(const ExportParams &);
+    int graphsPerPage() const;
 	QString generateGraphNameString(unsigned graphNum, bool verbose = true) const;
 	
 	enum ViewMode { Tiled = 0, Stacked, StackedLarge, StackedHuge, N_ViewMode } viewMode;
@@ -121,7 +123,7 @@ private:
 	QVector<GLGraph *> graphs;
     QVector<Vec2fWrapBuffer> graphBufs;
 	QVector<QFrame *> graphFrames;
-	QSpinBox *posScansSB;
+    QSpinBox *posScansSB, *graphPgSz;
 	QDoubleSpinBox *posSecsSB;
 	QSlider *posSlider;
 	QLabel *totScansLbl;
@@ -132,11 +134,11 @@ private:
 	QSpinBox *nDivsSB;
 	TaggableLabel *closeLbl;
 	QLabel *graphNameLbl;
-	QVector<QAction *> graphHideUnhideActions;
+    QVector<QAction *> graphHideUnhideActions;
 	QCheckBox *highPassChk, *dcfilterChk;
 	bool electrodeSort;
 
-	QMenu *channelsMenu;
+    QMenu *channelsMenu;
 	QAction *colorSchemeActions[N_ColorScheme];	
 	QAction *viewModeActions[N_ViewMode];
 	QAction *sortByElectrode, *sortByIntan;
@@ -154,7 +156,7 @@ private:
 	qint64 selectionBegin, selectionEnd; ///< selection position (in scans) and number of scans.  if begin is negative, no selection
 	qint64 saved_selectionBegin, saved_selectionEnd;
 	ChanMap chanMap;
-	QBitArray hiddenGraphs;
+    QBitArray hiddenGraphs;
 	double mouseOverT, mouseOverV;
 	int mouseOverGNum;
 	

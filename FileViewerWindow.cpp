@@ -109,6 +109,17 @@ FileViewerWindow::FileViewerWindow()
 	Connect(posSecsSB, SIGNAL(valueChanged(double)), this, SLOT(setFilePosSecs(double)));
 	
 	toolBar = addToolBar("Graph Controls");
+    lbl = new QLabel("Graphs/Page", toolBar);
+    lbl->setToolTip("The number of graphs to display on-screen at a time. Page through graphs using the 'tabwidget' control.");
+    toolBar->addWidget(lbl);
+    graphPgSz = new QSpinBox(toolBar);
+    graphPgSz->setMinimum(8);
+    graphPgSz->setMaximum(256);
+    graphPgSz->setToolTip("The number of graphs to display on-screen at a time. Page through graphs using the 'tabwidget' control.");
+    toolBar->addWidget(graphPgSz);
+    Connect(graphPgSz, SIGNAL(valueChanged(int)), this, SLOT(graphsPerPageChanged(int)));
+    toolBar->addSeparator();
+
 	lbl = new QLabel("Graph:", toolBar);
 	toolBar->addWidget(lbl);
 	lbl = graphNameLbl = new QLabel("<font size=-1>0 Ch. 0</font>", toolBar);
@@ -207,9 +218,9 @@ FileViewerWindow::FileViewerWindow()
 		QAction *a = viewModeActions[i] = m->addAction(viewModeNames[i], this, SLOT(viewModeMenuSlot()));
 		a->setCheckable(true);
 	}
-	channelsMenu = mb->addMenu("&Channels");
+    channelsMenu = mb->addMenu("&Channels");
 	channelsMenu->addAction("Show All", this, SLOT(showAllGraphs()));
-	channelsMenu->addSeparator();
+    channelsMenu->addSeparator();
 	
 	closeLbl = new TaggableLabel(0, (Qt::WindowFlags)Qt::FramelessWindowHint);
 	QPixmap pm(close_but_16px);
@@ -274,8 +285,8 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	// if reopening a file, delete all the old graphs first, and any auxilliary objects, and also do some cleanup/pre-init
 	for (int i = 0, n = graphFrames.size(); i < n; ++i) {
 		delete graphFrames[i];
-		channelsMenu->removeAction(graphHideUnhideActions[i]);
-		delete graphHideUnhideActions[i];
+        channelsMenu->removeAction(graphHideUnhideActions[i]);
+        delete graphHideUnhideActions[i];
 	}
 
 	if (hpfilter) delete hpfilter;
@@ -327,16 +338,16 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 		Connect(graphs[i], SIGNAL(doubleClicked(double, double)), this, SLOT(doubleClickedGraph()));
 		Connect(graphs[i], SIGNAL(clicked(double, double)), this, SLOT(mouseClickSlot(double,double)));
 		Connect(graphs[i], SIGNAL(clickReleased(double, double)), this, SLOT(mouseReleaseSlot(double,double)));
-		QAction *a = new QAction(graphs[i]->objectName(), this);
-		a->setObjectName(QString::number(i)); // hack sorta: tag it with its id for use later in the slot
-		a->setCheckable(true);
-		a->setChecked(true);
-		channelsMenu->addAction(a);
-		Connect(a, SIGNAL(triggered()), this, SLOT(hideUnhideGraphSlot()));
-		graphHideUnhideActions[i] = a;
+        QAction *a = new QAction(graphs[i]->objectName(), this);
+        a->setObjectName(QString::number(i)); // hack sorta: tag it with its id for use later in the slot
+        a->setCheckable(true);
+        a->setChecked(true);
+        channelsMenu->addAction(a);
+        Connect(a, SIGNAL(triggered()), this, SLOT(hideUnhideGraphSlot()));
+        graphHideUnhideActions[i] = a;
 	}
 	graphBufs.resize(graphs.size());
-	hiddenGraphs.fill(false, graphs.size());
+    hiddenGraphs.fill(false, graphs.size());
 
 	pscale = 1;
 	pos = 0;
@@ -403,6 +414,10 @@ void FileViewerWindow::loadSettings()
 	xScaleSB->blockSignals(false);
 	yScaleSB->blockSignals(false);	
 	electrodeSort = settings.value("sortGraphsByElectrode", false).toBool();
+
+    graphPgSz->blockSignals(true);
+    graphPgSz->setValue(settings.value("graphsPerPage", 36).toUInt());
+    graphPgSz->blockSignals(false);
 }
 
 void FileViewerWindow::saveSettings()
@@ -420,6 +435,7 @@ void FileViewerWindow::saveSettings()
 	if (exportCtl->params.customSubset) lec = 2;
 	settings.setValue("lastExportChans", lec);
 	settings.setValue("sortGraphsByElectrode", electrodeSort);
+    settings.setValue("graphsPerPage", graphsPerPage());
 }
 
 void FileViewerWindow::layoutGraphs()
@@ -450,8 +466,8 @@ void FileViewerWindow::layoutGraphs()
 
 		// non-maximized more.. make sure non-hidden graphs are shown!
 		for (int i = 0; i < n; ++i)
-			if (!hiddenGraphs.testBit(i))
-				graphFrames[i]->show();
+            if (!hiddenGraphs.testBit(i))
+				graphFrames[i]->show();                
 		
 		if (viewMode == Tiled) {
 			updateGeometry();
@@ -464,7 +480,7 @@ void FileViewerWindow::layoutGraphs()
 			l->setVerticalSpacing(padding);
 			graphParent->setLayout(l);
 			updateGeometry();
-			const int ngraphs = graphFrames.size() - hiddenGraphs.count(true);
+            const int ngraphs = graphFrames.size() - hiddenGraphs.count(true);
 			int nrows = int(sqrtf(ngraphs)), ncols = nrows;
 			while (nrows*ncols < (int)ngraphs) {
 				if (nrows > ncols) ++ncols;
@@ -473,10 +489,10 @@ void FileViewerWindow::layoutGraphs()
 			for (int r = 0, num = 0; r < nrows; ) {
 				for (int c = 0; c < ncols; ++num) {
 					if (num >= graphs.size()) { r=nrows,c=ncols; break; } // break out of loop
-					if (!hiddenGraphs.testBit(graphSorting[num])) {
+                    if (!hiddenGraphs.testBit(graphSorting[num])) {
 						l->addWidget(graphFrames[graphSorting[num]], r, c);
 						if (++c >= ncols) ++r;
-					}
+                    }
 				}
 			}
 
@@ -486,17 +502,17 @@ void FileViewerWindow::layoutGraphs()
 			scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
 			int w; 
-			graphParent->resize(w=(scrollArea->width() - scrollArea->verticalScrollBar()->width() - 5), (stk_h + padding) * hiddenGraphs.count(false));
+            graphParent->resize(w=(scrollArea->width() - scrollArea->verticalScrollBar()->width() - 5), (stk_h + padding) * hiddenGraphs.count(false));
 			if (w <= 0) w = 1;
 			int y = 0;
 
 			for (int i = 0; i < n; ++i) {
-				if (!hiddenGraphs.testBit(graphSorting[i])) {
+                if (!hiddenGraphs.testBit(graphSorting[i])) {
 					QFrame *f = graphFrames[graphSorting[i]];
 					f->resize(w, stk_h);
 					f->move(0,y);
 					y += f->height() + padding;
-				}
+                }
 			}
 			
 		}	
@@ -511,7 +527,7 @@ void FileViewerWindow::updateData()
 {
 	const double srate = dataFile.samplingRateHz();
 
-	const QBitArray channelSubset = ~hiddenGraphs;
+    const QBitArray channelSubset = ~hiddenGraphs;
 	const int nChans = graphs.size(), nChansOn = channelSubset.count(true);	
 	QVector<int> chanIdsOn(nChansOn);
 	std::vector<bool> chansToFilter(nChansOn, false), chansToDCSubtract(nChansOn, false);
@@ -520,14 +536,14 @@ void FileViewerWindow::updateData()
 	int maxW = 1;
 	bool hasDCSubtract = false;
 	for (int i = 0, j = 0; i < nChans; ++i) {
-		if (channelSubset.testBit(i)) {
+        if (channelSubset.testBit(i)) {
 			if (maxW < graphs[i]->width()) maxW = graphs[i]->width();
 			if (graphParams[i].filter300Hz)
 				chansToFilter[j] = true;
 			if (graphParams[i].dcFilter)
 				chansToDCSubtract[j] = true, hasDCSubtract = true; 
 			chanIdsOn[j++] = i;
-		}
+        }
 	}
 	
     i64 num = nSecsZoom * srate;
@@ -899,8 +915,8 @@ void FileViewerWindow::mouseOverGraphInWindowCoords(GLGraph *g, int x, int y)
 	const QSize sz = closeLbl->size();
 	if (!g) return;
 	if (x > g->width()-sz.width() && y < sz.height()) {
-		if (hiddenGraphs.count(true) >= graphs.size()-1) // on last graph, can't close
-			return;
+        if (hiddenGraphs.count(true) >= graphs.size()-1) // on last graph, can't close
+            return;
 		closeLbl->hide();
 		QPoint p (g->width()-sz.width(),0);
 		p = g->mapToGlobal(p);
@@ -925,8 +941,8 @@ void FileViewerWindow::hideGraph(int num)
 	if (num < 0 || num >= graphs.size()) return;
 	QFrame *f = graphFrames[num];
 	f->hide();
-	hiddenGraphs.setBit(num);
-	graphHideUnhideActions[num]->setChecked(false);	
+    hiddenGraphs.setBit(num);
+    graphHideUnhideActions[num]->setChecked(false);
 	layoutGraphs();
 	updateData();
 }
@@ -935,8 +951,8 @@ void FileViewerWindow::showGraph(int num)
 {
 	if (num < 0 || num >= graphFrames.size()) return;
 	QFrame *f = graphFrames[num];
-	hiddenGraphs.clearBit(num);
-	graphHideUnhideActions[num]->setChecked(true);	
+    hiddenGraphs.clearBit(num);
+    graphHideUnhideActions[num]->setChecked(true);
 	layoutGraphs();
 	updateData();
 	f->show();
@@ -966,8 +982,8 @@ void FileViewerWindow::showAllGraphs()
 	maximizedGraph = -1;
 	const int n = graphs.size();
 	for (int i = 0; i < n; ++i) {
-		hiddenGraphs.clearBit(i);
-		graphHideUnhideActions[i]->setChecked(true);	
+        hiddenGraphs.clearBit(i);
+        graphHideUnhideActions[i]->setChecked(true);
 		graphFrames[i]->show();
 	}
 	layoutGraphs();
@@ -984,6 +1000,7 @@ void FileViewerWindow::hideUnhideGraphSlot()
 	if (maximizedGraph == num) {
 		maximizedGraph = -1;
 	}
+
 	if (num >= 0 && num < graphs.size()) {
 		if (hiddenGraphs.testBit(num)) {
 			// unhide			
@@ -994,6 +1011,7 @@ void FileViewerWindow::hideUnhideGraphSlot()
 				hideGraph(num);
 		}
 	}
+
 }
 
 void FileViewerWindow::hideCloseTimeout()
@@ -1348,4 +1366,12 @@ void FileViewerWindow::sortGraphsByElectrode() {
 		sorting.push_back(i);
 		
 	layoutGraphs();
+}
+
+void FileViewerWindow::graphsPerPageChanged(int dummy) {
+    (void)dummy; saveSettings();
+}
+
+int FileViewerWindow::graphsPerPage() const {
+    return graphPgSz->value();
 }
