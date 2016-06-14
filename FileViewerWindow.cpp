@@ -44,6 +44,7 @@
 #include <QKeyEvent>
 #include "ui_FVW_OptionsDialog.h"
 #include <QDialog>
+#include <QComboBox>
 
 
 const QString FileViewerWindow::viewModeNames[] = {
@@ -81,7 +82,20 @@ FileViewerWindow::FileViewerWindow()
 	// bottom slider
 	QWidget *w = new QWidget(cw);
 	QHBoxLayout *hl = new QHBoxLayout(w);
-	QLabel *lbl = new QLabel("File position: ", w);	
+
+    pageCB = new QComboBox(w);
+    hl->addWidget(pageCB);
+    QLabel *lbl = new QLabel("Graphs/Page", w);
+    lbl->setToolTip("The number of graphs to display on-screen at a time. Page through graphs using the 'tabwidget' control.");
+    hl->addWidget(lbl);
+    graphPgSz = new QSpinBox(w);
+    graphPgSz->setMinimum(8);
+    graphPgSz->setMaximum(256);
+    graphPgSz->setToolTip("The number of graphs to display on-screen at a time. Page through graphs using the 'tabwidget' control.");
+    hl->addWidget(graphPgSz);
+    Connect(graphPgSz, SIGNAL(valueChanged(int)), this, SLOT(graphsPerPageChanged(int)));
+
+    lbl = new QLabel("File position: ", w);
 	hl->addWidget(lbl);
 	lbl = new QLabel("scans", w);
 	posScansSB = new QSpinBox(w);
@@ -109,16 +123,6 @@ FileViewerWindow::FileViewerWindow()
 	Connect(posSecsSB, SIGNAL(valueChanged(double)), this, SLOT(setFilePosSecs(double)));
 	
 	toolBar = addToolBar("Graph Controls");
-    lbl = new QLabel("Graphs/Page", toolBar);
-    lbl->setToolTip("The number of graphs to display on-screen at a time. Page through graphs using the 'tabwidget' control.");
-    toolBar->addWidget(lbl);
-    graphPgSz = new QSpinBox(toolBar);
-    graphPgSz->setMinimum(8);
-    graphPgSz->setMaximum(256);
-    graphPgSz->setToolTip("The number of graphs to display on-screen at a time. Page through graphs using the 'tabwidget' control.");
-    toolBar->addWidget(graphPgSz);
-    Connect(graphPgSz, SIGNAL(valueChanged(int)), this, SLOT(graphsPerPageChanged(int)));
-    toolBar->addSeparator();
 
 	lbl = new QLabel("Graph:", toolBar);
 	toolBar->addWidget(lbl);
@@ -246,7 +250,7 @@ FileViewerWindow::FileViewerWindow()
 	Connect(exportSelectionAction, SIGNAL(triggered()), this, SLOT(exportSlot()));
 	exportSelectionAction->setEnabled(false);
 	
-	exportCtl = new ExportDialogController(this);
+	exportCtl = new ExportDialogController(this);        
 }
 
 FileViewerWindow::~FileViewerWindow()
@@ -368,6 +372,8 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	if (reusing) QTimer::singleShot(10, this, SLOT(updateData()));
 	if (errMsg) *errMsg = QString::null;
 	
+    repaginate();
+
 	return true;
 }
 
@@ -1370,8 +1376,28 @@ void FileViewerWindow::sortGraphsByElectrode() {
 
 void FileViewerWindow::graphsPerPageChanged(int dummy) {
     (void)dummy; saveSettings();
+    repaginate();
 }
 
 int FileViewerWindow::graphsPerPage() const {
     return graphPgSz->value();
+}
+
+int FileViewerWindow::currentGraphsPage() const { return pageCB->currentIndex(); }
+
+void FileViewerWindow::repaginate() {
+    disconnect(pageCB, SIGNAL(currentIndexChanged(int)), this, SLOT(pageChanged(int)));
+    int oldPage = pageCB->currentIndex();
+    if (oldPage < 0) oldPage = 0;
+    pageCB->clear();
+    int nChans = dataFile.numChans();
+    int nPages = nChans / graphsPerPage() + (nChans%graphsPerPage()?1:0);
+    for (int i = 0; i < nPages; ++i)
+        pageCB->addItem(QString("Graphs Page %1/%2").arg(i+1).arg(nPages));
+    Connect(pageCB, SIGNAL(currentIndexChanged(int)), this, SLOT(pageChanged(int)));
+    if (oldPage < nPages) pageCB->setCurrentIndex(oldPage);
+}
+
+void FileViewerWindow::pageChanged(int p) {
+    Debug() << "Page set to " << p;
 }

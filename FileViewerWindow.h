@@ -33,6 +33,7 @@ class QCheckBox;
 class HPFilter;
 class QEvent;
 class TaggableLabel;
+class QComboBox;
 
 /// The class that handles the window you get when opening files.
 class FileViewerWindow : public QMainWindow
@@ -90,6 +91,8 @@ private slots:
 	void sortGraphsByIntan();
 	void sortGraphsByElectrode();
     void graphsPerPageChanged(int);
+    void repaginate();
+    void pageChanged(int);
 	
 private:
 	void loadSettings();
@@ -108,6 +111,8 @@ private:
 	void printStatusMessage();
 	void doExport(const ExportParams &);
     int graphsPerPage() const;
+    int currentGraphsPage() const;
+
 	QString generateGraphNameString(unsigned graphNum, bool verbose = true) const;
 	
 	enum ViewMode { Tiled = 0, Stacked, StackedLarge, StackedHuge, N_ViewMode } viewMode;
@@ -176,6 +181,8 @@ private:
 	HPFilter *hpfilter;
 	double arrowKeyFactor, pgKeyFactor;
 	QVector<int> graphSorting; ///< used for sort by electrode id/sort by intan feature  to sort the graphs.  read by layoutGraphs() 
+
+    QComboBox *pageCB;
 };
 
 
