@@ -79,7 +79,7 @@ private slots:
 	void mouseClickSlot(double,double);
 	void mouseReleaseSlot(double,double);
 	void exportSlot();
-	void selectGraph(int graphNum);
+    void selectGraph(int graphNum); ///< pass in a graph id (which is relative to current page)
 	void hpfChk(bool);
 	void dcfChk(bool);
 	void hpfLblClk();
@@ -104,14 +104,16 @@ private:
 	qint64 nScansPerGraph() const;
 	QPair<double, double> yVoltsAfterGain(int whichGraph) const;
 	void applyColorScheme(GLGraph *);
-	void hideGraph(int n);
-	void showGraph(int n);
+    void hideGraph(int n); ///< pass in a graph id (which is relative to current page)
+    void showGraph(int n); ///< pass in a graph id (which is relative to current page)
 	void mouseOverGraphInWindowCoords(GLGraph *, int,int);
 	void setFilePos64(qint64 pos, bool noupdate = false);
 	void printStatusMessage();
 	void doExport(const ExportParams &);
     int graphsPerPage() const;
     int currentGraphsPage() const;
+    int g2i(int g) const { return currentGraphsPage()*graphsPerPage() + g; }
+    int i2g(int i) const { return i - currentGraphsPage()*graphsPerPage(); }
 
 	QString generateGraphNameString(unsigned graphNum, bool verbose = true) const;
 	
@@ -125,9 +127,30 @@ private:
 		
 	QScrollArea *scrollArea; ///< the central widget
 	QWidget *graphParent;
-	QVector<GLGraph *> graphs;
-    QVector<Vec2fWrapBuffer> graphBufs;
-	QVector<QFrame *> graphFrames;
+
+    struct GraphParams {
+        double yZoom, gain;
+        bool filter300Hz, dcFilter;
+        QString objname;
+        GraphParams() : yZoom(1.0), gain(1.0), filter300Hz(false), dcFilter(true) {}
+    };
+
+
+    /*-- Below are: INDEXED by numChans! */
+    QVector<Vec2fWrapBuffer> graphBufs; ///< indexed by numChans!
+    QVector<QAction *> graphHideUnhideActions; ///< indexed by numChans!
+    QBitArray hiddenGraphs; ///< indexed by numChans!
+    QVector<GraphParams> graphParams; ///< per-graph params
+    QVector<int> graphSorting; ///< used for sort by electrode id/sort by intan feature  to sort the graphs.  read by layoutGraphs()
+
+
+    /*-- Below two are: INDEXED BY graphsPerPage(), not numChans.. graphs on screen are a subset of all channels as of June 2016 */
+    QVector<GLGraph *> graphs; ///< indexed by graphsPerPage()
+    QVector<QFrame *> graphFrames; ///< indexed by graphsPerPage()
+    // BELOW TWO MEMBERS ARE BY GRAPH ID, NOT CHANNEL INDEX!
+    int maximizedGraph; ///< if non-negative, we are maximized on a particular graph
+    int selectedGraph;
+
     QSpinBox *posScansSB, *graphPgSz;
 	QDoubleSpinBox *posSecsSB;
 	QSlider *posSlider;
@@ -139,7 +162,6 @@ private:
 	QSpinBox *nDivsSB;
 	TaggableLabel *closeLbl;
 	QLabel *graphNameLbl;
-    QVector<QAction *> graphHideUnhideActions;
 	QCheckBox *highPassChk, *dcfilterChk;
 	bool electrodeSort;
 
@@ -154,14 +176,12 @@ private:
 	// misc graph zoom/view/etc settings
 	double nSecsZoom, defaultYZoom, defaultGain;
 	unsigned nDivs;
-	int maximizedGraph; ///< if non-negative, we are maximized on a particular graph
 	
 	qint64 pos, ///< in scan counts
 	       pscale; ///< scaling factor for the QSlider since it uses 32-bit values and file pos can theoretically be 64-bit
 	qint64 selectionBegin, selectionEnd; ///< selection position (in scans) and number of scans.  if begin is negative, no selection
 	qint64 saved_selectionBegin, saved_selectionEnd;
 	ChanMap chanMap;
-    QBitArray hiddenGraphs;
 	double mouseOverT, mouseOverV;
 	int mouseOverGNum;
 	
@@ -169,18 +189,10 @@ private:
 	
 	QAction *exportAction, *exportSelectionAction;
 	ExportDialogController *exportCtl;
-	int selectedGraph;
 	
-	struct GraphParams {
-		double yZoom, gain;
-		bool filter300Hz, dcFilter;
-		GraphParams() : yZoom(1.0), gain(1.0), filter300Hz(false), dcFilter(true) {}
-	};
 	
-	QVector<GraphParams> graphParams; ///< per-graph params
 	HPFilter *hpfilter;
 	double arrowKeyFactor, pgKeyFactor;
-	QVector<int> graphSorting; ///< used for sort by electrode id/sort by intan feature  to sort the graphs.  read by layoutGraphs() 
 
     QComboBox *pageCB;
 };
