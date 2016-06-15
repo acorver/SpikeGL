@@ -562,26 +562,38 @@ void FileViewerWindow::updateData()
 
 	const double srate = dataFile.samplingRateHz();
 
-    const QBitArray channelSubset = ~hiddenGraphs;
-    const int nChans = graphParams.size(), nChansOn = channelSubset.count(true);
+    QBitArray channelSubset = ~hiddenGraphs;
+    const int nChans = graphParams.size();
+    int nChansOn = channelSubset.count(true);
     const int nGraphs = graphs.size();
 	QVector<int> chanIdsOn(nChansOn);
 	std::vector<bool> chansToFilter(nChansOn, false), chansToDCSubtract(nChansOn, false);
-	HPFilter & filter(*hpfilter);
-	if ((int)filter.scanSize() != nChansOn) filter.setScanSize(nChansOn);
 	int maxW = 1;
 	bool hasDCSubtract = false;
 	for (int i = 0, j = 0; i < nChans; ++i) {
          const int gnum = i2g(i);
          if (channelSubset.testBit(i)) {
-                if (gnum >= 0 && gnum < nGraphs && maxW < graphs[gnum]->width()) maxW = graphs[gnum]->width();
-			if (graphParams[i].filter300Hz)
-				chansToFilter[j] = true;
-			if (graphParams[i].dcFilter)
-				chansToDCSubtract[j] = true, hasDCSubtract = true; 
-			chanIdsOn[j++] = i;
+             if (gnum >= 0 && gnum < nGraphs) {
+                // channel is on, and on-screen.  Read it.
+                if (maxW < graphs[gnum]->width()) maxW = graphs[gnum]->width();
+                if (graphParams[i].filter300Hz)
+                    chansToFilter[j] = true;
+                if (graphParams[i].dcFilter)
+                    chansToDCSubtract[j] = true, hasDCSubtract = true;
+                chanIdsOn[j++] = i;
+             } else {
+                 // channel is on, but not on-screen.  Don't read it.
+                 channelSubset.clearBit(i);
+                 --nChansOn;
+             }
         }
 	}
+    chanIdsOn.resize(nChansOn);
+    chansToFilter.resize(nChansOn);
+    chansToDCSubtract.resize(nChansOn);
+    HPFilter & filter(*hpfilter);
+    if ((int)filter.scanSize() != nChansOn) filter.setScanSize(nChansOn);
+
 	
     i64 num = nSecsZoom * srate;
 	int downsample = num / maxW;
@@ -1357,7 +1369,8 @@ void FileViewerWindow::selectGraph(int num)
         case Fire: sColor = "#FF6699"; break;
         case Green: sColor = "#6600CC"; break;
         case BlackWhite: sColor = "#66ff99"; break;
-        case Classic: sColor = "#ffcc66"; break;
+        case Classic:
+        default: sColor = "#ffcc66"; break;
     }
     f->setStyleSheet(QString("#selectedFrame { border: 3px solid %1; }").arg(sColor));
     graphNameLbl->setText(QString("<font size=-1>") + generateGraphNameString(num, false) + "</font>");
