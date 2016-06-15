@@ -1571,6 +1571,7 @@ void FileViewerWindow::redoGraphs()
         graphs[i]->addAction(exportSelectionAction);
         graphs[i]->addAction(maxunmaxAction);
         graphs[i]->setContextMenuPolicy(Qt::ActionsContextMenu);
+        applyColorScheme(graphs[i]);
         Connect(graphs[i], SIGNAL(cursorOver(double,double)), this, SLOT(mouseOverGraph(double,double)));
         Connect(graphs[i], SIGNAL(cursorOverWindowCoords(int,int)), this, SLOT(mouseOverGraphInWindowCoords(int,int)));
         Connect(graphs[i], SIGNAL(clickedWindowCoords(int,int)), this, SLOT(clickedGraphInWindowCoords(int,int)));
