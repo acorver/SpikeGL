@@ -1341,6 +1341,11 @@ void FileViewerWindow::selectGraph(int num)
         f->setStyleSheet("border: 0px solid black");
 	}
     selectedGraph = num;
+    const int idx = g2i(num);
+    if (idx < 0 || idx >= graphParams.size()) {
+        selectedGraph = -1;
+        earlyReturn = true;
+    }
     if (earlyReturn) return;
 	f = graphFrames[num];
     f->setFrameStyle(QFrame::Box|QFrame::Plain);
@@ -1360,8 +1365,6 @@ void FileViewerWindow::selectGraph(int num)
 	auxGainSB->blockSignals(true);
 	highPassChk->blockSignals(true);
 	dcfilterChk->blockSignals(true);
-    const int idx = g2i(num);
-    if (idx < 0 || idx >= graphParams.size()) return;
     yScaleSB->setValue(graphParams[idx].yZoom);
     auxGainSB->setValue(graphParams[idx].gain);
     highPassChk->setChecked(graphParams[idx].filter300Hz);
@@ -1426,8 +1429,8 @@ bool FileViewerWindow::eventFilter(QObject *obj, QEvent *event)
 		switch(keyEvent->key()) {
 			case Qt::Key_Left: sfactor = -arrowKeyFactor; break;
 			case Qt::Key_Right: sfactor = arrowKeyFactor; break;
-			case Qt::Key_PageUp: sfactor = pgKeyFactor; break;
-			case Qt::Key_PageDown: sfactor = -pgKeyFactor; break;
+            case Qt::Key_PageUp: sfactor = -pgKeyFactor; break;
+            case Qt::Key_PageDown: sfactor = pgKeyFactor; break;
 		}
 		if (fabs(sfactor) > 0.00001) {
 			qint64 delta = nScansPerGraph() * sfactor;
@@ -1496,7 +1499,7 @@ void FileViewerWindow::repaginate() {
     int nChans = graphParams.size();
     int nPages = nChans / graphsPerPage() + (nChans%graphsPerPage()?1:0);
     for (int i = 0; i < nPages; ++i)
-        pageCB->addItem(QString("Graphs Page %1/%2").arg(i+1).arg(nPages));
+        pageCB->addItem(QString("Page %1/%2").arg(i+1).arg(nPages));
     if (oldPage < nPages) pageCB->setCurrentIndex(oldPage);
     else pageCB->setCurrentIndex(0);
 
