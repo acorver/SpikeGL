@@ -600,41 +600,61 @@ void FileViewerWindow::updateData()
 	downsample /= 2; // Make sure to 2x oversample the data in the graphs.  This, combined with the glBlend we enabled in our graphs should lead to sweetness in the graph detail.  
 	if (downsample <= 0) downsample = 1;
 	
+    //double t0r = getTime();
+
 	std::vector<int16> data;
 	i64 nread = dataFile.readScans(data, pos, num, channelSubset, downsample);	
 	
+    //Debug() << "dataFile.readScans() took " << ((getTime()-t0r)*1e3) << " msec";
+
 	if (nread < 0) {
 		Error() << "Error reading data from input file!";
 	} else {
 
+        //double t0 = getTime();
+
 		// demux for graphs
-        for (int i = 0; i < nChans; ++i) {
-            int g = i2g(i);
+        for (int i = 0; i < nChansOn; ++i) {
+            int chanId = chanIdsOn[i];
+            int g = i2g(chanId);
             if (g >= 0 && g < nGraphs) {
                 graphs[g]->setPoints(0);
-                if (channelSubset.testBit(i) && graphBufs[g].capacity() != nread)
+                if (channelSubset.testBit(chanId) && graphBufs[g].capacity() != nread)
                     graphBufs[g].reserve(nread);
             }
 		}
 
-		const double smin(SHRT_MIN), usmax(USHRT_MAX);
-	    const double dt = 1.0 / (srate / double(downsample));
-		std::vector<double> avgs(nChansOn, 0.);
-		const double avgfactor = 1.0/double(nread);
+        const float smin(SHRT_MIN), usmax(USHRT_MAX);
+        const float dt = 1.0f / (srate / float(downsample));
+        std::vector<float> avgs(nChansOn, 0.f);
+        const float avgfactor = 1.0f/float(nread);
+        QVector<QVector<Vec2f>> & vecs (scratchVecs);
+        if (vecs.size() < nChansOn) vecs.resize(nChansOn);
 		for (int i = 0; i < nread; ++i) {
 			filter.apply(&data[i * nChansOn], dt, chansToFilter);
-			for (int j = 0; j < nChansOn; ++j) {
+			for (int j = 0; j < nChansOn; ++j) {                
                 const int chanId = chanIdsOn[j];
                 const int g = i2g(chanId);
                 if (g >= 0 && g < nGraphs) {
+                    if (vecs[j].size() < nread) vecs[j].resize(nread);
                     int16 & rawsampl = data[i * nChansOn + j];
-                    const double sampl = ( ((double(rawsampl) + (-smin))/(usmax)) * (2.0) ) - 1.0;
-                    Vec2f vec(double(i)/double(nread), sampl);
-                    graphBufs[g].putData(&vec, 1);
+                    const float sampl = ( ((float(rawsampl) + (-smin))/(usmax)) * (2.0f) ) - 1.0f;
+                    Vec2f & vec(vecs[j][i]);
+                    vec.x = float(i)/float(nread);
+                    vec.y = sampl;
+                    //Vec2f vec(float(i)/float(nread), sampl);
+                    //graphBufs[g].putData(&vec, 1);
                     avgs[j] += sampl * avgfactor;
                 }
 			}
 		}
+        for (int j = 0; j < nChansOn; ++j) {
+            const int chanId = chanIdsOn[j];
+            const int g = i2g(chanId);
+            if (g >= 0 && g < nGraphs) {
+                graphBufs[g].putData(&vecs[j][0], nread);
+            }
+        }
 		
 		if (hasDCSubtract) {
 			// if has dc subtract, apply subtract to channels that have it enabled
@@ -649,9 +669,13 @@ void FileViewerWindow::updateData()
 				}
 			}			
 		}
-		
+
+        //Debug() << "remux & filter data took " << ((getTime()-t0)*1e3) << " msec";
+
 	}
 	
+    //double t0 = getTime();
+
     for (int i = 0; i < nGraphs; ++i) {
         const int idx = g2i(i);
         if (idx >= 0 && idx < nChans) {
@@ -662,7 +686,9 @@ void FileViewerWindow::updateData()
             graphs[i]->setPoints(&graphBufs[i]);
         }
 	}
-	
+
+    //Debug() << "GLGraph::setPoints() took " << ((getTime()-t0)*1e3) << " msec";
+
 	// set ranges, etc of various widgets
 	configureMiscControls();
 	

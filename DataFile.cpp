@@ -586,50 +586,58 @@ i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, c
 	scans_out.resize(sizeofscans);
 	
 	u64 cur = pos;
-	unsigned procd = 0;
 	i64 nout = 0;
 	std::vector<int> onChans;
 	onChans.reserve(chset.size());
 	for (int i = 0, n = chset.size(); i < n; ++i) 
 		if (chset.testBit(i)) onChans.push_back(i);
 	
-	std::vector<double> avgs(nChans,0.);
-	const double factor = 1.0/downSampleFactor;
-	while (cur < pos + num2read) {
-		std::vector<int16> buf(nChans);
+    qint64 maxBufSize = nChans*sRate*1; // read about max 1sec worth of data at a time as an optimization
+    qint64 desiredBufSize = num2read*nChans;    // but first try and do the entire requested read at once in our buffer if it fits within our limits..
+    if (desiredBufSize > maxBufSize) desiredBufSize = maxBufSize;
+    std::vector<int16> buf(desiredBufSize);
+    if (buf.size() < nChans) buf.resize(nChans); // minimum read is 1 scan
+
+    while (cur < pos + num2read) {
 		if (!dataFile.seek(cur * sizeof(int16) * nChans)) {
 			Error() << "Error seeking in dataFile::readScans()!";
 			scans_out.clear();
 			return -1;
 		}		
-		qint64 nr = dataFile.read(reinterpret_cast<char *>(&buf[0]), sizeof(int16) * nChans);
-		if (nr != sizeof(int16) * nChans) {
+        qint64 nr = dataFile.read(reinterpret_cast<char *>(&buf[0]), sizeof(int16) * buf.size());
+        if (nr < int(sizeof(int16) * nChans)) {
 			Error() << "Short read in dataFile::readScans()!";
 			scans_out.clear();
 			return -1;
 		}
 		
-		for (int i = 0; i < nChans; ++i)
-			avgs[i] += double(buf[i]) * factor;
-		
-		++procd;
-		if (downSampleFactor <= 1 || !(procd % downSampleFactor)) { // every Nth sample, write it out
-			if (int(nChansOn) == nChans) {
-				i64 i_out = nout * nChans;
-				for (int i = 0; i < nChans; ++i)
-					scans_out[i_out + i] = int16(avgs[i]);
-			} else {
-				// not all chans on, put subset 1 by 1 in the output vector
-                i64 i_out = nout*i64(nChansOn);
-                const int n = int(onChans.size());
-				for (int i = 0; i < n; ++i)
-					scans_out[i_out++] = int16(avgs[onChans[i]]);
-			}
-			for (int i = 0; i < (int)nChans; ++i) avgs[i] = 0.;
-			++nout;
-		}
-		++cur;
-	}
+        int nscans = int(nr/sizeof(int16))/nChans;
+        if (nscans <= 0) {
+            Error() << "Short read in dataFile::readScans()... nscans <= 0!";
+            scans_out.clear();
+            return -1;
+        }
+
+        const int16 *bufptr = &buf[0];
+        const int onChansSize = int(onChans.size());
+        const int skip = nChans*downSampleFactor;
+        for (int sc = 0; sc < nscans && cur < pos + num2read; /* .. */) {
+                if (int(nChansOn) == nChans) {
+                    i64 i_out = nout * nChans;
+                    for (int i = 0; i < nChans; ++i)
+                        scans_out[i_out + i] = int16(bufptr[i]);
+                } else {
+                    // not all chans on, put subset 1 by 1 in the output vector
+                    i64 i_out = nout*i64(nChansOn);
+                    for (int i = 0; i < onChansSize; ++i)
+                        scans_out[i_out++] = int16(bufptr[onChans[i]]);
+                }
+                ++nout;
+            bufptr += skip;
+            sc += downSampleFactor;
+            cur += downSampleFactor;
+        }
+    }
 	
 	return nout;
 }

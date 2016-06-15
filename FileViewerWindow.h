@@ -154,6 +154,7 @@ private:
     int maximizedGraph; ///< if non-negative, we are maximized on a particular graph
     int selectedGraph;
 
+    QVector<QVector<Vec2f> > scratchVecs;
     QSpinBox *posScansSB, *graphPgSz;
 	QDoubleSpinBox *posSecsSB;
 	QSlider *posSlider;
