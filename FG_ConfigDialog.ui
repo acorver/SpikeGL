@@ -285,7 +285,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Janelia 2304 channels @ 20kHz</string>
+    <string>Janelia 2304 channels @ 26.73kHz</string>
    </property>
    <property name="checked">
     <bool>true</bool>

@@ -2096,7 +2096,7 @@ namespace DAQ
 	
 	/*-------------------- Framegrabber Task --------------------------------*/
 	
-    /* static */ const double FGTask::SamplingRate = /*100;*/ 20000.0; // 20kHz sampling rate!
+    /* static */ const double FGTask::SamplingRate = /*100;*/ 26739.0; // 26.739kHz sampling rate!
     /* static */ const double FGTask::SamplingRateCalinsTest = (150 * 1024)/4; // 38.4khz rate!
 
 	/* static */ const int FGTask::NumChans = 2304 /* 72 * 32 */, FGTask::NumChansCalinsTest = 2048;
