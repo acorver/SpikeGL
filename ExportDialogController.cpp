@@ -56,6 +56,13 @@ void ExportDialogController::dialogFromParams()
 	dialog->filenameLE->setText(params.filename);
 	if (params.format == ExportParams::Bin) dialog->binRadio->setChecked(true);
 	else if (params.format == ExportParams::Csv) dialog->csvRadio->setChecked(true);
+    switch (params.csvSubFormat) {
+        case ExportParams::DecInt16: dialog->csvInt16RB->setChecked(true); break;
+        case ExportParams::HexUInt16: dialog->csvUInt16RB->setChecked(true); break;
+        default:
+        case ExportParams::Real: dialog->csvRealRB->setChecked(true); break;
+    }
+
 	dialog->fromSB->setValue(params.from);
 	dialog->fromSB->setMinimum(0);
 	dialog->fromSB->setMaximum(params.nScans-1);
@@ -113,7 +120,10 @@ bool ExportDialogController::exec()
 					}
 				}
 				p.format = dialog->binRadio->isChecked() ? ExportParams::Bin : ExportParams::Csv;
-				p.filename = fname;
+                if (dialog->csvRealRB->isChecked()) p.csvSubFormat = ExportParams::Real;
+                else if (dialog->csvInt16RB->isChecked()) p.csvSubFormat = ExportParams::DecInt16;
+                else if (dialog->csvUInt16RB->isChecked()) p.csvSubFormat = ExportParams::HexUInt16;
+                p.filename = fname;
 				p.allChans = dialog->allRadio->isChecked();
 				p.allShown = dialog->allShownRadio->isChecked();
 				p.customSubset = dialog->customRadio->isChecked();
@@ -234,6 +244,6 @@ void ExportDialogController::estimateFileSize()
 }
 
 ExportParams::ExportParams()
-: nScans(0), nChans(0), filename(""), format(Bin), allChans(false), allShown(false), customSubset(false), allScans(0), from(0), to(0)
+: nScans(0), nChans(0), filename(""), format(Bin), csvSubFormat(Real), allChans(false), allShown(false), customSubset(false), allScans(0), from(0), to(0)
 {
 }

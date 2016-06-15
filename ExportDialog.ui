@@ -336,7 +336,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>100</y>
+     <y>110</y>
      <width>461</width>
      <height>21</height>
     </rect>
@@ -344,6 +344,66 @@
    <property name="text">
     <string>(Est. file size: 124.3 MB)</string>
    </property>
+  </widget>
+  <widget class="QRadioButton" name="csvRealRB">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>340</x>
+     <y>90</y>
+     <width>51</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>real</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <attribute name="buttonGroup">
+    <string notr="true">csvFormat</string>
+   </attribute>
+  </widget>
+  <widget class="QRadioButton" name="csvInt16RB">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>400</x>
+     <y>90</y>
+     <width>111</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>int16 (decimal)</string>
+   </property>
+   <attribute name="buttonGroup">
+    <string notr="true">csvFormat</string>
+   </attribute>
+  </widget>
+  <widget class="QRadioButton" name="csvUInt16RB">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>530</x>
+     <y>90</y>
+     <width>101</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>uint16 (hex)</string>
+   </property>
+   <attribute name="buttonGroup">
+    <string notr="true">csvFormat</string>
+   </attribute>
   </widget>
  </widget>
  <tabstops>
@@ -396,5 +456,56 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>csvRadio</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>csvRealRB</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>373</x>
+     <y>79</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>373</x>
+     <y>102</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>csvRadio</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>csvInt16RB</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>433</x>
+     <y>80</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>437</x>
+     <y>95</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>csvRadio</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>csvUInt16RB</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>492</x>
+     <y>81</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>532</x>
+     <y>100</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
+ <buttongroups>
+  <buttongroup name="csvFormat"/>
+ </buttongroups>
 </ui>

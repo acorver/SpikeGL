@@ -45,6 +45,7 @@
 #include "ui_FVW_OptionsDialog.h"
 #include <QDialog>
 #include <QComboBox>
+#include <stdio.h>
 
 
 const QString FileViewerWindow::viewModeNames[] = {
@@ -391,8 +392,11 @@ void FileViewerWindow::loadSettings()
 	int cs = settings.value("colorScheme", DefaultScheme).toInt();	
 	if (cs < 0 || cs >= N_ColorScheme) cs = 0;
 	int fmt = settings.value("lastExportFormat", ExportParams::Bin).toInt();
-	if (fmt < 0 || fmt >= ExportParams::N_Format) fmt = ExportParams::Bin;
+	if (fmt < 0 || fmt >= ExportParams::N_Format) fmt = ExportParams::Bin;    
 	exportCtl->params.format = (ExportParams::Format)fmt;
+    fmt = settings.value("lastExportCSVSubFormat", ExportParams::Real).toInt();
+    if (fmt < 0 || fmt >= ExportParams::N_CSVSubFormat) fmt = ExportParams::Real;
+    exportCtl->params.csvSubFormat = (ExportParams::CSVSubFormat)fmt;
 	int lec = settings.value("lastExportChans", 1).toInt();
 	if (lec < 0 || lec > 2) lec = 1;
 	exportCtl->params.allChans = exportCtl->params.allShown = exportCtl->params.customSubset = false;
@@ -428,6 +432,8 @@ void FileViewerWindow::saveSettings()
     settings.setValue("viewMode", (int)viewMode);	
 	settings.setValue("colorScheme", (int)colorScheme);
 	settings.setValue("lastExportFormat", int(exportCtl->params.format));
+    settings.setValue("lastExportCSVSubFormat", int(exportCtl->params.csvSubFormat));
+
 	settings.setValue("pgKeyFactor", pgKeyFactor);
 	settings.setValue("arrowKeyFactor", arrowKeyFactor);
 	int lec = 0;
@@ -1339,14 +1345,32 @@ void FileViewerWindow::doExport(const ExportParams & p)
 		for (qint64 i = 0; i < nscans; ++i) {
 			
 			dataFile.readScans(scan, p.from+i, 1, p.chanSubset);
-			const double smin = double(SHRT_MIN), usmax = double(USHRT_MAX);
-			for (int j = 0; j < scansz; ++j) {
-				const double minR = dataFile.rangeMin(j), maxR = dataFile.rangeMax(j);
-				double sampl = ( ((double(scan[j]) + (-smin))/(usmax+1.)) * (maxR-minR) ) + minR;
-				sampl /= graphParams[chansOn[j]].gain;
-				outs << sampl << ( j+1 < scansz ? "," : "");
-			}
-			outs << "\n";
+            if (p.csvSubFormat == ExportParams::Real) {
+                const double smin = double(SHRT_MIN), usmax = double(USHRT_MAX);
+                for (int j = 0; j < scansz; ++j) {
+                    const double minR = dataFile.rangeMin(j), maxR = dataFile.rangeMax(j);
+                    double sampl = ( ((double(scan[j]) + (-smin))/(usmax+1.)) * (maxR-minR) ) + minR;
+                    sampl /= graphParams[chansOn[j]].gain;
+                    outs << sampl << ( j+1 < scansz ? "," : "");
+                }
+                outs << "\n";
+            } else if (p.csvSubFormat == ExportParams::DecInt16) {
+                for (int j = 0; j < scansz; ++j)
+                    outs << scan[j] << ( j+1 < scansz ? "," : "");
+                outs << "\n";
+            } else if (p.csvSubFormat == ExportParams::HexUInt16) {
+                char buf[64];
+                for (int j = 0; j < scansz; ++j) {
+#ifdef Q_OS_WINDOWS
+                    _snprintf_s
+#else
+                    snprintf
+#endif
+                        (buf,sizeof(buf),"0x%04hx",(unsigned short)scan[j]);
+                    outs << buf << (j+1 < scansz ? "," : "");
+                }
+                outs << "\n";
+            }
 			int val = int((i*100LL)/nscans);
 			if (val > prevVal) progress.setValue(prevVal = val);		
 			if (progress.wasCanceled()) {

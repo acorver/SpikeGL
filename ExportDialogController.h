@@ -17,6 +17,7 @@ struct ExportParams
 	// IN/OUT parameters (modified by the dialog)
 	QString filename; ///< required input as well
 	enum Format { Bin = 0, Csv, N_Format } format;
+    enum CSVSubFormat { Real=0, DecInt16, HexUInt16, N_CSVSubFormat } csvSubFormat;
 	bool allChans, allShown, customSubset;
 	QBitArray chanSubset; ///< input/output -- as input can prepopulate the chan subset lineedit
 	bool allScans;
