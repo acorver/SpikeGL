@@ -69,7 +69,7 @@ private slots:
 	void mouseOverGraph(double,double);
 	void mouseOverGraphInWindowCoords(int,int);
 	void clickedGraphInWindowCoords(int,int);
-	void doubleClickedGraph(); // maximize/minimize
+    void toggleMaximize(); // maximize/minimize
 	void showAllGraphs();
 	void hideUnhideGraphSlot();
 	void hideCloseTimeout();
@@ -93,7 +93,8 @@ private slots:
     void graphsPerPageChanged(int);
     void repaginate();
     void pageChanged(int);
-	
+    void updateSelection(); ///< calls updateSelection(true)
+
 private:
 	void loadSettings();
 	void saveSettings();
@@ -110,10 +111,12 @@ private:
 	void setFilePos64(qint64 pos, bool noupdate = false);
 	void printStatusMessage();
 	void doExport(const ExportParams &);
-    int graphsPerPage() const;
-    int currentGraphsPage() const;
+    int graphsPerPage() const { return n_graphs_pg; }
+    int currentGraphsPage() const { return curr_graph_page; }
     int g2i(int g) const { return currentGraphsPage()*graphsPerPage() + g; }
     int i2g(int i) const { return i - currentGraphsPage()*graphsPerPage(); }
+    void redoGraphs(); ///< used when graphs per page changes and also as a setup function when opening a new file. deletes all old graph data and reestablishes graph data structures
+    void updateSelection(bool do_opengl_update);
 
 	QString generateGraphNameString(unsigned graphNum, bool verbose = true) const;
 	
@@ -137,7 +140,6 @@ private:
 
 
     /*-- Below are: INDEXED by numChans! */
-    QVector<Vec2fWrapBuffer> graphBufs; ///< indexed by numChans!
     QVector<QAction *> graphHideUnhideActions; ///< indexed by numChans!
     QBitArray hiddenGraphs; ///< indexed by numChans!
     QVector<GraphParams> graphParams; ///< per-graph params
@@ -147,6 +149,7 @@ private:
     /*-- Below two are: INDEXED BY graphsPerPage(), not numChans.. graphs on screen are a subset of all channels as of June 2016 */
     QVector<GLGraph *> graphs; ///< indexed by graphsPerPage()
     QVector<QFrame *> graphFrames; ///< indexed by graphsPerPage()
+    QVector<Vec2fWrapBuffer> graphBufs; ///< indexed by graphsPerPage()!
     // BELOW TWO MEMBERS ARE BY GRAPH ID, NOT CHANNEL INDEX!
     int maximizedGraph; ///< if non-negative, we are maximized on a particular graph
     int selectedGraph;
@@ -187,7 +190,7 @@ private:
 	
 	bool mouseButtonIsDown, dontKillSelection;
 	
-	QAction *exportAction, *exportSelectionAction;
+    QAction *exportAction, *exportSelectionAction, *maxunmaxAction;
 	ExportDialogController *exportCtl;
 	
 	
@@ -195,6 +198,8 @@ private:
 	double arrowKeyFactor, pgKeyFactor;
 
     QComboBox *pageCB;
+    QLabel *maximizedLbl, *pgLbl, *allChannelsHiddenLbl;
+    int n_graphs_pg, curr_graph_page;
 };
 
 

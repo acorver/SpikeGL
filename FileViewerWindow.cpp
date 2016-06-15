@@ -67,7 +67,7 @@ private:
 };
 
 FileViewerWindow::FileViewerWindow()
-: QMainWindow(0), pscale(1), mouseOverT(-1.), mouseOverV(0), mouseOverGNum(-1), mouseButtonIsDown(false), dontKillSelection(false), hpfilter(0), arrowKeyFactor(.1), pgKeyFactor(.5)
+: QMainWindow(0), pscale(1), mouseOverT(-1.), mouseOverV(0), mouseOverGNum(-1), mouseButtonIsDown(false), dontKillSelection(false), hpfilter(0), arrowKeyFactor(.1), pgKeyFactor(.5), n_graphs_pg(8), curr_graph_page(0)
 {	
 	QWidget *cw = new QWidget(this);
 	QVBoxLayout *l = new QVBoxLayout(cw);
@@ -78,14 +78,22 @@ FileViewerWindow::FileViewerWindow()
 	graphParent = new QWidget(scrollArea);
 	scrollArea->setWidget(graphParent);
 	l->addWidget(scrollArea, 1);
+
+    // all channels hidden label
+    allChannelsHiddenLbl = new QLabel("<b><i><font size=+1 color=#6666cc>All graphs on this page are hidden. Use the \"channels\" menu to unhide.</font></i></b>", cw);
+    l->addWidget(allChannelsHiddenLbl,0);
+    allChannelsHiddenLbl->setHidden(true);
 	
 	// bottom slider
 	QWidget *w = new QWidget(cw);
 	QHBoxLayout *hl = new QHBoxLayout(w);
 
+    maximizedLbl = new QLabel("<b><i>MAXIMIZED (right-click to restore)</i></b>", w);
+    hl->addWidget(maximizedLbl);
+    maximizedLbl->setHidden(true);
     pageCB = new QComboBox(w);
     hl->addWidget(pageCB);
-    QLabel *lbl = new QLabel("Graphs/Page", w);
+    QLabel *lbl = pgLbl = new QLabel("Graphs/Page", w);
     lbl->setToolTip("The number of graphs to display on-screen at a time. Page through graphs using the 'tabwidget' control.");
     hl->addWidget(lbl);
     graphPgSz = new QSpinBox(w);
@@ -249,6 +257,9 @@ FileViewerWindow::FileViewerWindow()
 	exportSelectionAction = new QAction("Export Selection", this);
 	Connect(exportSelectionAction, SIGNAL(triggered()), this, SLOT(exportSlot()));
 	exportSelectionAction->setEnabled(false);
+    maxunmaxAction = new QAction("Toggle Maximize", this);
+    Connect(maxunmaxAction, SIGNAL(triggered()), this, SLOT(toggleMaximize()));
+
 	
 	exportCtl = new ExportDialogController(this);        
 }
@@ -286,11 +297,6 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	loadSettings();
 	
 	const bool reusing = graphFrames.size();
-	// if reopening a file, delete all the old graphs first, and any auxilliary objects, and also do some cleanup/pre-init
-	for (int i = 0, n = graphFrames.size(); i < n; ++i) {
-        delete graphs[i]; // explicit to free up resources asap?
-		delete graphFrames[i];
-    }
     for (int i = 0, n = graphHideUnhideActions.size(); i < n; ++i) {
         channelsMenu->removeAction(graphHideUnhideActions[i]);
         delete graphHideUnhideActions[i];
@@ -299,15 +305,14 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	if (hpfilter) delete hpfilter;
 	hpfilter = new HPFilter(dataFile.numChans(), 300);
     const int nChans = dataFile.numChans();
-    const int nGraphs = graphsPerPage();
-    graphs.resize(nGraphs);
-	graphFrames.resize(graphs.size());
-    graphHideUnhideActions.resize(nChans);
+    graphHideUnhideActions.clear(); graphHideUnhideActions.resize(nChans);
     graphParams.clear(); graphParams.resize(nChans);
 	defaultGain = dataFile.auxGain();
 	chanMap = dataFile.chanMap();
     graphSorting.resize(nChans);
-    pageCB->setCurrentIndex(0); // set it back to first page..
+    pageCB->blockSignals(true);
+    pageCB->setCurrentIndex((curr_graph_page=0)); // set it back to first page..
+    pageCB->blockSignals(false);
 
 	if (electrodeSort) {
 		sortByIntan->setChecked(false);
@@ -335,34 +340,13 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
         Connect(a, SIGNAL(triggered()), this, SLOT(hideUnhideGraphSlot()));
         graphHideUnhideActions[i] = a;
 	}
-    for (int i = 0, n = nGraphs; i < n; ++i) {
-        QFrame *f = graphFrames[i] = new QFrame(graphParent);
-        f->setLineWidth(0);
-        f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain); // only enable frame when it's selected!
-        QVBoxLayout *vbl = new QVBoxLayout(f);
-        f->setLayout(vbl);
-        graphs[i] = new GLGraph(f);
-        vbl->addWidget(graphs[i],1);
-        vbl->setSpacing(0);
-        vbl->setContentsMargins(0,0,0,0);
-        graphs[i]->setAutoUpdate(false);
-        graphs[i]->setMouseTracking(true);
-        graphs[i]->setToolTip(graphParams[i].objname); // TODO: set the name appropriately on layout!
-        graphs[i]->setTag(i);
-        graphs[i]->setCursor(Qt::CrossCursor);
-        graphs[i]->addAction(exportAction);
-        graphs[i]->addAction(exportSelectionAction);
-        graphs[i]->setContextMenuPolicy(Qt::ActionsContextMenu);
-        Connect(graphs[i], SIGNAL(cursorOver(double,double)), this, SLOT(mouseOverGraph(double,double)));
-        Connect(graphs[i], SIGNAL(cursorOverWindowCoords(int,int)), this, SLOT(mouseOverGraphInWindowCoords(int,int)));
-        Connect(graphs[i], SIGNAL(clickedWindowCoords(int,int)), this, SLOT(clickedGraphInWindowCoords(int,int)));
-        Connect(graphs[i], SIGNAL(doubleClicked(double, double)), this, SLOT(doubleClickedGraph()));
-        Connect(graphs[i], SIGNAL(clicked(double, double)), this, SLOT(mouseClickSlot(double,double)));
-        Connect(graphs[i], SIGNAL(clickReleased(double, double)), this, SLOT(mouseReleaseSlot(double,double)));
-    }
-    graphBufs.resize(nChans);
+
+    // NOTE THIS DELETES OLD GRAPHS & FRAMES (if any) and RE-CREATES GRAPHS
+    redoGraphs();
+
     hiddenGraphs.fill(false, nChans);
 
+    didLayout = false;
 	pscale = 1;
 	pos = 0;
 	maximizedGraph = -1;
@@ -370,6 +354,8 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	selectedGraph = mouseOverT = mouseOverV = mouseOverGNum = -1;
 
 	selectGraph(0);
+
+    repaginate();
 
 	if (electrodeSort)
 		sortGraphsByElectrode(); ///< implicitly calls layoutGraphs()
@@ -382,8 +368,6 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	if (reusing) QTimer::singleShot(10, this, SLOT(updateData()));
 	if (errMsg) *errMsg = QString::null;
 	
-    repaginate();
-
 	return true;
 }
 
@@ -432,7 +416,7 @@ void FileViewerWindow::loadSettings()
 	electrodeSort = settings.value("sortGraphsByElectrode", false).toBool();
 
     graphPgSz->blockSignals(true);
-    graphPgSz->setValue(settings.value("graphsPerPage", 36).toUInt());
+    graphPgSz->setValue((n_graphs_pg = settings.value("graphsPerPage", 36).toUInt()));
     graphPgSz->blockSignals(false);
 }
 
@@ -461,8 +445,13 @@ void FileViewerWindow::layoutGraphs()
 	static const int padding = 2;
 	const int n = graphFrames.size();
 
+    graphParent->setHidden(false);
+    allChannelsHiddenLbl->setHidden(true);
+
 	if (graphParent->layout()) 
 		delete graphParent->layout();
+
+    int graphsVisible = 0;
 
 	if (maximizedGraph > -1) {
 		
@@ -477,8 +466,14 @@ void FileViewerWindow::layoutGraphs()
 		graphFrames[maximizedGraph]->resize(sz.width(), sz.height());
 		graphFrames[maximizedGraph]->move(0, 0);		
 		graphFrames[maximizedGraph]->show();
+
+        channelsMenu->setEnabled(false);
 		
+        graphsVisible = 1;
+
 	} else {
+
+        channelsMenu->setEnabled(true);
 
 		// non-maximized more.. make sure non-hidden graphs are shown!
         for (int i = 0; i < n; ++i) {
@@ -520,6 +515,8 @@ void FileViewerWindow::layoutGraphs()
 				}
 			}
 
+            graphsVisible = ngraphs;
+
 		} else if (viewMode == StackedLarge || viewMode == Stacked || viewMode == StackedHuge) {
 			const int stk_h = viewMode == StackedHuge ? 320 : (viewMode == StackedLarge ? 160 : 80);
 			scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -542,17 +539,27 @@ void FileViewerWindow::layoutGraphs()
 					y += f->height() + padding;
                 }
 			}
+
+            graphsVisible = shownGraphCount;
 			
 		}	
 	}
+
+    if (!graphsVisible) {
+        graphParent->setHidden(true);
+        allChannelsHiddenLbl->setHidden(false);
+        updateGeometry();
+        update();
+    }
 	
-//	graphParent->resize(w, y);
 	didLayout = true;
 }
 
 
 void FileViewerWindow::updateData()
 {
+//    Debug() << "updateData() called..";
+
 	const double srate = dataFile.samplingRateHz();
 
     const QBitArray channelSubset = ~hiddenGraphs;
@@ -567,7 +574,7 @@ void FileViewerWindow::updateData()
 	for (int i = 0, j = 0; i < nChans; ++i) {
          const int gnum = i2g(i);
          if (channelSubset.testBit(i)) {
-                if (gnum >= 0 && gnum < graphs.size() && maxW < graphs[gnum]->width()) maxW = graphs[gnum]->width();
+                if (gnum >= 0 && gnum < nGraphs && maxW < graphs[gnum]->width()) maxW = graphs[gnum]->width();
 			if (graphParams[i].filter300Hz)
 				chansToFilter[j] = true;
 			if (graphParams[i].dcFilter)
@@ -591,9 +598,11 @@ void FileViewerWindow::updateData()
 		// demux for graphs
         for (int i = 0; i < nChans; ++i) {
             int g = i2g(i);
-            if (g >= 0 && g < graphs.size()) graphs[g]->setPoints(0);
-            if (channelSubset.testBit(i) && graphBufs[i].capacity() != nread)
-                graphBufs[i].reserve(nread);
+            if (g >= 0 && g < nGraphs) {
+                graphs[g]->setPoints(0);
+                if (channelSubset.testBit(i) && graphBufs[g].capacity() != nread)
+                    graphBufs[g].reserve(nread);
+            }
 		}
 
 		const double smin(SHRT_MIN), usmax(USHRT_MAX);
@@ -603,12 +612,15 @@ void FileViewerWindow::updateData()
 		for (int i = 0; i < nread; ++i) {
 			filter.apply(&data[i * nChansOn], dt, chansToFilter);
 			for (int j = 0; j < nChansOn; ++j) {
-				const int chanId = chanIdsOn[j];
-				int16 & rawsampl = data[i * nChansOn + j];
-			    const double sampl = ( ((double(rawsampl) + (-smin))/(usmax)) * (2.0) ) - 1.0;
-                Vec2f vec(double(i)/double(nread), sampl);
-				graphBufs[chanId].putData(&vec, 1);
-				avgs[j] += sampl * avgfactor;
+                const int chanId = chanIdsOn[j];
+                const int g = i2g(chanId);
+                if (g >= 0 && g < nGraphs) {
+                    int16 & rawsampl = data[i * nChansOn + j];
+                    const double sampl = ( ((double(rawsampl) + (-smin))/(usmax)) * (2.0) ) - 1.0;
+                    Vec2f vec(double(i)/double(nread), sampl);
+                    graphBufs[g].putData(&vec, 1);
+                    avgs[j] += sampl * avgfactor;
+                }
 			}
 		}
 		
@@ -617,8 +629,9 @@ void FileViewerWindow::updateData()
 			for (int i = 0; i < nread; ++i) {
 				for (int j = 0; j < nChansOn; ++j) {
 					const int chanId = chanIdsOn[j];
-					if (chansToDCSubtract[j]) {
-                        Vec2f & vec(graphBufs[chanId].at(i));
+                    const int g = i2g(chanId);
+                    if (g >= 0 && g < nGraphs && chansToDCSubtract[j]) {
+                        Vec2f & vec(graphBufs[g].at(i));
 						vec.y -= avgs[j];
 					}
 				}
@@ -629,12 +642,12 @@ void FileViewerWindow::updateData()
 	
     for (int i = 0; i < nGraphs; ++i) {
         const int idx = g2i(i);
-        if (idx >= 0 && idx < graphParams.size()) {
+        if (idx >= 0 && idx < nChans) {
             graphs[i]->setYScale(graphParams[idx].yZoom);
             graphs[i]->setNumHGridLines(nDivs);
             graphs[i]->setNumVGridLines(nDivs);
             applyColorScheme(graphs[i]);
-            graphs[i]->setPoints(&graphBufs[idx]);
+            graphs[i]->setPoints(&graphBufs[i]);
         }
 	}
 	
@@ -667,29 +680,47 @@ void FileViewerWindow::updateData()
 		colorSchemeActions[i]->setChecked(i == (int)colorScheme);	
 	for (int i = 0; i < (int)N_ViewMode; ++i)
 		viewModeActions[i]->setChecked(i == (int)viewMode);
-		
-	// configure selection
-	if (selectionEnd >= 0 && selectionEnd >= selectionBegin && selectionEnd < (qint64)dataFile.scanCount()
-		&& selectionBegin >= 0 && selectionBegin < (qint64)dataFile.scanCount()) {
-		// transform selection from scans to 0->1 value in graph
-		const double gselbeg = (selectionBegin - pos) / double(num), 
-		             gselend = (selectionEnd - pos) / double(num);
-		
-        for (int i = 0; i < nGraphs; ++i) {
-			graphs[i]->setSelectionEnabled(true);
-			graphs[i]->setSelectionRange(gselbeg, gselend);
-		}
-		exportSelectionAction->setEnabled(true);
-	} else {
-		exportSelectionAction->setEnabled(false);
-        for (int i = 0; i < nGraphs; ++i) graphs[i]->setSelectionEnabled(false);
-	}
-	
-	printStatusMessage();
+
+    updateSelection(false);
 	
     for (int i = 0; i < nGraphs; ++i)
-		graphs[i]->updateGL();	
+        graphs[i]->update();
 }
+
+void FileViewerWindow::updateSelection() {
+    updateSelection(true);
+}
+
+void FileViewerWindow::updateSelection(bool do_update)
+{
+    const double srate = dataFile.samplingRateHz();
+    const i64 num = nSecsZoom * srate;
+    const int nGraphs = graphs.size();
+
+    // configure selection
+    if (selectionEnd >= 0 && selectionEnd >= selectionBegin && selectionEnd < (qint64)dataFile.scanCount()
+        && selectionBegin >= 0 && selectionBegin < (qint64)dataFile.scanCount()) {
+        // transform selection from scans to 0->1 value in graph
+        const double gselbeg = (selectionBegin - pos) / double(num),
+                     gselend = (selectionEnd - pos) / double(num);
+
+        for (int i = 0; i < nGraphs; ++i) {
+            graphs[i]->setSelectionEnabled(true);
+            graphs[i]->setSelectionRange(gselbeg, gselend);
+            if (do_update && !graphs[i]->isHidden()) graphs[i]->update();
+        }
+        exportSelectionAction->setEnabled(true);
+    } else {
+        exportSelectionAction->setEnabled(false);
+        for (int i = 0; i < nGraphs; ++i) {
+            graphs[i]->setSelectionEnabled(false);
+            if (do_update && !graphs[i]->isHidden()) graphs[i]->update();
+        }
+    }
+
+    printStatusMessage();
+}
+
 
 double FileViewerWindow::timeFromPos(qint64 p) const 
 {
@@ -841,7 +872,9 @@ void FileViewerWindow::colorSchemeMenuSlot()
 	}
 	if (oldScheme != colorScheme) {
 		saveSettings();
-		updateData();
+        if (selectedGraph > -1) selectGraph(selectedGraph);
+        for (int i = 0; i < graphs.size(); ++i)
+            applyColorScheme(graphs[i]), graphs[i]->updateGL();
 	}
 }
 
@@ -887,7 +920,7 @@ void FileViewerWindow::mouseOverGraph(double x, double y)
 		if (selectionEnd < 0) selectionEnd = selectionBegin;
 		if (p < selectionBegin) selectionBegin = p;
 		else selectionEnd = p;
-		QTimer::singleShot(10, this, SLOT(updateData()));
+        updateSelection();
 	}
 
 	printStatusMessage();
@@ -1093,12 +1126,12 @@ void FileViewerWindow::resizeEvent(QResizeEvent *r)
 {
 	QMainWindow::resizeEvent(r);
 	layoutGraphs();
-	QTimer::singleShot(10, this, SLOT(updateData()));
 }
 
 void FileViewerWindow::resizeIt()
 {
-	resize(1050,640);	
+    resize(1050,640);
+    QTimer::singleShot(10, this, SLOT(updateData()));
 }
 
 void FileViewerWindow::showEvent(QShowEvent *e)
@@ -1108,27 +1141,41 @@ void FileViewerWindow::showEvent(QShowEvent *e)
 	QTimer::singleShot(10, this, SLOT(resizeIt()));
 }
 
-void FileViewerWindow::doubleClickedGraph()
+void FileViewerWindow::toggleMaximize()
 {
 	if (maximizedGraph > -1) {
-		maximizedGraph = -1;
+        maximizedGraph = -1;
+        pgLbl->setHidden(false);
+        graphPgSz->setHidden(false); graphPgSz->setEnabled(true);
+        pageCB->setHidden(false); pageCB->setEnabled(true);
+        maximizedLbl->setHidden(true);
 	} else {
 		GLGraph *g = dynamic_cast<GLGraph *>(sender());
-		if (!g) return;
-		maximizedGraph = g->tag().toInt();
-	}
+        int tomax = -1;
+        if (g) {
+            tomax = g->tag().toInt();
+        } else {
+            if (mouseOverGNum < 0) return;
+            tomax = mouseOverGNum;
+        }
+        selectGraph(tomax);
+        maximizedGraph = tomax;
+        pgLbl->setHidden(true);
+        graphPgSz->setHidden(true); graphPgSz->setEnabled(false);
+        pageCB->setHidden(true); pageCB->setEnabled(false);
+        maximizedLbl->setHidden(false);
+    }
 	// revert to old selection since we temporarily lost it due to spammed click events
-	selectionBegin = saved_selectionBegin;
-	selectionEnd = saved_selectionEnd;
+    //selectionBegin = saved_selectionBegin;
+    //selectionEnd = saved_selectionEnd;
 	
 	layoutGraphs();
-	QTimer::singleShot(10, this, SLOT(updateData()));
+    QTimer::singleShot(10, this, SLOT(updateData()));
 }
 
 void FileViewerWindow::mouseReleaseSlot(double x, double y)
 {
 	(void)x,(void)y;
-//	Debug() << "Mouse release at " << x << "," << y;
 	mouseButtonIsDown = false;
 }
 
@@ -1147,9 +1194,8 @@ void FileViewerWindow::mouseClickSlot(double x, double y)
 	saved_selectionEnd = selectionEnd;
 	selectionBegin = qint64(x * nScansPerGraph()) + pos;
 	selectionEnd = -1;
-//	Debug() << "Mouse press at " << x << "," << y;
 	mouseButtonIsDown = true;
-	QTimer::singleShot(10, this, SLOT(updateData()));
+    updateSelection();
 }
 
 void FileViewerWindow::exportSlot()
@@ -1280,9 +1326,10 @@ void FileViewerWindow::doExport(const ExportParams & p)
 
 void FileViewerWindow::selectGraph(int num)
 {
+    bool earlyReturn = false;
     if (num >= graphFrames.size() || num < 0) {
-        Warning() << "INTERNAL ERROR: FileViewerWindow::selectGraph() called with invalid graph number! FIXME!";
-        return;
+        num = -1;
+        earlyReturn = true;
     }
     int old = selectedGraph;
 	QFrame *f;
@@ -1290,17 +1337,31 @@ void FileViewerWindow::selectGraph(int num)
 		f = graphFrames[old];
 		f->setLineWidth(0);
 		f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain);
+        f->setObjectName("");
+        f->setStyleSheet("border: 0px solid black");
 	}
     selectedGraph = num;
+    if (earlyReturn) return;
 	f = graphFrames[num];
     f->setFrameStyle(QFrame::Box|QFrame::Plain);
-	f->setLineWidth(3);
+    f->setLineWidth(3);
+    f->setObjectName("selectedFrame");
+    QString sColor = "blue";
+    switch (colorScheme) {
+        case Ice: sColor = "#9999FF"; break;
+        case Fire: sColor = "#FF6699"; break;
+        case Green: sColor = "#6600CC"; break;
+        case BlackWhite: sColor = "#66ff99"; break;
+        case Classic: sColor = "#ffcc66"; break;
+    }
+    f->setStyleSheet(QString("#selectedFrame { border: 3px solid %1; }").arg(sColor));
     graphNameLbl->setText(QString("<font size=-1>") + generateGraphNameString(num, false) + "</font>");
 	yScaleSB->blockSignals(true);
 	auxGainSB->blockSignals(true);
 	highPassChk->blockSignals(true);
 	dcfilterChk->blockSignals(true);
     const int idx = g2i(num);
+    if (idx < 0 || idx >= graphParams.size()) return;
     yScaleSB->setValue(graphParams[idx].yZoom);
     auxGainSB->setValue(graphParams[idx].gain);
     highPassChk->setChecked(graphParams[idx].filter300Hz);
@@ -1309,7 +1370,7 @@ void FileViewerWindow::selectGraph(int num)
 	auxGainSB->blockSignals(false);
 	highPassChk->blockSignals(false);
 	dcfilterChk->blockSignals(false);
-	if (didLayout) updateData();
+    //if (didLayout) updateData();
 }
 
 void FileViewerWindow::hpfChk(bool b)
@@ -1420,18 +1481,11 @@ void FileViewerWindow::sortGraphsByElectrode() {
 	layoutGraphs();
 }
 
-void FileViewerWindow::graphsPerPageChanged(int dummy) {
-    (void)dummy; saveSettings();
+void FileViewerWindow::graphsPerPageChanged(int n) {
+    n_graphs_pg = n;
+    saveSettings();
+    redoGraphs();
     repaginate();
-}
-
-int FileViewerWindow::graphsPerPage() const {
-    return graphPgSz->value();
-}
-
-int FileViewerWindow::currentGraphsPage() const {
-    int ret = pageCB->currentIndex();
-    return ret >= 0 ? ret : 0;
 }
 
 void FileViewerWindow::repaginate() {
@@ -1443,21 +1497,68 @@ void FileViewerWindow::repaginate() {
     int nPages = nChans / graphsPerPage() + (nChans%graphsPerPage()?1:0);
     for (int i = 0; i < nPages; ++i)
         pageCB->addItem(QString("Graphs Page %1/%2").arg(i+1).arg(nPages));
-    Connect(pageCB, SIGNAL(currentIndexChanged(int)), this, SLOT(pageChanged(int)));
     if (oldPage < nPages) pageCB->setCurrentIndex(oldPage);
+    else pageCB->setCurrentIndex(0);
 
-    layoutGraphs();
-    updateData();
+    pageChanged(pageCB->currentIndex()); // implicitly does layout and data update, etc
+
+    Connect(pageCB, SIGNAL(currentIndexChanged(int)), this, SLOT(pageChanged(int)));
 }
 
 void FileViewerWindow::pageChanged(int p) {
-    Debug() << "Page set to " << p;
+//    Debug() << "Page set to " << p+1;
+    curr_graph_page = p;
 
     for (int i = 0; i < graphs.size(); ++i) {
         const int idx = g2i(i);
         if (idx >= 0 && idx < graphParams.size())
-            graphs[i]->setToolTip(graphParams[idx].objname);
+            graphs[i]->setToolTip(graphParams[idx].objname + " (right-click for context menu)");
     }
-    layoutGraphs();
-    updateData();
+    if (didLayout) {
+        layoutGraphs();
+        QTimer::singleShot(10, this, SLOT(updateData()));
+    }
+    if (selectedGraph > -1) selectGraph(selectedGraph);
+}
+
+void FileViewerWindow::redoGraphs()
+{
+    // if reopening a file, delete all the old graphs first, and any auxilliary objects, and also do some cleanup/pre-init
+    for (int i = 0, n = graphFrames.size(); i < n; ++i) {
+        delete graphs[i]; // explicit to free up resources asap?
+        delete graphFrames[i];
+    }
+
+    const int nGraphs = graphsPerPage();
+    graphBufs.clear(); graphBufs.resize(nGraphs);
+    graphs.clear(); graphs.resize(nGraphs);
+    graphFrames.clear(); graphFrames.resize(nGraphs);
+
+    for (int i = 0, n = nGraphs; i < n; ++i) {
+        QFrame *f = graphFrames[i] = new QFrame(graphParent);
+        f->setLineWidth(0);
+        f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain); // only enable frame when it's selected!
+        QVBoxLayout *vbl = new QVBoxLayout(f);
+        f->setLayout(vbl);
+        graphs[i] = new GLGraph(f);
+        vbl->addWidget(graphs[i],1);
+        vbl->setSpacing(0);
+        vbl->setContentsMargins(0,0,0,0);
+        graphs[i]->setAutoUpdate(false);
+        graphs[i]->setMouseTracking(true);
+        const int idx = g2i(i);
+        if (idx >= 0 && idx < graphParams.size())
+            graphs[i]->setToolTip(graphParams[idx].objname + " (right-click for context menu)"); // TODO: set the name appropriately on layout!
+        graphs[i]->setTag(i);
+        graphs[i]->setCursor(Qt::CrossCursor);
+        graphs[i]->addAction(exportAction);
+        graphs[i]->addAction(exportSelectionAction);
+        graphs[i]->addAction(maxunmaxAction);
+        graphs[i]->setContextMenuPolicy(Qt::ActionsContextMenu);
+        Connect(graphs[i], SIGNAL(cursorOver(double,double)), this, SLOT(mouseOverGraph(double,double)));
+        Connect(graphs[i], SIGNAL(cursorOverWindowCoords(int,int)), this, SLOT(mouseOverGraphInWindowCoords(int,int)));
+        Connect(graphs[i], SIGNAL(clickedWindowCoords(int,int)), this, SLOT(clickedGraphInWindowCoords(int,int)));
+        Connect(graphs[i], SIGNAL(clicked(double, double)), this, SLOT(mouseClickSlot(double,double)));
+        Connect(graphs[i], SIGNAL(clickReleased(double, double)), this, SLOT(mouseReleaseSlot(double,double)));
+    }
 }
