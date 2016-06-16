@@ -97,7 +97,7 @@ int FG_ConfigDialog::exec()
 				p.bug.reset();
 				p.fg.reset();
 				p.fg.enabled = true;
-                p.fg.disableChanMap = dialog->disableChanMapChk->isChecked();
+                p.fg.disableChanMap = false/*dialog->disableChanMapChk->isChecked()*/;
 
 
 				// todo.. form-specific stuff here which affects p.fg struct...
@@ -219,7 +219,7 @@ void FG_ConfigDialog::guiFromSettings()
     dialog->bits->setCurrentIndex(p.fg.bits);
     dialog->parity->setCurrentIndex(p.fg.parity);
     dialog->stop->setCurrentIndex(p.fg.stop);
-    dialog->disableChanMapChk->setChecked(p.fg.disableChanMap);
+    //dialog->disableChanMapChk->setChecked(p.fg.disableChanMap);
 
     if (!DAQ::FGTask::probedHardware.empty()) {
         dialog->sapdevCB->clear();
