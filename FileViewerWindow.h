@@ -34,6 +34,7 @@ class HPFilter;
 class QEvent;
 class TaggableLabel;
 class QComboBox;
+class Ui_FVW_Readme;
 
 /// The class that handles the window you get when opening files.
 class FileViewerWindow : public QMainWindow
@@ -94,6 +95,7 @@ private slots:
     void repaginate();
     void pageChanged(int);
     void updateSelection(); ///< calls updateSelection(true)
+    void readmeDlgDone();
 
 private:
 	void loadSettings();
@@ -201,6 +203,9 @@ private:
     QComboBox *pageCB;
     QLabel *maximizedLbl, *pgLbl, *allChannelsHiddenLbl;
     int n_graphs_pg, curr_graph_page;
+
+    bool showReadme;
+    QDialog *readmeDlg; Ui_FVW_Readme *readme;
 };
 
 

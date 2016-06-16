@@ -46,6 +46,7 @@
 #include <QDialog>
 #include <QComboBox>
 #include <stdio.h>
+#include "ui_FVW_Readme.h"
 
 
 const QString FileViewerWindow::viewModeNames[] = {
@@ -68,8 +69,10 @@ private:
 };
 
 FileViewerWindow::FileViewerWindow()
-: QMainWindow(0), pscale(1), mouseOverT(-1.), mouseOverV(0), mouseOverGNum(-1), mouseButtonIsDown(false), dontKillSelection(false), hpfilter(0), arrowKeyFactor(.1), pgKeyFactor(.5), n_graphs_pg(8), curr_graph_page(0)
+: QMainWindow(0), pscale(1), mouseOverT(-1.), mouseOverV(0), mouseOverGNum(-1), mouseButtonIsDown(false), dontKillSelection(false), hpfilter(0), arrowKeyFactor(.1), pgKeyFactor(.5), n_graphs_pg(8), curr_graph_page(0), showReadme(true)
 {	
+    readmeDlg = 0; readme=0;
+
 	QWidget *cw = new QWidget(this);
 	QVBoxLayout *l = new QVBoxLayout(cw);
 	setCentralWidget(cw);
@@ -269,6 +272,9 @@ FileViewerWindow::~FileViewerWindow()
 {	
 	/// scrollArea and graphParent automatically deleted here because they are children of us.
 	delete hpfilter;
+    // these aren't children, so delete them
+    delete readmeDlg, readmeDlg = 0;
+    delete readme, readme = 0;
 }
 
 
@@ -369,6 +375,14 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 	if (reusing) QTimer::singleShot(10, this, SLOT(updateData()));
 	if (errMsg) *errMsg = QString::null;
 	
+    if (showReadme) {
+        delete readmeDlg; delete readme;
+        readmeDlg = new QDialog(0);
+        readme = new Ui::FVW_Readme;
+        readme->setupUi(readmeDlg);
+        Connect(readmeDlg, SIGNAL(accepted()), this, SLOT(readmeDlgDone()));
+    }
+
 	return true;
 }
 
@@ -422,6 +436,8 @@ void FileViewerWindow::loadSettings()
     graphPgSz->blockSignals(true);
     graphPgSz->setValue((n_graphs_pg = settings.value("graphsPerPage", 36).toUInt()));
     graphPgSz->blockSignals(false);
+
+    showReadme = !settings.value("neverShowReadme", false).toBool();
 }
 
 void FileViewerWindow::saveSettings()
@@ -442,6 +458,7 @@ void FileViewerWindow::saveSettings()
 	settings.setValue("lastExportChans", lec);
 	settings.setValue("sortGraphsByElectrode", electrodeSort);
     settings.setValue("graphsPerPage", graphsPerPage());
+    settings.setValue("neverShowReadme", !showReadme);
 }
 
 void FileViewerWindow::layoutGraphs()
@@ -948,6 +965,7 @@ void FileViewerWindow::mouseOverGraph(double x, double y)
     y = (y*(dataFile.rangeMax(idx)-dataFile.rangeMin(idx)) + dataFile.rangeMin(idx)) / gain;
 	mouseOverV = y;
 
+
 	// now, handle selection change
 	if (mouseButtonIsDown) {
 		qint64 p = posFromTime(x);
@@ -960,10 +978,13 @@ void FileViewerWindow::mouseOverGraph(double x, double y)
 		} else if (p > pos + nScansPerGraph()) {
 			diff = p - (pos + nScansPerGraph());
 		}
+        //Debug() << "mouse over graph " << num << " ch " << idx << " x=" << x << " y=" << y << " diff="<< diff << " selBeg="<<selectionBegin<<" selEnd="<<selectionEnd;
+
 		if (diff) setFilePos64(pos+diff, true);
 		if (selectionEnd < 0) selectionEnd = selectionBegin;
 		if (p < selectionBegin) selectionBegin = p;
 		else selectionEnd = p;
+        if (diff) updateData();
         updateSelection();
 	}
 
@@ -1183,6 +1204,9 @@ void FileViewerWindow::showEvent(QShowEvent *e)
 	QMainWindow::showEvent(e);
 	updateGeometry();
 	QTimer::singleShot(10, this, SLOT(resizeIt()));
+    if (readmeDlg) {
+        QTimer::singleShot(100, readmeDlg, SLOT(show()));
+    }
 }
 
 void FileViewerWindow::toggleMaximize()
@@ -1631,4 +1655,11 @@ void FileViewerWindow::redoGraphs()
         Connect(graphs[i], SIGNAL(clicked(double, double)), this, SLOT(mouseClickSlot(double,double)));
         Connect(graphs[i], SIGNAL(clickReleased(double, double)), this, SLOT(mouseReleaseSlot(double,double)));
     }
+}
+
+void FileViewerWindow::readmeDlgDone()
+{
+    if (readme->neverShowChk->isChecked()) showReadme = false, saveSettings();
+    delete readmeDlg, readmeDlg = 0;
+    delete readme, readme = 0;
 }

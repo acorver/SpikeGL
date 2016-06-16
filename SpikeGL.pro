@@ -43,7 +43,8 @@ FORMS += ConfigureDialog.ui AcqPDParams.ui AcqTimedParams.ui Par2Window.ui \
          ApplyDialog.ui TextBrowser.ui CommandServerOptions.ui \
          TempFileDialog.ui ExportDialog.ui FVW_OptionsDialog.ui \
          Bug_ConfigDialog.ui Bug_Popout.ui FG_ConfigDialog.ui \
-         FG_Controls.ui SampleBuf_Dialog.ui
+         FG_Controls.ui SampleBuf_Dialog.ui \
+    FVW_Readme.ui
 
 QT += opengl network svg
 
