@@ -57,7 +57,6 @@ protected:
 
 private slots:
     void updateGraph();
-//    void selectGraph(int num);
 	
     void mouseOverGraph(double x, double y);
     void mouseClickGraph(double x, double y);
