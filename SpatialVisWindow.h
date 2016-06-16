@@ -124,7 +124,7 @@ private:
 	quint64 last_fs_frame_tsc;
 	Avg frameDelayAvg;
 	QString fdelayStr;
-    QVector<int> sorting, naming;
+    QVector<int> sorting, revsorting, naming;
 
     QMutex mut;    
 };

@@ -141,11 +141,11 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
     chanRawSamps.resize(nvai);
 	
     // default sorting
-    sorting.resize(nvai); naming.resize(nvai);
+    sorting.resize(nvai); naming.resize(nvai); revsorting.resize(nvai);
 
 	for (int chanid = 0; chanid < nvai; ++chanid) {
 		points[chanid] = chanId2Pos(chanid);
-        sorting[chanid] = naming[chanid] = chanid;
+        revsorting[chanid] = sorting[chanid] = naming[chanid] = chanid;
 	}
 
 	sbRows->setValue(nby);
@@ -251,8 +251,8 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
 	if (firstidx < 0) firstidx = 0;
     const bool nocm = params.fg.enabled && params.fg.disableChanMap;
     for (int i = firstidx; i < int(scans_size_samps); ++i) {
-        int chanid = nocm ? i%nvai: sorting[i % nvai];
-		const QColor color (chanid < nvai-nextra ? fg : fg2);
+        int chanId = nocm ? i%nvai: revsorting[i % nvai];
+        const QColor color (chanId < nvai-nextra ? fg : fg2);
 #ifdef HEADACHE_PROTECTION
 		double val = .9;
 #else
@@ -264,12 +264,12 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
             val = (double(scans[i])+32767.) / 65535.;
         }
 #endif
-        chanRawSamps[chanid] = scans[i];
-		chanVolts[chanid] = val * (params.range.max-params.range.min)+params.range.min;
-		colors[chanid].x = color.redF()*val;
-		colors[chanid].y = color.greenF()*val;
-		colors[chanid].z = color.blueF()*val;
-		colors[chanid].w = color.alphaF();
+        chanRawSamps[chanId] = scans[i];
+        chanVolts[chanId] = val * (params.range.max-params.range.min)+params.range.min;
+        colors[chanId].x = color.redF()*val;
+        colors[chanId].y = color.greenF()*val;
+        colors[chanId].z = color.blueF()*val;
+        colors[chanId].w = color.alphaF();
 	}
 //	updateGraph();
 }
@@ -403,7 +403,7 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 #else
         snprintf
 #endif
-                (buf,sizeof(buf),"%04hx",chanRawSamps[nid]);
+                (buf,sizeof(buf),"%04hx",chanRawSamps[chanId]);
 
         QString raw = QString(buf).toUpper();
         if (raw.length() > 4) {
@@ -413,8 +413,9 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
         statusLabel->setText(QString("Elec: %2 (Graph %1) -- %3 V [0x%4] ")
                              .arg(sorting[chanId])
                              .arg(naming[chanId])
-                             .arg(chanVolts[nid])
+                             .arg(chanVolts[chanId])
                              .arg(raw));
+        //Debug() << "ChanId=" << chanId << " nid=" << nid << " sorting=" << sorting[chanId];
     }
 	
 	if (selIdxs.size()) {
@@ -739,10 +740,25 @@ void SpatialVisWindow::hideEvent(QHideEvent *e)
 
 void SpatialVisWindow::setSorting(const QVector<int> & s, const QVector<int> & n)
 {
-    //Debug() << "SpatialVisWindow sorting changed called...";
+    QVector<int> rs; rs.resize(s.size());
+    for (int i = 0; i < s.size(); ++i) {
+        int n = s[i];
+        if (n < 0 || n >= rs.size()) {
+            Error() << "INTERNAL ERROR: SpatialVisWindow::setSorting -- sorting specified seems fishy.  Got a value out of range! FIXME!";
+            n = 0;
+        }
+        rs[n] = i;
+    }
+    /*QString str1 = "sorting: ", str2 = "naming: ", str3 = "revsorting: ";
+    for (int i = 0; i < s.size(); ++i) str1 += QString::number(s[i]) + ",", str2 += QString::number(n[i]) + ",", str3 += QString::number(rs[i]) + ",";
+    Debug() << "SpatialVisWindow sorting changed called...";
+    Debug() << str1;
+    Debug() << str3;
+    Debug() << str2;*/
     QMutexLocker l(&mut);
     sorting = s;
     naming = n;
+    revsorting = rs;
     if (selIdxs.size()) {
         selectBlock(selIdxs[0] / nGraphsPerBlock);
         updateMouseOver();

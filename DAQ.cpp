@@ -2507,7 +2507,7 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
             for (int i = 0, chinc = -1, even = 1; i < n_chans; ++i, even = !even) {
                 if (!(i%(N_INTANS*2))) ++chinc;
                 const int intan = (i/2) % N_INTANS, intan_chan = even ? chinc : chinc+(N_CHANS_PER_INTAN/2);
-                int electrode = disableForTesting ? i : revmap[i];
+                int electrode = disableForTesting ? i : revmap[i]/*retarray[i]*/;
                 if (electrode < 0 || electrode >= n_chans) {
                     Warning() << "INTERNAL: DAQ.cpp::getDefaultMapping.. electrode is out of range!";
                     electrode = 0;
