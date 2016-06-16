@@ -310,7 +310,7 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
     graphParams.clear(); graphParams.resize(nChans);
 	defaultGain = dataFile.auxGain();
 	chanMap = dataFile.chanMap();
-    graphSorting.resize(nChans);
+    graphSorting.resize(nChans); revGraphSorting.resize(nChans);
     pageCB->blockSignals(true);
     pageCB->setCurrentIndex((curr_graph_page=0)); // set it back to first page..
     pageCB->blockSignals(false);
@@ -323,7 +323,7 @@ bool FileViewerWindow::viewFile(const QString & fname, QString *errMsg /* = 0 */
 		sortByElectrode->setChecked(false);
 	}
     for (int i = 0, n = nChans; i < n; ++i) {
-		graphSorting[i] = i; ///< identity sort initially
+        revGraphSorting[i] = graphSorting[i] = i; ///< identity sort initially
 		graphParams[i].yZoom = defaultYZoom;
 		graphParams[i].gain = defaultGain;
 		graphParams[i].filter300Hz = false;
@@ -1522,29 +1522,32 @@ void FileViewerWindow::sortGraphsByIntan() {
 	electrodeSort = false; saveSettings();
 	sortByElectrode->setChecked(false);
     for (int i = 0; i < (int)graphSorting.size(); ++i)
-		graphSorting[i] = i;
+        revGraphSorting[i] = graphSorting[i] = i;
 	
 	layoutGraphs();
+    updateData();
 }
 
 void FileViewerWindow::sortGraphsByElectrode() {
 	sortByIntan->setChecked(false);
 	electrodeSort = true; saveSettings();
 	QMap<int,int> eid2graph;
-	const int cms = chanMap.size(), gs = graphs.size();
+    const int cms = chanMap.size(), gs = graphParams.size();
 	int i;
 	for (i = 0; i < cms; ++i) {
 		eid2graph[chanMap[i].electrodeId] = i;
 	}
-	QVector<int> & sorting (graphSorting);
-	sorting.clear();
-	sorting.reserve(gs);
-	for (QMap<int,int>::iterator it = eid2graph.begin(); it != eid2graph.end(); ++it)
-		sorting.push_back(it.value());
+    QVector<int> & sorting (graphSorting), & rev(revGraphSorting);
+    sorting.clear(); rev.clear();
+    sorting.reserve(gs); rev.resize(gs);
+    i=0;
+    for (QMap<int,int>::iterator it = eid2graph.begin(); it != eid2graph.end(); ++it, ++i)
+        sorting.push_back(it.value()), rev[it.value()] = i;
 	for ( ; i < gs; ++i)
-		sorting.push_back(i);
+        sorting.push_back(i), rev[i] = i;
 		
 	layoutGraphs();
+    updateData();
 }
 
 void FileViewerWindow::graphsPerPageChanged(int n) {

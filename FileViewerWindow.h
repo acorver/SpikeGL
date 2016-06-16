@@ -113,8 +113,8 @@ private:
 	void doExport(const ExportParams &);
     int graphsPerPage() const { return n_graphs_pg; }
     int currentGraphsPage() const { return curr_graph_page; }
-    int g2i(int g) const { return currentGraphsPage()*graphsPerPage() + g; }
-    int i2g(int i) const { return i - currentGraphsPage()*graphsPerPage(); }
+    int g2i(int g) const { return graphSorting[currentGraphsPage()*graphsPerPage() + g]; }
+    int i2g(int i) const { return revGraphSorting[i] - currentGraphsPage()*graphsPerPage(); }
     void redoGraphs(); ///< used when graphs per page changes and also as a setup function when opening a new file. deletes all old graph data and reestablishes graph data structures
     void updateSelection(bool do_opengl_update);
 
@@ -143,7 +143,7 @@ private:
     QVector<QAction *> graphHideUnhideActions; ///< indexed by numChans!
     QBitArray hiddenGraphs; ///< indexed by numChans!
     QVector<GraphParams> graphParams; ///< per-graph params
-    QVector<int> graphSorting; ///< used for sort by electrode id/sort by intan feature  to sort the graphs.  read by layoutGraphs()
+    QVector<int> graphSorting, revGraphSorting; ///< used for sort by electrode id/sort by intan feature  to sort the graphs.
 
 
     /*-- Below two are: INDEXED BY graphsPerPage(), not numChans.. graphs on screen are a subset of all channels as of June 2016 */
