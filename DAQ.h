@@ -172,7 +172,9 @@ namespace DAQ
             int sidx, ridx; ///< server and resource index
             int com,baud,bits,parity,stop;
             bool isCalinsConfig;
-            void reset() { enabled = false; com=1,baud=1,bits=0,parity=0,stop=0; sidx=1; ridx=0; isCalinsConfig = false; disableChanMap = false; }
+            QString chanMapTextCalins, chanMapText;
+            int spatialRows, spatialCols;
+            void reset() { enabled = false; com=1,baud=1,bits=0,parity=0,stop=0; sidx=1; ridx=0; isCalinsConfig = false; disableChanMap = false; chanMapTextCalins=chanMapText=""; spatialRows=spatialCols=0; }
 		} fg;
 		
         mutable QMutex mutex;
@@ -511,7 +513,8 @@ namespace DAQ
         FGTask(Params & acqParams, QObject * parent, const PagedScanReader & psr, bool isDummyTask = false);
         ~FGTask();
 		
-        static const int *getDefaultMapping(int which /* 1=calin 0=janelia*/, ChanMap *cm_out = 0, bool disableForTesting = false);
+        static const int *getDefaultMapping(int which /* 1=calin 0=janelia*/, ChanMap *cm_out = 0);
+        static bool setupCMFromArray(const int *mapping, int which /* 1=calin 0=janelia */, ChanMap *cm_out);
 
         unsigned numChans() const;
         unsigned samplingRate() const;

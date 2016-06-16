@@ -34,9 +34,14 @@ public:
     Ui::FG_ConfigDialog *dialog; 
 			
     bool isDialogVisible() const { return dialogW->isVisible(); }
+
+    /// returns empty string on ok, or a string describing the problem if not ok
+    static QString validateChanMappingText(const QString &txt, int nchans, int & rows_parsed, int & cols_parsed, QVector<int> *optional_parsed_array = 0);
+
 private slots:
 	void browseButClicked();
     void actuallyDoHardwareProbe();
+    void chanMapButClicked();
 
 private:
 	
@@ -56,6 +61,7 @@ private:
 
     QDialog *dialogW;
     QMessageBox *mb;
+    QVector<int> chanMapFromUser;
 };
 
 

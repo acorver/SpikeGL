@@ -12,6 +12,10 @@
 #include "ConfigureDialogController.h"
 #include <QMessageBox>
 #include <QFileDialog>
+#include "ui_FG_ChanMapDialog.h"
+#include <QTextStream>
+#include <QSet>
+#include <QStringList>
 
 FG_ConfigDialog::FG_ConfigDialog(DAQ::Params & params, QObject *parent)
 : QObject(parent), acceptedParams(params)
@@ -22,6 +26,7 @@ FG_ConfigDialog::FG_ConfigDialog(DAQ::Params & params, QObject *parent)
 	dialog = new Ui::FG_ConfigDialog;
     dialog->setupUi(dialogW);
 	Connect(dialog->browseBut, SIGNAL(clicked()), this, SLOT(browseButClicked()));
+    Connect(dialog->chanMapBut, SIGNAL(clicked()), this, SLOT(chanMapButClicked()));
 }
 
 FG_ConfigDialog::~FG_ConfigDialog()
@@ -97,7 +102,7 @@ int FG_ConfigDialog::exec()
 				p.bug.reset();
 				p.fg.reset();
 				p.fg.enabled = true;
-                p.fg.disableChanMap = false/*dialog->disableChanMapChk->isChecked()*/;
+                p.fg.disableChanMap = false;
 
 
 				// todo.. form-specific stuff here which affects p.fg struct...
@@ -150,7 +155,12 @@ int FG_ConfigDialog::exec()
 				p.isImmediate = true;
 				p.acqStartEndMode = DAQ::Immediate;
 				p.usePD = 0;
-                /*p.chanMap SET HERE ---> */ DAQ::FGTask::getDefaultMapping(p.fg.isCalinsConfig?1:0, &p.chanMap, p.fg.disableChanMap);
+
+                /*p.chanMap SET HERE: */
+                if (!DAQ::FGTask::setupCMFromArray(&chanMapFromUser[0], p.fg.isCalinsConfig?1:0, &p.chanMap)) {
+                    vr = ABORT;
+                    continue;
+                }
 				
 				if (AGAIN == ConfigureDialogController::setFilenameTakingIntoAccountIncrementHack(p, p.acqStartEndMode, dialog->outputFileLE->text(), dialogW)) {
 					vr = AGAIN;
@@ -206,7 +216,31 @@ FG_ConfigDialog::ValidationResult
 FG_ConfigDialog::validateForm(QString & errTitle, QString & errMsg, bool isGUI)
 {
 	(void)errTitle; (void)errMsg; (void)isGUI;
+    DAQ::Params & p (acceptedParams);
+    QString mapstr = dialog->calinRadio->isChecked() ? p.fg.chanMapTextCalins : p.fg.chanMapText;
+    int req_chans = dialog->calinRadio->isChecked() ? 2048 : 2304;
+    QString err = validateChanMappingText(mapstr, req_chans, p.fg.spatialRows, p.fg.spatialCols, &chanMapFromUser);
+    if (err.length()) {
+        errTitle = "Channel Mapping Invalid";
+        errMsg = err;
+        return AGAIN;
+    }
 	return OK;
+}
+
+static QString generateDefaultMappingString(int which, int rows, int cols)
+{
+    const int *m = DAQ::FGTask::getDefaultMapping(which);
+    QString s = "";
+
+    for (int r = 0; r < rows; ++r) {
+        for (int c = 0; c < cols; ++c) {
+            if (c) s += "\t";
+            s += QString::number(m[r*cols+c]);
+        }
+        s += "\n";
+    }
+    return s;
 }
 
 void FG_ConfigDialog::guiFromSettings()
@@ -234,6 +268,9 @@ void FG_ConfigDialog::guiFromSettings()
     dialog->calinRadio->setChecked(p.fg.isCalinsConfig);
     dialog->janeliaRadio->setChecked(!p.fg.isCalinsConfig);
 
+    if (!p.fg.chanMapTextCalins.trimmed().length()) p.fg.chanMapTextCalins = generateDefaultMappingString(1, 64, 32);
+    if (!p.fg.chanMapText.trimmed().length()) p.fg.chanMapText = generateDefaultMappingString(0, 64, 36);
+
 }
 
 void FG_ConfigDialog::saveSettings()
@@ -241,4 +278,79 @@ void FG_ConfigDialog::saveSettings()
 	mainApp()->configureDialogController()->saveSettings();
 }
 
+/* static */
+QString FG_ConfigDialog::validateChanMappingText(const QString &s, int reqchans, int & rows, int & cols, QVector<int> * m_out) {
+    rows = 0, cols = 0;
+    bool seen0 = false;
+    if (reqchans <= 0) return "Second parameter passed to function is invalid";
+    QSet<int> allnums;
+    for (int i = 0; i < reqchans+1; ++i) allnums.insert(i);
+    if (m_out) m_out->clear(), m_out->reserve(reqchans);
+    QStringList lines = s.split(QChar('\n'),QString::SkipEmptyParts);
+    for (QStringList::iterator it = lines.begin(); it != lines.end(); ++it) {
+        QStringList cells = (*it).trimmed().split(QRegExp("\\s+"), QString::SkipEmptyParts);
+        if (cells.length()) {
+            int c = 0, val;
+            for (QStringList::iterator it2 = cells.begin(); it2 != cells.end(); ++it2) {
+                bool ok;
+                val = (*it2).toInt(&ok);
+                if (!ok)  return QString("Parse error in row %1 col %2").arg(rows).arg(c);
+                if (!allnums.contains(val)) return QString("Value %1 appears more than once in table at row %2 col %3").arg(val).arg(rows).arg(c);
+                allnums.remove(val);
+                if (m_out) m_out->push_back(val);
+                if (!val) seen0 = true;
+                ++c;
+            }
+            if (!rows) cols = c;
+            else if (cols != c) {
+                return "Irregular table -- some rows have more columns than others!";
+            }
+            ++rows;
+        }
+    }
+    if (rows*cols != reqchans)
+        return QString("Table does not specify the required %1 channels. (Read a %2x%3 table = %4 channels)").arg(reqchans).arg(rows).arg(cols).arg(rows*cols);
+    if (!seen0 && m_out) { // was 1-indexed.. renormalize to 0-indexed
+        int sz = m_out->size();
+        for (int i = 0; i < sz; ++i) --(*m_out)[i];
+    }
+    return "";
+}
 
+void FG_ConfigDialog::chanMapButClicked()
+{
+    QDialog dW(dialogW);
+    Ui::FG_ChanMapDialog d;
+    DAQ::Params & p(acceptedParams);
+    int req_chans = 0;
+
+    d.setupUi(&dW);
+    QString *paramStr = 0;
+    if (dialog->calinRadio->isChecked()) {
+        d.acqModeLbl->setText("Calin's Test");
+        d.nChansLbl->setText(QString::number(req_chans=2048));
+        paramStr=&p.fg.chanMapTextCalins;
+    } else {
+        d.acqModeLbl->setText("Janelia FPGA");
+        d.nChansLbl->setText(QString::number(req_chans=2304));
+        paramStr=&p.fg.chanMapText;
+    }
+    d.chanMapTE->setPlainText(*paramStr);
+
+    bool keepTrying = true;
+
+    while (keepTrying) {
+        int ret = dW.exec();
+        if (ret == QDialog::Accepted) {
+            int r, c; QVector<int> parsed;
+            QString err = validateChanMappingText(d.chanMapTE->toPlainText(), req_chans, r, c, &parsed);
+            if (err.length())
+                QMessageBox::critical(dialogW,"Mapping Parse Error",err);
+            else {
+                Debug() << "mapping ok -- rows: " << r << " cols: " << c;
+                *paramStr = d.chanMapTE->toPlainText();
+                keepTrying = false;
+            }
+        } else keepTrying = false;
+    }
+}
