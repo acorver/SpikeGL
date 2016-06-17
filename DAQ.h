@@ -174,7 +174,7 @@ namespace DAQ
             bool isCalinsConfig;
             QString chanMapTextCalins, chanMapText;
             int spatialRows, spatialCols;
-            void reset() { enabled = false; com=1,baud=1,bits=0,parity=0,stop=0; sidx=1; ridx=0; isCalinsConfig = false; disableChanMap = false; chanMapTextCalins=chanMapText=""; spatialRows=spatialCols=0; }
+            void reset() { enabled = false; com=1,baud=1,bits=0,parity=0,stop=0; sidx=1; ridx=0; isCalinsConfig = false; disableChanMap = false; spatialRows=spatialCols=0; }
 		} fg;
 		
         mutable QMutex mutex;

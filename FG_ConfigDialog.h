@@ -62,6 +62,7 @@ private:
     QDialog *dialogW;
     QMessageBox *mb;
     QVector<int> chanMapFromUser;
+    QString chanMapTxt; int spatialRows, spatialCols;
 };
 
 

@@ -76,8 +76,7 @@ public slots:
     void setPDTrig(bool);
     void setTrigOverrideEnabled(bool);
 
-	void highlightGraphsById(const QVector<unsigned> & electrode_ids);
-	void openGraphsById(const QVector<unsigned> & electrode_ids); ///< really just opens the first graph
+    void openGraphsById(const QVector<unsigned> & electrode_ids); ///< creates a "custom" page and opens the first numGraphsPerTab() graphs in the list on that page!
     void setDownsampling(bool checked);
     void setDownsamplingCheckboxEnabled(bool en);
 
@@ -105,6 +104,7 @@ private slots:
 	void saveGraphChecked(bool b);
 
 	void tabChange(int);
+    void changeToCustomTab(const QVector<unsigned> & ids_to_place_on_custom_tab);
 
 	void saveFileLineEditChanged(const QString & newtext);
 	

@@ -26,7 +26,7 @@ class SpatialVisWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims, QWidget *parent = 0);
+    SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, QWidget *parent = 0);
     ~SpatialVisWindow();
 	
     void putScans(const std::vector<int16> & scans, u64 firstSamp);
@@ -34,18 +34,18 @@ public:
 		
     bool threadsafeIsVisible() const { return threadsafe_is_visible; }
 
-    void setStaticBlockLayout(int nrows, int ncols);
+    void setStaticBlockLayout(int ncols, int nrows);
 
     QColor & glyphColor1() { return fg; }
     QColor & glyphColor2() { return fg2; }
 
 public slots:
-	void selectBlock(int tabNum);
+    void selectChansCenteredOn(int chan);
+    void selectChansFromTopLeft(int chan);
     void setSorting(const QVector<int> & sorting, const QVector<int> & naming);
 
 signals:
 	void channelsSelected(const QVector<unsigned> & ids);
-	void channelsOpened(const QVector<unsigned> & ids);
 	
 protected:
 	// virtual from parent class
@@ -65,7 +65,7 @@ private slots:
     void updateMouseOver(); // called periodically every 1s
 	void updateToolBar();
 	void colorButPressed();
-	void blockLayoutChanged();
+    void chanLayoutChanged();
 	void overlayChecked(bool);
 	void setOverlayAlpha(int);
 	void ovlUpdate();
@@ -77,10 +77,10 @@ private slots:
 	
 private:	
 	int pos2ChanId(double x, double y) const;
-	Vec2 chanId2Pos(const int chanid) const;
-	Vec4 blockBoundingRect(int block) const;
-	Vec4 blockBoundingRectNoMargins(int block) const;
-	Vec2 blockMargins() const;
+    Vec2 chanId2Pos(const int chanId) const;
+    Vec4 chanBoundingRect(int chanId) const;
+    Vec4 chanBoundingRectNoMargins(int chanId) const;
+    Vec2 chanMargins() const;
 	void updateGlyphSize();
 	void selClear();
 	
@@ -95,7 +95,10 @@ private:
 
     DAQ::Params & params;
 	const int nvai, nextra;
-	int nblks, nbx, nby, nGraphsPerBlock, blocknx, blockny;
+    int nbx, nby;
+    Vec2i selectionDims; // the size of the selection box, in terms of number of channels
+    bool didSelDimsDefine;
+    Vec2 mouseDownAt;
     bool treatDataAsUnsigned;
     QVector<Vec2> points;
     QVector<Vec4f> colors;

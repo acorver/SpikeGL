@@ -107,6 +107,11 @@ int FG_ConfigDialog::exec()
 
 				// todo.. form-specific stuff here which affects p.fg struct...
 				// ...
+                if ( (p.fg.isCalinsConfig = dialog->calinRadio->isChecked()) ) {
+                     p.fg.chanMapTextCalins = chanMapTxt;
+                } else {
+                     p.fg.chanMapText = chanMapTxt;
+                }
                 p.fg.baud = dialog->baud->currentIndex();
                 p.fg.com = dialog->com->currentIndex();
                 p.fg.bits = dialog->bits->currentIndex();
@@ -115,7 +120,6 @@ int FG_ConfigDialog::exec()
                 DAQ::FGTask::Hardware hw = DAQ::FGTask::probedHardware.at(dialog->sapdevCB->currentIndex());
                 p.fg.sidx = hw.serverIndex;
                 p.fg.ridx = hw.resourceIndex;
-                p.fg.isCalinsConfig = dialog->calinRadio->isChecked();
 
 				p.suppressGraphs = false; //dialog->disableGraphsChk->isChecked();
 				p.resumeGraphSettings = false; //dialog->resumeGraphSettingsChk->isChecked();
@@ -157,6 +161,7 @@ int FG_ConfigDialog::exec()
 				p.usePD = 0;
 
                 /*p.chanMap SET HERE: */
+                p.fg.spatialCols = spatialCols; p.fg.spatialRows = spatialRows;
                 if (!DAQ::FGTask::setupCMFromArray(&chanMapFromUser[0], p.fg.isCalinsConfig?1:0, &p.chanMap)) {
                     vr = ABORT;
                     continue;
@@ -219,12 +224,13 @@ FG_ConfigDialog::validateForm(QString & errTitle, QString & errMsg, bool isGUI)
     DAQ::Params & p (acceptedParams);
     QString mapstr = dialog->calinRadio->isChecked() ? p.fg.chanMapTextCalins : p.fg.chanMapText;
     int req_chans = dialog->calinRadio->isChecked() ? 2048 : 2304;
-    QString err = validateChanMappingText(mapstr, req_chans, p.fg.spatialRows, p.fg.spatialCols, &chanMapFromUser);
+    QString err = validateChanMappingText(mapstr, req_chans, spatialRows, spatialCols, &chanMapFromUser);
     if (err.length()) {
         errTitle = "Channel Mapping Invalid";
         errMsg = err;
         return AGAIN;
     }
+    chanMapTxt = mapstr;
 	return OK;
 }
 

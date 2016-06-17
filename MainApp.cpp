@@ -914,18 +914,28 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	windowMenuAdd(graphsWindow);
 
 	// TESTING OF SPATIAL VISUALIZATION WINDOW -- REMOVE ME TO NOT USE SPATIAL VIS
-    Vec2 blockDims = doFGAcqInstead ? Vec2(graphsWindow->numGraphsPerTab(),1) : Vec2(graphsWindow->numColsPerGraphTab(),graphsWindow->numRowsPerGraphTab());
-    spatialWindow = new SpatialVisWindow(params, blockDims, 0);
-    if (doFGAcqInstead) spatialWindow->setStaticBlockLayout(32,2);
+    Vec2i spatialDims;
+    if (doFGAcqInstead) {
+        spatialDims =  Vec2i(params.fg.spatialCols, params.fg.spatialRows);
+    } else {
+        int nvai = params.nVAIChans, x = 1, y = 1;
+        bool ff = true;
+        while (x*y < nvai) {
+            if (ff) ++x; else ++y;
+            ff = !ff;
+        }
+        spatialDims = Vec2i(x,y);
+    }
+    spatialWindow = new SpatialVisWindow(params, spatialDims, 0);
+    //if (doFGAcqInstead) spatialWindow->setStaticBlockLayout(spatialDims.x,spatialDims.y);
     spatialWindow->setSorting(graphsWindow->currentSorting(), graphsWindow->currentNaming());
 	spatialWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
 	spatialWindow->setWindowIcon(appIcon);
     spatialWindow->installEventFilter(this);
 	windowMenuAdd(spatialWindow);
 	
-	Connect(spatialWindow, SIGNAL(channelsSelected(const QVector<unsigned> &)), graphsWindow, SLOT(highlightGraphsById(const QVector<unsigned> &)));
-	Connect(spatialWindow, SIGNAL(channelsOpened(const QVector<unsigned> &)), graphsWindow, SLOT(openGraphsById(const QVector<unsigned> &)));
-	Connect(graphsWindow, SIGNAL(tabChanged(int)), spatialWindow, SLOT(selectBlock(int)));
+    Connect(spatialWindow, SIGNAL(channelsSelected(const QVector<unsigned> &)), graphsWindow, SLOT(openGraphsById(const QVector<unsigned> &)));
+//	Connect(graphsWindow, SIGNAL(tabChanged(int)), spatialWindow, SLOT(selectBlock(int)));
     Connect(graphsWindow, SIGNAL(manualTrig(bool)), this, SLOT(gotManualTrigOverride(bool)));
     Connect(graphsWindow, SIGNAL(sortingChanged(const QVector<int> &, const QVector<int> &)), spatialWindow, SLOT(setSorting(const QVector<int> &, const QVector<int> &)));
 
@@ -1032,6 +1042,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         graphsWindow->setDownsampling(true);
         graphsWindow->setDownsamplingCheckboxEnabled(false);
         delete acqStartingDialog; acqStartingDialog = 0;
+        windowMenuActivate(spatialWindow);
         fgtask->dialogW->show();
         fgtask->dialogW->activateWindow();
     } else {

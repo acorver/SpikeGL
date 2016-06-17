@@ -174,7 +174,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Specify a tab or space-delimited, zero (or 1) indexed list of channels for the electrode mapping. The mapping should look like a table, with regular rows and columns.  Rows terminate with a newline. The layout of the table will determine the layout of the &quot;Spatial Visualization&quot; window. The numbers in each cell of the table determine which channel (16bit pixel) from the framegrabber frame gets mapped to that cell's position.</string>
+      <string>Specify a tab or space-delimited, zero (or 1) indexed list of channels for the electrode mapping. The mapping should look like a table, with regular rows and columns.  Rows terminate with a newline. The layout of the table will determine the initial layout of the &quot;Spatial Visualization&quot; window. The numbers in each cell of the table determine which channel (16bit pixel) from the framegrabber frame gets mapped to that cell's position.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>

@@ -44,8 +44,28 @@ struct Vec2s
     };
     Vec2s() : x(0.), y(0.) {}
     Vec2s(int16 x, int16 y) : x(x), y(y) {}
+    Vec2s(const Vec2 & o) { *this = o; }
     bool operator==(const Vec2s & o) const { return v1 == o.v1 && v2 == o.v2; }
     bool operator!=(const Vec2s & o) const { return !((*this) == o); }
+    Vec2s & operator=(const Vec2 & o) { x = o.x, y = o.y; return *this; }
+};
+
+struct Vec2i
+{
+    union {
+        struct {
+            int v1, v2;
+        };
+        struct {
+            int x, y;
+        };
+    };
+    Vec2i() : x(0.), y(0.) {}
+    Vec2i(int x, int y) : x(x), y(y) {}
+    Vec2i(const Vec2 & o) { *this = o; }
+    bool operator==(const Vec2i & o) const { return v1 == o.v1 && v2 == o.v2; }
+    bool operator!=(const Vec2i & o) const { return !((*this) == o); }
+    Vec2i & operator=(const Vec2 & o) { x = o.x, y = o.y; return *this; }
 };
 
 

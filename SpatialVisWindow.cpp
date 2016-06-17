@@ -29,10 +29,11 @@
 #define GlyphScaleFactor 0.9725 /**< set this to less than 1 to give each glyph a margin */
 #define BlockScaleFactor 1.0 /**< set this to less than 1 to give blocks a margin */
 
-SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims, QWidget * parent)
+SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, QWidget * parent)
 : QMainWindow(parent), threadsafe_is_visible(false), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2),
   graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xffffffff), last_fs_frame_tsc(getAbsTimeNS()), mut(QMutex::Recursive)
 {
+    mouseDownAt = Vec2(-1e6,-1e6);
 	static bool registeredMetaType = false;
     treatDataAsUnsigned = false;
 
@@ -125,18 +126,20 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	ovlFpsChanged(fshare.shm ? fshare.shm->frame_rate_limit : 0);
 	Connect(ovlFps, SIGNAL(valueChanged(int)), this, SLOT(ovlFpsChanged(int)));
 	
-	nGraphsPerBlock = blockDims.x * blockDims.y;
-	nblks = (nvai / nGraphsPerBlock) + (nvai%nGraphsPerBlock?1:0);
-    nbx = floor(sqrtf(static_cast<float>(nblks))+0.5), nby = 0;
-	if (nbx <= 0) nbx = 1;
-	while (nbx*nby < nblks) ++nby;
-	
-	blocknx = blockDims.x;
-	blockny = blockDims.y;
-	//Debug() << " nvai=" << nvai << " nGraphsPerBlock=" << nGraphsPerBlock << " nblks=" << nblks << " nbx=" << nbx << " nby=" << nby << " blkdims=" << blocknx << "," << blockny;
-	
-	points.resize(nvai);
-	colors.resize(nvai);
+    selectionDims = Vec2i(1,1);
+
+    nbx = xy_dims.x; nby = xy_dims.y; if (nbx <= 0) nbx = 1; if (nby <= 0) nby = 1;
+    if (nbx*nby < nvai) {
+        int ox = nbx, oy = nby;
+        bool ff = true;
+        while (nbx*nby < nvai) {
+            if (ff) ++nbx; else ++nby;
+            ff = !ff;
+        }
+        Warning() << "SpatialVisWindow: Passed-in dimensions (" << ox << "x" << oy << ") don't match the number of channels!  Auto-corrected to: " << nbx << "x" << nby;
+    }
+    points.resize(nvai);
+    colors.resize(nvai);
 	chanVolts.resize(nvai);
     chanRawSamps.resize(nvai);
 	
@@ -152,8 +155,8 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2 & blockDims,
 	sbCols->setValue(nbx);
 	sbRows->setRange(1,100);
 	sbCols->setRange(1,100);
-	Connect(sbCols, SIGNAL(valueChanged(int)), this, SLOT(blockLayoutChanged()));
-	Connect(sbRows, SIGNAL(valueChanged(int)), this, SLOT(blockLayoutChanged()));
+    Connect(sbCols, SIGNAL(valueChanged(int)), this, SLOT(chanLayoutChanged()));
+    Connect(sbRows, SIGNAL(valueChanged(int)), this, SLOT(chanLayoutChanged()));
 	
 	graphFrame = new QFrame(this);
 	QVBoxLayout *bl = new QVBoxLayout(graphFrame);
@@ -227,10 +230,10 @@ void SpatialVisWindow::resizeEvent (QResizeEvent * event)
 void SpatialVisWindow::updateGlyphSize()
 {
 	if (!graph) return;
-	Vec4 br = blockBoundingRect(0);
+    Vec4 br = chanBoundingRect(0);
 	Vec2 bs = Vec2(br.v3-br.v1, br.v2-br.v4);
-	int szx = bs.x/blocknx * graph->width();
-	int szy = bs.y/blockny * graph->height();
+    int szx = fabs(bs.x * graph->width());
+    int szy = fabs(bs.y * graph->height());
 	szx *= GlyphScaleFactor, szy *= GlyphScaleFactor;
 	if (szx < 1) szx = 1;
 	if (szy < 1) szy = 1;
@@ -325,58 +328,127 @@ void SpatialVisWindow::selClear() {
 	selIdxs.clear(); 	
 }
 
-void SpatialVisWindow::mouseOverGraph(double x, double y)
+void SpatialVisWindow::selectChansFromTopLeft(int chan)
 {
-	mouseOverChan = -1;
-	int chanId = pos2ChanId(x,y);
-	if (chanId < 0 || chanId >= (int)params.nVAIChans) 
-		mouseOverChan = -1;
-	else
-		mouseOverChan = chanId;
-	updateMouseOver();
+    Vec4 br;
+    bool enabled = false;
+
+    selIdxs.clear();
+
+    if (selectionDims.x == 0) selectionDims.x = 1;
+    if (selectionDims.y == 0) selectionDims.y = 1;
+    // normalize selectionDims to always be positive...
+    if (selectionDims.x < 0) selectionDims.x = -selectionDims.x;
+    if (selectionDims.y < 0) selectionDims.y = -selectionDims.y;
+
+    if (chan >= 0 && chan < nvai) {
+        int r = chan / nbx, c = chan % nbx;
+
+        int r2 = r+selectionDims.y, c2 = c + selectionDims.x;
+        if (r2 > nby) r2 = nby;
+        if (c2 > nbx) c2 = nbx;
+        if (r2 < 0) r2 = r, r = 0;
+        if (c2 < 0) c2 = c, c = 0;
+
+        for (int i = r; i < r2; ++i) {
+            for (int j = c; j < c2; ++j) {
+                int ch = i*nbx + j;
+                Vec4 bb = chanBoundingRect(ch);
+                if (i==r && c==j) br = bb;
+                else {
+                    if (bb.v3 > br.v3) br.v3 = bb.v3;
+                    if (bb.v4 < br.v4) br.v4 = bb.v4;
+                }
+                selIdxs.push_back(ch);
+                enabled = true;
+            }
+        }
+
+    }
+
+    QMutexLocker l(&mut);
+
+    if (enabled) {
+        graph->setSelectionRange(br.v1, br.v3, br.v2, br.v4, GLSpatialVis::Outline);
+        graph->setSelectionEnabled(true, GLSpatialVis::Outline);
+        Debug() << "selection of " << selectionDims.x << " x " << selectionDims.y << " top-left channel " << chan << " params: " << br.v1 << " " << br.v2 << " " << br.v3 << " " << br.v4;
+        QString s = "";
+        for (int i = 0; i < selIdxs.size(); ++i) s = s + QString::number(selIdxs[i]) + " ";
+        Debug() << "selidx.size=" << selIdxs.size() << " vals=" << s;
+    } else {
+        // not normally reached unless we have "blank" blocks at the end.....
+        graph->setSelectionEnabled(false, GLSpatialVis::Outline);
+    }
 }
 
-void SpatialVisWindow::selectBlock(int blk)
+void SpatialVisWindow::selectChansCenteredOn(int chan)
 {
-    QMutexLocker l(&mut);
-	const QVector<unsigned> oldIdxs(selIdxs);
-	selClear();
-	Vec4 r = blockBoundingRectNoMargins(blk);
-	selIdxs.reserve(nGraphsPerBlock);
-	for (int i = 0, ch = 0; i < nGraphsPerBlock && ((ch=i + blk*nGraphsPerBlock) < nvai); ++i) {
-        selIdxs.push_back(ch);
-	}
-    //qDebug("selectBlock(%d) oldIdxs(%d) firstIdx(%d)", blk, oldIdxs.size() ? oldIdxs[0] : -1, selIdxs.size()?selIdxs[0]:-1);
-	if (blk >= 0 && blk < nblks) {
-		graph->setSelectionRange(r.v1,r.v3,r.v2,r.v4, GLSpatialVis::Outline);
-		graph->setSelectionEnabled(true, GLSpatialVis::Outline);
-	} else {
-		// not normally reached unless we have "blank" blocks at the end.....
-		graph->setSelectionEnabled(false, GLSpatialVis::Outline);
-	}
-	if (oldIdxs.size() != selIdxs.size() 
-		|| (oldIdxs.size() && selIdxs.size() && oldIdxs[0] != selIdxs[0]))
-		emit channelsSelected(selIdxs);	
+    bool ok = false;
+
+    if (chan >= 0 && chan < nvai)  {
+        int r = chan / nbx, c = chan % nbx;
+
+        r -= selectionDims.y/2;
+        c -= selectionDims.x/2;
+
+        if (r < 0) r = 0;
+        if (c < 0) c = 0;
+        chan = r*nbx + c;
+        ok = true;
+    }
+    selectChansFromTopLeft(ok?chan:-1);
 }
 
 void SpatialVisWindow::mouseClickGraph(double x, double y)
 {
-	int chanId = pos2ChanId(x,y);
-	int blk = chanId / nGraphsPerBlock;
-	selectBlock(blk);
-	emit channelsSelected(selIdxs);
+    didSelDimsDefine = false;
+    mouseDownAt = Vec2(x,y);
+    //emit channelsSelected(selIdxs);
+}
+
+void SpatialVisWindow::mouseOverGraph(double x, double y)
+{
+    mouseOverChan = -1;
+    int chanId = pos2ChanId(x,y);
+    if (chanId < 0 || chanId >= nvai)
+        mouseOverChan = -1;
+    else
+        mouseOverChan = chanId;
+    updateMouseOver();
+
+    if (mouseDownAt.x > -1e5) { // mouse button is down.. so maybe they are creating a new selection box
+        const double thresh =  (1.0/MAX(nbx,nby)) / 3.0;
+        Vec2 pt = mouseDownAt;
+        double dx=x-pt.x, dy=pt.y-y;
+        if ( fabs(dx) >= thresh || fabs(dy) >= thresh ) {
+            selectionDims.x = qCeil(fabs(dx/(1.0/double(nbx))));
+            selectionDims.y = qCeil(fabs(dy/(1.0/double(nby))));
+        }
+        if (selectionDims.x == 0) selectionDims.x = 1;
+        if (selectionDims.y == 0) selectionDims.y = 1;
+        int ch = pos2ChanId(dx>=0.0?pt.x:x,dy>=0.0?pt.y:y);
+        selectChansFromTopLeft(ch);
+        didSelDimsDefine = true;
+    }
 }
 
 
 void SpatialVisWindow::mouseReleaseGraph(double x, double y)
 { 
 	(void)x; (void)y;
+
+    if (!didSelDimsDefine) {
+        int chanId = pos2ChanId(x,y);
+        selectChansCenteredOn(chanId);
+    }
+    if (selIdxs.size()) emit channelsSelected(selIdxs);
+
+    mouseDownAt = Vec2(-1e6,-1e6);
 }
 
 void SpatialVisWindow::mouseDoubleClickGraph(double x, double y)
 {
 	(void)x; (void)y;
-	emit channelsOpened(selIdxs);
 }
 
 void SpatialVisWindow::updateMouseOver() // called periodically every 1s
@@ -421,7 +493,7 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 	if (selIdxs.size()) {
 		QString t = statusLabel->text();
 		if (t.length()) t = QString("(mouse at: %1)").arg(t);
-        statusLabel->setText(QString("Selected %1-%2 of %3, page %4/%5. %6").arg(selIdxs.first()).arg(selIdxs.last()).arg(nvai).arg(selIdxs.first()/nGraphsPerBlock + 1).arg(nblks).arg(t));
+        statusLabel->setText(QString("Selected %1-%2 of %3. %4").arg(selIdxs.first()).arg(selIdxs.last()).arg(nvai).arg(t));
 	}
 	if (fdelayStr.size()) {
 		QString t = statusLabel->text();
@@ -429,12 +501,13 @@ void SpatialVisWindow::updateMouseOver() // called periodically every 1s
 	}
 }
 
-Vec4 SpatialVisWindow::blockBoundingRectNoMargins(int blk) const
+Vec4 SpatialVisWindow::chanBoundingRectNoMargins(int chan) const
 {
+    int row = chan / nbx, col = chan % nbx;
 	Vec4 ret;
 	// top left
-	ret.v1 = (1.0/nbx) * (blk % nbx);
-	ret.v2 = 1.0 - (1.0/nby) * (blk / nbx);
+    ret.v1 = (1.0/nbx) * col;
+    ret.v2 = 1.0 - (1.0/nby) * row;
 	// bottom right
 	ret.v3 = ret.v1 + (1.0/nbx);
 	ret.v4 = ret.v2 - (1.0/nby);
@@ -442,53 +515,38 @@ Vec4 SpatialVisWindow::blockBoundingRectNoMargins(int blk) const
 }
 
 
-Vec2 SpatialVisWindow::blockMargins() const 
+Vec2 SpatialVisWindow::chanMargins() const
 {
 	return Vec2(1.0/nbx - (1.0/nbx * BlockScaleFactor), 1.0/nby - (1.0/nby * BlockScaleFactor)); 
 }
 
-Vec4 SpatialVisWindow::blockBoundingRect(int blk) const
+Vec4 SpatialVisWindow::chanBoundingRect(int chan) const
 {
-	Vec4 ret (blockBoundingRectNoMargins(blk));
-	Vec2 blkmrg(blockMargins());
-	ret.v1+=blkmrg.x;
-	ret.v3-=blkmrg.x;
-	ret.v2-=blkmrg.y;
-	ret.v4+=blkmrg.y;
+    Vec4 ret (chanBoundingRectNoMargins(chan));
+    Vec2 mrg(chanMargins());
+    ret.v1+=mrg.x;
+    ret.v3-=mrg.x;
+    ret.v2-=mrg.y;
+    ret.v4+=mrg.y;
 	return ret;
 }
 
 Vec2 SpatialVisWindow::chanId2Pos(const int chanid) const
 {
-/*	Vec2 ret;
-	const int col = chanid % nx, row = chanid / nx;
-	ret.x = (col/double(nx)) + (1./(nx*2.));
-	ret.y = (row/double(ny)) + (1./(ny*2.));
-	return ret;*/
-	const int blk = chanid / nGraphsPerBlock;
-	Vec4 r(blockBoundingRect(blk));
-	int ch = chanid % nGraphsPerBlock;
-	const int col = ch % blocknx, row = ch / blocknx;
-	double cellw = (r.v3-r.v1)/blocknx, cellh = (r.v2-r.v4)/blockny; 
+    Vec4 r(chanBoundingRect(chanid));
+    double cellw = (r.v3-r.v1), cellh = (r.v2-r.v4);
 	return Vec2(
-				r.v1 + ((cellw * col) + cellw/2.0),
-		        r.v4 + ((cellh * (blockny-row)) - cellh/2.0) 
+                r.v1 + (cellw/2.0),
+                r.v2 + (cellh/2.0)
 		);
 }
 
 int SpatialVisWindow::pos2ChanId(double x, double y) const
 {
-/*	int col = x*nx, row = y*ny;
-	return col + row*nx;
-*/
 	
-	int blkcol = x*nbx, blkrow = (1.0-y)*nby;
-	int blk = (blkrow * nbx) + blkcol;
-	Vec4 r(blockBoundingRect(blk));
-	Vec2 offset(x-r.v1, r.v2-y); // transformed for 0,0 is top left
-	double cellw = (r.v3-r.v1)/blocknx, cellh = (r.v2-r.v4)/blockny; 
-	int col = (offset.x/cellw), row = (offset.y/cellh);
-	return blk*nGraphsPerBlock + (row*blocknx + col);
+    int col = x*nbx, row = (1.0-y)*nby;
+    int chan = (row * nbx) + col;
+    return chan;
 }
 
 void SpatialVisWindow::updateToolBar()
@@ -531,8 +589,8 @@ void SpatialVisWindow::saveSettings()
 	settings.beginGroup(SETTINGS_GROUP);
 
     settings.setValue("fgcolor1_new", static_cast<unsigned int>(fg.rgba()));
-	settings.setValue(QString("layout%1cols").arg(nblks), nbx);
-	settings.setValue(QString("layout%1rows").arg(nblks), nby);
+    settings.setValue(QString("layout_%1_cols").arg(nvai), nbx);
+    settings.setValue(QString("layout_%1_rows").arg(nvai), nby);
 	settings.setValue(QString("UseStimGLOverlay"), overlayChk->isChecked());
 	settings.setValue(QString("OverlayFPS"), ovlFps->value());
 	
@@ -548,21 +606,21 @@ void SpatialVisWindow::loadSettings()
     int olda = fg.alpha();
     fg = QColor::fromRgba(settings.value("fgcolor1_new", static_cast<unsigned int>(fg.rgba())).toUInt());
     fg.setAlpha(olda);
-	int sbcols = settings.value(QString("layout%1cols").arg(nblks), nbx).toInt();
-	int sbrows = settings.value(QString("layout%1rows").arg(nblks), nby).toInt();
-	if (sbrows > 0 && sbcols > 0 && sbrows <= 100 && sbcols <= 100 && sbrows * sbcols >= nblks) {
+    int sbcols = settings.value(QString("layout_%1_cols").arg(nvai), nbx).toInt();
+    int sbrows = settings.value(QString("layout_%1_rows").arg(nvai), nby).toInt();
+    if (sbrows > 0 && sbcols > 0 && sbrows <= 100 && sbcols <= 100 && sbrows * sbcols >= nvai) {
 		sbRows->setValue(sbrows);
 		sbCols->setValue(sbcols);
 		if (nbx != sbcols || nby != sbrows)
-			blockLayoutChanged();
+            chanLayoutChanged();
 	}
 	overlayChecked(settings.value(QString("UseStimGLOverlay"), false).toBool());
 //	ovlFpsChanged(settings.value(QString("OverlayFPS"), ovlFps->value()).toInt());
 	settings.endGroup();
 }
 
-void SpatialVisWindow::setStaticBlockLayout(int nrows, int ncols) {
-    if (nrows * ncols * nGraphsPerBlock < nvai) return;
+void SpatialVisWindow::setStaticBlockLayout(int ncols, int nrows) {
+    if (nrows * ncols < nvai) return;
     sbRows->setValue(nrows);
     sbCols->setValue(ncols);
     sbRows->setDisabled(true);
@@ -581,18 +639,19 @@ Vec2 SpatialVisWindow::glyphMargins01Coords() const
 
 void SpatialVisWindow::keyPressEvent(QKeyEvent *e)
 {
-	if (e->key() == Qt::Key_Return && selIdxs.size() > 0) {
+/*	if (e->key() == Qt::Key_Return && selIdxs.size() > 0) {
 		e->accept();
 		emit channelsOpened(selIdxs);
 		return;
 	}
+    */
 	QMainWindow::keyPressEvent(e);
 }
 
-void SpatialVisWindow::blockLayoutChanged()
+void SpatialVisWindow::chanLayoutChanged()
 {
 	int sbrows = sbRows->value(), sbcols = sbCols->value();
-	if (sbrows * sbcols >= nblks) {
+    if (sbrows * sbcols >= nvai) {
 		nbx = sbcols;
 		nby = sbrows;
 		
@@ -602,8 +661,8 @@ void SpatialVisWindow::blockLayoutChanged()
 		setupGridlines();
 		graph->setPoints(points);
 		if (selIdxs.size()) {
-            int blk = selIdxs[0] / nGraphsPerBlock;
-			selectBlock(blk);
+            //int blk = selIdxs[0] / nGraphsPerBlock;
+            //selectBlock(blk);
 		}
 		saveSettings();
 	}
@@ -760,7 +819,7 @@ void SpatialVisWindow::setSorting(const QVector<int> & s, const QVector<int> & n
     naming = n;
     revsorting = rs;
     if (selIdxs.size()) {
-        selectBlock(selIdxs[0] / nGraphsPerBlock);
+        //selectBlock(selIdxs[0] / nGraphsPerBlock);
         updateMouseOver();
     }
 }

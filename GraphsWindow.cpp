@@ -1187,6 +1187,63 @@ void GraphsWindow::sortGraphsByIntan() {
     emit sortingChanged(sorting, naming);
 }
 
+void GraphsWindow::changeToCustomTab(const QVector<unsigned> & ids)
+{
+    QMutexLocker l(&graphsMut);
+
+    setUpdatesEnabled(false);
+
+    const int N_G = graphs.size();
+    for (int i = 0; i < N_G; ++i) {
+        // first, save all existing graph states...
+        if (graphs[i]) {
+            graphs[i]->setUpdatesEnabled(false);
+            graphStates[i] = graphs[i]->getState();
+            extraGraphs.insert(graphs[i]);
+            graphs[i]->setPoints(0); // clear points buf!
+            graphs[i] = 0;
+            setGraphTimeSecs(i, graphTimesSecs[i]); // call here forces the WB buffer to 0 bytes because graph[i] is NULL.. this saves memory
+        }
+    }
+    int firstGraph = -1;
+    // next, swap the graph widgets to their new frames and set their states..
+    for (int i = 0; !extraGraphs.isEmpty() && i < ids.size(); ++i) {
+        if (int(ids[i]) >= N_G) continue;
+        int graphId = sorting[ids[i]];
+        if (firstGraph < 0) firstGraph = graphId;
+        QFrame *f = graphFrames[graphId];
+        QList<GLGraph *> gl = f->findChildren<GLGraph *>();
+        // here, sometimes, the destination graph frames had a graph already.
+        // this happens because last tab has fewer graphs on it, and this may
+        // lead to situations where some GLGraphs aren't on-screen and are living
+        // inside of a hidden frame on a different tab... so when we switch back to that
+        // tab, we have a situation where the frame may already have a stale graph
+        // child.  that's ok, just re-use it.  all graph children will eventually
+        // be destroyed or returned to the precreate graph queue..
+        GLGraph *g = gl.empty() ? *(extraGraphs.begin()) : *gl.begin();
+        extraGraphs.remove(g);
+        graphs[graphId] = g;
+        points[graphId].clear();
+        g->setState(graphStates[graphId]);
+        g->setPoints(&points[graphId]);
+        QVBoxLayout *l = dynamic_cast<QVBoxLayout *>(f->layout());
+        if (g->parentWidget()->parentWidget() != f) {
+            g->parentWidget()->setParent(f);
+            if (l) {
+                l->addWidget(g->parentWidget(), 1);
+            } else {
+                f->layout()->addWidget(g->parentWidget());
+            }
+        }
+        // at this point, the graph is properly set up, set graphtimesecs again so that it gets a real (non-zero-sized) points buffer to work with
+        setGraphTimeSecs(graphId, graphTimesSecs[graphId]);
+    }
+    for (int i = 0; i < N_G; ++i) if (graphs[i]) graphs[i]->setUpdatesEnabled(true);
+    setUpdatesEnabled(true);
+    if (selectedGraph < firstGraph || selectedGraph >= firstGraph+NUM_GRAPHS_PER_GRAPH_TAB)
+        selectGraph(firstGraph); // force first graph to be selected!
+}
+
 void GraphsWindow::tabChange(int t)
 {
     QMutexLocker l(&graphsMut);
@@ -1415,67 +1472,80 @@ void GraphsWindow::updateTabsWithHighlights()
 	}
 }
 
-void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
-{
-    QMutexLocker l(&graphsMut);
+//void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
+//{
+//    QMutexLocker l(&graphsMut);
 
-	//Debug() << "GraphsWindow::highlightGraphsById called with " << ids.size() << " ids...";
+//	//Debug() << "GraphsWindow::highlightGraphsById called with " << ids.size() << " ids...";
 	
-	/*
-	QVector<unsigned>::const_iterator it = ids.begin();
-	int last = -1;
-	for (int i = 0; i < (int)graphs.size(); ++i) {
-		bool highlighted = false;
-		if (it != ids.end()) {
-			highlighted = int(*it) == i;
-			if (last >= int(*it) || int(*it) >= graphs.size()) {
-				Error() << "INTERNAL ERROR IN GraphsWindow::highlightGraphsById -- expected ids to be unique, sorted, and only contain valid ids!";
-			}
-			if (highlighted) {
-				last = *it, ++it;
-			}
-		}
-		graphStates[i].highlighted = highlighted;
-		if (graphs[i]) 
-			graphs[i]->setHighlighted(highlighted);
-	}
-	if (!tabHighlightTimer) tabHighlightTimer = new QTimer(this); 
-	if (!tabHighlightTimer->isActive()) {
-		Connect(tabHighlightTimer, SIGNAL(timeout()), this, SLOT(updateTabsWithHighlights()));
-		tabHighlightTimer->setInterval(250);
-		tabHighlightTimer->setSingleShot(true);
-		tabHighlightTimer->start();
-	}
-	*/
-    if (ids.size()) {
-		if (maximized) toggleMaximize();
-		int page = ids[0]/NUM_GRAPHS_PER_GRAPH_TAB;
-        //qDebug("highlightGraphsById called, ids[0]=%d page=%d",int(ids[0]),page);
-        if (tabWidget && page != tabWidget->currentIndex()) { tabWidget->setCurrentIndex(page); }
-        else if (stackedCombo && page != stackedCombo->currentIndex()) { stackedCombo->setCurrentIndex(page); stackedWidget->setCurrentIndex(page); }
-		selectGraph(ids[0]);
-	}
-}
+//	/*
+//	QVector<unsigned>::const_iterator it = ids.begin();
+//	int last = -1;
+//	for (int i = 0; i < (int)graphs.size(); ++i) {
+//		bool highlighted = false;
+//		if (it != ids.end()) {
+//			highlighted = int(*it) == i;
+//			if (last >= int(*it) || int(*it) >= graphs.size()) {
+//				Error() << "INTERNAL ERROR IN GraphsWindow::highlightGraphsById -- expected ids to be unique, sorted, and only contain valid ids!";
+//			}
+//			if (highlighted) {
+//				last = *it, ++it;
+//			}
+//		}
+//		graphStates[i].highlighted = highlighted;
+//		if (graphs[i])
+//			graphs[i]->setHighlighted(highlighted);
+//	}
+//	if (!tabHighlightTimer) tabHighlightTimer = new QTimer(this);
+//	if (!tabHighlightTimer->isActive()) {
+//		Connect(tabHighlightTimer, SIGNAL(timeout()), this, SLOT(updateTabsWithHighlights()));
+//		tabHighlightTimer->setInterval(250);
+//		tabHighlightTimer->setSingleShot(true);
+//		tabHighlightTimer->start();
+//	}
+//	*/
+//    if (ids.size()) {
+//		if (maximized) toggleMaximize();
+//		int page = ids[0]/NUM_GRAPHS_PER_GRAPH_TAB;
+//        //qDebug("highlightGraphsById called, ids[0]=%d page=%d",int(ids[0]),page);
+//        if (tabWidget && page != tabWidget->currentIndex()) { tabWidget->setCurrentIndex(page); }
+//        else if (stackedCombo && page != stackedCombo->currentIndex()) { stackedCombo->setCurrentIndex(page); stackedWidget->setCurrentIndex(page); }
+//		selectGraph(ids[0]);
+//	}
+//}
 
-void GraphsWindow::openGraphsById(const QVector<unsigned> & ids) ///< really just opens the first graph
+//void GraphsWindow::openGraphsById(const QVector<unsigned> & ids)
+//{
+//    QMutexLocker l(&graphsMut);
+
+//    //Debug() << "GraphsWindow::openGraphsById called with " << ids.size() << " ids...";
+//	if (ids.size()) {
+//		if (maximized) toggleMaximize();
+//		unsigned id = ids[0];
+//		if (id < unsigned(graphs.size())) {
+//			unsigned tab = id / NUM_GRAPHS_PER_GRAPH_TAB;
+//            if (tabWidget && int(tab) != tabWidget->currentIndex()) tabWidget->setCurrentIndex(tab);
+//            else if (stackedCombo && int(tab) != stackedCombo->currentIndex()) { stackedCombo->setCurrentIndex(tab); stackedWidget->setCurrentIndex(tab); }
+//			selectGraph(id);
+//			show();
+//			raise();
+//		}
+//	}
+//}
+
+void GraphsWindow::openGraphsById(const QVector<unsigned> & ids)
 {
     QMutexLocker l(&graphsMut);
 
     //Debug() << "GraphsWindow::openGraphsById called with " << ids.size() << " ids...";
-    qDebug("selectGraphsById called, ids[0]=%d",ids.size()?int(ids[0]):-1);
-	if (ids.size()) {
-		if (maximized) toggleMaximize();
-		unsigned id = ids[0];
-		if (id < unsigned(graphs.size())) {
-			unsigned tab = id / NUM_GRAPHS_PER_GRAPH_TAB;
-            if (tabWidget && int(tab) != tabWidget->currentIndex()) tabWidget->setCurrentIndex(tab);
-            else if (stackedCombo && int(tab) != stackedCombo->currentIndex()) { stackedCombo->setCurrentIndex(tab); stackedWidget->setCurrentIndex(tab); }
-			selectGraph(id);
-			show();
-			raise();
-		}		
-	}
+    if (ids.size()) {
+        if (maximized) toggleMaximize();
+        changeToCustomTab(ids);
+        show();
+        raise();
+    }
 }
+
 
 void GraphsWindow::showEvent(QShowEvent *e) { QMainWindow::showEvent(e); threadsafe_is_visible = e->isAccepted() || isVisible(); }
 void GraphsWindow::hideEvent(QHideEvent *e) { QMainWindow::hideEvent(e); threadsafe_is_visible = !(e->isAccepted() || isHidden()); }
