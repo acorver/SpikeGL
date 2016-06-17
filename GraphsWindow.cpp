@@ -149,7 +149,6 @@ int GraphsWindow::getNumGraphsPerGraphTab() const
 
 void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
 {    
-	tabHighlightTimer = 0;
 	stackedWidget = 0;
 	tabWidget = 0;
 	stackedCombo = 0;
@@ -1445,32 +1444,32 @@ void GraphsWindow::saveGraphSettings()
 }
 
 
-void GraphsWindow::updateTabsWithHighlights()
-{
-    QMutexLocker l(&graphsMut);
+//void GraphsWindow::updateTabsWithHighlights()
+//{
+//    QMutexLocker l(&graphsMut);
 
-	QVarLengthArray<unsigned char> tabsWithHighlights(tabWidget ? tabWidget->count() : stackedWidget->count());
-	memset(tabsWithHighlights.data(), 0, tabsWithHighlights.size());
-	for (int i = 0; i < (int)graphs.size(); ++i) {
-		bool highlighted = graphStates[i].highlighted;
-		if (graphs[i]) highlighted = graphStates[i].highlighted;
-		if (highlighted) tabsWithHighlights[i / NUM_GRAPHS_PER_GRAPH_TAB] = 1;
-	}
-	/* NB: this is SLOWWWWW for tabWidget.. for high channel counts hopefully using the combo box method instead!!*/
-	for (int i = 0; i < tabsWithHighlights.count(); ++i) {
-		if (tabWidget) {
-			if (tabsWithHighlights[i] && hasSelectedGraphsIcon)
-				tabWidget->setTabIcon(i, *hasSelectedGraphsIcon);
-			else
-				tabWidget->setTabIcon(i, QIcon());
-		} else if (stackedWidget && stackedCombo) {
-			if (tabsWithHighlights[i] && hasSelectedGraphsIcon)
-				stackedCombo->setItemIcon(i, *hasSelectedGraphsIcon);
-			else
-				stackedCombo->setItemIcon(i, QIcon());			
-		}
-	}
-}
+//	QVarLengthArray<unsigned char> tabsWithHighlights(tabWidget ? tabWidget->count() : stackedWidget->count());
+//	memset(tabsWithHighlights.data(), 0, tabsWithHighlights.size());
+//	for (int i = 0; i < (int)graphs.size(); ++i) {
+//		bool highlighted = graphStates[i].highlighted;
+//		if (graphs[i]) highlighted = graphStates[i].highlighted;
+//		if (highlighted) tabsWithHighlights[i / NUM_GRAPHS_PER_GRAPH_TAB] = 1;
+//	}
+//	/* NB: this is SLOWWWWW for tabWidget.. for high channel counts hopefully using the combo box method instead!!*/
+//	for (int i = 0; i < tabsWithHighlights.count(); ++i) {
+//		if (tabWidget) {
+//			if (tabsWithHighlights[i] && hasSelectedGraphsIcon)
+//				tabWidget->setTabIcon(i, *hasSelectedGraphsIcon);
+//			else
+//				tabWidget->setTabIcon(i, QIcon());
+//		} else if (stackedWidget && stackedCombo) {
+//			if (tabsWithHighlights[i] && hasSelectedGraphsIcon)
+//				stackedCombo->setItemIcon(i, *hasSelectedGraphsIcon);
+//			else
+//				stackedCombo->setItemIcon(i, QIcon());
+//		}
+//	}
+//}
 
 //void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
 //{
