@@ -150,8 +150,8 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
     sorting.resize(nvai); naming.resize(nvai); revsorting.resize(nvai);
 
 	for (int chanid = 0; chanid < nvai; ++chanid) {
-		points[chanid] = chanId2Pos(chanid);
         revsorting[chanid] = sorting[chanid] = naming[chanid] = chanid;
+        points[chanid] = chanId2Pos(chanid);
 	}
 
 	sbRows->setValue(nby);
@@ -549,7 +549,7 @@ Vec4 SpatialVisWindow::chanBoundingRect(int chan) const
 
 Vec2 SpatialVisWindow::chanId2Pos(const int chanid) const
 {
-    Vec4 r(chanBoundingRect(chanid));
+    Vec4 r(chanBoundingRectNoMargins(chanid));
     double cellw = (r.v3-r.v1), cellh = (r.v2-r.v4);
 	return Vec2(
                 r.v1 + (cellw/2.0),
