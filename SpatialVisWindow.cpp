@@ -31,7 +31,7 @@
 
 SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, unsigned selboxw, QWidget * parent)
 : QMainWindow(parent), threadsafe_is_visible(false), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2),
-  graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xffffffff), last_fs_frame_tsc(getAbsTimeNS()), mut(QMutex::Recursive)
+  graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xfDffffff), last_fs_frame_tsc(getAbsTimeNS()), mut(QMutex::Recursive)
 {
     can_redefine_selection_box = false;
     click_to_select = false;
@@ -272,12 +272,11 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
 #endif
         chanRawSamps[chanId] = scans[i];
         chanVolts[chanId] = val * (params.range.max-params.range.min)+params.range.min;
-        colors[chanId].x = color.redF()*val;
-        colors[chanId].y = color.greenF()*val;
-        colors[chanId].z = color.blueF()*val;
+        colors[chanId].x = color.redF()*float(val);
+        colors[chanId].y = color.greenF()*float(val);
+        colors[chanId].z = color.blueF()*float(val);
         colors[chanId].w = color.alphaF();
 	}
-//	updateGraph();
 }
 
 SpatialVisWindow::~SpatialVisWindow()
@@ -344,8 +343,14 @@ void SpatialVisWindow::selectChansFromTopLeft(int chan)
     if (selectionDims.x < 0) selectionDims.x = -selectionDims.x;
     if (selectionDims.y < 0) selectionDims.y = -selectionDims.y;
 
+
     if (chan >= 0 && chan < nvai) {
         int r = chan / nbx, c = chan % nbx;
+
+        if (c + selectionDims.x >= nbx) c -= (c + selectionDims.x)-nbx; // don't let box go off-grid
+        if (r + selectionDims.y >= nby) r -= (r + selectionDims.y)-nby; // don't let box go off-grid
+        if (c < 0) c = 0; // ensure top left is on-grid too
+        if (r < 0) r = 0;
 
         int r2 = r+selectionDims.y, c2 = c + selectionDims.x;
         if (r2 > nby) r2 = nby;
@@ -374,10 +379,10 @@ void SpatialVisWindow::selectChansFromTopLeft(int chan)
     if (enabled) {
         graph->setSelectionRange(br.v1, br.v3, br.v2, br.v4, GLSpatialVis::Outline);
         graph->setSelectionEnabled(true, GLSpatialVis::Outline);
-        Debug() << "selection of " << selectionDims.x << " x " << selectionDims.y << " top-left channel " << chan << " params: " << br.v1 << " " << br.v2 << " " << br.v3 << " " << br.v4;
-        QString s = "";
-        for (int i = 0; i < selIdxs.size(); ++i) s = s + QString::number(selIdxs[i]) + " ";
-        Debug() << "selidx.size=" << selIdxs.size() << " vals=" << s;
+//        Debug() << "selection of " << selectionDims.x << " x " << selectionDims.y << " top-left channel " << chan << " params: " << br.v1 << " " << br.v2 << " " << br.v3 << " " << br.v4;
+//        QString s = "";
+//        for (int i = 0; i < selIdxs.size(); ++i) s = s + QString::number(selIdxs[i]) + " ";
+//        Debug() << "selidx.size=" << selIdxs.size() << " vals=" << s;
     } else {
         // not normally reached unless we have "blank" blocks at the end.....
         graph->setSelectionEnabled(false, GLSpatialVis::Outline);
@@ -406,7 +411,6 @@ void SpatialVisWindow::mouseClickGraph(double x, double y)
 {
     didSelDimsDefine = false;
     mouseDownAt = Vec2(x,y);
-    //emit channelsSelected(selIdxs);
 }
 
 void SpatialVisWindow::mouseOverGraph(double x, double y)
@@ -662,6 +666,8 @@ void SpatialVisWindow::keyPressEvent(QKeyEvent *e)
 
 void SpatialVisWindow::chanLayoutChanged()
 {
+    QMutexLocker l(&mut);
+
 	int sbrows = sbRows->value(), sbcols = sbCols->value();
     if (sbrows * sbcols >= nvai) {
 		nbx = sbcols;
@@ -672,10 +678,6 @@ void SpatialVisWindow::chanLayoutChanged()
 		}
 		setupGridlines();
 		graph->setPoints(points);
-		if (selIdxs.size()) {
-            //int blk = selIdxs[0] / nGraphsPerBlock;
-            //selectBlock(blk);
-		}
 		saveSettings();
 	}
 }
@@ -830,8 +832,8 @@ void SpatialVisWindow::setSorting(const QVector<int> & s, const QVector<int> & n
     sorting = s;
     naming = n;
     revsorting = rs;
+    chanLayoutChanged();
     if (selIdxs.size()) {
-        //selectBlock(selIdxs[0] / nGraphsPerBlock);
         updateMouseOver();
     }
 }

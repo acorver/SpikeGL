@@ -906,22 +906,30 @@ void GraphsWindow::toggleMaximize()
         Warning() << "Maximize/unmaximize on a graph that isn't maximized when e have 1 graph maximized.. how is that possible?";
     } else if (maximized) { 
         tabber->setHidden(true); // if we don't hide the parent, the below operation is slow and jerky
-        // un-maximize
-        for (int i = 0; i < (int)graphs.size(); ++i) {
-            if (graphs[i] == maximized) continue;
-            graphFrames[i]->setHidden(false);
-            clearGraph(i); // clear previously-paused graph            
-        }
-        if (tabWidget || stackedCombo) {
-            int idx = tabWidget ? tabWidget->currentIndex() : stackedCombo->currentIndex();
-            for (int i = 0; tabWidget && i < (int)tabWidget->count(); ++i)
-                tabWidget->setTabEnabled(i, true);
-            if (stackedCombo) stackedCombo->setEnabled(true);
-            if (tabWidget)
-                tabWidget->setCurrentIndex(idx);
-            else {
-                stackedCombo->setCurrentIndex(idx);
-                stackedWidget->setCurrentIndex(idx);
+        if (tabber == nonTabWidget) {
+            // non-tabbed mode just involves hiding everything but the maximized graph.. so unhide everything that was hidden by maximize
+            for (int i = 0; i < (int)graphs.size(); ++i) {
+                // unhide everything that was on our page (that has a valid GLGraph * pointer)
+                if (graphs[i]) graphFrames[i]->setHidden(false);
+            }
+        } else { // tabber mode is a little more complex
+            // un-maximize
+            for (int i = 0; i < (int)graphs.size(); ++i) {
+                if (graphs[i] == maximized) continue;
+                graphFrames[i]->setHidden(false);
+                clearGraph(i); // clear previously-paused graph
+            }
+            if (tabWidget || stackedCombo) {
+                int idx = tabWidget ? tabWidget->currentIndex() : stackedCombo->currentIndex();
+                for (int i = 0; tabWidget && i < (int)tabWidget->count(); ++i)
+                    tabWidget->setTabEnabled(i, true);
+                if (stackedCombo) stackedCombo->setEnabled(true);
+                if (tabWidget)
+                    tabWidget->setCurrentIndex(idx);
+                else {
+                    stackedCombo->setCurrentIndex(idx);
+                    stackedWidget->setCurrentIndex(idx);
+                }
             }
         }
         tabber->setHidden(false);
@@ -1203,6 +1211,9 @@ void GraphsWindow::retileGraphsAccordingToSorting() {
 }
 
 void GraphsWindow::sortGraphsByElectrodeId() {
+
+    if (maximized) toggleMaximize();
+
     QMutexLocker l(&graphsMut);
 
 	DAQ::Params & p (params);
@@ -1235,6 +1246,8 @@ void GraphsWindow::sortGraphsByElectrodeId() {
 }
 
 void GraphsWindow::sortGraphsByIntan() {
+    if (maximized) toggleMaximize();
+
     QMutexLocker l(&graphsMut);
 
 	if (params.bug.enabled) {
