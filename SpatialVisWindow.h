@@ -26,9 +26,14 @@ class SpatialVisWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, QWidget *parent = 0);
+    SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, unsigned selection_box_width, QWidget *parent = 0);
     ~SpatialVisWindow();
 	
+    void setSelectionBoxRedefine(bool enabled) { can_redefine_selection_box = enabled; }
+    bool isSelectionBoxRedefine() const { return can_redefine_selection_box; }
+    void setSelectionEnabled(bool en) { click_to_select = en; }
+    bool isSelectionEnabled() const { return click_to_select; }
+
     void putScans(const std::vector<int16> & scans, u64 firstSamp);
     void putScans(const int16 *scans, unsigned scans_size_samps, u64 firstSamp);
 		
@@ -39,9 +44,9 @@ public:
     QColor & glyphColor1() { return fg; }
     QColor & glyphColor2() { return fg2; }
 
+    void selectChansStartingAt(int chan);
+
 public slots:
-    void selectChansCenteredOn(int chan);
-    void selectChansFromTopLeft(int chan);
     void setSorting(const QVector<int> & sorting, const QVector<int> & naming);
 
 signals:
@@ -57,7 +62,9 @@ protected:
 
 private slots:
     void updateGraph();
-	
+    void selectChansCenteredOn(int chan);
+    void selectChansFromTopLeft(int chan);
+
     void mouseOverGraph(double x, double y);
     void mouseClickGraph(double x, double y);
     void mouseReleaseGraph(double x, double y);
@@ -96,8 +103,8 @@ private:
     DAQ::Params & params;
 	const int nvai, nextra;
     int nbx, nby;
-    Vec2i selectionDims; // the size of the selection box, in terms of number of channels
-    bool didSelDimsDefine;
+    Vec2i selectionDims; // the size of the selection box, in terms of number of channels    
+    bool didSelDimsDefine, can_redefine_selection_box, click_to_select;
     Vec2 mouseDownAt;
     bool treatDataAsUnsigned;
     QVector<Vec2> points;

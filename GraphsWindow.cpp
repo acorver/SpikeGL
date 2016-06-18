@@ -76,8 +76,8 @@ static void initIcons()
 	}
 }
 
-GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving)
-    : QMainWindow(parent), threadsafe_is_visible(false), params(p), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false), graphsMut(QMutex::Recursive)
+GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving, bool useTabs)
+    : QMainWindow(parent), threadsafe_is_visible(false), params(p), useTabs(useTabs), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false), graphsMut(QMutex::Recursive)
 {
     sharedCtor(p, isSaving);
 }
@@ -155,26 +155,33 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     initIcons();
 	SetupNumGraphsPerGraphTab();
     NUM_GRAPHS_PER_GRAPH_TAB = getNumGraphsPerGraphTab();
-	nGraphTabs = (p.nVAIChans / NUM_GRAPHS_PER_GRAPH_TAB) + ((p.nVAIChans % NUM_GRAPHS_PER_GRAPH_TAB) ? 1 : 0);
-	graphTabs.resize(nGraphTabs);
-	if (nGraphTabs <= 8) {
-		tabWidget = new QTabWidget(this);
-		tabWidget->setTabPosition(QTabWidget::North);
-		tabWidget->setElideMode(Qt::ElideLeft);
-		Connect(tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabChange(int)));
-		setCentralWidget(tabWidget);
-	} else {
-		QWidget *w = new QWidget(this);
-		QVBoxLayout *l = new QVBoxLayout(w);
-		stackedCombo = new QComboBox(w);
-		l->addWidget(stackedCombo,0,Qt::AlignLeft);
-		stackedWidget = new QStackedWidget(w);
-		l->addWidget(stackedWidget,10);
-		w->setLayout(l);
-		Connect(stackedWidget, SIGNAL(currentChanged(int)), this, SLOT(tabChange(int)));
-		Connect(stackedCombo, SIGNAL(activated(int)), stackedWidget, SLOT(setCurrentIndex(int)));
-		setCentralWidget(w);
-	}
+    if (useTabs) {
+        nGraphTabs = (p.nVAIChans / NUM_GRAPHS_PER_GRAPH_TAB) + ((p.nVAIChans % NUM_GRAPHS_PER_GRAPH_TAB) ? 1 : 0);
+        graphTabs.resize(nGraphTabs);
+        if (nGraphTabs <= 8) {
+            tabWidget = new QTabWidget(this);
+            tabWidget->setTabPosition(QTabWidget::North);
+            tabWidget->setElideMode(Qt::ElideLeft);
+            Connect(tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabChange(int)));
+            setCentralWidget(tabWidget);
+        } else {
+            QWidget *w = new QWidget(this);
+            QVBoxLayout *l = new QVBoxLayout(w);
+            stackedCombo = new QComboBox(w);
+            l->addWidget(stackedCombo,0,Qt::AlignLeft);
+            stackedWidget = new QStackedWidget(w);
+            l->addWidget(stackedWidget,10);
+            w->setLayout(l);
+            Connect(stackedWidget, SIGNAL(currentChanged(int)), this, SLOT(tabChange(int)));
+            Connect(stackedCombo, SIGNAL(activated(int)), stackedWidget, SLOT(setCurrentIndex(int)));
+            setCentralWidget(w);
+        }
+    } else {
+        nGraphTabs = 0;
+        graphTabs.clear();
+        nonTabWidget = new QWidget(this);
+        setCentralWidget(nonTabWidget);
+    }
     statusBar();
     resize(1024,768);
     graphCtls = addToolBar("Graph Controls");
@@ -282,83 +289,135 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     Connect(graphSecs, SIGNAL(valueChanged(double)), this, SLOT(graphSecsChanged(double)));
     Connect(graphYScale, SIGNAL(valueChanged(double)), this, SLOT(graphYScaleChanged(double)));
 	
-	nRowsGraphTab = nColsGraphTab = -1;
-	int num = 0;
-	for (int i = 0; i < nGraphTabs && num < (int)graphs.size(); ++i) {
-		QWidget *graphsWidget = new QWidget(0);
-		graphTabs[i] = graphsWidget;
-		QGridLayout *l = new QGridLayout(graphsWidget);
-		l->setHorizontalSpacing(1);
-		l->setVerticalSpacing(1);
+    nRowsGraphTab = nColsGraphTab = -1;
+    if (useTabs) {
+        int num = 0;
+        for (int i = 0; i < nGraphTabs && num < (int)graphs.size(); ++i) {
+            QWidget *graphsWidget = new QWidget(0);
+            graphTabs[i] = graphsWidget;
+            QGridLayout *l = new QGridLayout(graphsWidget);
+            l->setHorizontalSpacing(1);
+            l->setVerticalSpacing(1);
 
-		int numThisPage = (nGraphTabs - i > 1) ? NUM_GRAPHS_PER_GRAPH_TAB : (graphs.size() % NUM_GRAPHS_PER_GRAPH_TAB);
-		if (!numThisPage) numThisPage = NUM_GRAPHS_PER_GRAPH_TAB;
-		//int nrows = int(sqrtf(numThisPage)), ncols = 0;
-		int nrows = int(sqrtf(NUM_GRAPHS_PER_GRAPH_TAB)), ncols = 0;
-//		while (nrows*ncols < (int)numThisPage) {
+            int numThisPage = (nGraphTabs - i > 1) ? NUM_GRAPHS_PER_GRAPH_TAB : (graphs.size() % NUM_GRAPHS_PER_GRAPH_TAB);
+            if (!numThisPage) numThisPage = NUM_GRAPHS_PER_GRAPH_TAB;
+            //int nrows = int(sqrtf(numThisPage)), ncols = 0;
+            int nrows = int(sqrtf(NUM_GRAPHS_PER_GRAPH_TAB)), ncols = 0;
+            //		while (nrows*ncols < (int)numThisPage) {
+            if (NUM_GRAPHS_PER_GRAPH_TAB == 32)
+                nrows = 8, ncols = 4; // HACK!!!
+            while (nrows*ncols < (int)NUM_GRAPHS_PER_GRAPH_TAB) {
+                if (nrows > ncols) ++ncols;
+                else ++nrows;
+            };
+            if (nRowsGraphTab < 0) {
+                nRowsGraphTab = nrows;
+                nColsGraphTab = ncols;
+            }
+            int first_graph_num = -1, last_graph_num = -1;
+            for (int r = 0; r < nrows; ++r) {
+                for (int c = 0; c < ncols; ++c, ++num) {
+                    //const int num = (i*NUM_GRAPHS_PER_GRAPH_TAB) + r*ncols+c;
+                    if (num >= (int)graphs.size() || r*ncols+c >= NUM_GRAPHS_PER_GRAPH_TAB) { r=nrows,c=ncols; break; } // break out of loop
+                    QFrame * & f = (graphFrames[num] = mainApp()->getGLGraphWithFrame(num >= NUM_GRAPHS_PER_GRAPH_TAB));
+                    QList<GLGraph *>  chlds = f->findChildren<GLGraph *>();
+                    graphs[num] = chlds.size() ? chlds.front() : 0;
+                    QList<QCheckBox *> chkchlds = f->findChildren<QCheckBox *>();
+                    chks[num] = chkchlds.size() ? chkchlds.front() : 0;
+                    if (!chks[num]) {
+                        Error() << "INTERNAL ERROR: GLGraph " << num << " is invalid!";
+                        QMessageBox::critical(0,"INTERNAL ERROR", QString("GLGraph ") + QString::number(num) + " is invalid!");
+                        QApplication::exit(1);
+                        delete f, f = 0;
+                        continue;
+                    }
+                    chks[num]->setObjectName(QString::number(num));
+                    int gnum;
+                    if ((p.mode != DAQ::AIRegular || p.fg.enabled) && num < p.chanMap.size())
+                        chks[num]->setText(QString("Save Elec. %1 (#%2)").arg(gnum=p.chanMap[num].electrodeId).arg(num));
+                    else
+                        chks[num]->setText(QString("Save Graph %1").arg(gnum=num));
+                    if (first_graph_num < 0) first_graph_num = gnum;
+                    last_graph_num = gnum;
+                    chks[num]->setChecked(p.demuxedBitMap.at(num));
+                    chks[num]->setDisabled(isSaving);
+                    chks[num]->setHidden(!mainApp()->isSaveCBEnabled());
+                    f->setParent(graphsWidget);
+                    // do this for all the graphs.. disable vsync!
+                    if (graphs[num]) graphs[num]->makeCurrent();
+                    Util::setVSyncMode(false, num == 0);
+                    f->setLineWidth(2);
+                    f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain); // only enable frame when it's selected!
+                    setupGraph(num, firstExtraChan);
+                    Connect(chks[num], SIGNAL(toggled(bool)), this, SLOT(saveGraphChecked(bool)));
+                    l->addWidget(f, r, c);
+                    ///
+                    //QCheckBox *chk = new QCheckBox(graphsWidget);
+                    //l->addWidget(chk, r, c);
+                    //chk->raise();
+                    ///
+                    setGraphTimeSecs(num, DEFAULT_GRAPH_TIME_SECS);
+                }
+            }
+            if (tabWidget)
+                tabWidget->addTab(graphsWidget, QString("%3 %1-%2").arg(first_graph_num).arg(last_graph_num).arg(p.bug.enabled ? "Graph" : "Elec."));
+            else if (stackedWidget) {
+                stackedWidget->addWidget(graphsWidget);
+                stackedCombo->addItem(QString("%3 %1-%2").arg(first_graph_num).arg(last_graph_num).arg(p.bug.enabled ? "Graph" : "Electrode"));
+            }
+        }
+    } else {
+        QGridLayout *l = new QGridLayout(nonTabWidget);
+        l->setHorizontalSpacing(1);
+        l->setVerticalSpacing(1);
+
+        int nrows = int(sqrtf(NUM_GRAPHS_PER_GRAPH_TAB)), ncols = 0;
         if (NUM_GRAPHS_PER_GRAPH_TAB == 32)
             nrows = 8, ncols = 4; // HACK!!!
-		while (nrows*ncols < (int)NUM_GRAPHS_PER_GRAPH_TAB) {
-			if (nrows > ncols) ++ncols;
-			else ++nrows;
-		};
-		if (nRowsGraphTab < 0) {
-			nRowsGraphTab = nrows;
-			nColsGraphTab = ncols;
-		}
-		int first_graph_num = -1, last_graph_num = -1;
-		for (int r = 0; r < nrows; ++r) {
-			for (int c = 0; c < ncols; ++c, ++num) {
-				//const int num = (i*NUM_GRAPHS_PER_GRAPH_TAB) + r*ncols+c;
-				if (num >= (int)graphs.size() || r*ncols+c >= NUM_GRAPHS_PER_GRAPH_TAB) { r=nrows,c=ncols; break; } // break out of loop
-				QFrame * & f = (graphFrames[num] = mainApp()->getGLGraphWithFrame(num >= NUM_GRAPHS_PER_GRAPH_TAB));
-				QList<GLGraph *>  chlds = f->findChildren<GLGraph *>();			
-				graphs[num] = chlds.size() ? chlds.front() : 0;
-				QList<QCheckBox *> chkchlds = f->findChildren<QCheckBox *>();
-				chks[num] = chkchlds.size() ? chkchlds.front() : 0;
-				if (!chks[num]) {
-					Error() << "INTERNAL ERROR: GLGraph " << num << " is invalid!";
-					QMessageBox::critical(0,"INTERNAL ERROR", QString("GLGraph ") + QString::number(num) + " is invalid!");
-					QApplication::exit(1);
-					delete f, f = 0;
-					continue;
-				}
-				chks[num]->setObjectName(QString::number(num));
-				int gnum;
+        while (nrows*ncols < (int)NUM_GRAPHS_PER_GRAPH_TAB) {
+            if (nrows > ncols) ++ncols;
+            else ++nrows;
+        };
+        if (nRowsGraphTab < 0) {
+            nRowsGraphTab = nrows;
+            nColsGraphTab = ncols;
+        }
+        for (int num = 0; num < graphFrames.size(); ++num) {
+                QFrame * & f = (graphFrames[num] = mainApp()->getGLGraphWithFrame(num >= NUM_GRAPHS_PER_GRAPH_TAB));
+                QList<GLGraph *>  chlds = f->findChildren<GLGraph *>();
+                graphs[num] = chlds.size() ? chlds.front() : 0;
+                QList<QCheckBox *> chkchlds = f->findChildren<QCheckBox *>();
+                chks[num] = chkchlds.size() ? chkchlds.front() : 0;
+                if (!chks[num]) {
+                    Error() << "INTERNAL ERROR: GLGraph " << num << " is invalid!";
+                    QMessageBox::critical(0,"INTERNAL ERROR", QString("GLGraph ") + QString::number(num) + " is invalid!");
+                    mainApp()->quit();
+                    delete f, f = 0;
+                    continue;
+                }
+                chks[num]->setObjectName(QString::number(num));
+                int gnum;
                 if ((p.mode != DAQ::AIRegular || p.fg.enabled) && num < p.chanMap.size())
                     chks[num]->setText(QString("Save Elec. %1 (#%2)").arg(gnum=p.chanMap[num].electrodeId).arg(num));
-				else
-					chks[num]->setText(QString("Save Graph %1").arg(gnum=num));
-				if (first_graph_num < 0) first_graph_num = gnum;
-				last_graph_num = gnum;
-				chks[num]->setChecked(p.demuxedBitMap.at(num));
-				chks[num]->setDisabled(isSaving);
-				chks[num]->setHidden(!mainApp()->isSaveCBEnabled());
-				f->setParent(graphsWidget);
-				// do this for all the graphs.. disable vsync!
-				if (graphs[num]) graphs[num]->makeCurrent();
-				Util::setVSyncMode(false, num == 0);
-				f->setLineWidth(2);
-				f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain); // only enable frame when it's selected!								
-				setupGraph(num, firstExtraChan);
-				Connect(chks[num], SIGNAL(toggled(bool)), this, SLOT(saveGraphChecked(bool)));
-				l->addWidget(f, r, c);
-				///
-				//QCheckBox *chk = new QCheckBox(graphsWidget);
-				//l->addWidget(chk, r, c);
-				//chk->raise();
-				///
-				setGraphTimeSecs(num, DEFAULT_GRAPH_TIME_SECS);
-			}
-		}
-		if (tabWidget)
-			tabWidget->addTab(graphsWidget, QString("%3 %1-%2").arg(first_graph_num).arg(last_graph_num).arg(p.bug.enabled ? "Graph" : "Elec."));
-		else if (stackedWidget) {
-			stackedWidget->addWidget(graphsWidget);
-			stackedCombo->addItem(QString("%3 %1-%2").arg(first_graph_num).arg(last_graph_num).arg(p.bug.enabled ? "Graph" : "Electrode"));
-		}
-	}
-	
+                else
+                    chks[num]->setText(QString("Save Graph %1").arg(gnum=num));
+                chks[num]->setChecked(p.demuxedBitMap.at(num));
+                chks[num]->setDisabled(isSaving);
+                chks[num]->setHidden(!mainApp()->isSaveCBEnabled());
+                f->setParent(nonTabWidget);
+                // do this for all the graphs.. disable vsync!
+                if (graphs[num]) graphs[num]->makeCurrent();
+                Util::setVSyncMode(false, num == 0);
+                f->setLineWidth(2);
+                f->setFrameStyle(QFrame::StyledPanel|QFrame::Plain); // only enable frame when it's selected!
+                setupGraph(num, firstExtraChan);
+                Connect(chks[num], SIGNAL(toggled(bool)), this, SLOT(saveGraphChecked(bool)));
+                l->addWidget(f, 0, 0);
+                f->hide();
+                setGraphTimeSecs(num, DEFAULT_GRAPH_TIME_SECS);
+        }
+    }
+
     selectedGraph = 0;
     lastMouseOverGraph = -1;;
 
@@ -842,6 +901,7 @@ void GraphsWindow::toggleMaximize()
 
     int num = selectedGraph;
 	QWidget *tabber = tabWidget ? (QWidget *)tabWidget : (QWidget *)stackedWidget;
+    if (!tabber) tabber = nonTabWidget;
     if (maximized && graphs[num] != maximized) {
         Warning() << "Maximize/unmaximize on a graph that isn't maximized when e have 1 graph maximized.. how is that possible?";
     } else if (maximized) { 
@@ -852,16 +912,18 @@ void GraphsWindow::toggleMaximize()
             graphFrames[i]->setHidden(false);
             clearGraph(i); // clear previously-paused graph            
         }
-		int idx = tabWidget ? tabWidget->currentIndex() : stackedCombo->currentIndex();
-		for (int i = 0; tabWidget && i < (int)tabWidget->count(); ++i)
-			tabWidget->setTabEnabled(i, true);
-		if (stackedCombo) stackedCombo->setEnabled(true);
-		if (tabWidget)
-			tabWidget->setCurrentIndex(idx);
-		else {
-			stackedCombo->setCurrentIndex(idx);
-			stackedWidget->setCurrentIndex(idx);
-		}
+        if (tabWidget || stackedCombo) {
+            int idx = tabWidget ? tabWidget->currentIndex() : stackedCombo->currentIndex();
+            for (int i = 0; tabWidget && i < (int)tabWidget->count(); ++i)
+                tabWidget->setTabEnabled(i, true);
+            if (stackedCombo) stackedCombo->setEnabled(true);
+            if (tabWidget)
+                tabWidget->setCurrentIndex(idx);
+            else {
+                stackedCombo->setCurrentIndex(idx);
+                stackedWidget->setCurrentIndex(idx);
+            }
+        }
         tabber->setHidden(false);
         tabber->show(); // now show parent
         maximized = 0;
@@ -872,16 +934,18 @@ void GraphsWindow::toggleMaximize()
             graphFrames[i]->setHidden(true);
         }
         maximized = graphs[num];
-		int idx = tabWidget ? tabWidget->currentIndex() : stackedCombo->currentIndex();
-		for (int i = 0; tabWidget && i < (int)tabWidget->count(); ++i)
-				tabWidget->setTabEnabled(i, tabWidget->currentIndex() == i);
-		if (stackedCombo) stackedCombo->setEnabled(false);
-		if (tabWidget)
-			tabWidget->setCurrentIndex(idx);
-		else {
-			stackedCombo->setCurrentIndex(idx);
-			stackedWidget->setCurrentIndex(idx);
-		}
+        if (tabWidget || stackedCombo) {
+            int idx = tabWidget ? tabWidget->currentIndex() : stackedCombo->currentIndex();
+            for (int i = 0; tabWidget && i < (int)tabWidget->count(); ++i)
+                tabWidget->setTabEnabled(i, tabWidget->currentIndex() == i);
+            if (stackedCombo) stackedCombo->setEnabled(false);
+            if (tabWidget)
+                tabWidget->setCurrentIndex(idx);
+            else {
+                stackedCombo->setCurrentIndex(idx);
+                stackedWidget->setCurrentIndex(idx);
+            }
+        }
         tabber->setHidden(false);
         tabber->show(); // now show parent
     }
@@ -1079,57 +1143,63 @@ void GraphsWindow::saveGraphChecked(bool b) {
 }
 
 void GraphsWindow::retileGraphsAccordingToSorting() {
-    QMutexLocker l(&graphsMut);
 
-	const int nGraphTabs (graphTabs.size());
-	QWidget * dummy = new QWidget(0);
-	dummy->setHidden(true);
-	if (maximized) toggleMaximize();
-	for (int i = 0; i < (int)graphFrames.size(); ++i) {
-		QFrame * f = graphFrames[i];
-		f->setParent(dummy);
-	}
-	for (int i = 0; i < nGraphTabs; ++i) {
-		
-		int numThisPage = (nGraphTabs - i > 1) ? NUM_GRAPHS_PER_GRAPH_TAB : (graphs.size() % NUM_GRAPHS_PER_GRAPH_TAB);
-		if (!numThisPage) numThisPage = NUM_GRAPHS_PER_GRAPH_TAB;
-		int nrows = int(sqrtf(numThisPage)), ncols = nrows;
-		while (nrows*ncols < (int)numThisPage) {
-			if (nrows > ncols) ++ncols;
-			else ++nrows;
-		};
-		QWidget *graphsWidget = graphTabs[i];
-		delete graphsWidget->layout();
-		QGridLayout *l = new QGridLayout(graphsWidget);
-		l->setHorizontalSpacing(1);
-		l->setVerticalSpacing(1);
-		
-		int first_graph_num = 0xdeadbeef, last_graph_num = 0xdeadbeef;
-		// no re-add them in the sorting order
-		
-		for (int r = 0; r < nrows; ++r) {
-			for (int c = 0; c < ncols; ++c) {
-				const int num = (i*NUM_GRAPHS_PER_GRAPH_TAB)+r*ncols+c;
-				if (num >= (int)graphs.size() || r*ncols+c >= NUM_GRAPHS_PER_GRAPH_TAB) { r=nrows,c=ncols; break; } // break out of loop
-				const int graphId = sorting[num], namId = naming[num];
-				QFrame * & f = graphFrames[graphId];
-				f->setParent(graphsWidget);
-				l->addWidget(f, r, c);
-				
-				if (first_graph_num == (int)0xdeadbeef) first_graph_num = namId;
-				last_graph_num = namId;
+    if (useTabs) {
+        QMutexLocker l(&graphsMut);
 
-			}
-		}
-		QString tabText = QString("%3 %1-%2").arg(first_graph_num).arg(last_graph_num).arg(params.bug.enabled ? "Chan." : "Elec.");
-		if (tabWidget)
-			tabWidget->setTabText(i, tabText);
-		else if (stackedWidget) {
-			stackedCombo->setItemText(i, tabText);
-		}
-	}
-	tabChange(tabWidget ? tabWidget->currentIndex() : stackedCombo->currentIndex());
-	delete dummy;
+        const int nGraphTabs (graphTabs.size());
+        QWidget * dummy = new QWidget(0);
+        dummy->setHidden(true);
+        if (maximized) toggleMaximize();
+        for (int i = 0; i < (int)graphFrames.size(); ++i) {
+            QFrame * f = graphFrames[i];
+            f->setParent(dummy);
+        }
+        for (int i = 0; i < nGraphTabs; ++i) {
+
+            int numThisPage = (nGraphTabs - i > 1) ? NUM_GRAPHS_PER_GRAPH_TAB : (graphs.size() % NUM_GRAPHS_PER_GRAPH_TAB);
+            if (!numThisPage) numThisPage = NUM_GRAPHS_PER_GRAPH_TAB;
+            int nrows = int(sqrtf(numThisPage)), ncols = nrows;
+            while (nrows*ncols < (int)numThisPage) {
+                if (nrows > ncols) ++ncols;
+                else ++nrows;
+            };
+            QWidget *graphsWidget = graphTabs[i];
+            delete graphsWidget->layout();
+            QGridLayout *l = new QGridLayout(graphsWidget);
+            l->setHorizontalSpacing(1);
+            l->setVerticalSpacing(1);
+
+            int first_graph_num = 0xdeadbeef, last_graph_num = 0xdeadbeef;
+            // no re-add them in the sorting order
+
+            for (int r = 0; r < nrows; ++r) {
+                for (int c = 0; c < ncols; ++c) {
+                    const int num = (i*NUM_GRAPHS_PER_GRAPH_TAB)+r*ncols+c;
+                    if (num >= (int)graphs.size() || r*ncols+c >= NUM_GRAPHS_PER_GRAPH_TAB) { r=nrows,c=ncols; break; } // break out of loop
+                    const int graphId = sorting[num], namId = naming[num];
+                    QFrame * & f = graphFrames[graphId];
+                    f->setParent(graphsWidget);
+                    l->addWidget(f, r, c);
+
+                    if (first_graph_num == (int)0xdeadbeef) first_graph_num = namId;
+                    last_graph_num = namId;
+
+                }
+            }
+            QString tabText = QString("%3 %1-%2").arg(first_graph_num).arg(last_graph_num).arg(params.bug.enabled ? "Chan." : "Elec.");
+            if (tabWidget)
+                tabWidget->setTabText(i, tabText);
+            else if (stackedWidget) {
+                stackedCombo->setItemText(i, tabText);
+            }
+        }
+        if (tabWidget || stackedCombo)
+            tabChange(tabWidget ? tabWidget->currentIndex() : stackedCombo->currentIndex());
+        delete dummy;
+    } else if (lastCustomChanset.size()) {
+        openCustomChanset(lastCustomChanset);
+    }
 }
 
 void GraphsWindow::sortGraphsByElectrodeId() {
@@ -1186,11 +1256,19 @@ void GraphsWindow::sortGraphsByIntan() {
     emit sortingChanged(sorting, naming);
 }
 
-void GraphsWindow::changeToCustomTab(const QVector<unsigned> & ids)
+void GraphsWindow::openCustomChanset(const QVector<unsigned> & ids)
 {
+    if (useTabs || !nonTabWidget) {
+        Error() << "INTERNAL: GraphsWindow openGraphById called, but we are in tab mode. Tab mode is not compatible with arbitrary sets of channels being opened!";
+        return;
+    }
+
+    lastCustomChanset = ids;
+
     QMutexLocker l(&graphsMut);
 
     setUpdatesEnabled(false);
+    nonTabWidget->hide(); // hide it to make the below faster.  if it's show, the below code runs slower
 
     const int N_G = graphs.size();
     for (int i = 0; i < N_G; ++i) {
@@ -1203,6 +1281,7 @@ void GraphsWindow::changeToCustomTab(const QVector<unsigned> & ids)
             graphs[i] = 0;
             setGraphTimeSecs(i, graphTimesSecs[i]); // call here forces the WB buffer to 0 bytes because graph[i] is NULL.. this saves memory
         }
+        if (graphFrames[i]) graphFrames[i]->hide();
     }
     int firstGraph = -1;
     // next, swap the graph widgets to their new frames and set their states..
@@ -1234,10 +1313,18 @@ void GraphsWindow::changeToCustomTab(const QVector<unsigned> & ids)
                 f->layout()->addWidget(g->parentWidget());
             }
         }
+        QGridLayout *grid = dynamic_cast<QGridLayout *>(nonTabWidget->layout());
+        if (grid) {
+            int r = i / nColsGraphTab, c = i % nColsGraphTab;
+            grid->removeWidget(f);
+            grid->addWidget(f,r,c);
+            f->show();
+        }
         // at this point, the graph is properly set up, set graphtimesecs again so that it gets a real (non-zero-sized) points buffer to work with
         setGraphTimeSecs(graphId, graphTimesSecs[graphId]);
     }
     for (int i = 0; i < N_G; ++i) if (graphs[i]) graphs[i]->setUpdatesEnabled(true);
+    nonTabWidget->show();
     setUpdatesEnabled(true);
     if (selectedGraph < firstGraph || selectedGraph >= firstGraph+NUM_GRAPHS_PER_GRAPH_TAB)
         selectGraph(firstGraph); // force first graph to be selected!
@@ -1443,105 +1530,15 @@ void GraphsWindow::saveGraphSettings()
 	settings.endGroup();
 }
 
-
-//void GraphsWindow::updateTabsWithHighlights()
-//{
-//    QMutexLocker l(&graphsMut);
-
-//	QVarLengthArray<unsigned char> tabsWithHighlights(tabWidget ? tabWidget->count() : stackedWidget->count());
-//	memset(tabsWithHighlights.data(), 0, tabsWithHighlights.size());
-//	for (int i = 0; i < (int)graphs.size(); ++i) {
-//		bool highlighted = graphStates[i].highlighted;
-//		if (graphs[i]) highlighted = graphStates[i].highlighted;
-//		if (highlighted) tabsWithHighlights[i / NUM_GRAPHS_PER_GRAPH_TAB] = 1;
-//	}
-//	/* NB: this is SLOWWWWW for tabWidget.. for high channel counts hopefully using the combo box method instead!!*/
-//	for (int i = 0; i < tabsWithHighlights.count(); ++i) {
-//		if (tabWidget) {
-//			if (tabsWithHighlights[i] && hasSelectedGraphsIcon)
-//				tabWidget->setTabIcon(i, *hasSelectedGraphsIcon);
-//			else
-//				tabWidget->setTabIcon(i, QIcon());
-//		} else if (stackedWidget && stackedCombo) {
-//			if (tabsWithHighlights[i] && hasSelectedGraphsIcon)
-//				stackedCombo->setItemIcon(i, *hasSelectedGraphsIcon);
-//			else
-//				stackedCombo->setItemIcon(i, QIcon());
-//		}
-//	}
-//}
-
-//void GraphsWindow::highlightGraphsById(const QVector<unsigned> & ids)
-//{
-//    QMutexLocker l(&graphsMut);
-
-//	//Debug() << "GraphsWindow::highlightGraphsById called with " << ids.size() << " ids...";
-	
-//	/*
-//	QVector<unsigned>::const_iterator it = ids.begin();
-//	int last = -1;
-//	for (int i = 0; i < (int)graphs.size(); ++i) {
-//		bool highlighted = false;
-//		if (it != ids.end()) {
-//			highlighted = int(*it) == i;
-//			if (last >= int(*it) || int(*it) >= graphs.size()) {
-//				Error() << "INTERNAL ERROR IN GraphsWindow::highlightGraphsById -- expected ids to be unique, sorted, and only contain valid ids!";
-//			}
-//			if (highlighted) {
-//				last = *it, ++it;
-//			}
-//		}
-//		graphStates[i].highlighted = highlighted;
-//		if (graphs[i])
-//			graphs[i]->setHighlighted(highlighted);
-//	}
-//	if (!tabHighlightTimer) tabHighlightTimer = new QTimer(this);
-//	if (!tabHighlightTimer->isActive()) {
-//		Connect(tabHighlightTimer, SIGNAL(timeout()), this, SLOT(updateTabsWithHighlights()));
-//		tabHighlightTimer->setInterval(250);
-//		tabHighlightTimer->setSingleShot(true);
-//		tabHighlightTimer->start();
-//	}
-//	*/
-//    if (ids.size()) {
-//		if (maximized) toggleMaximize();
-//		int page = ids[0]/NUM_GRAPHS_PER_GRAPH_TAB;
-//        //qDebug("highlightGraphsById called, ids[0]=%d page=%d",int(ids[0]),page);
-//        if (tabWidget && page != tabWidget->currentIndex()) { tabWidget->setCurrentIndex(page); }
-//        else if (stackedCombo && page != stackedCombo->currentIndex()) { stackedCombo->setCurrentIndex(page); stackedWidget->setCurrentIndex(page); }
-//		selectGraph(ids[0]);
-//	}
-//}
-
-//void GraphsWindow::openGraphsById(const QVector<unsigned> & ids)
-//{
-//    QMutexLocker l(&graphsMut);
-
-//    //Debug() << "GraphsWindow::openGraphsById called with " << ids.size() << " ids...";
-//	if (ids.size()) {
-//		if (maximized) toggleMaximize();
-//		unsigned id = ids[0];
-//		if (id < unsigned(graphs.size())) {
-//			unsigned tab = id / NUM_GRAPHS_PER_GRAPH_TAB;
-//            if (tabWidget && int(tab) != tabWidget->currentIndex()) tabWidget->setCurrentIndex(tab);
-//            else if (stackedCombo && int(tab) != stackedCombo->currentIndex()) { stackedCombo->setCurrentIndex(tab); stackedWidget->setCurrentIndex(tab); }
-//			selectGraph(id);
-//			show();
-//			raise();
-//		}
-//	}
-//}
-
 void GraphsWindow::openGraphsById(const QVector<unsigned> & ids)
 {
     QMutexLocker l(&graphsMut);
 
-    //Debug() << "GraphsWindow::openGraphsById called with " << ids.size() << " ids...";
     if (ids.size()) {
         if (maximized) toggleMaximize();
-        changeToCustomTab(ids);
-        show();
-        raise();
+        openCustomChanset(ids);
+//        show();
+//        raise();
     }
 }
 

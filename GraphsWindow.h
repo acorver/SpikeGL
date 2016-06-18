@@ -30,10 +30,13 @@ class GraphsWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    GraphsWindow(DAQ::Params & params, QWidget *parent = 0, bool isSaving = true);
+    GraphsWindow(DAQ::Params & params, QWidget *parent = 0, bool isSaving = true, bool usesTabModeForNavigation = true/*set to false for framegrabber mode and enable spatial vis click method*/);
     ~GraphsWindow();
 
     bool threadsafeIsVisible() const { return threadsafe_is_visible; }
+
+    /// if false, need to navigate channels using spatial visualiztion click method.
+    bool usesTabModeForNavigation() const { return useTabs; }
 
     void putScans(const std::vector<int16> & scans, u64 firstSamp);
     void putScans(const int16 *data, unsigned data_size_samps, u64 firstSamp);
@@ -104,7 +107,6 @@ private slots:
 	void saveGraphChecked(bool b);
 
 	void tabChange(int);
-    void changeToCustomTab(const QVector<unsigned> & ids_to_place_on_custom_tab);
 
 	void saveFileLineEditChanged(const QString & newtext);
 	
@@ -135,12 +137,16 @@ private:
 
     int getNumGraphsPerGraphTab() const;
 
+    void openCustomChanset(const QVector<unsigned> & ids_of_graphs);
+
     volatile bool threadsafe_is_visible;
 
     int NUM_GRAPHS_PER_GRAPH_TAB, nGraphTabs, nColsGraphTab, nRowsGraphTab;
 
 	
     DAQ::Params & params;
+    const bool useTabs;
+    QWidget *nonTabWidget; ///< for the useTabs=false mode...!
 	QTabWidget *tabWidget;
 	QStackedWidget *stackedWidget; QComboBox *stackedCombo;
     QVector<QWidget *> graphTabs;
@@ -188,6 +194,7 @@ private:
 	QVector <int> sorting, naming;
 	QSet<GLGraph *> extraGraphs;
     std::vector<int16> scanTmp;
+    QVector<unsigned> lastCustomChanset;
 
     mutable QMutex graphsMut; ///< recursive mutex.  locked whenever this class accesses graph data.  used because we are transitioning over to a threaded graphing data reader model as of Feb. 2016
 };

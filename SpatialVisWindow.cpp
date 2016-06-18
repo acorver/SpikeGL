@@ -29,10 +29,12 @@
 #define GlyphScaleFactor 0.9725 /**< set this to less than 1 to give each glyph a margin */
 #define BlockScaleFactor 1.0 /**< set this to less than 1 to give blocks a margin */
 
-SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, QWidget * parent)
+SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, unsigned selboxw, QWidget * parent)
 : QMainWindow(parent), threadsafe_is_visible(false), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2),
   graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xffffffff), last_fs_frame_tsc(getAbsTimeNS()), mut(QMutex::Recursive)
 {
+    can_redefine_selection_box = false;
+    click_to_select = false;
     mouseDownAt = Vec2(-1e6,-1e6);
 	static bool registeredMetaType = false;
     treatDataAsUnsigned = false;
@@ -126,7 +128,8 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
 	ovlFpsChanged(fshare.shm ? fshare.shm->frame_rate_limit : 0);
 	Connect(ovlFps, SIGNAL(valueChanged(int)), this, SLOT(ovlFpsChanged(int)));
 	
-    selectionDims = Vec2i(1,1);
+    if (!selboxw) selboxw = 1;
+    selectionDims = Vec2i(selboxw,selboxw);
 
     nbx = xy_dims.x; nby = xy_dims.y; if (nbx <= 0) nbx = 1; if (nby <= 0) nby = 1;
     if (nbx*nby < nvai) {
@@ -416,7 +419,7 @@ void SpatialVisWindow::mouseOverGraph(double x, double y)
         mouseOverChan = chanId;
     updateMouseOver();
 
-    if (mouseDownAt.x > -1e5) { // mouse button is down.. so maybe they are creating a new selection box
+    if (can_redefine_selection_box && mouseDownAt.x > -1e5) { // mouse button is down.. so maybe they are creating a new selection box
         const double thresh =  (1.0/MAX(nbx,nby)) / 3.0;
         Vec2 pt = mouseDownAt;
         double dx=x-pt.x, dy=pt.y-y;
@@ -437,14 +440,23 @@ void SpatialVisWindow::mouseReleaseGraph(double x, double y)
 { 
 	(void)x; (void)y;
 
-    if (!didSelDimsDefine) {
-        int chanId = pos2ChanId(x,y);
-        selectChansCenteredOn(chanId);
+    if (click_to_select) {
+        if (!didSelDimsDefine) {
+            int chanId = pos2ChanId(x,y);
+            selectChansCenteredOn(chanId);
+        }
+        if (selIdxs.size()) emit channelsSelected(selIdxs);
     }
-    if (selIdxs.size()) emit channelsSelected(selIdxs);
 
     mouseDownAt = Vec2(-1e6,-1e6);
 }
+
+void SpatialVisWindow::selectChansStartingAt(int chan)
+{
+    selectChansFromTopLeft(chan);
+    emit channelsSelected(selIdxs);
+}
+
 
 void SpatialVisWindow::mouseDoubleClickGraph(double x, double y)
 {
