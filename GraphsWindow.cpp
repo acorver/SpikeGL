@@ -76,10 +76,10 @@ static void initIcons()
 	}
 }
 
-GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving, bool useTabs)
+GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving, bool useTabs, int graphUpdateRateHz)
     : QMainWindow(parent), threadsafe_is_visible(false), params(p), useTabs(useTabs), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false), graphsMut(QMutex::Recursive)
 {
-    sharedCtor(p, isSaving);
+    sharedCtor(p, isSaving, graphUpdateRateHz);
 }
 
 void GraphsWindow::setupGraph(int num, int firstExtraChan) 
@@ -147,7 +147,7 @@ int GraphsWindow::getNumGraphsPerGraphTab() const
     return p.overrideGraphsPerTab;
 }
 
-void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
+void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving, int graphUpdateRateHz)
 {    
 	stackedWidget = 0;
 	tabWidget = 0;
@@ -428,7 +428,10 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving)
     QTimer *t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateGraphs()));
     t->setSingleShot(false);
-    t->start(1000/DEF_TASK_READ_FREQ_HZ);        
+    if (graphUpdateRateHz > 0 && graphUpdateRateHz < 500)
+        t->start(1000/graphUpdateRateHz);
+    else
+        t->start(1000/DEF_TASK_READ_FREQ_HZ);
 
     t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateMouseOver()));

@@ -553,7 +553,7 @@ Vec2 SpatialVisWindow::chanId2Pos(const int chanid) const
     double cellw = (r.v3-r.v1), cellh = (r.v2-r.v4);
 	return Vec2(
                 r.v1 + (cellw/2.0),
-                r.v2 + (cellh/2.0)
+                r.v2 - (cellh/2.0)
 		);
 }
 

@@ -1146,6 +1146,8 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.resumeGraphSettings = settings.value("resumeGraphSettings", true).toBool();
 	p.autoRetryOnAIOverrun = settings.value("autoRetryOnAIOverrun", true).toBool();
     p.overrideGraphsPerTab = settings.value("overrideGraphsPerTab", 0).toUInt();
+    p.graphUpdateRate = settings.value("graphUpdateRate", DEF_TASK_READ_FREQ_HZ).toInt();
+
 	
 	p.bug.rate = settings.value("bug_rate", 2).toUInt();
 	p.bug.ttlTrig = settings.value("bug_ttlTrig", -1).toInt();
@@ -1252,6 +1254,7 @@ void ConfigureDialogController::saveSettings(int sc) const
         settings.setValue("resumeGraphSettings", p.resumeGraphSettings);
         settings.setValue("autoRetryOnAIOverrun", p.autoRetryOnAIOverrun);
         settings.setValue("overrideGraphsPerTab", p.overrideGraphsPerTab);
+        settings.setValue("graphUpdateRate", p.graphUpdateRate);
     }
 
     if (sc & BUG) {

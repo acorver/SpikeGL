@@ -30,7 +30,8 @@ class GraphsWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    GraphsWindow(DAQ::Params & params, QWidget *parent = 0, bool isSaving = true, bool usesTabModeForNavigation = true/*set to false for framegrabber mode and enable spatial vis click method*/);
+    GraphsWindow(DAQ::Params & params, QWidget *parent = 0, bool isSaving = true, bool usesTabModeForNavigation = true/*set to false for framegrabber mode and enable spatial vis click method*/,
+                 int graphUpdateRateHz = -1 /* if set to >0, specifies that the graphs should be updated this many times per second.  If not set, uses DEF_TASK_READ_FREQ_HZ from SpikeGL.h */);
     ~GraphsWindow();
 
     bool threadsafeIsVisible() const { return threadsafe_is_visible; }
@@ -122,7 +123,7 @@ private:
                                    double & mean, double & stdev, double & rms,
                                    const char * & unit);
     static int parseGraphNum(QObject *gl_graph_instance);
-    void sharedCtor(DAQ::Params & p, bool isSaving);
+    void sharedCtor(DAQ::Params & p, bool isSaving, int graphUpdateRateHz);
 
 	void retileGraphsAccordingToSorting();
 	void setupGraph(int num, int firstExtraChan);

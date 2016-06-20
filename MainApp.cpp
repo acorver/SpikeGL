@@ -900,7 +900,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         }
     }
 
-    graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen(), !doFGAcqInstead);
+    graphsWindow = new GraphsWindow(params, 0, dataFile.isOpen(), !doFGAcqInstead, doFGAcqInstead ? params.graphUpdateRate : -1);
     graphsWindow->setAttribute(Qt::WA_DeleteOnClose, false);
     
     Connect(this, SIGNAL(do_setPDTrigLED(bool)), graphsWindow, SLOT(setPDTrig(bool)));

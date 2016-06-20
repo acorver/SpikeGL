@@ -171,6 +171,8 @@ int FG_ConfigDialog::exec()
 					vr = AGAIN;
 					continue;
 				}
+
+                p.graphUpdateRate = dialog->graphUpdateRateHzSB->value();
 				
 				saveSettings();
 
@@ -259,7 +261,7 @@ void FG_ConfigDialog::guiFromSettings()
     dialog->bits->setCurrentIndex(p.fg.bits);
     dialog->parity->setCurrentIndex(p.fg.parity);
     dialog->stop->setCurrentIndex(p.fg.stop);
-    //dialog->disableChanMapChk->setChecked(p.fg.disableChanMap);
+    dialog->graphUpdateRateHzSB->setValue(p.graphUpdateRate);
 
     if (!DAQ::FGTask::probedHardware.empty()) {
         dialog->sapdevCB->clear();

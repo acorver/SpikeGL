@@ -148,6 +148,7 @@ namespace DAQ
 
 		bool autoRetryOnAIOverrun; ///< if true, auto-restart the acquisition every time there is a buffer overrun error from the NI DAQ drivers. Note that if we get more than 2 failures in a 1s period, the acquisition is aborted anyway.
         int overrideGraphsPerTab; ///< if nonzero, the number of graphs per tab to display, 0 implies use mode-specific limits
+        int graphUpdateRate; ///< if nonzero, update the graphs this many times per second.  if <=0, will use DEF_TASK_READ_FREQ_HZ from SpikeGL.h
 
 		struct Bug {
 			bool enabled; // if true, acquisition is in bug mode
