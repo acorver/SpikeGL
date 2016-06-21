@@ -127,11 +127,11 @@ void GraphsWindow::setupGraph(int num, int firstExtraChan)
     if (NumGraphsPerGraphTab[0]) return;
 	// defensively program against adding modes that lack a spec for number of graphs per tab
 	for (int i = 0; i < (int)DAQ::N_Modes; ++i) {
-		NumGraphsPerGraphTab[i] = MAX_NUM_GRAPHS_PER_GRAPH_TAB;
+        NumGraphsPerGraphTab[i] = DEFAULT_NUM_GRAPHS_PER_GRAPH_TAB;
 		if (DAQ::ModeNumIntans[i]) {
 			const int nchans = DAQ::ModeNumChansPerIntan[i];
 			int n = 0;
-			for (int j = 1; (n=(j * nchans)) <= MAX_NUM_GRAPHS_PER_GRAPH_TAB; ++j)
+            for (int j = 1; (n=(j * nchans)) <= DEFAULT_NUM_GRAPHS_PER_GRAPH_TAB; ++j)
 				NumGraphsPerGraphTab[i] = n;
 		}
 	}
@@ -140,8 +140,9 @@ void GraphsWindow::setupGraph(int num, int firstExtraChan)
 int GraphsWindow::getNumGraphsPerGraphTab() const
 {
     DAQ::Params & p(params);
-    int hardlim = NumGraphsPerGraphTab[p.mode];
-    if (!p.overrideGraphsPerTab || hardlim < p.overrideGraphsPerTab)
+    int hardlim = MAX_NUM_GRAPHS_PER_GRAPH_TAB, def = NumGraphsPerGraphTab[p.mode];
+    if (!p.overrideGraphsPerTab) return def;
+    if (hardlim < p.overrideGraphsPerTab)
         return hardlim;
     // else..
     return p.overrideGraphsPerTab;

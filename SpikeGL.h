@@ -27,7 +27,8 @@
 #define DEFAULT_PD_SILENCE .010 /* 10 ms silence default */
 #define SETTINGS_DOMAIN "janelia.hhmi.org"
 #define SETTINGS_APP APPNAME
-#define MAX_NUM_GRAPHS_PER_GRAPH_TAB 36
+#define MAX_NUM_GRAPHS_PER_GRAPH_TAB 64
+#define DEFAULT_NUM_GRAPHS_PER_GRAPH_TAB 36
 #define SAMPLE_BUF_Q_SIZE 128
 
 #define SAMPLES_SHM_NAME "SpikeGL_SampleData"

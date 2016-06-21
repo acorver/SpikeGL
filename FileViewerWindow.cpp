@@ -101,7 +101,7 @@ FileViewerWindow::FileViewerWindow()
     lbl->setToolTip("The number of graphs to display on-screen at a time. Page through graphs using the 'tabwidget' control.");
     hl->addWidget(lbl);
     graphPgSz = new QSpinBox(w);
-    graphPgSz->setMinimum(8);
+    graphPgSz->setMinimum(4);
     graphPgSz->setMaximum(256);
     graphPgSz->setToolTip("The number of graphs to display on-screen at a time. Page through graphs using the 'tabwidget' control.");
     hl->addWidget(graphPgSz);
@@ -434,7 +434,7 @@ void FileViewerWindow::loadSettings()
 	electrodeSort = settings.value("sortGraphsByElectrode", false).toBool();
 
     graphPgSz->blockSignals(true);
-    graphPgSz->setValue((n_graphs_pg = settings.value("graphsPerPage", 36).toUInt()));
+    graphPgSz->setValue((n_graphs_pg = settings.value("graphsPerPage", DEFAULT_NUM_GRAPHS_PER_GRAPH_TAB).toUInt()));
     graphPgSz->blockSignals(false);
 
     showReadme = !settings.value("neverShowReadme", false).toBool();
