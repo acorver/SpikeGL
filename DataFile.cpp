@@ -596,7 +596,7 @@ i64 DataFile::readScans(std::vector<int16> & scans_out, u64 pos, u64 num2read, c
     qint64 desiredBufSize = num2read*nChans;    // but first try and do the entire requested read at once in our buffer if it fits within our limits..
     if (desiredBufSize > maxBufSize) desiredBufSize = maxBufSize;
     std::vector<int16> buf(desiredBufSize);
-    if (buf.size() < nChans) buf.resize(nChans); // minimum read is 1 scan
+    if (int(buf.size()) < nChans) buf.resize(nChans); // minimum read is 1 scan
 
     while (cur < pos + num2read) {
 		if (!dataFile.seek(cur * sizeof(int16) * nChans)) {

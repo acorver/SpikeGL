@@ -651,7 +651,7 @@ void FileViewerWindow::updateData()
         const float dt = 1.0f / (srate / float(downsample));
         std::vector<float> avgs(nChansOn, 0.f);
         const float avgfactor = 1.0f/float(nread);
-        QVector<QVector<Vec2f>> & vecs (scratchVecs);
+        QVector<QVector<Vec2f> > & vecs (scratchVecs);
         if (vecs.size() < nChansOn) vecs.resize(nChansOn);
 		for (int i = 0; i < nread; ++i) {
 			filter.apply(&data[i * nChansOn], dt, chansToFilter);
