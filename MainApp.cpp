@@ -85,7 +85,6 @@ namespace {
 
 };
 
-
 MainApp * MainApp::singleton = 0;
 
 MainApp::MainApp(int & argc, char ** argv)
@@ -912,7 +911,6 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     graphsWindow->installEventFilter(this);
 	
 	windowMenuAdd(graphsWindow);
-
 	// TESTING OF SPATIAL VISUALIZATION WINDOW -- REMOVE ME TO NOT USE SPATIAL VIS
     unsigned spatialBoxW = MAX(graphsWindow->numColsPerGraphTab(),graphsWindow->numRowsPerGraphTab());
     Vec2i spatialDims;
@@ -927,8 +925,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         }
         spatialDims = Vec2i(x,y);
     }
+
     spatialWindow = new SpatialVisWindow(params, spatialDims, spatialBoxW, 0);
-    //if (doFGAcqInstead) spatialWindow->setStaticBlockLayout(spatialDims.x,spatialDims.y);
     spatialWindow->setSorting(graphsWindow->currentSorting(), graphsWindow->currentNaming());
 	spatialWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
 	spatialWindow->setWindowIcon(appIcon);
@@ -1054,7 +1052,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     stopAcq->setEnabled(true);
     aoPassthruAct->setEnabled(params.aoPassthru && !bugtask && !fgtask);
     Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));
-    gthread->start(QThread::LowPriority);
+    if (gthread) gthread->start(QThread::LowPriority);
     dthread = new DataSavingThread(this);
     dthread->start(QThread::HighPriority);
     task->start();

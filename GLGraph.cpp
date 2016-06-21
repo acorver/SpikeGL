@@ -74,12 +74,16 @@ void GLGraph::reset(QMutex *mut)
 */
 
 GLGraph::GLGraph(QWidget *parent, QMutex *mut)
-    : QGLWidget(parent), ptsMut(mut)    
+    : QGLWidget(parent, Util::sharedGLWidget()), ptsMut(mut)
 {
     reset(mut);
+
+    Util::sharedGLWidgetCtorCB(this);
 }
 
-GLGraph::~GLGraph() {}
+GLGraph::~GLGraph() {
+    Util::sharedGLWidgetDtorCB(this);
+}
 
 void GLGraph::initializeGL()
 {

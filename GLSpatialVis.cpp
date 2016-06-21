@@ -56,14 +56,17 @@ void GLSpatialVis::reset()
 }
 
 GLSpatialVis::GLSpatialVis(QWidget *parent)
-    : QGLWidget(parent), tex(0)
+    : QGLWidget(parent, Util::sharedGLWidget()), tex(0)
 {
     reset();
+
+    Util::sharedGLWidgetCtorCB(this);
 }
 
 GLSpatialVis::~GLSpatialVis() 
 {
 	if (tex) glDeleteTextures(1, &tex), tex = 0;
+    Util::sharedGLWidgetDtorCB(this);
 }
 
 void GLSpatialVis::initializeGL()

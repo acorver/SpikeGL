@@ -19,6 +19,7 @@
 #else
 #  include <GL/gl.h>
 #endif
+#include <QGLWidget>
 #include "MainApp.h"
 #include "ConfigureDialogController.h"
 #include "samplerate/samplerate.h"
@@ -80,6 +81,26 @@ MainApp *mainApp()
 {
     return MainApp::instance();
 }
+
+static const QGLWidget *s_sharedGLWidget = 0;
+
+void sharedGLWidgetCtorCB(const QGLWidget *glw)
+{
+    if (!s_sharedGLWidget) {
+        Debug() << "QGLWidget sharing: sharedGLWidget set to 0x" << ((void *)glw);
+        s_sharedGLWidget = glw;
+    }
+    //Debug() << ((void *)glw) << " QGLWidget sharing: " << (glw->isSharing() ? "YES" : "NO");
+}
+
+void sharedGLWidgetDtorCB(const QGLWidget *glw)
+{
+    if (s_sharedGLWidget == glw) {
+        s_sharedGLWidget = 0;
+        Debug() << "QGLWidget sharing: shareGLWidget unset due to destructor called";
+    }
+}
+const QGLWidget *sharedGLWidget() { return s_sharedGLWidget; }
 
 /// public global function.  I hate globals but necessary I guess
 int getTaskReadFreqHz() 

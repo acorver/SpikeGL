@@ -86,7 +86,7 @@ class MainApp : public QApplication
 
     friend int main(int, char **);
     MainApp(int & argc, char ** argv);  ///< only main can constuct us
-public:
+public:  
 
     /// Returns a pointer to the singleton instance of this class, if one exists, otherwise returns 0
     static MainApp *instance() { return singleton; }

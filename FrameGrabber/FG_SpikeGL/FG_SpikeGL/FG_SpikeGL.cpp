@@ -516,8 +516,9 @@ static void tellSpikeGLAboutSignalStatus()
 static void timerFunc()
 {
     if (!spikeGLIn) return;
-    int fail = 0;
-    while (spikeGLIn->cmdQSize() && fail < 10) {
+	int fail = 0;
+
+	while (spikeGLIn->cmdQSize() && fail < 10) {
         std::vector<BYTE> buf;
         XtCmd *xt;
         if ((xt = spikeGLIn->popCmd(buf, 10))) {

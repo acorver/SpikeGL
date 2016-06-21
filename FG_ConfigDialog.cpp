@@ -173,6 +173,8 @@ int FG_ConfigDialog::exec()
 				}
 
                 p.graphUpdateRate = dialog->graphUpdateRateHzSB->value();
+                p.overrideGraphsPerTab = dialog->graphsPerTabCB->currentText().toUInt();
+
 				
 				saveSettings();
 
@@ -208,7 +210,6 @@ int FG_ConfigDialog::exec()
 				}
 				p.range = rminmax;
 				p.auxGain = 1.0;
-                p.overrideGraphsPerTab = 36;
 				
 			} else if (vr==AGAIN) {
 				if (errTit.length() && errMsg.length())
@@ -262,6 +263,19 @@ void FG_ConfigDialog::guiFromSettings()
     dialog->parity->setCurrentIndex(p.fg.parity);
     dialog->stop->setCurrentIndex(p.fg.stop);
     dialog->graphUpdateRateHzSB->setValue(p.graphUpdateRate);
+
+    dialog->graphsPerTabCB->clear();
+    dialog->graphsPerTabCB->addItem("Default");
+    for (int i = 2; i*i <= MAX_NUM_GRAPHS_PER_GRAPH_TAB; ++i) {
+        dialog->graphsPerTabCB->addItem(QString::number(i*i));
+    }
+    dialog->graphsPerTabCB->setCurrentIndex(0);
+    for (int i = 1; i < dialog->graphsPerTabCB->count(); ++i) {
+        if (dialog->graphsPerTabCB->itemText(i).toUInt() == (unsigned)p.overrideGraphsPerTab) {
+            dialog->graphsPerTabCB->setCurrentIndex(i);
+            break;
+        }
+    }
 
     if (!DAQ::FGTask::probedHardware.empty()) {
         dialog->sapdevCB->clear();

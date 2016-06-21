@@ -233,7 +233,14 @@ void ConfigureDialogController::resetFromParams(DAQ::Params *p_in)
 	dualDevModeChkd();
 
 	dialog->autoRetryOnAIOverrunsChk->setChecked(p.autoRetryOnAIOverrun);
+
+    dialog->graphsPerTabCB->clear();
+    dialog->graphsPerTabCB->addItem("Default");
+    for (int i = 2; i*i <= MAX_NUM_GRAPHS_PER_GRAPH_TAB; ++i) {
+        dialog->graphsPerTabCB->addItem(QString::number(i*i));
+    }
     dialog->graphsPerTabCB->setCurrentIndex(0);
+
     for (int i = 1; i < dialog->graphsPerTabCB->count(); ++i) {
         if (dialog->graphsPerTabCB->itemText(i).toUInt() == (unsigned)p.overrideGraphsPerTab) {
             dialog->graphsPerTabCB->setCurrentIndex(i);

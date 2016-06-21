@@ -34,6 +34,7 @@
 #endif
 
 class MainApp;
+class QGLWidget;
 
 #ifndef MIN
 #define MIN(a,b) ( (a) <= (b) ? (a) : (b) )
@@ -66,6 +67,11 @@ namespace Util
                     QObject *destobj, const QString & dest_slot);
 
  MainApp *mainApp();
+
+ /// glcontext sharing -- this is important for performance since having so many contexts open for graphs ruined framegrabber acquisition.  Added 6/20/2016 by Calin
+ const QGLWidget *sharedGLWidget();
+ void sharedGLWidgetCtorCB(const QGLWidget *);
+ void sharedGLWidgetDtorCB(const QGLWidget *);
 
  /// retrieve the task read freq to use for acquisition -- this affects how often we poll the board for data and also affects latency
  int getTaskReadFreqHz();
