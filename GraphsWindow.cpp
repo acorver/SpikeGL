@@ -506,6 +506,12 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving, int graphUpdateRat
 		// re-sort the graphs on-screen by electrode Id to restore previous state..
 		sortGraphsByElectrodeId();
 	}
+
+    if (useTabs) {
+        // NB: at this point we have a weird bug where in tabbed mode, sometimes the graphs look garbled until a maximize/unmaximize.  Until i can figure out why, we will do this.
+        toggleMaximize();
+        toggleMaximize();
+    }
 }
 
 
@@ -1349,6 +1355,7 @@ void GraphsWindow::openCustomChanset(const QVector<unsigned> & ids)
 
 void GraphsWindow::tabChange(int t)
 {
+    if (!useTabs) return;
     QMutexLocker l(&graphsMut);
 
 	setUpdatesEnabled(false);
