@@ -578,7 +578,7 @@ volatile int ReentrancyPreventer::ct = 0;
 
 void MainApp::about()
 {
-    QMessageBox::about(consoleWindow, "About "APPNAME,
+    QMessageBox::about(consoleWindow, "About " APPNAME,
                        VERSION_STR
                        "\n\n(C) 2010-2016 Calin A. Culianu <calin.culianu@gmail.com>\n\n"
                        "Developed for the Anthony Leonardo lab at\n"

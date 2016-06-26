@@ -428,7 +428,7 @@ void Bug_Graph::paintEvent(QPaintEvent *e)
 			QPen pen = p.pen(); pen.setColor(colors[plotNum]); pen.setWidthF(pen_width); pen.setCapStyle(Qt::RoundCap);
 			p.setPen(pen);
 			p.drawPoints(pbuf, ct);
-            delete pbuf;
+            delete [] pbuf;
 		}
 	}
 	

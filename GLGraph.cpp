@@ -235,10 +235,10 @@ void GLGraph::drawSelection() const
 	glColor4f(.5, .5, .5, .5);
 	glPolygonMode(GL_FRONT, GL_FILL); // make suroe to fill the polygon;	
     const float vertices[] = {
-		selectionBegin,  -1.,
-		selectionEnd,    -1.,
-		selectionEnd,     1.,
-		selectionBegin,   1.
+        float(selectionBegin),  -1.f,
+        float(selectionEnd),    -1.f,
+        float(selectionEnd),     1.f,
+        float(selectionBegin),   1.f
 	};
 	
     glVertexPointer(2, GL_FLOAT, 0, vertices);

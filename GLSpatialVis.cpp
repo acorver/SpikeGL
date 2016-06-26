@@ -361,9 +361,9 @@ void GLSpatialVis::drawOverlay()
 		
 		const GLfloat t[] = {
 			0.f, 0.f,
-			0.f, h,
-			w, h,
-			w, 0.f,
+            0.f, float(h),
+            float(w), float(h),
+            float(w), 0.f,
 		};
 		
 		const GLfloat c[] = { 
