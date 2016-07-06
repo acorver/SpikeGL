@@ -29,7 +29,7 @@
 #define GlyphScaleFactor 0.9725 /**< set this to less than 1 to give each glyph a margin */
 #define BlockScaleFactor 1.0 /**< set this to less than 1 to give blocks a margin */
 
-SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, unsigned selboxw, QWidget * parent)
+SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, unsigned selboxw, QWidget * parent, int updateRateHz)
 : QMainWindow(parent), threadsafe_is_visible(false), params(params), nvai(params.nVAIChans), nextra(params.nExtraChans1+params.nExtraChans2),
   graph(0), graphFrame(0), mouseOverChan(-1), last_fs_frame_num(0xfDffffff), last_fs_frame_tsc(getAbsTimeNS()), mut(QMutex::Recursive)
 {
@@ -195,10 +195,16 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
 	QStatusBar *sb = statusBar();
 	sb->addWidget(statusLabel = new QLabel(sb),1);
 	
+    if (updateRateHz <= 0 || updateRateHz >= 500)
+        updateRateHz = DEF_TASK_READ_FREQ_HZ;
+
 	t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateGraph()));
     t->setSingleShot(false);
-    t->start(1000/DEF_TASK_READ_FREQ_HZ);        
+    t->start(1000/updateRateHz);
+
+    Debug() << "SpatialVisWindow: update rate set to " << updateRateHz << " Hz.";
+
 	
     t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateMouseOver()));

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>350</height>
+    <height>380</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <property name="geometry">
     <rect>
      <x>50</x>
-     <y>315</y>
+     <y>345</y>
      <width>341</width>
      <height>32</height>
     </rect>
@@ -266,7 +266,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>210</y>
+     <y>240</y>
      <width>151</width>
      <height>20</height>
     </rect>
@@ -279,7 +279,7 @@
    <property name="geometry">
     <rect>
      <x>40</x>
-     <y>230</y>
+     <y>260</y>
      <width>241</width>
      <height>17</height>
     </rect>
@@ -298,7 +298,7 @@
    <property name="geometry">
     <rect>
      <x>40</x>
-     <y>250</y>
+     <y>280</y>
      <width>241</width>
      <height>17</height>
     </rect>
@@ -314,7 +314,7 @@
    <property name="geometry">
     <rect>
      <x>40</x>
-     <y>280</y>
+     <y>310</y>
      <width>121</width>
      <height>25</height>
     </rect>
@@ -358,7 +358,7 @@
     <number>1</number>
    </property>
    <property name="maximum">
-    <number>20</number>
+    <number>100</number>
    </property>
    <property name="value">
     <number>6</number>
@@ -453,6 +453,47 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="text">
     <string>Graphs Per Tab:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_5">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>200</y>
+     <width>131</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Specifies how many times per second the OpenGL 'spatial visualization window'  is updated. Setting this value too high may negatively impact performance. Setting it too low may mean the windows draws too infrequently and appears lagged and/or &amp;quot;jerky&amp;quot;. The default is a good compromise for most systems.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Sptial Vis Update Rate:</string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="spatialVisUpdateRateHzSB">
+   <property name="geometry">
+    <rect>
+     <x>150</x>
+     <y>200</y>
+     <width>61</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Specifies how many times per second the OpenGL 'spatial visualization window'  is updated. Setting this value too high may negatively impact performance. Setting it too low may mean the windows draws too infrequently and appears lagged and/or &amp;quot;jerky&amp;quot;. The default is a good compromise for most systems.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="suffix">
+    <string> Hz</string>
+   </property>
+   <property name="minimum">
+    <number>1</number>
+   </property>
+   <property name="maximum">
+    <number>100</number>
+   </property>
+   <property name="value">
+    <number>6</number>
    </property>
   </widget>
  </widget>

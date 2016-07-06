@@ -926,7 +926,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         spatialDims = Vec2i(x,y);
     }
 
-    spatialWindow = new SpatialVisWindow(params, spatialDims, spatialBoxW, 0);
+    spatialWindow = new SpatialVisWindow(params, spatialDims, spatialBoxW, 0, doFGAcqInstead ? params.spatialVisUpdateRate : -1);
     spatialWindow->setSorting(graphsWindow->currentSorting(), graphsWindow->currentNaming());
 	spatialWindow->setAttribute(Qt::WA_DeleteOnClose, false);	
 	spatialWindow->setWindowIcon(appIcon);

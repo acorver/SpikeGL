@@ -26,7 +26,7 @@ class SpatialVisWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, unsigned selection_box_width, QWidget *parent = 0);
+    SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, unsigned selection_box_width, QWidget *parent = 0, int updateRateHz = -1 /* if >0, update graph this many times per second otherwise use default */);
     ~SpatialVisWindow();
 	
     void setSelectionBoxRedefine(bool enabled) { can_redefine_selection_box = enabled; }

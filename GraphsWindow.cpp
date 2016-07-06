@@ -429,10 +429,13 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving, int graphUpdateRat
     QTimer *t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateGraphs()));
     t->setSingleShot(false);
+    int rt;
     if (graphUpdateRateHz > 0 && graphUpdateRateHz < 500)
-        t->start(1000/graphUpdateRateHz);
+        t->start(1000/(rt=graphUpdateRateHz));
     else
-        t->start(1000/DEF_TASK_READ_FREQ_HZ);
+        t->start(1000/(rt=DEF_TASK_READ_FREQ_HZ));
+
+    Debug() << "GraphsWindow: update rate set to " << rt << " Hz.";
 
     t = new QTimer(this);
     Connect(t, SIGNAL(timeout()), this, SLOT(updateMouseOver()));

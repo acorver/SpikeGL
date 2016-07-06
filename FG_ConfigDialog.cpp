@@ -173,6 +173,7 @@ int FG_ConfigDialog::exec()
 				}
 
                 p.graphUpdateRate = dialog->graphUpdateRateHzSB->value();
+                p.spatialVisUpdateRate = dialog->spatialVisUpdateRateHzSB->value();
                 p.overrideGraphsPerTab = dialog->graphsPerTabCB->currentText().toUInt();
 
 				
@@ -263,6 +264,7 @@ void FG_ConfigDialog::guiFromSettings()
     dialog->parity->setCurrentIndex(p.fg.parity);
     dialog->stop->setCurrentIndex(p.fg.stop);
     dialog->graphUpdateRateHzSB->setValue(p.graphUpdateRate);
+    dialog->spatialVisUpdateRateHzSB->setValue(p.spatialVisUpdateRate);
 
     dialog->graphsPerTabCB->clear();
     dialog->graphsPerTabCB->addItem("Default");
