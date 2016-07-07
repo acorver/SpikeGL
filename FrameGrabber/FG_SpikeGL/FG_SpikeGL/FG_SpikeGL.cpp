@@ -277,6 +277,11 @@ static void sapAcqCallback(SapAcqCallbackInfo *p)
 {
     if (!p) return;
     SapAcquisition::EventType t = p->GetEventType();
+	if (spikeGL) {
+		char buf[2048];
+		_snprintf_c(buf, sizeof(buf), "SAP ACQ CALLBACK CALLED WITH eventtype=%d", (int)t);
+		spikeGL->pushConsoleDebug(buf);
+	}
     std::string msg = "";
     //SapAcquisition::EventNoPixelClk|SapAcquisition::EventFrameLost|SapAcquisition::EventPixelClk|SapAcquisition::EventDataOverflow
     if (t & SapAcquisition::EventNoPixelClk) msg = msg + " No Pixel Clock!";
@@ -376,7 +381,8 @@ static bool setupAndStartAcq()
         int nbufs = NUM_BUFFERS(); if (nbufs < 2) nbufs = 2;
 
         acq = new SapAcquisition(loc, configFilename.c_str(),
-                                 (SapAcquisition::EventType)SapAcquisition::EventNoPixelClk|SapAcquisition::EventFrameLost|SapAcquisition::EventPixelClk|SapAcquisition::EventDataOverflow, sapAcqCallback);
+                                 (SapAcquisition::EventType)SapAcquisition::EventNoPixelClk|SapAcquisition::EventFrameLost|SapAcquisition::EventPixelClk|SapAcquisition::EventDataOverflow|SapAcquisition::EventCameraBufferOverrun|SapAcquisition::EventCameraMissedTrigger|SapAcquisition::EventExternalTriggerIgnored|SapAcquisition::EventExtLineTriggerTooSlow|SapAcquisition::EventExternalTriggerTooSlow|SapAcquisition::EventLineTriggerTooFast|SapAcquisition::EventVerticalTimeout, 
+								 sapAcqCallback);
         buffers = new SapBufferWithTrash(nbufs, acq);
         xfer = new SapAcqToBuf(acq, buffers, acqCallback, 0);
 
