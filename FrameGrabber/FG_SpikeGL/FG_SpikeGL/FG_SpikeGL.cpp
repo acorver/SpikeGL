@@ -273,6 +273,22 @@ static void freeSapHandles()
     gotFirstStartFrameCallback = gotFirstXferCallback = false;
 }
 
+static void sapAcqCallback(SapAcqCallbackInfo *p)
+{
+    if (!p) return;
+    SapAcquisition::EventType t = p->GetEventType();
+    std::string msg = "";
+    //SapAcquisition::EventNoPixelClk|SapAcquisition::EventFrameLost|SapAcquisition::EventPixelClk|SapAcquisition::EventDataOverflow
+    if (t & SapAcquisition::EventNoPixelClk) msg = msg + " No Pixel Clock!";
+    if (t & SapAcquisition::EventFrameLost) msg = msg + " Frame Lost!";
+    if (t & SapAcquisition::EventDataOverflow) msg = msg + " Data Overflow!";
+    if (!msg.size()) return;
+    if (spikeGL) {
+        spikeGL->pushConsoleError(std::string("(SAP Acq Event) ") + msg);
+    } else
+        fprintf(stderr, "(SAP Acq Event) %s\n", msg.c_str());
+}
+
 static void sapStatusCallback(SapManCallbackInfo *p)
 {
     if (p->GetErrorMessage() && *(p->GetErrorMessage())) {
@@ -359,7 +375,8 @@ static bool setupAndStartAcq()
     {
         int nbufs = NUM_BUFFERS(); if (nbufs < 2) nbufs = 2;
 
-        acq = new SapAcquisition(loc, configFilename.c_str());
+        acq = new SapAcquisition(loc, configFilename.c_str(),
+                                 (SapAcquisition::EventType)SapAcquisition::EventNoPixelClk|SapAcquisition::EventFrameLost|SapAcquisition::EventPixelClk|SapAcquisition::EventDataOverflow, sapAcqCallback);
         buffers = new SapBufferWithTrash(nbufs, acq);
         xfer = new SapAcqToBuf(acq, buffers, acqCallback, 0);
 
