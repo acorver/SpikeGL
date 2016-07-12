@@ -12,6 +12,7 @@
 #include <QSet>
 #include <QMutex>
 
+
 class QToolBar;
 class QLabel;
 class QAction;
@@ -83,6 +84,7 @@ public slots:
     void openGraphsById(const QVector<unsigned> & electrode_ids); ///< creates a "custom" page and opens the first numGraphsPerTab() graphs in the list on that page!
     void setDownsampling(bool checked);
     void setDownsamplingCheckboxEnabled(bool en);
+    void setDownsamplekHz(double khz);
 
 protected:
     void showEvent(QShowEvent *);
@@ -196,6 +198,7 @@ private:
 	QSet<GLGraph *> extraGraphs;
     std::vector<int16> scanTmp;
     QVector<unsigned> lastCustomChanset;
+    QDoubleSpinBox *downsamplekHz;
 
     mutable QMutex graphsMut; ///< recursive mutex.  locked whenever this class accesses graph data.  used because we are transitioning over to a threaded graphing data reader model as of Feb. 2016
 };

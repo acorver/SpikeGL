@@ -284,7 +284,8 @@ static void sapAcqCallback(SapAcqCallbackInfo *p)
 	}
     std::string msg = "";
     //SapAcquisition::EventNoPixelClk|SapAcquisition::EventFrameLost|SapAcquisition::EventPixelClk|SapAcquisition::EventDataOverflow
-    if (t & SapAcquisition::EventNoPixelClk) msg = msg + " No Pixel Clock!";
+	if (t & SapAcquisition::EventPixelClk) msg = msg + " Pixel Clock Resumed!";
+	if (t & SapAcquisition::EventNoPixelClk) msg = msg + " No Pixel Clock!";
     if (t & SapAcquisition::EventFrameLost) msg = msg + " Frame Lost!";
     if (t & SapAcquisition::EventDataOverflow) msg = msg + " Data Overflow!";
     if (!msg.size()) return;
@@ -302,7 +303,22 @@ static void sapStatusCallback(SapManCallbackInfo *p)
         } else {
             fprintf(stderr, "(SAP Status) %s\n", p->GetErrorMessage());
         }
-    }
+	}
+	else {
+		int t = int(p->GetEventType());
+		std::string msg = "";
+		//SapAcquisition::EventNoPixelClk|SapAcquisition::EventFrameLost|SapAcquisition::EventPixelClk|SapAcquisition::EventDataOverflow
+		if (t & SapAcquisition::EventPixelClk) msg = msg + " Pixel Clock Resumed!";
+		if (t & SapAcquisition::EventNoPixelClk) msg = msg + " No Pixel Clock!";
+		if (t & SapAcquisition::EventFrameLost) msg = msg + " Frame Lost!";
+		if (t & SapAcquisition::EventDataOverflow) msg = msg + " Data Overflow!";
+		if (!msg.size()) return;
+		if (spikeGL) {
+			spikeGL->pushConsoleError(std::string("(SAP Acq Event) ") + msg);
+		}
+		else
+			fprintf(stderr, "(SAP Acq Event) %s\n", msg.c_str());
+	}
 }
 
 // Resets server.. as per Jim Chen's recommendation 2/18/2016 email
@@ -381,7 +397,7 @@ static bool setupAndStartAcq()
         int nbufs = NUM_BUFFERS(); if (nbufs < 2) nbufs = 2;
 
         acq = new SapAcquisition(loc, configFilename.c_str(),
-                                 (SapAcquisition::EventType)SapAcquisition::EventNoPixelClk|SapAcquisition::EventFrameLost|SapAcquisition::EventPixelClk|SapAcquisition::EventDataOverflow/*|SapAcquisition::EventCameraBufferOverrun|SapAcquisition::EventCameraMissedTrigger*/|SapAcquisition::EventExternalTriggerIgnored/*|SapAcquisition::EventExtLineTriggerTooSlow*/|SapAcquisition::EventExternalTriggerTooSlow/*|SapAcquisition::EventLineTriggerTooFast|SapAcquisition::EventVerticalTimeout*/, 
+                                 (SapAcquisition::EventType)SapAcquisition::EventNoPixelClk|SapAcquisition::EventFrameLost|SapAcquisition::EventPixelClk|SapAcquisition::EventDataOverflow/*|SapAcquisition::EventCameraBufferOverrun|SapAcquisition::EventCameraMissedTrigger|SapAcquisition::EventExternalTriggerIgnored|SapAcquisition::EventExtLineTriggerTooSlow|SapAcquisition::EventExternalTriggerTooSlow|SapAcquisition::EventLineTriggerTooFast|SapAcquisition::EventVerticalTimeout*/, 
 								 sapAcqCallback);
         buffers = new SapBufferWithTrash(nbufs, acq);
         xfer = new SapAcqToBuf(acq, buffers, acqCallback, 0);

@@ -184,7 +184,7 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving, int graphUpdateRat
         setCentralWidget(nonTabWidget);
     }
     statusBar();
-    resize(1024,768);
+    resize(1152,864);
     graphCtls = addToolBar("Graph Controls");
 	if (p.bug.enabled) {
 		graphCtls->addWidget(chanBut = new QPushButton("Channel:", graphCtls));
@@ -233,12 +233,24 @@ void GraphsWindow::sharedCtor(DAQ::Params & p, bool isSaving, int graphUpdateRat
     QSettings settings("janelia.hhmi.org", APPNAME);
 	settings.beginGroup("GraphsWindow");
 	const bool setting_ds = settings.value("downsample",false).toBool(),
-		       setting_filt = settings.value("filter",true).toBool();
+               setting_filt = settings.value("filter",true).toBool();
+    const double setting_dshz = settings.value("downsample_hz",double(DOWNSAMPLE_TARGET_HZ)).toDouble();
 
-    QCheckBox *dsc = downsampleChk = new QCheckBox(QString("Downsample (%1 KHz)").arg(DOWNSAMPLE_TARGET_HZ/1000.), graphCtls);
+    QCheckBox *dsc = downsampleChk = new QCheckBox(QString("Downsample"), graphCtls);
     graphCtls->addWidget(dsc);
+
+    downsamplekHz = new QDoubleSpinBox(graphCtls);
+    downsamplekHz->setMinimum(0.010);
+    downsamplekHz->setMaximum(100.0);
+    downsamplekHz->setSingleStep(0.1);
+    downsamplekHz->setSuffix(" kHz");
+    downsamplekHz->setDecimals(2);
+    downsamplekHz->setValue(setting_dshz/1000.0);
+    graphCtls->addWidget(downsamplekHz);
+
     dsc->setChecked(setting_ds);
     Connect(dsc, SIGNAL(clicked(bool)), this, SLOT(setDownsampling(bool)));
+    Connect(downsamplekHz, SIGNAL(valueChanged(double)), this, SLOT(setDownsamplekHz(double)));
 
     highPassChk = new QCheckBox("Filter < 300Hz", graphCtls);
     graphCtls->addWidget(highPassChk);
@@ -702,17 +714,40 @@ void GraphsWindow::setDownsampling(bool checked)
         downsampleChk->blockSignals(false);
     }
 
+    double hz = downsamplekHz->value() * 1000.0;
     if (checked) {
-        downsampleRatio = params.srate/double(DOWNSAMPLE_TARGET_HZ);
+        if (hz <= 0.0) hz = 1.0;
+        downsampleRatio = params.srate/hz;
         if (downsampleRatio < 1.) downsampleRatio = 1.;
     } else
         downsampleRatio = 1.;
+    double khz = params.srate/downsampleRatio / 1000.0;
+    if (checked) {
+        // now update double spinbox with real value we are using.. useful
+        downsamplekHz->blockSignals(true);
+        downsamplekHz->setValue(khz);
+        downsamplekHz->blockSignals(false);
+    }
     for (int i = 0; i < graphs.size(); ++i)
         setGraphTimeSecs(i, graphTimesSecs[i]); // clear the points and reserve the right capacities.
     update_nPtsAllGs();
     QSettings settings("janelia.hhmi.org", APPNAME);
-	settings.beginGroup("GraphsWindow");
-	settings.setValue("downsample",checked);
+    settings.beginGroup("GraphsWindow");
+    settings.setValue("downsample",checked);
+    settings.setValue("downsample_hz", hz);
+
+    QString dstr;
+    dstr.sprintf("%2.2f%%, %2.2f kHz", (100.0/downsampleRatio), khz);
+
+    if (checked)
+        Log() << "Graph downsampling enabled, graph display: " << dstr;
+    else
+        Log() << "Graph downsampling disbaled, graph display: " << dstr;
+}
+
+void GraphsWindow::setDownsamplekHz(double kHz) {
+    (void)kHz;
+    setDownsampling(downsampleChk->isChecked()); // updates graphs implicitly
 }
 
 void GraphsWindow::setDownsamplingCheckboxEnabled(bool en) { downsampleChk->setEnabled(en); }
