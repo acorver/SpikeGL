@@ -380,7 +380,7 @@ namespace DAQ
 #ifdef Q_OS_WINDOWS
 		virtual QString interpreter() const { return ""; } 
 #else
-		virtual QString interpreter() const { return "mono"; } 
+        virtual QString interpreter() const { return "/usr/local/bin/mono"; }
 #endif
 		
 		volatile bool pleaseStop;
