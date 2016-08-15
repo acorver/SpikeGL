@@ -71,6 +71,19 @@ public:
     const QVector<int> & currentSorting() const { return sorting; }
     const QVector<int> & currentNaming() const { return naming; }
 
+    /** Hack for Huai-Ti's emergency 'manual override' button that implicitly saves
+     *  all data currently in the on-screen graphs immediately to the new data file.
+     *
+     *  This function helps with the implementation of that feature by grabbing all the data
+     *  currently on-screen and putting it into the scans_out array. It returns the number of
+     *  full scans written (divide scans_out.size() by the return value to determine scansize
+     *  aka numchans).
+     *
+     *  Note that graphs that aren't on-screen or have 'smaller' windows will have 0's written to the
+     *  appropriate spots in the scans_out data.. so that data still lines up (to the amount of data
+     *  in the largest graph on-screen). */
+    unsigned grabAllScansFromDisplayBuffers(std::vector<int16> & scans_out) const;
+
 signals:
 	void tabChanged(int tabNum);
     void manualTrig(bool);

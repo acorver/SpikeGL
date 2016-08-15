@@ -1608,3 +1608,27 @@ void GraphsWindow::openGraphsById(const QVector<unsigned> & ids)
 void GraphsWindow::showEvent(QShowEvent *e) { QMainWindow::showEvent(e); threadsafe_is_visible = e->isAccepted() || isVisible(); }
 void GraphsWindow::hideEvent(QHideEvent *e) { QMainWindow::hideEvent(e); threadsafe_is_visible = !(e->isAccepted() || isHidden()); }
 
+
+unsigned GraphsWindow::grabAllScansFromDisplayBuffers(std::vector<int16> & scans_out) const
+{
+    scans_out.resize(0);
+    QMutexLocker l(&graphsMut);
+    const int scansz = points.size();
+    int nscans = 0;
+    for (int i = 0; i < scansz; ++i) {
+        if (int(points[i].size()) > nscans) nscans = (int)points[i].size();
+    }
+    scans_out.resize(nscans*scansz, 0);
+    for (int scan = 0; scan < nscans; ++scan) {
+        for (int g = 0; g < int(points.size()); ++g) {
+            int offset = scansz - int(points[g].size());
+            if (offset >= 0 && scan >= offset) {
+                scans_out[scan*scansz + g] = static_cast<int16>(points[g].at(scan-offset).y * 32768.0f);
+            } else {
+                // missing data because either graph is not on-screen or it's visible amount of data is smaller than the largest graph's visible data.. so write 0's
+                scans_out[scan*scansz + g] = 0;
+            }
+        }
+    }
+    return static_cast<unsigned>(nscans);
+}
