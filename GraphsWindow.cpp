@@ -1635,7 +1635,13 @@ unsigned GraphsWindow::grabAllScansFromDisplayBuffers(std::vector<int16> & scans
             }
         }
     }
-    scans_out_resampled.clear();
-    Util::Resampler::resample(scans_out, scans_out_resampled, double(qRound(dsr)), scansz, Util::Resampler::SincMedium, true);
+    const int dsr_i = qRound(dsr);
+    if (dsr_i != 1) {
+        scans_out_resampled.clear();
+        Util::Resampler::resample(scans_out, scans_out_resampled, double(dsr_i), scansz, Util::Resampler::SincMedium, true);
+    } else {
+        // no resampling since graph data wasn't originally downsampled...
+        scans_out_resampled.swap(scans_out);
+    }
     return static_cast<unsigned>(scans_out_resampled.size()/scansz);
 }
