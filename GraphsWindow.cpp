@@ -76,8 +76,8 @@ static void initIcons()
 	}
 }
 
-GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving, bool useTabs, int graphUpdateRateHz)
-    : QMainWindow(parent), threadsafe_is_visible(false), params(p), useTabs(useTabs), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false), graphsMut(QMutex::Recursive)
+GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving, bool useTabs, int graphUpdateRateHz, bool keepPagedOutData)
+    : QMainWindow(parent), threadsafe_is_visible(false), params(p), useTabs(useTabs), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false), keepPagedOutGraphDataInMemory(keepPagedOutData), graphsMut(QMutex::Recursive)
 {
     sharedCtor(p, isSaving, graphUpdateRateHz);
 }
@@ -566,7 +566,7 @@ void GraphsWindow::setGraphTimeSecs(int num, double t)
 
     if (num < 0 || num >= (int)graphs.size()) return;
     graphTimesSecs[num] = t;
-    const i64 npts = nptsAll[num] = (graphs[num] ? i64(ceil(t*params.srate/downsampleRatio)) : 0); // if the graph is not on-screen, make it use 0 points in the points WB to save memory for high-channel-counts
+    const i64 npts = nptsAll[num] = ( (graphs[num] || keepPagedOutGraphDataInMemory) ? i64(ceil(t*params.srate/downsampleRatio)) : 0); // if the graph is not on-screen, make it use 0 points in the points WB to save memory for high-channel-counts
     points[num].reserve(npts);
     double s = t;
     int nlines = 1;
@@ -574,11 +574,11 @@ void GraphsWindow::setGraphTimeSecs(int num, double t)
     while (s>0. && !(nlines = int(s))) s*=10.;
 	if (graphs[num]) {
 		graphs[num]->setNumVGridLines(nlines);
-		graphs[num]->setPoints(0);
+        if (!keepPagedOutGraphDataInMemory) graphs[num]->setPoints(0);
 		graphStates[num] = graphs[num]->getState();
 	} else {
 		graphStates[num].nVGridLines = nlines;
-		graphStates[num].pointsWB = 0;
+        graphStates[num].pointsWB = keepPagedOutGraphDataInMemory ? &points[num] : 0;
 	}
 	graphStates[num].max_x = graphStates[num].min_x+t;
     graphStats[num].clear();
@@ -636,7 +636,7 @@ void GraphsWindow::putScans(const int16 * data, unsigned DSIZE, u64 firstSamp)
                 DPTR = (&scanTmp[0])-i;//fudge DPTR.. dangerous but below code always accesses it as DPTR[i], so it's ok
                 needFilter = false;
             }
-            if (graphs[idx] && !pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx)) {
+            if ( (graphs[idx] || keepPagedOutGraphDataInMemory) && !pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx)) {
                 v.x = t;
                 v.y = DPTR[i] / 32768.0; // hardcoded range of data
                 Vec2fWrapBuffer & pbuf = pts[idx];
@@ -662,20 +662,20 @@ void GraphsWindow::putScans(const int16 * data, unsigned DSIZE, u64 firstSamp)
             }
         }
         for (int i = 0; i < NGRAPHS; ++i) {
-            if (pgraphs[i] || !graphs[i]) continue;
+            if (pgraphs[i] || (!graphs[i] && !keepPagedOutGraphDataInMemory)) continue;
             // now, copy in temp data
-            if (graphs[i] && pts[i].size() >= 2) {
+            if ((graphs[i] || keepPagedOutGraphDataInMemory) && pts[i].size() >= 2) {
                 // now, readjust x axis begin,end
                 graphStates[i].min_x = pts[i].first().x;
 				if (graphs[i]) graphs[i]->minx() = graphStates[i].min_x;
 				graphStates[i].max_x = graphStates[i].min_x + graphTimesSecs[i];
                 if (graphs[i]) graphs[i]->maxx() = graphStates[i].max_x;
                 // XXX hack uncomment below 2 line if the empty gap at the end of the downsampled graph annoys you, or comment them out to remove this 'feature'
-                if (!points[i].unusedCapacity())
+                if (!points[i].unusedCapacity() && graphs[i])
                     graphs[i]->maxx() = points[i].last().x;
             } 
             // and, notify graph of new points
-            graphs[i]->setPoints(&pts[i]);
+            if (graphs[i]) graphs[i]->setPoints(&pts[i]);
         }
         
         tNow = getTime();
@@ -1362,7 +1362,7 @@ void GraphsWindow::openCustomChanset(const QVector<unsigned> & ids)
         GLGraph *g = gl.empty() ? *(extraGraphs.begin()) : *gl.begin();
         extraGraphs.remove(g);
         graphs[graphId] = g;
-        points[graphId].clear();
+        if (!keepPagedOutGraphDataInMemory) points[graphId].clear();
         g->setState(graphStates[graphId]);
         g->setPoints(&points[graphId]);
         QVBoxLayout *l = dynamic_cast<QVBoxLayout *>(f->layout());
@@ -1405,7 +1405,7 @@ void GraphsWindow::tabChange(int t)
             graphs[i]->setUpdatesEnabled(false);
 			graphStates[i] = graphs[i]->getState();
 			extraGraphs.insert(graphs[i]);
-			graphs[i]->setPoints(0); // clear points buf!
+            graphs[i]->setPoints(0); // clear points buf!
 			graphs[i] = 0;
 			setGraphTimeSecs(i, graphTimesSecs[i]); // call here forces the WB buffer to 0 bytes because graph[i] is NULL.. this saves memory 
 		}
@@ -1427,7 +1427,7 @@ void GraphsWindow::tabChange(int t)
 		GLGraph *g = gl.empty() ? *(extraGraphs.begin()) : *gl.begin();
 		extraGraphs.remove(g);
 		graphs[graphId] = g;
-		points[graphId].clear();
+        if (!keepPagedOutGraphDataInMemory) points[graphId].clear();
 		g->setState(graphStates[graphId]);
 		g->setPoints(&points[graphId]);
 		QVBoxLayout *l = dynamic_cast<QVBoxLayout *>(f->layout());
@@ -1609,26 +1609,33 @@ void GraphsWindow::showEvent(QShowEvent *e) { QMainWindow::showEvent(e); threads
 void GraphsWindow::hideEvent(QHideEvent *e) { QMainWindow::hideEvent(e); threadsafe_is_visible = !(e->isAccepted() || isHidden()); }
 
 
-unsigned GraphsWindow::grabAllScansFromDisplayBuffers(std::vector<int16> & scans_out) const
+unsigned GraphsWindow::grabAllScansFromDisplayBuffers(std::vector<int16> & scans_out_resampled) const
 {
-    scans_out.resize(0);
-    QMutexLocker l(&graphsMut);
-    const int scansz = points.size();
-    int nscans = 0;
-    for (int i = 0; i < scansz; ++i) {
-        if (int(points[i].size()) > nscans) nscans = (int)points[i].size();
-    }
-    scans_out.resize(nscans*scansz, 0);
-    for (int scan = 0; scan < nscans; ++scan) {
-        for (int g = 0; g < int(points.size()); ++g) {
-            int offset = scansz - int(points[g].size());
-            if (offset >= 0 && scan >= offset) {
-                scans_out[scan*scansz + g] = static_cast<int16>(points[g].at(scan-offset).y * 32768.0f);
-            } else {
-                // missing data because either graph is not on-screen or it's visible amount of data is smaller than the largest graph's visible data.. so write 0's
-                scans_out[scan*scansz + g] = 0;
+    std::vector<int16> scans_out;
+    double dsr;
+    int scansz, nscans;
+    {
+        QMutexLocker l(&graphsMut);
+        dsr = downsampleRatio;
+        scansz = points.size();
+        nscans = 0;
+        for (int i = 0; i < scansz; ++i) {
+            if (int(points[i].size()) > nscans) nscans = (int)points[i].size();
+        }
+        scans_out.resize(nscans*scansz, 0);
+        for (int scan = 0; scan < nscans; ++scan) {
+            for (int g = 0; g < scansz; ++g) {
+                int offset = nscans - int(points[g].size());
+                if (offset >= 0 && scan >= offset) {
+                    scans_out[scan*scansz + g] = static_cast<int16>(points[g].at(scan-offset).y * 32768.0f);
+                } else {
+                    // missing data because either graph is not on-screen or it's visible amount of data is smaller than the largest graph's visible data.. so write 0's
+                    scans_out[scan*scansz + g] = 0;
+                }
             }
         }
     }
-    return static_cast<unsigned>(nscans);
+    scans_out_resampled.clear();
+    Util::Resampler::resample(scans_out, scans_out_resampled, double(qRound(dsr)), scansz, Util::Resampler::SincMedium, true);
+    return static_cast<unsigned>(scans_out_resampled.size()/scansz);
 }

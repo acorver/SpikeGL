@@ -1520,8 +1520,19 @@ bool MainApp::taskReadFunc()
                     if (n < 0) n = 0;
                     else if (n > i64(scanSz)) n = scanSz;
                 }
-                if (triggerOffset >= 0 && preBuf.size()) {
-                    prependPrebufToScans(preBuf, prebuf_scans, prebufCopied, triggerOffset);
+                if (dataFile.sampleCount() == 0 && taskHasManualTrigOverride
+                        && p.acqStartEndMode == DAQ::Bug3TTLTriggered && graphsWindow) {
+                    // if we are in Bug3 mode, and they clicked "manual trigger", then we force all the scans from the graphs
+                    // windows to be written to the data file.  This feature was requested by Huai-Ti in August 2016
+                    // as a workaround for telemetry system not sending frames and never receiving the trigger signal
+                    // in SpikeGL
+                    unsigned ndispscans = graphsWindow->grabAllScansFromDisplayBuffers(prebuf_scans);
+                    Debug() << "Bug3 Mode: Manual trigger workaround: Grabbed " << ndispscans << " scans from display buffers and prepended to file...";
+                } else {
+                    // otherwise, do the normal prebuf prepend stuff here
+                    if (triggerOffset >= 0 && preBuf.size()) {
+                        prependPrebufToScans(preBuf, prebuf_scans, prebufCopied, triggerOffset);
+                    }
                 }
                 if (wasFakeData) {
                     // indicate bad data in output file..

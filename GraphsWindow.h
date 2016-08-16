@@ -32,7 +32,8 @@ class GraphsWindow : public QMainWindow
     Q_OBJECT
 public:
     GraphsWindow(DAQ::Params & params, QWidget *parent = 0, bool isSaving = true, bool usesTabModeForNavigation = true/*set to false for framegrabber mode and enable spatial vis click method*/,
-                 int graphUpdateRateHz = -1 /* if set to >0, specifies that the graphs should be updated this many times per second.  If not set, uses DEF_TASK_READ_FREQ_HZ from SpikeGL.h */);
+                 int graphUpdateRateHz = -1 /* if set to >0, specifies that the graphs should be updated this many times per second.  If not set, uses DEF_TASK_READ_FREQ_HZ from SpikeGL.h */,
+                 bool keepPagedOutGraphDataInMemory = false /* if set to true, this class keeps around all data points it receives in memory so that the grapAllScansFromDisplayBuffers() function above returns ALL the data seen */);
     ~GraphsWindow();
 
     bool threadsafeIsVisible() const { return threadsafe_is_visible; }
@@ -212,6 +213,7 @@ private:
     std::vector<int16> scanTmp;
     QVector<unsigned> lastCustomChanset;
     QDoubleSpinBox *downsamplekHz;
+    bool keepPagedOutGraphDataInMemory;
 
     mutable QMutex graphsMut; ///< recursive mutex.  locked whenever this class accesses graph data.  used because we are transitioning over to a threaded graphing data reader model as of Feb. 2016
 };
