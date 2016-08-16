@@ -989,9 +989,9 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
             return false;
     }
 
-    if (params.acqStartEndMode == DAQ::Bug3TTLTriggered)
+    if (params.acqStartEndMode == DAQ::Bug3TTLTriggered) {
         graphsWindow->setTrigOverrideEnabled(true);
-    else
+    } else
         graphsWindow->setTrigOverrideEnabled(false);
 
     if (reader) delete reader, reader = 0;
@@ -1045,6 +1045,10 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         windowMenuActivate(spatialWindow);
         fgtask->dialogW->show();
         fgtask->dialogW->activateWindow();
+    } else if (bugtask && params.acqStartEndMode == DAQ::Bug3TTLTriggered) {
+        // force downsampling off because we need the on-screen data for our manual trigger override feature "prepend" feature!
+        graphsWindow->setDownsampling(false);
+        graphsWindow->setDownsamplingCheckboxEnabled(false);
     } else {
         graphsWindow->setDownsamplingCheckboxEnabled(true);
     }

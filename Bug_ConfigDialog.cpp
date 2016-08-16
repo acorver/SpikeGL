@@ -148,6 +148,7 @@ int Bug_ConfigDialog::exec()
 				p.chanMap = ChanMap();
                 if (hasAuxTrig || hasTtlTrig) {
 					p.acqStartEndMode = DAQ::Bug3TTLTriggered;
+                    p.overrideGraphsPerTab = 36; ///< force all graphs to always be on screen!
 					p.isImmediate = false;
                     p.idxOfPdChan = trigIdx;
 					p.usePD = true;
