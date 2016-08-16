@@ -98,6 +98,7 @@ public slots:
     void openGraphsById(const QVector<unsigned> & electrode_ids); ///< creates a "custom" page and opens the first numGraphsPerTab() graphs in the list on that page!
     void setDownsampling(bool checked);
     void setDownsamplingCheckboxEnabled(bool en);
+    void setDownsamplingSpinboxEnabled(bool en);
     void setDownsamplekHz(double khz);
 
 protected:

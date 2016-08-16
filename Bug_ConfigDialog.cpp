@@ -366,6 +366,11 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
     dialog->trigParams->setEnabled(isLineSelected);
     dialog->altTrigParams->setEnabled(isLineSelected);
     dialog->ttlAltChk->setEnabled(isLineSelected);
+    dialog->graphsPerTabCB->setEnabled(!isLineSelected);
+    dialog->graphsPerTabLabel->setEnabled(!isLineSelected);
+    if (isLineSelected) {
+        dialog->graphsPerTabCB->setCurrentIndex(0);
+    }
 }
 
 void Bug_ConfigDialog::aoBufferSizeSliderChanged()

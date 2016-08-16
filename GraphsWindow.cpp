@@ -752,6 +752,8 @@ void GraphsWindow::setDownsamplekHz(double kHz) {
 
 void GraphsWindow::setDownsamplingCheckboxEnabled(bool en) { downsampleChk->setEnabled(en); }
 
+void GraphsWindow::setDownsamplingSpinboxEnabled(bool en) { downsamplekHz->setEnabled(en); }
+
 
 void GraphsWindow::doPauseUnpause(int num, bool updateCtls)
 {

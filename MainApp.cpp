@@ -1049,6 +1049,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
         // force downsampling off because we need the on-screen data for our manual trigger override feature "prepend" feature!
         graphsWindow->setDownsampling(false);
         graphsWindow->setDownsamplingCheckboxEnabled(false);
+        graphsWindow->setDownsamplingSpinboxEnabled(false);
     } else {
         graphsWindow->setDownsamplingCheckboxEnabled(true);
     }
