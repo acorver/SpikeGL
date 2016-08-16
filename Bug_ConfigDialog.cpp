@@ -333,6 +333,11 @@ Bug_ConfigDialog::ValidationResult Bug_ConfigDialog::validateForm(QString & errT
 		errMsg = QString("The same TTL channel (%1) was specified twice in both TTL combo boxes. Try again.").arg(dialog->ttl2CB->currentIndex()-1);
 		return AGAIN;					
 	}*/
+    if ( (!dialog->ttlAltChk->isChecked() && (dialog->trigStopTimeSB->value() >= 10.0 || dialog->trigPre->value() >= 10000))
+         || (dialog->ttlAltChk->isChecked() && (dialog->trigPost->value() >= 10000 || dialog->trigPre_2->value() >= 10000)) ) {
+        int res = QMessageBox::warning(0,"Large Pre/Post Window Specified", "The trigger pre/post window size is a bit large (>10s). This may use up a lot of memory and lead to performance issues. Proceed anyway?",QMessageBox::Ok|QMessageBox::Retry, QMessageBox::Retry);
+        if (res == QMessageBox::Retry) return AGAIN;
+    }
 	QVector<unsigned> subsetChans;
     QString subsetString = dialog->channelSubsetLE->text().trimmed();	
 	if (!subsetString.size()) subsetString = "ALL";
