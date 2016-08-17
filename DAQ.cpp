@@ -343,7 +343,7 @@ namespace DAQ
         static int overflowct = 0;
     
         if (++overflowct == 5) {
-            emit(daqError("Overflow limit exceeded"));
+            emit(taskError("Overflow limit exceeded"));
         }
 #endif
     }
@@ -390,7 +390,7 @@ namespace DAQ
         if (!f.open(QIODevice::ReadOnly)) {
             QString err = QString("Could not open %1!").arg(fname);
             Error() << err;
-            emit daqError(err);        
+            emit taskError(err);
             return;
         }
         std::vector<int16> data;
@@ -798,7 +798,7 @@ namespace DAQ
                 /// Aieeeee!  Need ext clock for demux mode!
                 QString e("Aieeeee!  Need to use an EXTERNAL clock for DEMUX mode!");
                 Error() << e;
-                emit daqError(e);
+                emit taskError(e);
                 return;
             }
              */
@@ -858,7 +858,7 @@ namespace DAQ
 
         if (p.aoPassthru && aoAITab.size()) {
             aoWriteThr = new AOWriteThread(0, aoChan, p);
-            Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
+            Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(taskError(const QString &)));
             aoWriteThr->start();                
         }
 
@@ -1075,7 +1075,7 @@ namespace DAQ
                         /* Note: deleting the old AOWrite thread is potentially slow due to expensive/slow wait for DAQmxWriteBinary to finish when joining threads
                                  so.. we tell the newly created aowrite thread to delete the old thread for us!  Clever! :) */
                         aoWriteThr = new AOWriteThread(0, aoChan, p, aoWriteThr /* old thread to delete when start() is called... */);
-                        Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
+                        Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(taskError(const QString &)));
                         aoWriteThr->start();
                     }
                 }
@@ -1114,7 +1114,7 @@ namespace DAQ
                 if (aoWriteThr) {
                     delete aoWriteThr, aoWriteThr = 0; 
                     aoWriteThr = new AOWriteThread(0, aoChan, p);
-                    Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
+                    Connect(aoWriteThr, SIGNAL(daqError(const QString &)), this, SIGNAL(taskError(const QString &)));
                     aoWriteThr->start();
                 }
                 setDO(false);
@@ -1145,7 +1145,7 @@ namespace DAQ
             if (!noDaqErrPrint) {
                 Error() << e;
             }
-            emit daqError(e);
+            emit taskError(e);
         }
         
     }
@@ -1182,7 +1182,8 @@ namespace DAQ
 
         // Channel parameters
         const QString & chan (doCtlChan());
-        
+        if (chan.isEmpty()) return;
+
         // Write parameters
         uint32      w_data [1];
 
@@ -1223,7 +1224,7 @@ namespace DAQ
             e.sprintf("DAQmx Error %d: %s", error, errBuff);
             if (!noDaqErrPrint) 
                 Error() << e;
-            emit daqError(e);
+            emit taskError(e);
         }
     }
 
@@ -1412,7 +1413,7 @@ namespace DAQ
 			case QProcess::NotRunning:
 				Debug() << shortName << " slave process got state change -> NotRunning";
 				if (isRunning() && !pleaseStop) {
-					emit daqError(shortName + " slave process died unexpectedly!");
+                    emit taskError(shortName + " slave process died unexpectedly!");
 					pleaseStop = true;
 					Debug() << shortName << " task thread still running but slave process died -- signaling daqThr() to end as a result...";
 				} 
@@ -1429,7 +1430,7 @@ namespace DAQ
 	void SubprocessTask::daqThr() 
 	{		
 		if (!platformSupported()) {
-			emit daqError(QString("This platform does not support the ") + shortName + " acquisition mode!");
+            emit taskError(QString("This platform does not support the ") + shortName + " acquisition mode!");
 			pleaseStop = true;
 			return;			
 		}
@@ -1437,7 +1438,7 @@ namespace DAQ
 		pleaseStop = false;
 		QString err("");
 		if (!setupExeDir(&err)) {
-			emit daqError(err);
+            emit taskError(err);
 			return;
 		}
         QProcess p(0); // Qt throws a warning if we create the process with "this" as its QObject parent because 'this' object lives in another thread. Weird.  No harm tho: note that even though the qprocess has no parent, it's ok, it will die anyway :)
@@ -1460,12 +1461,12 @@ namespace DAQ
 			p.start(interpreter(), QStringList()<<exePath());
 		} 
 		if (p.state() == QProcess::NotRunning) {
-			emit daqError(shortName + " slave process startup failed!");
+            emit taskError(shortName + " slave process startup failed!");
 			p.kill();
 			return;
 		}
 		if (!p.waitForStarted(30000)) {
-			emit daqError(shortName + " slave process: startup timed out!");
+            emit taskError(shortName + " slave process: startup timed out!");
 			p.kill();
 			return;
 		}
@@ -1483,7 +1484,7 @@ namespace DAQ
 				qint64 n_avail = p.bytesAvailable();
                 if (n_avail == 0 && !p.waitForReadyRead(1000)) {
 					if (++tout_ct > readTimeoutMaxSecs()) {
-						emit(daqError(shortName + " slave process: timed out while waiting for data!"));
+                        emit(taskError(shortName + " slave process: timed out while waiting for data!"));
 						p.kill();
 						return;
 					} else {
@@ -1493,7 +1494,7 @@ namespace DAQ
 						continue;
 					}
 				} else if (n_avail < 0) {
-                    emit(daqError(shortName + " slave process: eof on stdout stream!"));
+                    emit(taskError(shortName + " slave process: eof on stdout stream!"));
 					p.kill();
 					return;
 				}
@@ -1518,7 +1519,7 @@ namespace DAQ
             } else {
                 msleep(10); // sleep 10ms and try again..
                 if (++notRunningCt > 100) {
-                    emit daqError(shortName + " slave process died unexpectedly!");
+                    emit taskError(shortName + " slave process died unexpectedly!");
                     p.kill();
                     return;
                 }
@@ -1584,7 +1585,7 @@ namespace DAQ
     /*static*/ const double BugTask::MinBER = -5.0;
 
     BugTask::BugTask(DAQ::Params & p, QObject *parent, const PagedScanReader & psr)
-        : SubprocessTask(p, parent, "Bug3", "bug3_spikegl.exe", psr), req_shm_pg_sz(requiredShmPageSize(p.nVAIChans)), aoWriteThread(0), aoSampCount(0)
+        : SubprocessTask(p, parent, "Bug3", "bug3_spikegl.exe", psr), req_shm_pg_sz(requiredShmPageSize(p.nVAIChans)), aoWriteThread(0), aoSampCount(0), aireader(0)
 	{
 		state = 0; nblocks = 0; nlines = 0;
 		debugTTLStart = 0;
@@ -1599,6 +1600,7 @@ namespace DAQ
 #else // !FAKEDAQ == real NI platform
         if (aoWriteThread) delete aoWriteThread; aoWriteThread=0;
 #endif
+        if (aireader) delete aireader, aireader=0;
         if (numChans() > 0)
             Debug() << "Bug Task `" << objectName() << "' deleted after processing " << totalRead/u64(numChans()) << " scans.";
     }
@@ -1710,7 +1712,7 @@ namespace DAQ
 				++state;
 			}
 		} else if (!state && line.startsWith("USRMSG:")) {
-			emit(daqWarning(line.mid(7).trimmed()));
+            emit(taskWarning(line.mid(7).trimmed()));
         } else if (!state && line.startsWith("WARNMSG:")) {
             Warning() << "Bug3: " << line.mid(8).trimmed();
         } else if (!state && line.startsWith("LOGMSG:")) {
@@ -1720,11 +1722,31 @@ namespace DAQ
 	
 	void BugTask::processBlock(const QMap<QString, QString> & blk, quint64 blockNum)
 	{
+        /* HACK XXX TESTING FIXME DELETEME
+        static SingleChanAIReader *r = 0;
+        if (!r) {
+            r = new SingleChanAIReader(0);
+            QString err = r->startDAQ("Dev1/ai0", 1000.0, 0.090, 128);
+            if (err.length()) {
+                Error() << "SingleChanAIReader::startDAQ error: " << err;
+            }
+            Connect(r, SIGNAL(error(const QString &)), mainApp(), SLOT(gotTaskError(const QString &)));
+            Connect(r, SIGNAL(warning(const QString &)), mainApp(), SLOT(gotTaskWarning(const QString &)));
+        }
+        if (r) {
+            std::vector<int16> samps;
+            if (r->readAll(samps)) {
+                Debug() << "SingleChanAIReader::readAll read " << samps.size() << " samples";
+            } else {
+                Debug() << "SingleChanAIReader::readAll could not read samples.";
+            }
+        }
+        // END HACK */
 		BlockMetaData meta;
 		meta.blockNum = blockNum;
 		const int nchans (numChans());
 		std::vector<int16> samps;
-		samps.resize(nchans * NeuralSamplesPerFrame * FramesPerBlock); // todo: fix to come from params?
+        samps.resize(nchans * NeuralSamplesPerFrame * FramesPerBlock, 0); // todo: fix to come from params?
 		
 		// todo implement..
 		for (QMap<QString,QString>::const_iterator it = blk.begin(); it != blk.end(); ++it) {
@@ -2004,6 +2026,7 @@ namespace DAQ
 		totalReadMut.unlock();
 
         handleAOPassthru(samps);
+        handleAI(samps);
 
 		//Debug() << "Enq: " << samps.size() << " samps, firstSamp: " << oldTotalRead;
         if (!writer.write(&samps[0],unsigned(samps.size())/nchans,&meta)) {
@@ -2011,6 +2034,29 @@ namespace DAQ
         }
 		if (!oldTotalRead) emit(gotFirstScan());
 	}
+
+    void BugTask::handleAI(std::vector<int16> & samps) {
+        if (!aireader && !params.bug.aiTrig.isEmpty()) {
+            aireader = new SingleChanAIReader(0);
+            Connect(aireader, SIGNAL(error(const QString &)), this, SIGNAL(taskError(const QString &)));
+            Connect(aireader, SIGNAL(warning(const QString &)), this, SIGNAL(taskWarning(const QString &)));
+            QString err = aireader->startDAQ(params.bug.aiTrig, params.srate, 0.010, 1000);
+            if (!err.isEmpty()) emit taskError(err);
+        }
+        if (!aireader) return;
+        std::vector<int16> ais;
+        if (aireader->readAll(ais)) {
+            Debug() << shortName << ": read " << ais.size() << " samples from AI";
+            int nchans = numChans(), nscans = samps.size()/nchans;
+            int off = int(ais.size())-nscans;
+            for (int i = off < 0 ? -off : 0; i < nscans; ++i) {
+                int o = off > 0 ? off : 0;
+                samps[i*nchans+(nchans-1)] = ais[o+i];
+            }
+        } else {
+            Debug() << shortName << ": failed to read from AI";
+        }
+    }
 		
     void BugTask::handleAOPassthru(const std::vector<int16> &samps)
     {
@@ -2028,7 +2074,7 @@ namespace DAQ
                 savedAOPassthruString = aops;
                 NITask::recomputeAOAITab(aoAITab, aoChan, params);
                 aoWriteThread = new AOWriteThread(0,aoChan,params,aoWriteThread);
-                Connect(aoWriteThread, SIGNAL(daqError(const QString &)), this, SIGNAL(daqError(const QString &)));
+                Connect(aoWriteThread, SIGNAL(daqError(const QString &)), this, SIGNAL(taskError(const QString &)));
                 aoWriteThread->dequeueWarnThresh = 50;
                 aoWriteThread->start();
             }
@@ -2086,13 +2132,15 @@ namespace DAQ
 		num -= TotalAuxChans;
 		if (int(num) < TotalTTLChans)
 			return QString("TTL%1").arg(num);
-		return QString("UNK%1").arg(num);
+        num -= TotalTTLChans;
+        return QString("AI%1").arg(num);
 	}
 	
 	/* static */ bool BugTask::isNeuralChan(unsigned num) { return int(num) < TotalNeuralChans; }
 	/* static */ bool BugTask::isEMGChan(unsigned num) { return int(num) >= TotalNeuralChans && int(num) < TotalNeuralChans+TotalEMGChans; }
 	/* static */ bool BugTask::isAuxChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans; }
 	/* static */ bool BugTask::isTTLChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans+TotalAuxChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans+TotalTTLChans; }
+    /* static */ bool BugTask::isAIChan(const Params & p, unsigned num) { return !p.bug.aiTrig.isEmpty() && p.idxOfPdChan == num; }
 	
 	/*-------------------- Framegrabber Task --------------------------------*/
 	
@@ -2219,7 +2267,7 @@ namespace DAQ
 					case XtCmdConsoleMsg::Error:
                         c = QColor(Qt::red);
 						Error() << shortName << ": " << msg; 
-						emit(daqError(shortName + " slave process: " + msg));
+                        emit(taskError(shortName + " slave process: " + msg));
 						break;
 					case XtCmdConsoleMsg::Warning:
                         c = QColor(Qt::magenta);
@@ -2632,6 +2680,92 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
 
         last_hw_probe_ts = getTime();
         Debug() << "Probe done, found " << probedHardware.size() << " valid AcqDevices in " << (last_hw_probe_ts-t0) << " secs.";
+    }
+
+    SingleChanAIReader::SingleChanAIReader(QObject *parent)
+        : QObject(parent), mem(0), psr(0), nitask(0) {}
+
+    SingleChanAIReader::~SingleChanAIReader() { reset(); }
+
+    void SingleChanAIReader::reset() {
+        if (nitask) {
+            nitask->stop();
+            delete nitask, nitask = 0;
+        }
+        if (psr) { delete psr, psr = 0; }
+        if (mem) { delete [] mem, mem = 0; }
+    }
+
+    bool SingleChanAIReader::readAll(std::vector<int16> & samps) {
+        samps.clear();
+        if (!nitask || !psr || !mem) return false;
+        int nSkips; unsigned nScans;
+        const short *buf = 0;
+        do {
+            buf = psr->next(&nSkips, 0, &nScans);
+            if (buf && nScans) {
+                samps.reserve(samps.size()+nScans);
+                for (unsigned i = 0; i < nScans; ++i) {
+                    samps.push_back(buf[i]);
+                }
+            }
+        } while(buf);
+        return samps.size() != 0;
+    }
+
+    /*static*/ int SingleChanAIReader::parseDevChan(const QString & devchan, QString & dev) {
+        QStringList l = devchan.split(QString("/"), QString::KeepEmptyParts);
+        dev = "";
+        if (l.size() == 2) {
+            dev = l.front();
+            QString ch = l.back();
+            QRegExp re("[^0-9]*([0-9]+)");
+            if (re.exactMatch(ch)) {
+                return re.cap(1).toUInt();
+            }
+        }
+        return -1;
+    }
+
+    QString SingleChanAIReader::startDAQ(const QString &devch, double srate, double bsecs, unsigned nbufs)
+    {
+        reset();
+        if (srate < 16.0) return "SinglsChanAIReader: Invalid sampling rate specified. Need at least 16Hz";
+        if (bsecs < 0.001) return "SinglsChanAIReader: Invalid buffer size secs specified.  Need at least 1ms worth of buffer size!";
+        int bufsamps = bsecs * srate;
+        if (bufsamps < 16) bufsamps = 16;
+        if (nbufs < 2) nbufs = 2;
+        unsigned long sz_bytes = 0;
+        mem = new char[(sz_bytes = sizeof(int16) * bufsamps * nbufs + 4096)];
+        Debug() << "SingleChanAIReader using " << double(sz_bytes/(1024.0)) << " KB buffer";
+        psr = new PagedScanReader(1, 0, mem, sz_bytes, bufsamps);
+        Params & p(fakeParams);
+        p.dualDevMode = false; p.range.min=-5; p.range.max=5; p.mode=AIRegular;
+        p.extClock = false;
+        int chan = parseDevChan(devch, p.dev);
+        if (chan < 0) { return QString("SinglsChanAIReader: Invalid devch string: ") + devch; }
+        p.srate = srate; p.aiString=QString::number(chan);
+        p.aiChannels.clear(); p.aiChannels.push_back(chan);
+        p.nVAIChans = 1; p.nVAIChans1 = 1; p.nVAIChans2 = 0; p.nExtraChans1 = 0;
+        p.aoPassthru = false;
+        p.aoDev = "";
+        p.chanDisplayNames.clear(); p.chanDisplayNames.push_back(QString("AI")+QString::number(chan));
+        p.acqStartEndMode = Immediate;
+        p.usePD = false;  p.lowLatency = true; p.aiTerm = Default; p.auxGain = 1.0;
+        p.aiBufferSizeCS = (bsecs*100.0) / 2.0;
+        if (p.aiBufferSizeCS < 1) p.aiBufferSizeCS = 1;
+        p.autoRetryOnAIOverrun = true;
+        ChanMap m; m.push_back(ChanMapDesc());
+        p.chanMap = m;
+        p.subsetString = "ALL";
+        p.demuxedBitMap.resize(1); p.demuxedBitMap.fill(true);
+        p.doCtlChan = 0;
+        p.doCtlChanString = "";
+        nitask = new NITask(p, 0, *psr);
+        Connect(nitask, SIGNAL(taskError(const QString &)), this, SIGNAL(error(const QString &)));
+        Connect(nitask, SIGNAL(taskWarning(const QString &)), this, SIGNAL(warning(const QString &)));
+        nitask->start();
+        return "";
     }
 	
 } // end namespace DAQ

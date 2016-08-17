@@ -80,7 +80,9 @@ int Bug_ConfigDialog::exec()
 				p.bug.reset();
 				p.bug.enabled = true;
 				p.bug.rate = dialog->acqRateCB->currentIndex();
-                if (dialog->ttlTrigCB->currentIndex() > 2) {
+                if (dialog->ttlTrigCB->currentIndex() >= 1 + DAQ::BugTask::TotalAuxChans+DAQ::BugTask::TotalTTLChans) {
+                    p.bug.aiTrig = dialog->ttlTrigCB->currentText();
+                } else if (dialog->ttlTrigCB->currentIndex() > 2) {
                     p.bug.ttlTrig = dialog->ttlTrigCB->currentIndex()-3;
                     p.bug.whichTTLs |= (0x1 << p.bug.ttlTrig);
                 } else if (dialog->ttlTrigCB->currentIndex() > 0) {
@@ -90,14 +92,21 @@ int Bug_ConfigDialog::exec()
 				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
 					if (ttls[i]->isChecked()) p.bug.whichTTLs |= 0x1 << i;  
 				}
-                const bool hasAuxTrig = p.bug.auxTrig > -1, hasTtlTrig = p.bug.ttlTrig > -1;
-                int trigIdx = hasAuxTrig ? DAQ::BugTask::FirstAuxChan : DAQ::BugTask::BaseNChans;
-                if (!hasAuxTrig && hasTtlTrig) {
+                const bool hasAuxTrig = p.bug.auxTrig > -1, hasTtlTrig = p.bug.ttlTrig > -1, hasAITrig = p.bug.aiTrig.length()!=0;
+                int trigIdx=0;
+                if (hasAuxTrig)
+                    trigIdx = DAQ::BugTask::FirstAuxChan;
+                else if (hasTtlTrig)
+                    trigIdx = DAQ::BugTask::BaseNChans;
+                else if (hasAITrig)
+                    trigIdx = DAQ::BugTask::BaseNChans;
+                if (!hasAuxTrig && (hasTtlTrig || hasAITrig)) {
                     for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
                         if (i == p.bug.ttlTrig) break;
+                        // for both TTL trig mode and AI trig mode, this here gets incremented once for each TTL line turned on!
                         if (p.bug.whichTTLs & (0x1<<i)) ++trigIdx;
                     }
-                } else if (hasAuxTrig && !hasTtlTrig) {
+                } else if (hasAuxTrig) {
                     trigIdx += p.bug.auxTrig;
                 }
 				p.bug.clockEdge = dialog->clkEdgeCB->currentIndex();
@@ -110,7 +119,7 @@ int Bug_ConfigDialog::exec()
 				int nttls = 0;
 				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i)
 					if ( (p.bug.whichTTLs >> i) & 0x1) ++nttls; // count number of ttls set 
-				p.nVAIChans = DAQ::BugTask::BaseNChans + nttls;
+                p.nVAIChans = DAQ::BugTask::BaseNChans + nttls + (hasAITrig ? 1 : 0);
 				p.nVAIChans1 = p.nVAIChans;
 				p.nVAIChans2 = 0;
 				p.aiChannels2.clear();
@@ -146,7 +155,7 @@ int Bug_ConfigDialog::exec()
 				p.acqStartEndMode = DAQ::Immediate;
 				p.usePD = 0;
 				p.chanMap = ChanMap();
-                if (hasAuxTrig || hasTtlTrig) {
+                if (hasAuxTrig || hasTtlTrig || hasAITrig) {
 					p.acqStartEndMode = DAQ::Bug3TTLTriggered;
                     p.overrideGraphsPerTab = 36; ///< force all graphs to always be on screen!
 					p.isImmediate = false;
@@ -240,7 +249,7 @@ int Bug_ConfigDialog::exec()
                         for (int j=0; j < lim && j < DAQ::BugTask::TotalTTLChans ; ++j)
                             if (!(p.bug.whichTTLs & (0x1<<j))) ++chan_id_for_display, ++lim;
 
-                        if (hasTtlTrig && trigIdx == (int)i) {
+                        if ((hasTtlTrig || hasAITrig) && trigIdx == (int)i) {
                             // acq is using TTL line for triggering.. convert Volts from GUI to a sample value for MainApp:taskReadFunc().. note this is ill defined really as TTL lines are always either 0 or 5V
                             int samp = static_cast<int>(( ( (p.bug.trigThreshV-r.min)/(r.max-r.min) ) * 65535.0 ) - 32768.0);
                             if (samp < -32767) samp = -32767;
@@ -275,10 +284,25 @@ void Bug_ConfigDialog::guiFromSettings()
 	for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
 		ttls[i]->setChecked(p.bug.whichTTLs & (0x1<<i));
 	}
+
+    const int ai_trig_offset = DAQ::BugTask::TotalAuxChans+DAQ::BugTask::TotalTTLChans+1;
+    int selected_ai_cb_ix = -1;
+    if (dialog->ttlTrigCB->count() <= ai_trig_offset) {
+        DAQ::DeviceChanMap cm = DAQ::ProbeAllAIChannels();
+        for (DAQ::DeviceChanMap::iterator it = cm.begin(); it != cm.end(); ++it) {
+            for (QStringList::iterator it2 = it.value().begin(); it2 != it.value().end(); ++it2) {
+                dialog->ttlTrigCB->addItem(*it2);
+                if (p.bug.aiTrig.compare(*it2)==0) selected_ai_cb_ix = dialog->ttlTrigCB->count()-1;
+            }
+        }
+    }
+
     if (p.bug.ttlTrig > -1)
         dialog->ttlTrigCB->setCurrentIndex(p.bug.ttlTrig+3);
     else if (p.bug.auxTrig > -1)
         dialog->ttlTrigCB->setCurrentIndex(p.bug.auxTrig+1);
+    else if (selected_ai_cb_ix > -1)
+        dialog->ttlTrigCB->setCurrentIndex(selected_ai_cb_ix);
     else
         dialog->ttlTrigCB->setCurrentIndex(0);
     dialog->clkEdgeCB->setCurrentIndex(p.bug.clockEdge);
@@ -359,10 +383,11 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
 {
 	for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i)
 		ttls[i]->setEnabled(true);
-    if (dialog->ttlTrigCB->currentIndex() > 2) {
+    const int idx = dialog->ttlTrigCB->currentIndex(), limit_non_ai_idx = DAQ::BugTask::TotalAuxChans+DAQ::BugTask::TotalTTLChans+1;
+    if (idx > 2 && dialog->ttlTrigCB->currentIndex() < limit_non_ai_idx) {
         ttls[dialog->ttlTrigCB->currentIndex()-3]->setEnabled(false);
 	}
-    const bool isLineSelected = dialog->ttlTrigCB->currentIndex() != 0;
+    const bool isLineSelected = idx != 0;
     dialog->trigParams->setEnabled(isLineSelected);
     dialog->altTrigParams->setEnabled(isLineSelected);
     dialog->ttlAltChk->setEnabled(isLineSelected);

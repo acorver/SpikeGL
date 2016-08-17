@@ -154,8 +154,9 @@ namespace DAQ
 			bool enabled; // if true, acquisition is in bug mode
 			int rate; // 0 = Low, 1 = Medium, 2 = High
 			int whichTTLs; // bitset of which TTLs to save/graph, TTLs from 1->11 maps to bits #0->10
-            int ttlTrig; // the TTL channel to use for a trigger, or -1 if not using ttl to trigger. Note either this or auxTrig should be set to > -1, or neither, but never both
-            int auxTrig; // the AUX channel to use for a trigger, or -1 if not using aux to trigger. Note either this or ttlTrig should be set to > -1, or neither, but never both
+            int ttlTrig; // the TTL channel to use for a trigger, or -1 if not using ttl to trigger. Note either this or auxTrig or aiTrig should be set to > -1, or none of the 3, but never more than 1
+            int auxTrig; // the AUX channel to use for a trigger, or -1 if not using aux to trigger. Note either this or ttlTrig or aiTrig should be set to > -1, or none of the 3, but never more than 1
+            QString aiTrig; // the NI-DAQ AI channel to use for a trigger, in Dev1/ai1 format... or "" if not using NI-DAQ for trigger. Note either this or ttlTrig or auxTrig should be set, or none of the 3, but never more than 1
 			int clockEdge; // 0 = rising, 1 = falling
 			int hpf; // if nonzero, the high pass filter is enabled at set to filter past this many Hz
 			bool snf; // if true, use the software notch filter at 60Hz
@@ -164,7 +165,7 @@ namespace DAQ
             QString aoPassthruString; // defaults to "", but can be something eg 0=1
             unsigned aoSrate;
             bool altTTL; ///< if true, use alternate TTL triggering scheme whereby a single TTL pulse has a pre window and a post window surrounding it in the data file
-            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; }
+            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; }
 		} bug;
 		
 		struct FG { // framegrabber
@@ -250,8 +251,8 @@ namespace DAQ
 	signals:
         void bufferOverrun();
         void gotFirstScan();
-        void daqError(const QString &);
-		void daqWarning(const QString &);
+        void taskError(const QString &);
+        void taskWarning(const QString &);
 		
 	protected:
         u64 totalRead;
@@ -402,6 +403,8 @@ namespace DAQ
         void readStdErr(QProcess & p);
 	};
 	
+    class SingleChanAIReader; ///< fwd decl -- see declaration at end of this namespace
+
 	class BugTask : public SubprocessTask {
 		Q_OBJECT
 	public:
@@ -468,6 +471,7 @@ namespace DAQ
 		static bool isEMGChan(unsigned num);
 		static bool isAuxChan(unsigned num);
 		static bool isTTLChan(unsigned num);
+        static bool isAIChan(const Params &p, unsigned num);
 		
 	protected:
 		unsigned gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p); ///< return number of bytes consumed from data.  Data buffer will then have those bytes removed from beginning
@@ -490,10 +494,13 @@ namespace DAQ
         QString savedAOPassthruString;
         QVector<QPair<int, int> > aoAITab;
         QString aoChan;
+
+        SingleChanAIReader *aireader;
 		
 		void processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines);
 		void processBlock(const QMap<QString, QString> &, quint64 blockNum);		
         void handleAOPassthru(const std::vector<int16> & samps);
+        void handleAI(std::vector<int16> & samps);
 	};
 	
 
@@ -571,5 +578,26 @@ namespace DAQ
         volatile unsigned long long lastScanTS; QMutex lastScanTSMut;
 	};
 	
+
+    class SingleChanAIReader : public QObject
+    {
+        Q_OBJECT
+    public:
+        SingleChanAIReader(QObject *parent=0);
+        ~SingleChanAIReader();
+        QString startDAQ(const QString & aiDevChan, double srate, double bufsize_secs, unsigned nbufs_total);
+        bool readAll(std::vector<int16> & samps);
+    signals:
+        void error(const QString &);
+        void warning(const QString &);
+
+    private:
+        static int parseDevChan(const QString &devChan, QString & dev_parsed);
+        void reset();
+        Params fakeParams;
+        char *mem;
+        PagedScanReader *psr;
+        NITask *nitask;
+    };
 }
 #endif

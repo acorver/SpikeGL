@@ -1024,8 +1024,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 	doBugAcqInstead = false;
 	doFGAcqInstead = false;
     Connect(task, SIGNAL(bufferOverrun()), this, SLOT(gotBufferOverrun()));
-    Connect(task, SIGNAL(daqError(const QString &)), this, SLOT(gotDaqError(const QString &)));
-    Connect(task, SIGNAL(daqWarning(const QString &)), this, SLOT(gotDaqWarning(const QString &)));
+    Connect(task, SIGNAL(taskError(const QString &)), this, SLOT(gotTaskError(const QString &)));
+    Connect(task, SIGNAL(taskWarning(const QString &)), this, SLOT(gotTaskWarning(const QString &)));
 	
 	if (bugtask) {
 		bugWindow = new Bug_Popout(bugtask,0);
@@ -1254,13 +1254,13 @@ void MainApp::gotBufferOverrun()
     Warning() << "Buffer overrun! Aieeeee! TODO FIXME!!!";
 }
 
-void MainApp::gotDaqError(const QString & e)
+void MainApp::gotTaskError(const QString & e)
 {
     QMessageBox::critical(0, "DAQ Error", e);
     stopTask();
 }
 
-void MainApp::gotDaqWarning(const QString & e)
+void MainApp::gotTaskWarning(const QString & e)
 {
     QMessageBox::critical(0, "DAQ Warning", e);
 }

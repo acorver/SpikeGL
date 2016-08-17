@@ -1160,6 +1160,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.bug.rate = settings.value("bug_rate", 2).toUInt();
 	p.bug.ttlTrig = settings.value("bug_ttlTrig", -1).toInt();
     p.bug.auxTrig = settings.value("bug_auxTrig", -1).toInt();
+    p.bug.aiTrig = settings.value("bug_aiTrig", "").toString();
     p.bug.whichTTLs = settings.value("bug_whichTTLs", 0).toInt();
 	p.bug.clockEdge = settings.value("bug_clockEdge", 0).toInt();
 	p.bug.hpf = settings.value("bug_hpf", 0).toInt();
@@ -1270,6 +1271,7 @@ void ConfigureDialogController::saveSettings(int sc) const
         settings.setValue("bug_rate", p.bug.rate);
         settings.setValue("bug_ttlTrig", p.bug.ttlTrig);
         settings.setValue("bug_auxTrig", p.bug.auxTrig);
+        settings.setValue("bug_aiTrig", p.bug.aiTrig);
         settings.setValue("bug_whichTTLs", p.bug.whichTTLs);
         settings.setValue("bug_clockEdge", p.bug.clockEdge);
         settings.setValue("bug_hpf", p.bug.hpf);

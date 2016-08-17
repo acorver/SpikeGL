@@ -243,8 +243,8 @@ protected slots:
     void updateStatusBar();
 
     void gotBufferOverrun();
-    void gotDaqError(const QString & e);
-    void gotDaqWarning(const QString & e);
+    void gotTaskError(const QString & e);
+    void gotTaskWarning(const QString & e);
 
     void sha1VerifySuccess();
     void sha1VerifyFailure();
