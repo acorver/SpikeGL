@@ -115,8 +115,8 @@ private:
 	void doExport(const ExportParams &);
     int graphsPerPage() const { return n_graphs_pg; }
     int currentGraphsPage() const { return curr_graph_page; }
-    int g2i(int g) const { return graphSorting[currentGraphsPage()*graphsPerPage() + g]; }
-    int i2g(int i) const { return revGraphSorting[i] - currentGraphsPage()*graphsPerPage(); }
+    int g2i(int g) const { int ix = currentGraphsPage()*graphsPerPage() + g; if (ix >= 0 && ix < graphSorting.size()) return graphSorting[ix]; return -1; }
+    int i2g(int i) const { if (i >= 0 && i < revGraphSorting.size()) return revGraphSorting[i] - currentGraphsPage()*graphsPerPage(); return -1; }
     void redoGraphs(); ///< used when graphs per page changes and also as a setup function when opening a new file. deletes all old graph data and reestablishes graph data structures
     void updateSelection(bool do_opengl_update);
 

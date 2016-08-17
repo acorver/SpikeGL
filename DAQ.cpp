@@ -634,7 +634,7 @@ namespace DAQ
     {
         const DAQ::Params & p(params);
 
-        if (    DAQmxErrChkNoJump (DAQmxCreateTask("",&taskHandle)) 
+        if (    DAQmxErrChkNoJump (DAQmxCreateTask("",&taskHandle))
              || DAQmxErrChkNoJump (DAQmxCreateAIVoltageChan(taskHandle,chan.toUtf8().constData(),"",(int)p.aiTerm,min,max,DAQmx_Val_Volts,NULL))
              || DAQmxErrChkNoJump (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)) 
              || DAQmxErrChkNoJump (DAQmxTaskControl(taskHandle, DAQmx_Val_Task_Commit)) )
