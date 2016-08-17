@@ -496,6 +496,7 @@ namespace DAQ
         QString aoChan;
 
         SingleChanAIReader *aireader;
+        std::vector<int16> ais; ///< persistent ai buffer
 		
 		void processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines);
 		void processBlock(const QMap<QString, QString> &, quint64 blockNum);		
