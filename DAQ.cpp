@@ -2140,7 +2140,7 @@ namespace DAQ
 	/* static */ bool BugTask::isEMGChan(unsigned num) { return int(num) >= TotalNeuralChans && int(num) < TotalNeuralChans+TotalEMGChans; }
 	/* static */ bool BugTask::isAuxChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans; }
 	/* static */ bool BugTask::isTTLChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans+TotalAuxChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans+TotalTTLChans; }
-    /* static */ bool BugTask::isAIChan(const Params & p, unsigned num) { return !p.bug.aiTrig.isEmpty() && p.idxOfPdChan == num; }
+    /* static */ bool BugTask::isAIChan(const Params & p, unsigned num) { return !p.bug.aiTrig.isEmpty() && p.idxOfPdChan == int(num); }
 	
 	/*-------------------- Framegrabber Task --------------------------------*/
 	
