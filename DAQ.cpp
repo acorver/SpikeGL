@@ -2044,17 +2044,32 @@ namespace DAQ
             if (!err.isEmpty()) emit taskError(err);
         }
         if (!aireader) return;
-        std::vector<int16> ais;
-        if (aireader->readAll(ais)) {
-            Debug() << shortName << ": read " << ais.size() << " samples from AI";
-            int nchans = numChans(), nscans = samps.size()/nchans;
+        std::vector<int16> aisamps;
+        if (aireader->readAll(aisamps)) {
+            if (excessiveDebug) Debug() << shortName << ": read " << aisamps.size() << " samples from AI";
+            ais.reserve(ais.size()+aisamps.size());
+            ais.insert(ais.end(), aisamps.begin(), aisamps.end());
+        } else {
+            if (excessiveDebug) Debug() << shortName << ": failed to read from AI";
+        }
+        if (ais.size()) {
+            int nchans = int(numChans()), nscans = int(samps.size())/nchans;
             int off = int(ais.size())-nscans;
             for (int i = off < 0 ? -off : 0; i < nscans; ++i) {
                 int o = off > 0 ? off : 0;
                 samps[i*nchans+(nchans-1)] = ais[o+i];
             }
-        } else {
-            Debug() << shortName << ": failed to read from AI";
+            if (off > 0) {
+                ais.erase(ais.begin(), ais.begin()+nscans);
+                if (excessiveDebug) Debug() << "AI reader is long " << ais.size() << " scans";
+                if (int(ais.size()) > qRound(params.srate/5.0)) {
+                    ais.erase(ais.begin(), ais.begin()+(ais.size()-qRound(params.srate/10.0)));
+                }
+            } else {
+                if (!off) if (excessiveDebug) Debug() << "AI reader is MIRACULOUSLY spot-on!!!!!! <<<<<<";
+                if (off < 0) if (excessiveDebug) Debug() << "AI reader is short " << -off << " scans";
+                ais.clear();
+            }
         }
     }
 		
