@@ -71,6 +71,16 @@ namespace Bug3
 
         // public methods
 
+
+        /// <summary>
+        /// Create a fake USB data frame .. for use with SpikeGL when the board hasn't talked to us in a while
+        /// </summary>
+
+        public USBData()
+        {
+            missingFrameCount = Constant.FramesPerBlock;
+        }
+
         /// <summary>
         /// USBData constructor.
         /// </summary>

@@ -1482,8 +1482,9 @@ namespace DAQ
         while (!pleaseStop /*&& p.state() != QProcess::NotRunning*/) {
 			if (p.state() == QProcess::Running) { 
 				qint64 n_avail = p.bytesAvailable();
-                if (n_avail == 0 && !p.waitForReadyRead(1000)) {
-					if (++tout_ct > readTimeoutMaxSecs()) {
+                int timeout_ms = readTimeoutMS(); if (timeout_ms < 0) timeout_ms = -1;
+                if (n_avail == 0 && !p.waitForReadyRead(timeout_ms)) {
+                    if (int((double(++tout_ct)*double(timeout_ms))/1000.0) > readTimeoutMaxSecs()) {
                         emit(taskError(shortName + " slave process: timed out while waiting for data!"));
 						p.kill();
 						return;
@@ -1704,13 +1705,15 @@ namespace DAQ
 			if (excessiveDebug) Debug() << "Bug3: New block, current nblocks=" << nblocks; 
 		} else if (state) {
 			++nlines;
+            static QRegExp blkSepRE("[}{]"); ///< made static here to compile the RE only once.. performance optimization
 			// we are in parsing mode..
-			QStringList nv = line.split(QRegExp("[}{]"), QString::SkipEmptyParts);
+            QStringList nv = line.split(blkSepRE, QString::SkipEmptyParts);
 			if (nv.count() == 2) {
 				//Debug() << "Bug3: Got name=" << nv.first() << " v=" << nv.last().left(5) << "..." << nv.last().right(5);
 				block[nv.first()] = nv.last();
 				++state;
-			}
+            }
+            else if (excessiveDebug)  Debug() << "Bug3: line: '" << line << "' had nv.count()=" << nv.count();
 		} else if (!state && line.startsWith("USRMSG:")) {
             emit(taskWarning(line.mid(7).trimmed()));
         } else if (!state && line.startsWith("WARNMSG:")) {
@@ -1722,26 +1725,6 @@ namespace DAQ
 	
 	void BugTask::processBlock(const QMap<QString, QString> & blk, quint64 blockNum)
 	{
-        /* HACK XXX TESTING FIXME DELETEME
-        static SingleChanAIReader *r = 0;
-        if (!r) {
-            r = new SingleChanAIReader(0);
-            QString err = r->startDAQ("Dev1/ai0", 1000.0, 0.090, 128);
-            if (err.length()) {
-                Error() << "SingleChanAIReader::startDAQ error: " << err;
-            }
-            Connect(r, SIGNAL(error(const QString &)), mainApp(), SLOT(gotTaskError(const QString &)));
-            Connect(r, SIGNAL(warning(const QString &)), mainApp(), SLOT(gotTaskWarning(const QString &)));
-        }
-        if (r) {
-            std::vector<int16> samps;
-            if (r->readAll(samps)) {
-                Debug() << "SingleChanAIReader::readAll read " << samps.size() << " samples";
-            } else {
-                Debug() << "SingleChanAIReader::readAll could not read samples.";
-            }
-        }
-        // END HACK */
 		BlockMetaData meta;
 		meta.blockNum = blockNum;
 		const int nchans (numChans());
@@ -1751,6 +1734,9 @@ namespace DAQ
 		// todo implement..
 		for (QMap<QString,QString>::const_iterator it = blk.begin(); it != blk.end(); ++it) {
 			const QString & k = it.key(), & v(it.value());
+#if 0
+            if (excessiveDebug) Debug() << "Bug3: " << "Got key: '" << k << "'";
+#endif
 			if (k.startsWith("NEU_")) {
 				QStringList knv = k.split("_");
 				int neur_chan = 0;
@@ -2025,8 +2011,8 @@ namespace DAQ
 		totalRead += (quint64)samps.size(); 
 		totalReadMut.unlock();
 
-        handleAOPassthru(samps);
         handleAI(samps);
+        handleAOPassthru(samps);
 
 		//Debug() << "Enq: " << samps.size() << " samps, firstSamp: " << oldTotalRead;
         if (!writer.write(&samps[0],unsigned(samps.size())/nchans,&meta)) {
@@ -2061,9 +2047,9 @@ namespace DAQ
             }
             if (off > 0) {
                 ais.erase(ais.begin(), ais.begin()+nscans);
-                if (excessiveDebug) Debug() << "AI reader is long " << ais.size() << " scans";
-                if (int(ais.size()) > qRound(params.srate/5.0)) {
-                    ais.erase(ais.begin(), ais.begin()+(ais.size()-qRound(params.srate/10.0)));
+                if (excessiveDebug) Debug() << "AI reader is long " << ais.size() << " (" << ((ais.size()/params.srate)*1000.0) << "ms) scans";
+                if (int(ais.size()) > qRound(params.srate/4.0)) {
+                    ais.erase(ais.begin(), ais.begin()+(ais.size()-qRound(params.srate/4.0)));
                 }
             } else {
                 if (!off) if (excessiveDebug) Debug() << "AI reader is MIRACULOUSLY spot-on!!!!!! <<<<<<";
@@ -2086,6 +2072,8 @@ namespace DAQ
             QString aops = params.bug.aoPassthruString;
             params.mutex.unlock();
             if (!aoWriteThread || (aops.length() && savedAOPassthruString != aops)) {
+                // slow! so don't do it here, instead defer deletion to inside the new AOWriteThread!
+                // if (aoWriteThread) delete aoWriteThread, aoWriteThread = 0;
                 savedAOPassthruString = aops;
                 NITask::recomputeAOAITab(aoAITab, aoChan, params);
                 aoWriteThread = new AOWriteThread(0,aoChan,params,aoWriteThread);

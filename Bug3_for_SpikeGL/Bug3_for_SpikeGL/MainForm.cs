@@ -997,14 +997,17 @@ namespace Bug3
         }
 
         private static System.Int64 t0 = 0;
+        private static System.Int64 lastBlockSentTS = 0;
 
         private void doConsoleDataOutput(int numPagesLeftInRAM)
         {
             if (t0 == 0) t0 = System.DateTime.Now.Ticks;
 
-            Console.WriteLine("---> Console data out called at time: " + (long)((System.DateTime.Now.Ticks - t0) / 1e4) + "ms plotQueue.Count=" + plotQueue.Count + " numPagesLeftInRAM=" + numPagesLeftInRAM);
             foreach (USBData data in plotQueue)
             {
+                lastBlockSentTS = System.DateTime.Now.Ticks;
+                Console.WriteLine("---> Console data out called at time: " + (long)((System.DateTime.Now.Ticks - t0) / 1e4) + "ms plotQueue.Count=" + plotQueue.Count + " numPagesLeftInRAM=" + numPagesLeftInRAM);
+
                 UInt16[,] array = null;
                 StringWriter writer = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
 
@@ -1113,6 +1116,8 @@ namespace Bug3
                 writer.Flush();
                 Console.Write(writer.ToString());
                 Console.Out.Flush();
+
+                //Console.WriteLine("WARNMSG: console output took {0} ms", (System.DateTime.Now.Ticks - lastBlockSentTS) / 1e4);
             }
         }
 
@@ -1140,18 +1145,31 @@ namespace Bug3
                     noDataCounter2++;
 
                     // Turn off LED bar graph if we haven't seen any valid frames in a while
-                    if (noDataCounter > 10)
+                    if (noDataCounter >= 10)
                     {
                         myUSBSource.LEDControl(0);
                         lblFrameFound.Text = "No";
                         lblFrameFound.ForeColor = Color.Red;
                         lblChipID.Text = "n/a";
                         noDataCounter = 0;
+                        // push fake data to SpikeGL
+                        if (Params.consoleData)
+                        {
+                            double blkintvl_ms = (System.DateTime.Now.Ticks - lastBlockSentTS) / 1e4;
+
+                            int nblks = lastBlockSentTS==0 ? 1 : (int)Math.Round( blkintvl_ms / 24.576);
+                            //Console.WriteLine("WARNMSG: block interval={0}ms nblks={1}", blkintvl_ms, nblks);
+
+                            for (int i = 0; i < nblks; ++i)
+                                plotQueue.Enqueue(new USBData()); 
+                            doConsoleDataOutput(numPagesLeftInRAM);
+                            plotQueue.Clear();
+                        }
                     }
 
-                    if (noDataCounter2 > 200)
+                    if (noDataCounter2 >= 200)
                     {
-                        if (Params.consoleData) Console.WriteLine("WARNMSG: No frame data received in a while, continuing...");
+                        if (Params.consoleData) Console.WriteLine("WARNMSG: No read USB data received in a while, continuing...");
                         noDataCounter2 = 0;
                     }
                 }

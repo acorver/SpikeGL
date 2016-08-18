@@ -292,11 +292,13 @@ void Bug_ConfigDialog::guiFromSettings()
         for (DAQ::DeviceChanMap::iterator it = cm.begin(); it != cm.end(); ++it) {
             for (QStringList::iterator it2 = it.value().begin(); it2 != it.value().end(); ++it2) {
                 dialog->ttlTrigCB->addItem(*it2);
-                if (p.bug.aiTrig.compare(*it2)==0) selected_ai_cb_ix = dialog->ttlTrigCB->count()-1;
             }
         }
     }
-
+    for (int i = 0; i < dialog->ttlTrigCB->count(); ++i) {
+        if (p.bug.aiTrig.compare(dialog->ttlTrigCB->itemText(i))==0)
+                selected_ai_cb_ix = i;
+    }
     if (p.bug.ttlTrig > -1)
         dialog->ttlTrigCB->setCurrentIndex(p.bug.ttlTrig+3);
     else if (p.bug.auxTrig > -1)

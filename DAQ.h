@@ -374,6 +374,7 @@ namespace DAQ
 		virtual void sendExitCommand(QProcess & p) const { (void)p; }
 		virtual bool platformSupported() const { return true; }
 		virtual int readTimeoutMaxSecs() const { return 5; }
+        virtual int readTimeoutMS() const { return 1000; }
 		virtual bool outputCmdsAreBinary() const { return false; }
         virtual bool usesMergedChannels() const { return true; }
         virtual void gotStdErr(const QByteArray & data);
@@ -484,7 +485,7 @@ namespace DAQ
         unsigned req_shm_pg_sz;
 
 		int state;
-		static const int nstates = 36;
+        static const int nstates = 38;
 		quint64 nblocks, nlines;
 		qint64 debugTTLStart;
 		QMap<QString, QString> block;
