@@ -2040,10 +2040,11 @@ namespace DAQ
         }
         if (ais.size()) {
             int nchans = int(numChans()), nscans = int(samps.size())/nchans;
-            int off = int(ais.size())-nscans;
-            for (int i = off < 0 ? -off : 0; i < nscans; ++i) {
-                int o = off > 0 ? off : 0;
-                samps[i*nchans+(nchans-1)] = ais[o+i];
+            const int aisz = int(ais.size());
+            int off = aisz-nscans;
+            for (int i = off < 0 ? -off : 0, j = 0; i < nscans && j < aisz; ++i, ++j) {
+                //int o = off > 0 ? off : 0;
+                samps[i*nchans+(nchans-1)] = ais[/*o+i*/j];
             }
             if (off > 0) {
                 ais.erase(ais.begin(), ais.begin()+nscans);
