@@ -10,6 +10,8 @@
 #include <QDialog>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QGroupBox>
+#include <QPropertyAnimation>
 #include "Bug_ConfigDialog.h"
 #include "Util.h"
 #include "MainApp.h"
@@ -38,6 +40,10 @@ Bug_ConfigDialog::Bug_ConfigDialog(DAQ::Params & p, QObject *parent) : QObject(p
 		ttls[i] = new QCheckBox(QString::number(i), dialog->ttlW);
 		dialog->ttlLayout->addWidget(ttls[i]);
 	}
+    extraAIW = new QGroupBox("Bug Extra AI Params", dialogW);
+    extraAI = new Ui::Bug_ExtraAIParams;
+    extraAI->setupUi(extraAIW);
+    extraAIW->hide(); extraAIW->resize(0,0);
 }
 
 Bug_ConfigDialog::~Bug_ConfigDialog()
@@ -45,6 +51,7 @@ Bug_ConfigDialog::~Bug_ConfigDialog()
     for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) delete ttls[i], ttls[i] = 0;
     delete dialogW; dialogW = 0;
     delete dialog; dialog = 0;
+    delete extraAI; extraAI = 0;
 }
 
 void Bug_ConfigDialog::browseButClicked()
@@ -185,7 +192,8 @@ int Bug_ConfigDialog::exec()
                         errTit = "AO Range ComboBox invalid!";
                         errMsg = "INTERNAL ERROR: AO Range ComboBox needs numbers of the form REAL - REAL!";
                         Error() << errMsg;
-                        return ABORT;
+                        vr=ABORT;
+                        continue;
                     }
                     p.aoRange.min = rngs.first().toDouble();
                     p.aoRange.max = rngs.last().toDouble();
@@ -273,6 +281,9 @@ int Bug_ConfigDialog::exec()
 			} else if (vr==ABORT) r = QDialog::Rejected;
 		}
 	} while (vr==AGAIN && r==QDialog::Accepted);	
+
+    extraAIW->hide();
+
 	return r;
 }
 
@@ -397,6 +408,35 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
     dialog->graphsPerTabLabel->setEnabled(!isLineSelected);
     if (isLineSelected) {
         dialog->graphsPerTabCB->setCurrentIndex(0);
+    }
+    if (idx >= limit_non_ai_idx) { // ai channel selected.. show the little animation of our extra AI params gui
+        QRect tr = dialog->trigParams->geometry();
+        extraAIW->move(tr.x(),tr.y());
+        QPropertyAnimation *a = findChild<QPropertyAnimation *>("propertyanimation"); if (a) delete a, a = 0;
+        QPropertyAnimation *a2 = 0;
+        a = new QPropertyAnimation(extraAIW,"size",this);
+        a2 = new QPropertyAnimation(extraAIW,"pos",a);
+        a->setObjectName("propertyanimation");
+        a->setStartValue(QSize(0,0));
+        a->setEndValue(tr.size());
+        a2->setStartValue(tr.topLeft());
+        a2->setEndValue(QPoint(dialog->intanLbl->pos().x()+50,tr.y()));
+        a2->setDuration(150);
+        extraAIW->resize(0,0);
+        extraAIW->show();
+        extraAIW->raise();
+        a->setDuration(150);
+        a->start(QAbstractAnimation::DeleteWhenStopped);
+        a2->start(QAbstractAnimation::DeleteWhenStopped);
+    } else {
+        QPropertyAnimation *a = findChild<QPropertyAnimation *>("propertyanimation"); if (a) delete a, a = 0;
+        a = new QPropertyAnimation(extraAIW,"size",this);
+        a->setObjectName("propertyanimation");
+        a->setStartValue(QSize(extraAIW->size()));
+        a->setEndValue(QSize(0,0));
+        a->setDuration(150);
+        Connect(a,SIGNAL(finished()),extraAIW,SLOT(hide()));
+        a->start(QAbstractAnimation::DeleteWhenStopped);
     }
 }
 

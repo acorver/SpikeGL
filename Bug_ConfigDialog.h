@@ -11,6 +11,7 @@
 
 #include "ui_Bug_ConfigDialog.h"
 #include "ui_AOPassthru.h"
+#include "ui_Bug_ExtraAIParams.h"
 #include <QObject>
 #include "SpikeGL.h"
 #include <QVector>
@@ -19,6 +20,7 @@
 class QSettings;
 class QDialog;
 class QCheckBox;
+class QGroupBox;
 
 class Bug_ConfigDialog : public QObject
 {
@@ -64,7 +66,9 @@ private:
 	void saveSettings();
 	
     QDialog *dialogW;
+    QGroupBox *extraAIW;
     Ui::AoPassThru *aoPassThru;
+    Ui::Bug_ExtraAIParams *extraAI;
 	QCheckBox *ttls[DAQ::BugTask::TotalTTLChans];
 };
 

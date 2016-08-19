@@ -564,7 +564,7 @@ p, li { white-space: pre-wrap; }
     <bool>false</bool>
    </property>
   </widget>
-  <widget class="QLabel" name="label">
+  <widget class="QLabel" name="bugLbl">
    <property name="geometry">
     <rect>
      <x>179</x>
