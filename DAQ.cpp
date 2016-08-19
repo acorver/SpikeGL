@@ -349,25 +349,11 @@ namespace DAQ
     }
 
     /* static */
-    int NITask::computeTaskReadFreq(double srate_in) {
+    int NITask::computeTaskReadFreq(double srate_in, bool ll) {
         int srate = ceil(srate_in); (void)srate;
-        return DEF_TASK_READ_FREQ_HZ;
-        /*
-        // try and figure out how often to run the task read function.  defaults to 10Hz
-        // but if that isn't groovy with the sample rate, try a freq that is more groovy
-        int task_freq = DEF_TASK_READ_FREQ_HZ;
-        while (task_freq >= 3 && (srate % task_freq)) 
-            --task_freq;
-        if (task_freq < 3) {
-            for (task_freq = DEF_TASK_READ_FREQ_HZ; (srate % task_freq) && task_freq <= DEF_TASK_READ_FREQ_HZ*2; 
-                 ++task_freq)
-                ;
-            if (srate % task_freq)
-                task_freq = 1;// give up and use 1Hz!
-        }    
-        Debug() << "Using task read freq: " << task_freq << "Hz.";        
-        return task_freq;
-         */
+        //return DEF_TASK_READ_FREQ_HZ;
+        if (ll) return DEF_TASK_READ_FREQ_HZ_ * 3;
+        return DEF_TASK_READ_FREQ_HZ_;
     }
     
 #ifdef FAKEDAQ
@@ -806,7 +792,7 @@ namespace DAQ
 
         recomputeAOAITab(aoAITab, aoChan, p);
         
-        const int task_read_freq_hz = computeTaskReadFreq(p.srate);
+        const int task_read_freq_hz = computeTaskReadFreq(p.srate,p.lowLatency);
         
         int fudged_srate = ceil(sampleRate);
         while ((fudged_srate/task_read_freq_hz) % 2) // samples per chan needs to be a multiple of 2
@@ -2023,34 +2009,59 @@ namespace DAQ
 
     void BugTask::handleAI(std::vector<int16> & samps) {
         if (!aireader && !params.bug.aiTrig.isEmpty()) {
-            aireader = new SingleChanAIReader(0);
+            aireader = new MultiChanAIReader(0);
             Connect(aireader, SIGNAL(error(const QString &)), this, SIGNAL(taskError(const QString &)));
             Connect(aireader, SIGNAL(warning(const QString &)), this, SIGNAL(taskWarning(const QString &)));
-            QString err = aireader->startDAQ(params.bug.aiTrig, params.srate, 0.010, 1000);
-            if (!err.isEmpty()) emit taskError(err);
+            QStringList aiChanList = QStringList(params.bug.aiTrig);
+            if (!params.bug.aiExtra.isEmpty()) aiChanList.push_back(params.bug.aiExtra);
+            QString err = aireader->startDAQ(aiChanList, params.srate*params.bug.aiResampleFactor, 0.010, 1000);
+            if (!err.isEmpty()) { emit taskError(err); return; }
         }
         if (!aireader) return;
-        std::vector<int16> aisamps;
-        if (aireader->readAll(aisamps)) {
-            if (excessiveDebug) Debug() << shortName << ": read " << aisamps.size() << " samples from AI";
-            ais.reserve(ais.size()+aisamps.size());
-            ais.insert(ais.end(), aisamps.begin(), aisamps.end());
-        } else {
-            if (excessiveDebug) Debug() << shortName << ": failed to read from AI";
+
+        const int nCh = aireader->nChans();
+        {
+            // this block is here.. to auto-remove aisamps buffer when done
+            std::vector<int16> aisamps;
+            if (aireader->readAll(aisamps)) {
+                if (excessiveDebug) Debug() << shortName << ": read " << aisamps.size() << " samples from AI";
+                std::vector<int16> ai_resampled;
+                const double factor = params.bug.aiResampleFactor > 0. ? 1.0/params.bug.aiResampleFactor : 1.0;
+                if (factor > 1.0) {
+                    //QString err = Resampler::resample(aisamps, ai_resampled, factor, nCh, Resampler::SincFastest, false);
+                    //if (err.length()) emit taskError(err);
+                    // the above is broken for some reason and produces artifacts.  i had to use this manual code..
+                    int f = qRound(factor), scans = int(aisamps.size())/nCh;
+                    ai_resampled.resize(aisamps.size()*f);
+                    for (int i = 0, ctr = 0; i < scans; ++i) {
+                        for (int j = 0; j < nCh; ++j) {
+                            for (int k = 0; k < f; ++k)
+                                ai_resampled[ctr++] = aisamps[i*nCh+j];
+                        }
+                    }
+                } else
+                    ai_resampled.swap(aisamps);
+                ais.reserve(ais.size()+ai_resampled.size());
+                ais.insert(ais.end(), ai_resampled.begin(), ai_resampled.end());
+            } else {
+                if (excessiveDebug) Debug() << shortName << ": failed to read from AI";
+            }
         }
         if (ais.size()) {
-            int nchans = int(numChans()), nscans = int(samps.size())/nchans;
+            const int nchans = int(numChans());
+            const int nscans = int(samps.size())/(nchans>0?nchans:1);
             const int aisz = int(ais.size());
-            int off = aisz-nscans;
-            for (int i = off < 0 ? -off : 0, j = 0; i < nscans && j < aisz; ++i, ++j) {
-                //int o = off > 0 ? off : 0;
-                samps[i*nchans+(nchans-1)] = ais[/*o+i*/j];
+            const int aiscans = aisz/nCh;
+            const int off = aiscans-nscans;
+            for (int i = off < 0 ? -off : 0, j = 0; i < nscans && j < aiscans; ++i, ++j) {
+                for (int k = 0; k < nCh; ++k)
+                    samps[i*nchans+(nchans-(nCh-k))] = ais[(j*nCh)+k];
             }
             if (off > 0) {
-                ais.erase(ais.begin(), ais.begin()+nscans);
+                ais.erase(ais.begin(), ais.begin()+nscans*nCh);
                 if (excessiveDebug) Debug() << "AI reader is long " << ais.size() << " (" << ((ais.size()/params.srate)*1000.0) << "ms) scans";
-                if (int(ais.size()) > qRound(params.srate/4.0)) {
-                    ais.erase(ais.begin(), ais.begin()+(ais.size()-qRound(params.srate/4.0)));
+                if (int(ais.size()/nCh) > qRound(params.srate/4.0)) {
+                    ais.erase(ais.begin(), ais.begin()+( ((ais.size()/nCh)-qRound(params.srate/4.0))*nCh ) );
                 }
             } else {
                 if (!off) if (excessiveDebug) Debug() << "AI reader is MIRACULOUSLY spot-on!!!!!! <<<<<<";
@@ -2123,7 +2134,7 @@ namespace DAQ
 		pushCmd(QString("HPF=%1\r\n").arg(val).toUtf8());
 	}
 	
-	/* static */ QString BugTask::getChannelName(unsigned num)
+    /* static */ QString BugTask::getChannelName(unsigned num, const Params & p)
 	{
 		if (int(num) < TotalNeuralChans)
 			return QString("NEU%1").arg(num);
@@ -2137,14 +2148,17 @@ namespace DAQ
 		if (int(num) < TotalTTLChans)
 			return QString("TTL%1").arg(num);
         num -= TotalTTLChans;
-        return QString("AI%1").arg(num);
+        if (num == 0 && p.bug.aiTrig.contains("/")) return p.bug.aiTrig.split("/").back().toUpper();
+        if (num == 1 && p.bug.aiExtra.contains("/")) return p.bug.aiExtra.split("/").back().toUpper();
+        return QString("UNK%1").arg(num);
 	}
 	
 	/* static */ bool BugTask::isNeuralChan(unsigned num) { return int(num) < TotalNeuralChans; }
 	/* static */ bool BugTask::isEMGChan(unsigned num) { return int(num) >= TotalNeuralChans && int(num) < TotalNeuralChans+TotalEMGChans; }
 	/* static */ bool BugTask::isAuxChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans; }
 	/* static */ bool BugTask::isTTLChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans+TotalAuxChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans+TotalTTLChans; }
-    /* static */ bool BugTask::isAIChan(const Params & p, unsigned num) { return !p.bug.aiTrig.isEmpty() && p.idxOfPdChan == int(num); }
+    /* static */ bool BugTask::isAIChan(const Params & p, unsigned num) { return !p.bug.aiTrig.isEmpty() && int(num) >= p.idxOfPdChan; }
+
 	
 	/*-------------------- Framegrabber Task --------------------------------*/
 	
@@ -2686,12 +2700,12 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         Debug() << "Probe done, found " << probedHardware.size() << " valid AcqDevices in " << (last_hw_probe_ts-t0) << " secs.";
     }
 
-    SingleChanAIReader::SingleChanAIReader(QObject *parent)
+    MultiChanAIReader::MultiChanAIReader(QObject *parent)
         : QObject(parent), mem(0), psr(0), nitask(0) {}
 
-    SingleChanAIReader::~SingleChanAIReader() { reset(); }
+    MultiChanAIReader::~MultiChanAIReader() { reset(); }
 
-    void SingleChanAIReader::reset() {
+    void MultiChanAIReader::reset() {
         if (nitask) {
             nitask->stop();
             delete nitask, nitask = 0;
@@ -2700,7 +2714,7 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         if (mem) { delete [] mem, mem = 0; }
     }
 
-    bool SingleChanAIReader::readAll(std::vector<int16> & samps) {
+    bool MultiChanAIReader::readAll(std::vector<int16> & samps) {
         samps.clear();
         if (!nitask || !psr || !mem) return false;
         int nSkips; unsigned nScans;
@@ -2708,8 +2722,9 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         do {
             buf = psr->next(&nSkips, 0, &nScans);
             if (buf && nScans) {
-                samps.reserve(samps.size()+nScans);
-                for (unsigned i = 0; i < nScans; ++i) {
+                unsigned num = nScans*unsigned(nChans());
+                samps.reserve(samps.size()+num);
+                for (unsigned i = 0; i < num; ++i) {
                     samps.push_back(buf[i]);
                 }
             }
@@ -2717,7 +2732,7 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         return samps.size() != 0;
     }
 
-    /*static*/ int SingleChanAIReader::parseDevChan(const QString & devchan, QString & dev) {
+    /*static*/ int MultiChanAIReader::parseDevChan(const QString & devchan, QString & dev) {
         QStringList l = devchan.split(QString("/"), QString::KeepEmptyParts);
         dev = "";
         if (l.size() == 2) {
@@ -2731,38 +2746,46 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         return -1;
     }
 
-    QString SingleChanAIReader::startDAQ(const QString &devch, double srate, double bsecs, unsigned nbufs)
+    QString MultiChanAIReader::startDAQ(const QStringList &devchList, double srate, double bsecs, unsigned nbufs)
     {
         reset();
         if (srate < 16.0) return "SinglsChanAIReader: Invalid sampling rate specified. Need at least 16Hz";
         if (bsecs < 0.001) return "SinglsChanAIReader: Invalid buffer size secs specified.  Need at least 1ms worth of buffer size!";
-        int bufsamps = bsecs * srate;
+        const int nCh = devchList.size();
+        if (!nCh) return QString("MultiChanAIReader: Need to specify at least 1 channel as first parameter!");
+        int bufsamps = bsecs * srate * nCh;
         if (bufsamps < 16) bufsamps = 16;
         if (nbufs < 2) nbufs = 2;
         unsigned long sz_bytes = 0;
         mem = new char[(sz_bytes = sizeof(int16) * bufsamps * nbufs + 4096)];
-        Debug() << "SingleChanAIReader using " << double(sz_bytes/(1024.0)) << " KB buffer";
-        psr = new PagedScanReader(1, 0, mem, sz_bytes, bufsamps);
+        Debug() << "MultiChanAIReader using " << double(sz_bytes/(1024.0)) << " KB buffer";
+        psr = new PagedScanReader(nCh, 0, mem, sz_bytes, bufsamps*sizeof(int16));
         Params & p(fakeParams);
         p.dualDevMode = false; p.range.min=-5; p.range.max=5; p.mode=AIRegular;
         p.extClock = false;
-        int chan = parseDevChan(devch, p.dev);
-        if (chan < 0) { return QString("SinglsChanAIReader: Invalid devch string: ") + devch; }
-        p.srate = srate; p.aiString=QString::number(chan);
-        p.aiChannels.clear(); p.aiChannels.push_back(chan);
-        p.nVAIChans = 1; p.nVAIChans1 = 1; p.nVAIChans2 = 0; p.nExtraChans1 = 0;
+        p.srate = srate;
+        p.aiChannels.clear();
+        p.chanDisplayNames.clear();
+        p.aiString = "";
+        for (QStringList::const_iterator it = devchList.begin(); it != devchList.end(); ++it) {
+            int chan = parseDevChan(*it, p.dev);
+            if (chan < 0) { return QString("MultiChanAIReader: Invalid devChan string: ") + *it; }
+            p.aiChannels.push_back(chan);
+            p.aiString = p.aiString + (p.aiString.length() ? QString(",") : QString("")) + QString::number(chan);
+            p.chanDisplayNames.push_back(QString("AI")+QString::number(chan));
+        }
+        p.nVAIChans = nCh; p.nVAIChans1 = nCh; p.nVAIChans2 = 0; p.nExtraChans1 = 0;
         p.aoPassthru = false;
         p.aoDev = "";
-        p.chanDisplayNames.clear(); p.chanDisplayNames.push_back(QString("AI")+QString::number(chan));
         p.acqStartEndMode = Immediate;
-        p.usePD = false;  p.lowLatency = true; p.aiTerm = Default; p.auxGain = 1.0;
+        p.usePD = false;  p.lowLatency = /*true*/false; p.aiTerm = Default; p.auxGain = 1.0;
         p.aiBufferSizeCS = (bsecs*100.0) / 2.0;
         if (p.aiBufferSizeCS < 1) p.aiBufferSizeCS = 1;
         p.autoRetryOnAIOverrun = true;
         ChanMap m; m.push_back(ChanMapDesc());
         p.chanMap = m;
         p.subsetString = "ALL";
-        p.demuxedBitMap.resize(1); p.demuxedBitMap.fill(true);
+        p.demuxedBitMap.resize(nCh); p.demuxedBitMap.fill(true);
         p.doCtlChan = 0;
         p.doCtlChanString = "";
         nitask = new NITask(p, 0, *psr);

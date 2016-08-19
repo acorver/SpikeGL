@@ -77,8 +77,8 @@ static void initIcons()
 	}
 }
 
-GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving, bool useTabs, int graphUpdateRateHz, bool keepPagedOutData)
-    : QMainWindow(parent), threadsafe_is_visible(false), params(p), useTabs(useTabs), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false), keepPagedOutGraphDataInMemory(keepPagedOutData), graphsMut(QMutex::Recursive)
+GraphsWindow::GraphsWindow(DAQ::Params & p, QWidget *parent, bool isSaving, bool useTabs, int graphUpdateRateHz)
+    : QMainWindow(parent), threadsafe_is_visible(false), params(p), useTabs(useTabs), nPtsAllGs(0), downsampleRatio(1.), tNow(0.), tLast(0.), tAvg(0.), tNum(0.), filter(0), modeCaresAboutSGL(false), modeCaresAboutPD(false), suppressRecursive(false), graphsMut(QMutex::Recursive)
 {
     sharedCtor(p, isSaving, graphUpdateRateHz);
 }
@@ -568,7 +568,7 @@ void GraphsWindow::setGraphTimeSecs(int num, double t)
 
     if (num < 0 || num >= (int)graphs.size()) return;
     graphTimesSecs[num] = t;
-    const i64 npts = nptsAll[num] = ( (graphs[num] || keepPagedOutGraphDataInMemory) ? i64(ceil(t*params.srate/downsampleRatio)) : 0); // if the graph is not on-screen, make it use 0 points in the points WB to save memory for high-channel-counts
+    const i64 npts = nptsAll[num] = ( graphs[num] ? i64(ceil(t*params.srate/downsampleRatio)) : 0); // if the graph is not on-screen, make it use 0 points in the points WB to save memory for high-channel-counts
     points[num].reserve(npts);
     double s = t;
     int nlines = 1;
@@ -576,11 +576,11 @@ void GraphsWindow::setGraphTimeSecs(int num, double t)
     while (s>0. && !(nlines = int(s))) s*=10.;
 	if (graphs[num]) {
 		graphs[num]->setNumVGridLines(nlines);
-        if (!keepPagedOutGraphDataInMemory) graphs[num]->setPoints(0);
+        graphs[num]->setPoints(0);
 		graphStates[num] = graphs[num]->getState();
 	} else {
 		graphStates[num].nVGridLines = nlines;
-        graphStates[num].pointsWB = keepPagedOutGraphDataInMemory ? &points[num] : 0;
+        graphStates[num].pointsWB = 0;
 	}
 	graphStates[num].max_x = graphStates[num].min_x+t;
     graphStats[num].clear();
@@ -638,7 +638,7 @@ void GraphsWindow::putScans(const int16 * data, unsigned DSIZE, u64 firstSamp)
                 DPTR = (&scanTmp[0])-i;//fudge DPTR.. dangerous but below code always accesses it as DPTR[i], so it's ok
                 needFilter = false;
             }
-            if ( (graphs[idx] || keepPagedOutGraphDataInMemory) && !pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx)) {
+            if ( graphs[idx] && !pgraphs[idx] && (maximizedIdx < 0 || maximizedIdx == idx)) {
                 v.x = t;
                 v.y = DPTR[i] / 32768.0; // hardcoded range of data
                 Vec2fWrapBuffer & pbuf = pts[idx];
@@ -664,20 +664,20 @@ void GraphsWindow::putScans(const int16 * data, unsigned DSIZE, u64 firstSamp)
             }
         }
         for (int i = 0; i < NGRAPHS; ++i) {
-            if (pgraphs[i] || (!graphs[i] && !keepPagedOutGraphDataInMemory)) continue;
+            if (pgraphs[i] || !graphs[i]) continue;
             // now, copy in temp data
-            if ((graphs[i] || keepPagedOutGraphDataInMemory) && pts[i].size() >= 2) {
+            if (graphs[i] && pts[i].size() >= 2) {
                 // now, readjust x axis begin,end
                 graphStates[i].min_x = pts[i].first().x;
-				if (graphs[i]) graphs[i]->minx() = graphStates[i].min_x;
+                graphs[i]->minx() = graphStates[i].min_x;
 				graphStates[i].max_x = graphStates[i].min_x + graphTimesSecs[i];
-                if (graphs[i]) graphs[i]->maxx() = graphStates[i].max_x;
+                graphs[i]->maxx() = graphStates[i].max_x;
                 // XXX hack uncomment below 2 line if the empty gap at the end of the downsampled graph annoys you, or comment them out to remove this 'feature'
-                if (!points[i].unusedCapacity() && graphs[i])
+                if (!points[i].unusedCapacity())
                     graphs[i]->maxx() = points[i].last().x;
             } 
             // and, notify graph of new points
-            if (graphs[i]) graphs[i]->setPoints(&pts[i]);
+            graphs[i]->setPoints(&pts[i]);
         }
         
         tNow = getTime();
@@ -1366,7 +1366,7 @@ void GraphsWindow::openCustomChanset(const QVector<unsigned> & ids)
         GLGraph *g = gl.empty() ? *(extraGraphs.begin()) : *gl.begin();
         extraGraphs.remove(g);
         graphs[graphId] = g;
-        if (!keepPagedOutGraphDataInMemory) points[graphId].clear();
+        points[graphId].clear();
         g->setState(graphStates[graphId]);
         g->setPoints(&points[graphId]);
         QVBoxLayout *l = dynamic_cast<QVBoxLayout *>(f->layout());
@@ -1431,7 +1431,7 @@ void GraphsWindow::tabChange(int t)
 		GLGraph *g = gl.empty() ? *(extraGraphs.begin()) : *gl.begin();
 		extraGraphs.remove(g);
 		graphs[graphId] = g;
-        if (!keepPagedOutGraphDataInMemory) points[graphId].clear();
+        points[graphId].clear();
 		g->setState(graphStates[graphId]);
 		g->setPoints(&points[graphId]);
 		QVBoxLayout *l = dynamic_cast<QVBoxLayout *>(f->layout());

@@ -13,31 +13,105 @@
   <property name="windowTitle">
    <string>Bug Extra AI Params</string>
   </property>
+  <property name="toolTip">
+   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Specify additional parameters specific to AI channel acquisition and triggering here.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+  </property>
   <property name="autoFillBackground">
    <bool>true</bool>
   </property>
   <property name="title">
    <string>Extra AI Params</string>
   </property>
-  <widget class="QComboBox" name="comboBox">
+  <property name="alignment">
+   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+  </property>
+  <widget class="QComboBox" name="chan">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>30</y>
-     <width>71</width>
+     <x>39</x>
+     <y>80</y>
+     <width>131</width>
      <height>22</height>
     </rect>
    </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Optionally, you can record a second AI channel along with the AI channel you want to use for triggering. This additional channel is saved alongside all the other data. &lt;/p&gt;&lt;p&gt;Useful for synchronizing telemetry recording data to other systems.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
    <item>
     <property name="text">
-     <string>test1</string>
+     <string>Disabled</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLabel" name="chanLbl">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>60</y>
+     <width>161</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Optionally, you can record a second AI channel along with the AI channel you want to use for triggering. This additional channel is saved alongside all the other data. &lt;/p&gt;&lt;p&gt;Useful for synchronizing telemetry recording data to other systems.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Record Additional AI Channel</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="rate">
+   <property name="geometry">
+    <rect>
+     <x>39</x>
+     <y>30</y>
+     <width>131</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Specify the sampling rate to use for AI. The default is to match the sampling rate of the Bug3 Telemetry system, which is 26kHz. Since some NI devices can't acquire at this high a rate, you may reduce the sampling rate for AI here.&lt;/p&gt;&lt;p&gt;If the sampling rate is smaller than the telemetry system rate, the incoming AI data will be upsampled to match the telemetry data before being graphed and/or saved.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <item>
+    <property name="text">
+     <string>Default (26kHz)</string>
     </property>
    </item>
    <item>
     <property name="text">
-     <string>test2</string>
+     <string>1/2 Speed (13kHz)</string>
     </property>
    </item>
+   <item>
+    <property name="text">
+     <string>1/4 Speed (6.5kHz)</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>1/8 Speed (3.25kHz)</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>1/16 Speed (1.63kHz)</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLabel" name="rateLbl">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>10</y>
+     <width>161</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Specify the sampling rate to use for AI. The default is to match the sampling rate of the Bug3 Telemetry system, which is 26kHz. Since some NI devices can't acquire at this high a rate, you may reduce the sampling rate for AI here.&lt;/p&gt;&lt;p&gt;If the sampling rate is smaller than the telemetry system rate, the incoming AI data will be upsampled to match the telemetry data before being graphed and/or saved.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Sampling Rate</string>
+   </property>
   </widget>
  </widget>
  <resources/>

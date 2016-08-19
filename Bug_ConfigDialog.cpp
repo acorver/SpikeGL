@@ -100,6 +100,8 @@ int Bug_ConfigDialog::exec()
 					if (ttls[i]->isChecked()) p.bug.whichTTLs |= 0x1 << i;  
 				}
                 const bool hasAuxTrig = p.bug.auxTrig > -1, hasTtlTrig = p.bug.ttlTrig > -1, hasAITrig = p.bug.aiTrig.length()!=0;
+                p.bug.aiExtra = extraAI->chan->currentIndex() > 0 && hasAITrig ? extraAI->chan->currentText() : "";
+                const bool hasAIExtra = hasAITrig && !p.bug.aiExtra.isEmpty();
                 int trigIdx=0;
                 if (hasAuxTrig)
                     trigIdx = DAQ::BugTask::FirstAuxChan;
@@ -126,7 +128,7 @@ int Bug_ConfigDialog::exec()
 				int nttls = 0;
 				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i)
 					if ( (p.bug.whichTTLs >> i) & 0x1) ++nttls; // count number of ttls set 
-                p.nVAIChans = DAQ::BugTask::BaseNChans + nttls + (hasAITrig ? 1 : 0);
+                p.nVAIChans = DAQ::BugTask::BaseNChans + nttls + (hasAITrig ? 1 : 0) + (hasAIExtra ? 1 : 0);
 				p.nVAIChans1 = p.nVAIChans;
 				p.nVAIChans2 = 0;
 				p.aiChannels2.clear();
@@ -175,8 +177,28 @@ int Bug_ConfigDialog::exec()
                     p.pdThreshW = p.bug.altTTL ? static_cast<unsigned>(dialog->trigWSB_2->value()) : static_cast<unsigned>(dialog->trigWSB->value());
 					p.pdPassThruToAO = -1;
                     p.pdStopTime = p.bug.altTTL ? dialog->trigPost->value()/1000.0 : dialog->trigStopTimeSB->value();
-                    p.silenceBeforePD = p.bug.altTTL ? dialog->trigPre_2->value()/1000.0 : dialog->trigPre->value()/1000.0;
-				}
+                    p.silenceBeforePD = p.bug.altTTL ? dialog->trigPre_2->value()/1000.0 : dialog->trigPre->value()/1000.0;                   
+                }
+
+                if (hasAITrig) {
+                    p.bug.aiResampleFactor = 1.0 / qPow(2.0,double(extraAI->rate->currentIndex()));
+                    if (p.bug.aiExtra.length()) {
+                        errTit = errMsg = "";
+                        if (p.bug.aiExtra.compare(p.bug.aiTrig,Qt::CaseInsensitive) == 0) {
+                            errTit = "Invalid AI Specification";
+                            errMsg = "Specified the same AI channel twice (as trigger and extra AI)";
+                        }
+                        if (p.bug.aiExtra.split("/").front().compare(p.bug.aiTrig.split("/").front()) != 0) {
+                            errTit = "Invalid AI Specification";
+                            errMsg = "The AI trigger channel and the 'extra' AI channel must both be physically on the same NI-DAQ Device!";
+                        }
+                        if (errTit.length()) {
+                            QMessageBox::critical(dialogW,errTit,errMsg,QMessageBox::Ok);
+                            vr = AGAIN;
+                            continue;
+                        }
+                    }
+                }
 
 				if (AGAIN == ConfigureDialogController::setFilenameTakingIntoAccountIncrementHack(p, p.acqStartEndMode, dialog->outputFileLE->text(), dialogW)) {
 					vr = AGAIN;
@@ -268,7 +290,7 @@ int Bug_ConfigDialog::exec()
 					if (rminmax.min > r.min) rminmax.min = r.min;
 					if (rminmax.max < r.max) rminmax.max = r.max;
 					p.customRanges[i] = r;
-                    p.chanDisplayNames[i] = DAQ::BugTask::getChannelName(chan_id_for_display);
+                    p.chanDisplayNames[i] = DAQ::BugTask::getChannelName(chan_id_for_display, p);
 				}
 				p.range = rminmax;
 				p.auxGain = 1.0;
@@ -296,16 +318,32 @@ void Bug_ConfigDialog::guiFromSettings()
 		ttls[i]->setChecked(p.bug.whichTTLs & (0x1<<i));
 	}
 
+    // populate trigger cb with list of all AI channels
     const int ai_trig_offset = DAQ::BugTask::TotalAuxChans+DAQ::BugTask::TotalTTLChans+1;
     int selected_ai_cb_ix = -1;
+    DAQ::DeviceChanMap cm = DAQ::ProbeAllAIChannels();
     if (dialog->ttlTrigCB->count() <= ai_trig_offset) {
-        DAQ::DeviceChanMap cm = DAQ::ProbeAllAIChannels();
         for (DAQ::DeviceChanMap::iterator it = cm.begin(); it != cm.end(); ++it) {
             for (QStringList::iterator it2 = it.value().begin(); it2 != it.value().end(); ++it2) {
                 dialog->ttlTrigCB->addItem(*it2);
             }
         }
     }
+    // populate 'extra' cb with list of all AI channels
+    if (extraAI->chan->count() == 1) {
+        for (DAQ::DeviceChanMap::iterator it = cm.begin(); it != cm.end(); ++it) {
+            for (QStringList::iterator it2 = it.value().begin(); it2 != it.value().end(); ++it2) {
+               extraAI->chan->addItem(*it2);
+               if (p.bug.aiExtra.compare(*it2) == 0) extraAI->chan->setCurrentIndex(extraAI->chan->count()-1);
+            }
+        }
+    }
+    // set the sampling rate cb in the extra ai submenu
+    int fctr = qRound(1.0/(p.bug.aiResampleFactor > 0. ? p.bug.aiResampleFactor : 1.0));
+    for (int i = 0; i < extraAI->rate->count(); ++i) {
+        if (qRound(qPow(2.0,double(i))) == fctr) extraAI->rate->setCurrentIndex(i);
+    }
+
     for (int i = 0; i < dialog->ttlTrigCB->count(); ++i) {
         if (p.bug.aiTrig.compare(dialog->ttlTrigCB->itemText(i))==0)
                 selected_ai_cb_ix = i;
@@ -426,8 +464,8 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
         extraAIW->show();
         extraAIW->raise();
         a->setDuration(150);
-        a->start(QAbstractAnimation::DeleteWhenStopped);
         a2->start(QAbstractAnimation::DeleteWhenStopped);
+        a->start(QAbstractAnimation::DeleteWhenStopped);
     } else {
         QPropertyAnimation *a = findChild<QPropertyAnimation *>("propertyanimation"); if (a) delete a, a = 0;
         a = new QPropertyAnimation(extraAIW,"size",this);
@@ -435,7 +473,12 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
         a->setStartValue(QSize(extraAIW->size()));
         a->setEndValue(QSize(0,0));
         a->setDuration(150);
+        QPropertyAnimation *a2 = new QPropertyAnimation(extraAIW,"pos",a);
+        a2->setStartValue(extraAIW->pos());
+        a2->setEndValue(dialog->trigParams->pos());
+        a2->setDuration(150);
         Connect(a,SIGNAL(finished()),extraAIW,SLOT(hide()));
+        a2->start(QAbstractAnimation::DeleteWhenStopped);
         a->start(QAbstractAnimation::DeleteWhenStopped);
     }
 }

@@ -156,7 +156,8 @@ namespace DAQ
 			int whichTTLs; // bitset of which TTLs to save/graph, TTLs from 1->11 maps to bits #0->10
             int ttlTrig; // the TTL channel to use for a trigger, or -1 if not using ttl to trigger. Note either this or auxTrig or aiTrig should be set to > -1, or none of the 3, but never more than 1
             int auxTrig; // the AUX channel to use for a trigger, or -1 if not using aux to trigger. Note either this or ttlTrig or aiTrig should be set to > -1, or none of the 3, but never more than 1
-            QString aiTrig; // the NI-DAQ AI channel to use for a trigger, in Dev1/ai1 format... or "" if not using NI-DAQ for trigger. Note either this or ttlTrig or auxTrig should be set, or none of the 3, but never more than 1
+            QString aiTrig, aiExtra; // the NI-DAQ AI channel to use for a trigger, in Dev1/ai1 format... or "" if not using NI-DAQ for trigger. Note either this or ttlTrig or auxTrig should be set, or none of the 3, but never more than 1
+            double aiResampleFactor;
 			int clockEdge; // 0 = rising, 1 = falling
 			int hpf; // if nonzero, the high pass filter is enabled at set to filter past this many Hz
 			bool snf; // if true, use the software notch filter at 60Hz
@@ -165,7 +166,7 @@ namespace DAQ
             QString aoPassthruString; // defaults to "", but can be something eg 0=1
             unsigned aoSrate;
             bool altTTL; ///< if true, use alternate TTL triggering scheme whereby a single TTL pulse has a pre window and a post window surrounding it in the data file
-            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; }
+            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; aiResampleFactor=1.0; }
 		} bug;
 		
 		struct FG { // framegrabber
@@ -302,7 +303,7 @@ namespace DAQ
 
         friend struct DAQPvt;
 
-        static int computeTaskReadFreq(double srate);
+        static int computeTaskReadFreq(double srate, bool isLowLatency);
 		
 		static void mergeDualDevData(std::vector<int16> & output, const std::vector<int16> & data, const std::vector<int16> & data2, int NCHANS1, int NCHANS2, int nExtraChans, int nExtraChans2);
 
@@ -404,7 +405,7 @@ namespace DAQ
         void readStdErr(QProcess & p);
 	};
 	
-    class SingleChanAIReader; ///< fwd decl -- see declaration at end of this namespace
+    class MultiChanAIReader; ///< fwd decl -- see declaration at end of this namespace
 
 	class BugTask : public SubprocessTask {
 		Q_OBJECT
@@ -467,7 +468,7 @@ namespace DAQ
 		/// returns the usb data block size, in samples, depending on HIGH, MEDIUM, LOW data rate
 		int  usbDataBlockSizeSamps() const;
 		
-		static QString getChannelName(unsigned num); ///< returns UI-friendly name for a particular BUG channel
+        static QString getChannelName(unsigned num, const Params & p); ///< returns UI-friendly name for a particular BUG channel
 		static bool isNeuralChan(unsigned num);
 		static bool isEMGChan(unsigned num);
 		static bool isAuxChan(unsigned num);
@@ -496,7 +497,7 @@ namespace DAQ
         QVector<QPair<int, int> > aoAITab;
         QString aoChan;
 
-        SingleChanAIReader *aireader;
+        MultiChanAIReader *aireader;
         std::vector<int16> ais; ///< persistent ai buffer
 		
 		void processLine(const QString & lineUntrimmed, QMap<QString, QString> & block, const quint64 & nblocks, int & state, quint64 & nlines);
@@ -581,14 +582,18 @@ namespace DAQ
 	};
 	
 
-    class SingleChanAIReader : public QObject
+    class MultiChanAIReader : public QObject
     {
         Q_OBJECT
     public:
-        SingleChanAIReader(QObject *parent=0);
-        ~SingleChanAIReader();
-        QString startDAQ(const QString & aiDevChan, double srate, double bufsize_secs, unsigned nbufs_total);
+        MultiChanAIReader(QObject *parent=0);
+        ~MultiChanAIReader();
+        QString startDAQ(const QStringList & aiDevChans, double srate, double bufsize_secs, unsigned nbufs_total);
         bool readAll(std::vector<int16> & samps);
+
+        int nChans() const { return int(fakeParams.nVAIChans); }
+        double rate() const { return fakeParams.srate; }
+
     signals:
         void error(const QString &);
         void warning(const QString &);

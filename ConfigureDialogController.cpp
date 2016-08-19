@@ -1170,6 +1170,8 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
     p.bug.aoSrate = settings.value("bug_aoSrate", DAQ::BugTask::SamplingRate).toUInt();
     p.bug.altTTL = settings.value("bug_altTTL", true).toBool();
     p.bug.trigThreshV = settings.value("bug_trigThreshV", 3.0).toDouble();
+    p.bug.aiExtra = settings.value("bug_aiExtra","").toString();
+    p.bug.aiResampleFactor = settings.value("bug_ai_resample_factor",1.0).toDouble();
 
 
     p.fg.baud = settings.value("fg_baud", 1).toInt();
@@ -1281,6 +1283,8 @@ void ConfigureDialogController::saveSettings(int sc) const
         settings.setValue("bug_aoSrate", p.bug.aoSrate);
         settings.setValue("bug_altTTL", p.bug.altTTL);
         settings.setValue("bug_trigThreshV", p.bug.trigThreshV);
+        settings.setValue("bug_aiExtra", p.bug.aiExtra);
+        settings.setValue("bug_ai_resample_factor", p.bug.aiResampleFactor);
     }
 
     if (sc & FG) {
