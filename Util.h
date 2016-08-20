@@ -171,6 +171,8 @@ public:
 
 	 /// Do resampling using selected algorithm.  Note that ratio is outputrate / inputputrate. Ratio of 1.0 returns the same data, < 1.0 downsamples, > 1.0 upsamples
 	 /// returns empty string on success, or an error message from SRC sample lib on failure (and output is set to 0 size in that case)
+     /// 8/20/2016 -- Note that resampler sometimes produces artifacts when run repeatedly on small bits of data at a time as in the code in BugTask::handleAI().
+     ///              If you need to resample little bits of data, do it manually.  Need to fix.
 	 static QString resample(const std::vector<int16> & input, std::vector<int16> & output, double ratio, int numChannelsPerFrame = 1, Algorithm = SincFastest, bool isEndOfInput = false); 
 
 	 Resampler(double ratio, int numChannelsPerFrame=1, Algorithm=SincFastest);
