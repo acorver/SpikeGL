@@ -2165,7 +2165,7 @@ namespace DAQ
             const QString s(p.bug.aiChans.at(num));
             return s.split("/").back().toUpper() + (p.bug.aiTrig.compare(s,Qt::CaseInsensitive) == 0 ? " (TRG)" : "");
         }
-        if (p.bug.graphMissing && num == p.bug.aiChans.count())
+        if (p.bug.graphMissing && int(num) == p.bug.aiChans.count())
             return QString("MSNG_FRM");
         return QString("UNK%1").arg(num);
     }
