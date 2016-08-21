@@ -168,7 +168,8 @@ namespace DAQ
             unsigned aoSrate;
             bool graphMissing; ///< if true, add an additional channel to the end which is a graph of 'meta.missingFrameCount'.. scaled to: 40 missing frames per block -> MAXV, 0 missing frames = 0V.
             bool altTTL; ///< if true, use alternate TTL triggering scheme whereby a single TTL pulse has a pre window and a post window surrounding it in the data file
-            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; aiDownsampleFactor=1.0; graphMissing = false; }
+            int backupTrigger; ///< index of channel which is the "backup" trigger, or -1 if no channel is the backup trigger
+            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; aiDownsampleFactor=1.0; graphMissing = false; backupTrigger = -1; }
 		} bug;
 		
 		struct FG { // framegrabber

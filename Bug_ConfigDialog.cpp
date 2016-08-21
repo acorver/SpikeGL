@@ -44,6 +44,7 @@ Bug_ConfigDialog::Bug_ConfigDialog(DAQ::Params & p, QObject *parent) : QObject(p
     extraAI = new Ui::Bug_ExtraAIParams;
     extraAI->setupUi(extraAIW);
     extraAIW->resize(272,115); extraAIW->move(33,208);
+    Connect(extraAI->chan1, SIGNAL(activated(int)), this, SLOT(ttlTrigCBChanged()));
 }
 
 Bug_ConfigDialog::~Bug_ConfigDialog()
@@ -112,6 +113,9 @@ int Bug_ConfigDialog::exec()
                     trigIdx = DAQ::BugTask::BaseNChans;
                 else if (hasAITrig)
                     trigIdx = DAQ::BugTask::BaseNChans;
+                int numTtls = 0;
+                for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i)
+                    if (p.bug.whichTTLs & (0x1<<i)) ++numTtls;
                 if (!hasAuxTrig && (hasTtlTrig || hasAITrig)) {
                     for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
                         if (i == p.bug.ttlTrig) break;
@@ -121,6 +125,12 @@ int Bug_ConfigDialog::exec()
                 } else if (hasAuxTrig) {
                     trigIdx += p.bug.auxTrig;
                 }
+
+                if ((hasAuxTrig || hasTtlTrig)
+                        && p.bug.aiChans.count() && extraAI->trigBackupChk->isChecked()
+                        && extraAI->trigBackupChk->isEnabled() )
+                    p.bug.backupTrigger = DAQ::BugTask::BaseNChans + numTtls;
+
 				p.bug.clockEdge = dialog->clkEdgeCB->currentIndex();
 				p.bug.hpf = dialog->hpfChk->isChecked() ? dialog->hpfSB->value(): 0;
 				p.bug.snf = dialog->notchFilterChk->isChecked();
@@ -351,6 +361,8 @@ void Bug_ConfigDialog::guiFromSettings()
             }
         }
     }
+    extraAI->trigBackupChk->setChecked(p.bug.backupTrigger > -1);
+
     // set the sampling rate cb in the extra ai submenu
     int fctr = qRound(1.0/(p.bug.aiDownsampleFactor > 0. ? p.bug.aiDownsampleFactor : 1.0));
     for (int i = 0; i < extraAI->rate->count(); ++i) {
@@ -471,6 +483,7 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
     } else {
         extraAI->chan1->setEnabled(true);
     }
+    extraAI->trigBackupChk->setDisabled(extraAI->chan1->currentIndex()==0 || dialog->ttlTrigCB->currentIndex()==0 || !extraAI->chan1->isEnabled());
 }
 
 void Bug_ConfigDialog::aoBufferSizeSliderChanged()

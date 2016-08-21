@@ -1173,6 +1173,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
     p.bug.aiChans = settings.value("bug_aiChans",QStringList()).toStringList();
     p.bug.aiDownsampleFactor = settings.value("bug_ai_downsample_factor",1.0).toDouble();
     p.bug.graphMissing = settings.value("bug_graphMissing", false).toBool();
+    p.bug.backupTrigger = settings.value("bug_backuptrigger", -1).toInt();
 
 
     p.fg.baud = settings.value("fg_baud", 1).toInt();
@@ -1287,6 +1288,8 @@ void ConfigureDialogController::saveSettings(int sc) const
         settings.setValue("bug_aiChans", p.bug.aiChans);
         settings.setValue("bug_ai_downsample_factor", p.bug.aiDownsampleFactor);
         settings.setValue("bug_graphMissing", p.bug.graphMissing);
+        settings.setValue("bug_backuptrigger", p.bug.backupTrigger);
+
     }
 
     if (sc & FG) {

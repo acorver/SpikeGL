@@ -163,6 +163,24 @@
     </property>
    </item>
   </widget>
+  <widget class="QCheckBox" name="trigBackupChk">
+   <property name="geometry">
+    <rect>
+     <x>180</x>
+     <y>20</y>
+     <width>81</width>
+     <height>51</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This is for Huai-Ti's proposed 'backup triggering' mechanism.&lt;/p&gt;&lt;p&gt;If checked, the specified 1st AI channel is used as a 'backup' trigger channel for whenever the USB telemetry system loses data and is no longer sending data to SpikeGL.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>1st AI chan.
+is backup 
+trigger</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>
