@@ -1742,7 +1742,7 @@ bool MainApp::detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp)
                     lastNPDSamples.clear();
             }
         }
-        if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps || isBugAlt) { // timeout PD after X scans..
+        if (firstSamp+u64(sz) - lastSeenPD > pdOffTimeSamps) { // timeout PD after X scans..
 			if (dataFile.isOpen()) {
                 stopRecordAtSamp = lastSeenPD + MAX((preBuf.capacity()/sizeof(int16)),pdOffTimeSamps) /**< NB: preBuf.capacity() is the amount of silence time before/after PD, scan-aligned! */;
                 if (isBugAlt) stopRecordAtSamp = lastSeenPD + pdOffTimeSamps;

@@ -2008,13 +2008,11 @@ namespace DAQ
 	}
 
     void BugTask::handleAI(std::vector<int16> & samps) {
-        if (!aireader && !params.bug.aiTrig.isEmpty()) {
+        if (!aireader && !params.bug.aiChans.isEmpty()) {
             aireader = new MultiChanAIReader(0);
             Connect(aireader, SIGNAL(error(const QString &)), this, SIGNAL(taskError(const QString &)));
             Connect(aireader, SIGNAL(warning(const QString &)), this, SIGNAL(taskWarning(const QString &)));
-            QStringList aiChanList = QStringList(params.bug.aiTrig);
-            if (!params.bug.aiExtra.isEmpty()) aiChanList.push_back(params.bug.aiExtra);
-            QString err = aireader->startDAQ(aiChanList, params.srate*params.bug.aiResampleFactor, 0.010, 1000);
+            QString err = aireader->startDAQ(params.bug.aiChans, params.srate*params.bug.aiDownsampleFactor, 0.010, 1000);
             if (!err.isEmpty()) { emit taskError(err); return; }
         }
         if (!aireader) return;
@@ -2026,7 +2024,7 @@ namespace DAQ
             if (aireader->readAll(aisamps)) {
                 if (excessiveDebug) Debug() << shortName << ": read " << aisamps.size() << " samples from AI";
                 std::vector<int16> ai_resampled;
-                const double factor = params.bug.aiResampleFactor > 0. ? 1.0/params.bug.aiResampleFactor : 1.0;
+                const double factor = params.bug.aiDownsampleFactor > 0. ? 1.0/params.bug.aiDownsampleFactor : 1.0;
                 if (factor > 1.0) {
                     //QString err = Resampler::resample(aisamps, ai_resampled, factor, nCh, Resampler::SincFastest, false);
                     //if (err.length()) emit taskError(err);
@@ -2137,27 +2135,29 @@ namespace DAQ
     /* static */ QString BugTask::getChannelName(unsigned num, const Params & p)
 	{
 		if (int(num) < TotalNeuralChans)
-			return QString("NEU%1").arg(num);
+            return QString("NEU%1").arg(num);
 		num -= TotalNeuralChans;
 		if (int(num) < TotalEMGChans)
-			return QString("EMG%1").arg(num);
+            return QString("EMG%1").arg(num);
 		num -= TotalEMGChans;
 		if (int(num) < TotalAuxChans)
-			return QString("AUX%1").arg(num);
+            return QString("AUX%1").arg(num) + (p.bug.auxTrig == int(num) ? " (TRG)" : "");
 		num -= TotalAuxChans;
 		if (int(num) < TotalTTLChans)
-			return QString("TTL%1").arg(num);
+            return QString("TTL%1").arg(num) + (p.bug.ttlTrig == int(num) ? " (TRG)" : "");
         num -= TotalTTLChans;
-        if (num == 0 && p.bug.aiTrig.contains("/")) return p.bug.aiTrig.split("/").back().toUpper();
-        if (num == 1 && p.bug.aiExtra.contains("/")) return p.bug.aiExtra.split("/").back().toUpper();
+        if (int(num)  < p.bug.aiChans.count()) {
+            const QString s(p.bug.aiChans.at(num));
+            return s.split("/").back().toUpper() + (p.bug.aiTrig.compare(s,Qt::CaseInsensitive) == 0 ? " (TRG)" : "");
+        }
         return QString("UNK%1").arg(num);
-	}
+    }
 	
 	/* static */ bool BugTask::isNeuralChan(unsigned num) { return int(num) < TotalNeuralChans; }
 	/* static */ bool BugTask::isEMGChan(unsigned num) { return int(num) >= TotalNeuralChans && int(num) < TotalNeuralChans+TotalEMGChans; }
 	/* static */ bool BugTask::isAuxChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans; }
 	/* static */ bool BugTask::isTTLChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans+TotalAuxChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans+TotalTTLChans; }
-    /* static */ bool BugTask::isAIChan(const Params & p, unsigned num) { return !p.bug.aiTrig.isEmpty() && int(num) >= p.idxOfPdChan; }
+    /* static */ bool BugTask::isAIChan(const Params & p, unsigned num) { return num < p.nVAIChans && int(p.nVAIChans-num) <= p.bug.aiChans.count(); }
 
 	
 	/*-------------------- Framegrabber Task --------------------------------*/

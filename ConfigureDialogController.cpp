@@ -1160,7 +1160,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
 	p.bug.rate = settings.value("bug_rate", 2).toUInt();
 	p.bug.ttlTrig = settings.value("bug_ttlTrig", -1).toInt();
     p.bug.auxTrig = settings.value("bug_auxTrig", -1).toInt();
-    p.bug.aiTrig = settings.value("bug_aiTrig", "").toString();
+    p.bug.aiTrig = settings.value("bug_aiTrig_v2", "").toString();
     p.bug.whichTTLs = settings.value("bug_whichTTLs", 0).toInt();
 	p.bug.clockEdge = settings.value("bug_clockEdge", 0).toInt();
 	p.bug.hpf = settings.value("bug_hpf", 0).toInt();
@@ -1170,8 +1170,8 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
     p.bug.aoSrate = settings.value("bug_aoSrate", DAQ::BugTask::SamplingRate).toUInt();
     p.bug.altTTL = settings.value("bug_altTTL", true).toBool();
     p.bug.trigThreshV = settings.value("bug_trigThreshV", 3.0).toDouble();
-    p.bug.aiExtra = settings.value("bug_aiExtra","").toString();
-    p.bug.aiResampleFactor = settings.value("bug_ai_resample_factor",1.0).toDouble();
+    p.bug.aiChans = settings.value("bug_aiChans",QStringList()).toStringList();
+    p.bug.aiDownsampleFactor = settings.value("bug_ai_downsample_factor",1.0).toDouble();
 
 
     p.fg.baud = settings.value("fg_baud", 1).toInt();
@@ -1273,7 +1273,7 @@ void ConfigureDialogController::saveSettings(int sc) const
         settings.setValue("bug_rate", p.bug.rate);
         settings.setValue("bug_ttlTrig", p.bug.ttlTrig);
         settings.setValue("bug_auxTrig", p.bug.auxTrig);
-        settings.setValue("bug_aiTrig", p.bug.aiTrig);
+        settings.setValue("bug_aiTrig_v2", p.bug.aiTrig);
         settings.setValue("bug_whichTTLs", p.bug.whichTTLs);
         settings.setValue("bug_clockEdge", p.bug.clockEdge);
         settings.setValue("bug_hpf", p.bug.hpf);
@@ -1283,8 +1283,8 @@ void ConfigureDialogController::saveSettings(int sc) const
         settings.setValue("bug_aoSrate", p.bug.aoSrate);
         settings.setValue("bug_altTTL", p.bug.altTTL);
         settings.setValue("bug_trigThreshV", p.bug.trigThreshV);
-        settings.setValue("bug_aiExtra", p.bug.aiExtra);
-        settings.setValue("bug_ai_resample_factor", p.bug.aiResampleFactor);
+        settings.setValue("bug_aiChans", p.bug.aiChans);
+        settings.setValue("bug_ai_downsample_factor", p.bug.aiDownsampleFactor);
     }
 
     if (sc & FG) {

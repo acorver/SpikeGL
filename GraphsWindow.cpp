@@ -1180,9 +1180,7 @@ void GraphsWindow::setTrigOverrideEnabled(bool b)
     trigOverrideChk->setEnabled(b);
     if (!b) {
         trigOverrideChk->setChecked(false);
-        pdTrigLed->setOnColor(QLed::Yellow);
-    } else
-        pdTrigLed->setOnColor(QLed::Green);
+    }
 }
 
 void GraphsWindow::saveGraphChecked(bool b) {

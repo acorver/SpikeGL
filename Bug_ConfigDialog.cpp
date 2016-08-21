@@ -43,7 +43,7 @@ Bug_ConfigDialog::Bug_ConfigDialog(DAQ::Params & p, QObject *parent) : QObject(p
     extraAIW = new QGroupBox("Bug Extra AI Params", dialogW);
     extraAI = new Ui::Bug_ExtraAIParams;
     extraAI->setupUi(extraAIW);
-    extraAIW->hide(); extraAIW->resize(0,0);
+    extraAIW->resize(272,115); extraAIW->move(33,208);
 }
 
 Bug_ConfigDialog::~Bug_ConfigDialog()
@@ -100,8 +100,10 @@ int Bug_ConfigDialog::exec()
 					if (ttls[i]->isChecked()) p.bug.whichTTLs |= 0x1 << i;  
 				}
                 const bool hasAuxTrig = p.bug.auxTrig > -1, hasTtlTrig = p.bug.ttlTrig > -1, hasAITrig = p.bug.aiTrig.length()!=0;
-                p.bug.aiExtra = extraAI->chan->currentIndex() > 0 && hasAITrig ? extraAI->chan->currentText() : "";
-                const bool hasAIExtra = hasAITrig && !p.bug.aiExtra.isEmpty();
+                p.bug.aiChans.clear();
+                if (extraAI->chan1->currentIndex() != 0) p.bug.aiChans.push_back(extraAI->chan1->currentText());
+                if (extraAI->chan2->currentIndex() != 0) p.bug.aiChans.push_back(extraAI->chan2->currentText());
+                const bool hasAIChans = !p.bug.aiChans.isEmpty();
                 int trigIdx=0;
                 if (hasAuxTrig)
                     trigIdx = DAQ::BugTask::FirstAuxChan;
@@ -128,7 +130,7 @@ int Bug_ConfigDialog::exec()
 				int nttls = 0;
 				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i)
 					if ( (p.bug.whichTTLs >> i) & 0x1) ++nttls; // count number of ttls set 
-                p.nVAIChans = DAQ::BugTask::BaseNChans + nttls + (hasAITrig ? 1 : 0) + (hasAIExtra ? 1 : 0);
+                p.nVAIChans = DAQ::BugTask::BaseNChans + nttls + p.bug.aiChans.count();
 				p.nVAIChans1 = p.nVAIChans;
 				p.nVAIChans2 = 0;
 				p.aiChannels2.clear();
@@ -180,17 +182,20 @@ int Bug_ConfigDialog::exec()
                     p.silenceBeforePD = p.bug.altTTL ? dialog->trigPre_2->value()/1000.0 : dialog->trigPre->value()/1000.0;                   
                 }
 
-                if (hasAITrig) {
-                    p.bug.aiResampleFactor = 1.0 / qPow(2.0,double(extraAI->rate->currentIndex()));
-                    if (p.bug.aiExtra.length()) {
+                if (hasAIChans) {
+                    p.bug.aiDownsampleFactor = 1.0 / qPow(2.0,double(extraAI->rate->currentIndex()));
+                    if (p.bug.aiChans.count() == 2) {
+                        const QString c1(p.bug.aiChans.front()), c2(p.bug.aiChans.back());
                         errTit = errMsg = "";
-                        if (p.bug.aiExtra.compare(p.bug.aiTrig,Qt::CaseInsensitive) == 0) {
+                        if (c1.compare(c2,Qt::CaseInsensitive) == 0) {
+                            bool isTrig = p.bug.aiTrig.compare(c1,Qt::CaseInsensitive) == 0;
                             errTit = "Invalid AI Specification";
-                            errMsg = "Specified the same AI channel twice (as trigger and extra AI)";
+                            errMsg = QString("Specified the same AI channel twice") + (isTrig ? ", once as trigger and then as second AI" : "");
                         }
-                        if (p.bug.aiExtra.split("/").front().compare(p.bug.aiTrig.split("/").front()) != 0) {
+                        QStringList s1 = c1.split("/"), s2 = c2.split("/");
+                        if (s1.count() && s2.count() && s1.front().compare(s2.front(),Qt::CaseInsensitive) != 0) {
                             errTit = "Invalid AI Specification";
-                            errMsg = "The AI trigger channel and the 'extra' AI channel must both be physically on the same NI-DAQ Device!";
+                            errMsg = "The two AI channels specified in the 'Extra AI' box must both be physically on the same NI-DAQ Device!";
                         }
                         if (errTit.length()) {
                             QMessageBox::critical(dialogW,errTit,errMsg,QMessageBox::Ok);
@@ -272,7 +277,7 @@ int Bug_ConfigDialog::exec()
                             if (samp > 32767) samp = 32767;
                             p.pdThresh = static_cast<int16>(samp);
                         }
-					} else { // ttl lines
+                    } else { // ttl lines AND AI lines
 						r.min = -5., r.max = 5.;
                         // since ttl lines may be missing in channel set, renumber the ones that are missing for display purposes
                         int lim = (int(i)-int(DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans+DAQ::BugTask::TotalAuxChans))+1;
@@ -304,8 +309,6 @@ int Bug_ConfigDialog::exec()
 		}
 	} while (vr==AGAIN && r==QDialog::Accepted);	
 
-    extraAIW->hide();
-
 	return r;
 }
 
@@ -330,16 +333,24 @@ void Bug_ConfigDialog::guiFromSettings()
         }
     }
     // populate 'extra' cb with list of all AI channels
-    if (extraAI->chan->count() == 1) {
+    if (extraAI->chan1->count() == 1) {
         for (DAQ::DeviceChanMap::iterator it = cm.begin(); it != cm.end(); ++it) {
             for (QStringList::iterator it2 = it.value().begin(); it2 != it.value().end(); ++it2) {
-               extraAI->chan->addItem(*it2);
-               if (p.bug.aiExtra.compare(*it2) == 0) extraAI->chan->setCurrentIndex(extraAI->chan->count()-1);
+               extraAI->chan1->addItem(*it2);
+               if (p.bug.aiChans.count() && p.bug.aiChans.front().compare(*it2) == 0) extraAI->chan1->setCurrentIndex(extraAI->chan1->count()-1);
+            }
+        }
+    }
+    if (extraAI->chan2->count() == 1) {
+        for (DAQ::DeviceChanMap::iterator it = cm.begin(); it != cm.end(); ++it) {
+            for (QStringList::iterator it2 = it.value().begin(); it2 != it.value().end(); ++it2) {
+               extraAI->chan2->addItem(*it2);
+               if (p.bug.aiChans.count() == 2 && p.bug.aiChans.back().compare(*it2) == 0) extraAI->chan2->setCurrentIndex(extraAI->chan2->count()-1);
             }
         }
     }
     // set the sampling rate cb in the extra ai submenu
-    int fctr = qRound(1.0/(p.bug.aiResampleFactor > 0. ? p.bug.aiResampleFactor : 1.0));
+    int fctr = qRound(1.0/(p.bug.aiDownsampleFactor > 0. ? p.bug.aiDownsampleFactor : 1.0));
     for (int i = 0; i < extraAI->rate->count(); ++i) {
         if (qRound(qPow(2.0,double(i))) == fctr) extraAI->rate->setCurrentIndex(i);
     }
@@ -447,39 +458,16 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
     if (isLineSelected) {
         dialog->graphsPerTabCB->setCurrentIndex(0);
     }
-    if (idx >= limit_non_ai_idx) { // ai channel selected.. show the little animation of our extra AI params gui
-        QRect tr = dialog->trigParams->geometry();
-        extraAIW->move(tr.x(),tr.y());
-        QPropertyAnimation *a = findChild<QPropertyAnimation *>("propertyanimation"); if (a) delete a, a = 0;
-        QPropertyAnimation *a2 = 0;
-        a = new QPropertyAnimation(extraAIW,"size",this);
-        a2 = new QPropertyAnimation(extraAIW,"pos",a);
-        a->setObjectName("propertyanimation");
-        a->setStartValue(QSize(0,0));
-        a->setEndValue(tr.size());
-        a2->setStartValue(tr.topLeft());
-        a2->setEndValue(QPoint(dialog->intanLbl->pos().x()+50,tr.y()));
-        a2->setDuration(150);
-        extraAIW->resize(0,0);
-        extraAIW->show();
-        extraAIW->raise();
-        a->setDuration(150);
-        a2->start(QAbstractAnimation::DeleteWhenStopped);
-        a->start(QAbstractAnimation::DeleteWhenStopped);
+    if (idx >= limit_non_ai_idx) { // ai channel selected.. force first extraAI channel to reflect this!
+        QString txt = dialog->ttlTrigCB->currentText();
+        extraAI->chan1->setEnabled(false);
+        for (int i = 0; i < extraAI->chan1->count(); ++i) {
+            if (extraAI->chan1->itemText(i).compare(txt) == 0) {
+                extraAI->chan1->setCurrentIndex(i); break;
+            }
+        }
     } else {
-        QPropertyAnimation *a = findChild<QPropertyAnimation *>("propertyanimation"); if (a) delete a, a = 0;
-        a = new QPropertyAnimation(extraAIW,"size",this);
-        a->setObjectName("propertyanimation");
-        a->setStartValue(QSize(extraAIW->size()));
-        a->setEndValue(QSize(0,0));
-        a->setDuration(150);
-        QPropertyAnimation *a2 = new QPropertyAnimation(extraAIW,"pos",a);
-        a2->setStartValue(extraAIW->pos());
-        a2->setEndValue(dialog->trigParams->pos());
-        a2->setDuration(150);
-        Connect(a,SIGNAL(finished()),extraAIW,SLOT(hide()));
-        a2->start(QAbstractAnimation::DeleteWhenStopped);
-        a->start(QAbstractAnimation::DeleteWhenStopped);
+        extraAI->chan1->setEnabled(true);
     }
 }
 

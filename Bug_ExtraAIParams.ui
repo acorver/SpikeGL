@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>184</width>
+    <width>272</width>
     <height>115</height>
    </rect>
   </property>
@@ -25,17 +25,17 @@
   <property name="alignment">
    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
   </property>
-  <widget class="QComboBox" name="chan">
+  <widget class="QComboBox" name="chan1">
    <property name="geometry">
     <rect>
      <x>39</x>
      <y>80</y>
-     <width>131</width>
+     <width>91</width>
      <height>22</height>
     </rect>
    </property>
    <property name="toolTip">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Optionally, you can record a second AI channel along with the AI channel you want to use for triggering. This additional channel is saved alongside all the other data. &lt;/p&gt;&lt;p&gt;Useful for synchronizing telemetry recording data to other systems.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Optionally, you can record a additioanl AI channel(2), up to 2. This can be the AI channel you want to use for triggering + 1 extra channel, or if not using AI for triggering, 2 additional AI channels. These additional channels are saved alongside all the other data. &lt;/p&gt;&lt;p&gt;Useful for synchronizing telemetry recording data to other systems.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <item>
     <property name="text">
@@ -56,7 +56,7 @@
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Optionally, you can record a second AI channel along with the AI channel you want to use for triggering. This additional channel is saved alongside all the other data. &lt;/p&gt;&lt;p&gt;Useful for synchronizing telemetry recording data to other systems.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <property name="text">
-    <string>Record Additional AI Channel</string>
+    <string>Record Additional AI Channel(s)</string>
    </property>
   </widget>
   <widget class="QComboBox" name="rate">
@@ -112,6 +112,56 @@
    <property name="text">
     <string>Sampling Rate</string>
    </property>
+  </widget>
+  <widget class="QLabel" name="labelai1">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>80</y>
+     <width>16</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Optionally, you can record a additioanl AI channel(2), up to 2. This can be the AI channel you want to use for triggering + 1 extra channel, or if not using AI for triggering, 2 additional AI channels. These additional channels are saved alongside all the other data. &lt;/p&gt;&lt;p&gt;Useful for synchronizing telemetry recording data to other systems.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>1:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelai2">
+   <property name="geometry">
+    <rect>
+     <x>141</x>
+     <y>80</y>
+     <width>16</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Optionally, you can record a additioanl AI channel(2), up to 2. This can be the AI channel you want to use for triggering + 1 extra channel, or if not using AI for triggering, 2 additional AI channels. These additional channels are saved alongside all the other data. &lt;/p&gt;&lt;p&gt;Useful for synchronizing telemetry recording data to other systems.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>2:</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="chan2">
+   <property name="geometry">
+    <rect>
+     <x>160</x>
+     <y>80</y>
+     <width>91</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Optionally, you can record a additioanl AI channel(2), up to 2. This can be the AI channel you want to use for triggering + 1 extra channel, or if not using AI for triggering, 2 additional AI channels. These additional channels are saved alongside all the other data. &lt;/p&gt;&lt;p&gt;Useful for synchronizing telemetry recording data to other systems.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <item>
+    <property name="text">
+     <string>Disabled</string>
+    </property>
+   </item>
   </widget>
  </widget>
  <resources/>
