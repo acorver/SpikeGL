@@ -345,8 +345,8 @@ namespace Bug3
                 if (newSynthDataReady)
                 {
                     //HACK XXX TODO FIXME TESTING -- comment-out the following line to test the "no data from USB condition"
-                   haveEnoughData = true;
-                   newSynthDataReady = false;
+                  haveEnoughData = true;
+                  newSynthDataReady = false;
                 }
             }
             else

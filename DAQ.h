@@ -166,8 +166,9 @@ namespace DAQ
             double trigThreshV; ///< for UI -- the actual trigger code uses .pdThresh
             QString aoPassthruString; // defaults to "", but can be something eg 0=1
             unsigned aoSrate;
+            bool graphMissing; ///< if true, add an additional channel to the end which is a graph of 'meta.missingFrameCount'.. scaled to: 40 missing frames per block -> MAXV, 0 missing frames = 0V.
             bool altTTL; ///< if true, use alternate TTL triggering scheme whereby a single TTL pulse has a pre window and a post window surrounding it in the data file
-            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; aiDownsampleFactor=1.0; }
+            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; aiDownsampleFactor=1.0; graphMissing = false; }
 		} bug;
 		
 		struct FG { // framegrabber
@@ -475,6 +476,7 @@ namespace DAQ
 		static bool isAuxChan(unsigned num);
 		static bool isTTLChan(unsigned num);
         static bool isAIChan(const Params &p, unsigned num);
+        static bool isMissingFCChan(const Params &p, unsigned num);
 		
 	protected:
 		unsigned gotInput(const QByteArray & data, unsigned lastReadNBytes, QProcess & p); ///< return number of bytes consumed from data.  Data buffer will then have those bytes removed from beginning
@@ -505,6 +507,7 @@ namespace DAQ
 		void processBlock(const QMap<QString, QString> &, quint64 blockNum);		
         void handleAOPassthru(const std::vector<int16> & samps);
         void handleAI(std::vector<int16> & samps);
+        void handleMissingFCGraph(std::vector<int16> & samps, const BlockMetaData & meta);
 	};
 	
 

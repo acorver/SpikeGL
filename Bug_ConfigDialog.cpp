@@ -86,6 +86,7 @@ int Bug_ConfigDialog::exec()
 				p.fg.reset();
 				p.bug.reset();
 				p.bug.enabled = true;
+                p.bug.graphMissing = dialog->graphMissing->isChecked();
 				p.bug.rate = dialog->acqRateCB->currentIndex();
                 if (dialog->ttlTrigCB->currentIndex() >= 1 + DAQ::BugTask::TotalAuxChans+DAQ::BugTask::TotalTTLChans) {
                     p.bug.aiTrig = dialog->ttlTrigCB->currentText();
@@ -130,7 +131,7 @@ int Bug_ConfigDialog::exec()
 				int nttls = 0;
 				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i)
 					if ( (p.bug.whichTTLs >> i) & 0x1) ++nttls; // count number of ttls set 
-                p.nVAIChans = DAQ::BugTask::BaseNChans + nttls + p.bug.aiChans.count();
+                p.nVAIChans = DAQ::BugTask::BaseNChans + nttls + p.bug.aiChans.count() + (p.bug.graphMissing?1:0);
 				p.nVAIChans1 = p.nVAIChans;
 				p.nVAIChans2 = 0;
 				p.aiChannels2.clear();
@@ -277,7 +278,7 @@ int Bug_ConfigDialog::exec()
                             if (samp > 32767) samp = 32767;
                             p.pdThresh = static_cast<int16>(samp);
                         }
-                    } else { // ttl lines AND AI lines
+                    } else { // ttl lines AND AI lines AND "Graph Missing" graph
 						r.min = -5., r.max = 5.;
                         // since ttl lines may be missing in channel set, renumber the ones that are missing for display purposes
                         int lim = (int(i)-int(DAQ::BugTask::TotalNeuralChans+DAQ::BugTask::TotalEMGChans+DAQ::BugTask::TotalAuxChans))+1;
@@ -315,6 +316,7 @@ int Bug_ConfigDialog::exec()
 void Bug_ConfigDialog::guiFromSettings()
 {
 	DAQ::Params & p(acceptedParams);
+    dialog->graphMissing->setChecked(p.bug.graphMissing);
 	dialog->outputFileLE->setText(p.outputFile);
 	dialog->channelSubsetLE->setText(p.subsetString);
 	for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {

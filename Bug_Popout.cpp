@@ -328,7 +328,7 @@ void Bug_Popout::setupAOPassThru()
         unsigned bug3ch = ap.aoPassthruMap.contains(aoch) ? ap.aoPassthruMap[aoch] : 0;
         unsigned i;
         for (i = 0; i < task->numChans(); ++i) {
-            ui->bug3ChanCB->addItem(task->getChannelName(i,ap),QVariant(i));
+            ui->bug3ChanCB->addItem(ap.chanDisplayNames[i],QVariant(i));
         }
         if (bug3ch < i) ui->bug3ChanCB->setCurrentIndex(bug3ch);
 

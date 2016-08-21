@@ -1998,6 +1998,7 @@ namespace DAQ
 		totalReadMut.unlock();
 
         handleAI(samps);
+        handleMissingFCGraph(samps, meta);
         handleAOPassthru(samps);
 
 		//Debug() << "Enq: " << samps.size() << " samps, firstSamp: " << oldTotalRead;
@@ -2006,6 +2007,19 @@ namespace DAQ
         }
 		if (!oldTotalRead) emit(gotFirstScan());
 	}
+
+    void BugTask::handleMissingFCGraph(std::vector<int16> &samps, const BugTask::BlockMetaData & meta)
+    {
+       const DAQ::Params & p(params);
+       if (!p.bug.graphMissing) return;
+       const int nchans = int(numChans());
+       if (!nchans) return;
+       const int nscans = int(samps.size())/nchans;
+       const int16 samp = static_cast<int16>((double(meta.missingFrameCount) / 40.0) * 32767.0);
+       for (int i = 0; i < nscans; ++i) {
+           samps[i*nchans+(nchans-1)] = samp;
+       }
+    }
 
     void BugTask::handleAI(std::vector<int16> & samps) {
         if (!aireader && !params.bug.aiChans.isEmpty()) {
@@ -2047,13 +2061,14 @@ namespace DAQ
         }
         if (ais.size()) {
             const int nchans = int(numChans());
+            const int mfc = params.bug.graphMissing ? 1 : 0;
             const int nscans = int(samps.size())/(nchans>0?nchans:1);
             const int aisz = int(ais.size());
             const int aiscans = aisz/nCh;
             const int off = aiscans-nscans;
             for (int i = off < 0 ? -off : 0, j = 0; i < nscans && j < aiscans; ++i, ++j) {
                 for (int k = 0; k < nCh; ++k)
-                    samps[i*nchans+(nchans-(nCh-k))] = ais[(j*nCh)+k];
+                    samps[i*nchans+(nchans-(nCh-k))-mfc] = ais[(j*nCh)+k];
             }
             if (off > 0) {
                 ais.erase(ais.begin(), ais.begin()+nscans*nCh);
@@ -2134,7 +2149,7 @@ namespace DAQ
 	
     /* static */ QString BugTask::getChannelName(unsigned num, const Params & p)
 	{
-		if (int(num) < TotalNeuralChans)
+        if (int(num) < TotalNeuralChans)
             return QString("NEU%1").arg(num);
 		num -= TotalNeuralChans;
 		if (int(num) < TotalEMGChans)
@@ -2150,6 +2165,8 @@ namespace DAQ
             const QString s(p.bug.aiChans.at(num));
             return s.split("/").back().toUpper() + (p.bug.aiTrig.compare(s,Qt::CaseInsensitive) == 0 ? " (TRG)" : "");
         }
+        if (p.bug.graphMissing && num == p.bug.aiChans.count())
+            return QString("MSNG_FRM");
         return QString("UNK%1").arg(num);
     }
 	
@@ -2157,7 +2174,8 @@ namespace DAQ
 	/* static */ bool BugTask::isEMGChan(unsigned num) { return int(num) >= TotalNeuralChans && int(num) < TotalNeuralChans+TotalEMGChans; }
 	/* static */ bool BugTask::isAuxChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans; }
 	/* static */ bool BugTask::isTTLChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans+TotalAuxChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans+TotalTTLChans; }
-    /* static */ bool BugTask::isAIChan(const Params & p, unsigned num) { return num < p.nVAIChans && int(p.nVAIChans-num) <= p.bug.aiChans.count(); }
+    /* static */ bool BugTask::isAIChan(const Params & p, unsigned num) { if (p.bug.graphMissing && p.nVAIChans==(num+1)) return false; return num < p.nVAIChans && int(p.nVAIChans-num) <= p.bug.aiChans.count()+(p.bug.graphMissing?1:0); }
+    /* static */ bool BugTask::isMissingFCChan(const Params & p, unsigned num) { return p.bug.graphMissing && num < p.nVAIChans && int(p.nVAIChans-num) == 1; }
 
 	
 	/*-------------------- Framegrabber Task --------------------------------*/

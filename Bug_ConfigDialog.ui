@@ -1186,6 +1186,25 @@ p, li { white-space: pre-wrap; }
     </property>
    </widget>
   </widget>
+  <widget class="QCheckBox" name="graphMissing">
+   <property name="geometry">
+    <rect>
+     <x>33</x>
+     <y>330</y>
+     <width>204</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, the 'missing frame count' parameter reported by the USB telemetry system is graphed on-screen, with possible values of 0-&amp;gt;40 scaled over 0-&amp;gt;32767 in the data.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="text">
+    <string>Save/Graph 'MissingFrameCount'</string>
+   </property>
+  </widget>
  </widget>
  <tabstops>
   <tabstop>outputFileLE</tabstop>

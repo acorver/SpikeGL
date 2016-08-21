@@ -53,7 +53,8 @@ static const QColor Bug_AuxGraphBGColor(0xa6, 0x69,0x3c, 0xff),
                     Bug_EMGGraphBGColor(0x2f, 0x2f, 0x4f, 0xff),
 					Bug_TTLGraphBGColor(0x2f, 0x2f, 0x2f, 0xff),
                     Bug_NeuralGraphBGColor(0x2f, 0x4f, 0x4f, 0xff),
-                    Bug_AIGraphBGColor(0x4f,0x2f,0x2f,0xff);
+                    Bug_AIGraphBGColor(0x4f,0x2f,0x2f,0xff),
+                    Bug_MissingFCBGColor(0x4f,0x2f,0x4f,0xff);
 
 static void initIcons()
 {
@@ -95,7 +96,8 @@ void GraphsWindow::setupGraph(int num, int firstExtraChan)
 		if (DAQ::BugTask::isAuxChan(num)) bgColor = Bug_AuxGraphBGColor;
 		if (DAQ::BugTask::isTTLChan(num)) bgColor = Bug_TTLGraphBGColor;
         if (DAQ::BugTask::isAIChan(params,num)) bgColor = Bug_AIGraphBGColor;
-	} else {
+        if (DAQ::BugTask::isMissingFCChan(params,num)) bgColor = Bug_MissingFCBGColor;
+    } else {
 		// regular mode! use regular scheme...
 		//  is the photodiode channel?
 		if (num >= firstExtraChan) bgColor = AuxGraphBGColor;
