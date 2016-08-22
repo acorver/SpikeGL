@@ -307,7 +307,7 @@ int Bug_ConfigDialog::exec()
                             else p.pdThresh = static_cast<int16>(samp);
                         } else if (p.bug.graphBadData && i+1 == p.nVAIChans) {
                             // bad data graph.. set range appropriately
-                            r.min=0., r.max = 1.;
+                            r.min=-1., r.max = 1.;
                         }
                     }
 					if (rminmax.min > r.min) rminmax.min = r.min;
