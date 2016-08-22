@@ -166,10 +166,11 @@ namespace DAQ
             double trigThreshV; ///< for UI -- the actual trigger code uses .pdThresh
             QString aoPassthruString; // defaults to "", but can be something eg 0=1
             unsigned aoSrate;
-            bool graphMissing; ///< if true, add an additional channel to the end which is a graph of 'meta.missingFrameCount'.. scaled to: 40 missing frames per block -> MAXV, 0 missing frames = 0V.
+            bool graphBadData; ///< if true, add an additional channel to the end which is a graph of 'meta.BER'.. logarithmically scaled to 0,MAXV
             bool altTTL; ///< if true, use alternate TTL triggering scheme whereby a single TTL pulse has a pre window and a post window surrounding it in the data file
             int backupTrigger; ///< index of channel which is the "backup" trigger, or -1 if no channel is the backup trigger
-            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; aiDownsampleFactor=1.0; graphMissing = false; backupTrigger = -1; }
+            int16 backupTriggerThresh; ///< in samps
+            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; aiDownsampleFactor=1.0; graphBadData = false; backupTrigger = -1; backupTriggerThresh = 10000; }
 		} bug;
 		
 		struct FG { // framegrabber
@@ -272,7 +273,8 @@ namespace DAQ
     {
         Q_OBJECT
     public:
-        NITask(const Params & acqParams, QObject *parent, const PagedScanReader &psr);
+        NITask(const Params & acqParams, QObject *parent, const PagedScanReader &psr,
+               const QString & taskDescriptiveName = "DAQ Task");
 		~NITask(); ///< calls stop()
 
         void stop(); ///< stops and joins thr
@@ -508,7 +510,7 @@ namespace DAQ
 		void processBlock(const QMap<QString, QString> &, quint64 blockNum);		
         void handleAOPassthru(const std::vector<int16> & samps);
         void handleAI(std::vector<int16> & samps);
-        void handleMissingFCGraph(std::vector<int16> & samps, const BlockMetaData & meta);
+        void handleBadDataGraph(std::vector<int16> & samps, const BlockMetaData & meta);
 	};
 	
 

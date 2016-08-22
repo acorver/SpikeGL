@@ -354,9 +354,9 @@
   <widget class="QComboBox" name="graphsPerTabCB">
    <property name="geometry">
     <rect>
-     <x>137</x>
+     <x>123</x>
      <y>353</y>
-     <width>102</width>
+     <width>97</width>
      <height>22</height>
     </rect>
    </property>
@@ -410,7 +410,7 @@ p, li { white-space: pre-wrap; }
     <rect>
      <x>10</x>
      <y>353</y>
-     <width>117</width>
+     <width>104</width>
      <height>22</height>
     </rect>
    </property>
@@ -1186,7 +1186,7 @@ p, li { white-space: pre-wrap; }
     </property>
    </widget>
   </widget>
-  <widget class="QCheckBox" name="graphMissing">
+  <widget class="QCheckBox" name="graphBad">
    <property name="geometry">
     <rect>
      <x>33</x>
@@ -1196,13 +1196,13 @@ p, li { white-space: pre-wrap; }
     </rect>
    </property>
    <property name="toolTip">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, the 'missing frame count' parameter reported by the USB telemetry system is graphed on-screen, with possible values of 0-&amp;gt;40 scaled over 0-&amp;gt;32767 in the data.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, the 'bit error rate' parameter reported by the USB telemetry system is graphed on-screen, and saved as the last channel in the data file as a 'virtual channel'. &lt;/p&gt;&lt;p&gt;The possible values of 10&lt;span style=&quot; vertical-align:super;&quot;&gt;-5&lt;/span&gt;-&amp;gt;10&lt;span style=&quot; vertical-align:super;&quot;&gt;0&lt;/span&gt; are scaled logarithmically over 0-&amp;gt;32767 in the output data.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <property name="layoutDirection">
     <enum>Qt::LeftToRight</enum>
    </property>
    <property name="text">
-    <string>Save/Graph 'MissingFrameCount'</string>
+    <string>Put 'ErrorRate' in data stream</string>
    </property>
   </widget>
  </widget>

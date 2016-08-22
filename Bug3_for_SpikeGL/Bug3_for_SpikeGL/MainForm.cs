@@ -1161,7 +1161,8 @@ namespace Bug3
                             //Console.WriteLine("WARNMSG: block interval={0}ms nblks={1}", blkintvl_ms, nblks);
 
                             for (int i = 0; i < nblks; ++i)
-                                plotQueue.Enqueue(new USBData()); 
+                                plotQueue.Enqueue(new USBData(true));
+                            
                             doConsoleDataOutput(numPagesLeftInRAM);
                             plotQueue.Clear();
                         }

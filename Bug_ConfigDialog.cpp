@@ -87,7 +87,7 @@ int Bug_ConfigDialog::exec()
 				p.fg.reset();
 				p.bug.reset();
 				p.bug.enabled = true;
-                p.bug.graphMissing = dialog->graphMissing->isChecked();
+                p.bug.graphBadData = dialog->graphBad->isChecked();
 				p.bug.rate = dialog->acqRateCB->currentIndex();
                 if (dialog->ttlTrigCB->currentIndex() >= 1 + DAQ::BugTask::TotalAuxChans+DAQ::BugTask::TotalTTLChans) {
                     p.bug.aiTrig = dialog->ttlTrigCB->currentText();
@@ -127,8 +127,8 @@ int Bug_ConfigDialog::exec()
                 }
 
                 if ((hasAuxTrig || hasTtlTrig)
-                        && p.bug.aiChans.count() && extraAI->trigBackupChk->isChecked()
-                        && extraAI->trigBackupChk->isEnabled() )
+                        && p.bug.aiChans.count() && extraAI->trigBackupChk->isEnabled()
+                        && extraAI->trigBackupChk->isChecked())
                     p.bug.backupTrigger = DAQ::BugTask::BaseNChans + numTtls;
 
 				p.bug.clockEdge = dialog->clkEdgeCB->currentIndex();
@@ -141,7 +141,7 @@ int Bug_ConfigDialog::exec()
 				int nttls = 0;
 				for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i)
 					if ( (p.bug.whichTTLs >> i) & 0x1) ++nttls; // count number of ttls set 
-                p.nVAIChans = DAQ::BugTask::BaseNChans + nttls + p.bug.aiChans.count() + (p.bug.graphMissing?1:0);
+                p.nVAIChans = DAQ::BugTask::BaseNChans + nttls + p.bug.aiChans.count() + (p.bug.graphBadData?1:0);
 				p.nVAIChans1 = p.nVAIChans;
 				p.nVAIChans2 = 0;
 				p.aiChannels2.clear();
@@ -295,12 +295,19 @@ int Bug_ConfigDialog::exec()
                         for (int j=0; j < lim && j < DAQ::BugTask::TotalTTLChans ; ++j)
                             if (!(p.bug.whichTTLs & (0x1<<j))) ++chan_id_for_display, ++lim;
 
-                        if ((hasTtlTrig || hasAITrig) && trigIdx == (int)i) {
+                        bool isbak = false;
+
+                        if ( ((hasTtlTrig || hasAITrig) && trigIdx == int(i))
+                             || (isbak=((hasTtlTrig || hasAuxTrig) && p.bug.backupTrigger == int(i))) ) {
                             // acq is using TTL line for triggering.. convert Volts from GUI to a sample value for MainApp:taskReadFunc().. note this is ill defined really as TTL lines are always either 0 or 5V
                             int samp = static_cast<int>(( ( (p.bug.trigThreshV-r.min)/(r.max-r.min) ) * 65535.0 ) - 32768.0);
                             if (samp < -32767) samp = -32767;
                             if (samp > 32767) samp = 32767;
-                            p.pdThresh = static_cast<int16>(samp);
+                            if (isbak) p.bug.backupTriggerThresh = samp;
+                            else p.pdThresh = static_cast<int16>(samp);
+                        } else if (p.bug.graphBadData && i+1 == p.nVAIChans) {
+                            // bad data graph.. set range appropriately
+                            r.min=0., r.max = 1.;
                         }
                     }
 					if (rminmax.min > r.min) rminmax.min = r.min;
@@ -308,6 +315,9 @@ int Bug_ConfigDialog::exec()
 					p.customRanges[i] = r;
                     p.chanDisplayNames[i] = DAQ::BugTask::getChannelName(chan_id_for_display, p);
 				}
+
+                //Debug() << " triggerIndex=" << p.idxOfPdChan << " triggerThresh=" << p.pdThresh << " backupIndex=" << p.bug.backupTrigger << " backupThresh=" << p.bug.backupTriggerThresh;
+
 				p.range = rminmax;
 				p.auxGain = 1.0;
 
@@ -326,7 +336,7 @@ int Bug_ConfigDialog::exec()
 void Bug_ConfigDialog::guiFromSettings()
 {
 	DAQ::Params & p(acceptedParams);
-    dialog->graphMissing->setChecked(p.bug.graphMissing);
+    dialog->graphBad->setChecked(p.bug.graphBadData);
 	dialog->outputFileLE->setText(p.outputFile);
 	dialog->channelSubsetLE->setText(p.subsetString);
 	for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {

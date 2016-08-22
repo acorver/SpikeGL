@@ -344,9 +344,13 @@ namespace Bug3
             {
                 if (newSynthDataReady)
                 {
-                    //HACK XXX TODO FIXME TESTING -- comment-out the following line to test the "no data from USB condition"
-                  haveEnoughData = true;
-                  newSynthDataReady = false;
+                    //HACK XXX TODO FIXME TESTING -- comment-in the following conditional to test the "no data from USB condition"
+                    //long sec = System.DateTime.Now.Second;
+                    //if ((sec / 4) % 2 == 0)
+                    //{
+                        haveEnoughData = true;
+                        newSynthDataReady = false;
+                    //}
                 }
             }
             else

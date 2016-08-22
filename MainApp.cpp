@@ -1452,11 +1452,15 @@ bool MainApp::taskReadFunc()
         }
 
         const DAQ::BugTask::BlockMetaData *bugMeta = 0;
+        int useAltTrigIdx = -1; int16 altTrigThresh = -1;
 
         tNow = getTime();
 
         if (bugWindow && bugTask() && reader->metaDataSizeBytes() >= (int)sizeof(DAQ::BugTask::BlockMetaData) && metaPtr) {
             bugMeta = reinterpret_cast<const DAQ::BugTask::BlockMetaData *>(metaPtr);
+            if (p.bug.backupTrigger > -1 && bugMeta && bugMeta->missingFrameCount >= DAQ::BugTask::FramesPerBlock) {
+                useAltTrigIdx = p.bug.backupTrigger, altTrigThresh = p.bug.backupTriggerThresh;
+            }
         } else if (metaPtr && reader->metaDataSizeBytes() && fgTask()) {
             const unsigned long long *m = reinterpret_cast<unsigned long long *>(metaPtr); // recast metadata to a series of 64 bit ints
             int idx = (reader->metaDataSizeBytes() - sizeof(*m)) / sizeof(*m); // take the last 64bit int from the buffer
@@ -1470,7 +1474,7 @@ bool MainApp::taskReadFunc()
 
         if (taskWaitingForTrigger) { // task has been triggered , so save data, and graph it..
             if (!taskHasManualTrigOverride) {
-                detectTriggerEvent(scans, lastScanSz, firstSamp, triggerOffset); // may set taskWaitingForTrigger...
+                detectTriggerEvent(scans, lastScanSz, firstSamp, triggerOffset, useAltTrigIdx, altTrigThresh); // may set taskWaitingForTrigger...
                 if (taskWaitingForTrigger && tNow-lastSBUpd > 0.25) { // every 1/4th of a second
                     if (p.acqStartEndMode == DAQ::Timed) {
                         Status() << "Acquisition will auto-start in " << (double(startScanCt-scanCt)/p.srate) << " seconds.";
@@ -1511,7 +1515,7 @@ bool MainApp::taskReadFunc()
 
             if (!taskHasManualTrigOverride
                 && !needToStop && !taskShouldStop && taskWaitingForStop) {
-                needToStop = detectStopTask(scans, lastScanSz, firstSamp);
+                needToStop = detectStopTask(scans, lastScanSz, firstSamp, useAltTrigIdx, altTrigThresh);
             }
 
             if (dataFile.isOpen()) {
@@ -1649,11 +1653,13 @@ void MainApp::gotManualTrigOverride(bool b)
     }
 }
 
-bool MainApp::detectTriggerEvent(const int16 * scans, unsigned sz, u64 firstSamp, i32 & triggerOffset)
+bool MainApp::detectTriggerEvent(const int16 * scans, unsigned sz, u64 firstSamp, i32 & triggerOffset,
+                                 int trigIndex, int16 trigThresh)
 {
     triggerOffset = -1;
     bool triggered = false;
     DAQ::Params & p (configCtl->acceptedParams);
+    if (trigIndex < 0 || trigThresh < 0) trigIndex = p.idxOfPdChan, trigThresh = p.pdThresh;
     switch (p.acqStartEndMode) {
     case DAQ::Timed:  
         if (p.isImmediate || scanCt >= startScanCt) {
@@ -1666,21 +1672,22 @@ bool MainApp::detectTriggerEvent(const int16 * scans, unsigned sz, u64 firstSamp
 	case DAQ::Bug3TTLTriggered:
 	case DAQ::AITriggered: {
         // NB: photodiode channel is always the last channel.. unless in bug mode then it can be any of the last few TTL lines
-        if (p.idxOfPdChan < 0) {
+        if (trigIndex < 0) {
             Error() << "INTERNAL ERROR, acqStartMode is PD based but no PD channel specified in DAQ params!";
             emit do_stopTask();
             return false;
         }
-        for (int i = p.idxOfPdChan; i < int(sz); i += p.nVAIChans) {
+        //Debug() << "detectTrig: idx=" << trigIndex << " thresh=" << trigThresh;
+        for (int i = trigIndex; i < int(sz); i += p.nVAIChans) {
             const int16 samp = scans[i];
-            if (!pdWaitingForStimGL && samp > p.pdThresh) {
+            if (!pdWaitingForStimGL && samp > trigThresh) {
                 if (lastNPDSamples.size() >= p.pdThreshW) {
                     triggered = true, lastNPDSamples.clear();
                     pdOffTimeSamps = p.srate * p.pdStopTime * p.nVAIChans;
 					while (pdOffTimeSamps%p.nVAIChans) ++pdOffTimeSamps;
-                    lastSeenPD = firstSamp + u64(i-p.idxOfPdChan);
+                    lastSeenPD = firstSamp + u64(i-trigIndex);
                     // we triggered, so save offset of where we triggered
-                    triggerOffset = static_cast<i32>(i-int(p.idxOfPdChan));
+                    triggerOffset = static_cast<i32>(i-int(trigIndex));
                     i = sz; // break out of loop
                 } else 
                     lastNPDSamples.push_back(samp);
@@ -1709,11 +1716,13 @@ bool MainApp::detectTriggerEvent(const int16 * scans, unsigned sz, u64 firstSamp
     return triggered;
 }
 
-bool MainApp::detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp)
+bool MainApp::detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp, int trigIndex, int16 trigThresh)
 {
     bool stopped = false;
     DAQ::Params & p (configCtl->acceptedParams);
     const bool isBugAlt = p.acqStartEndMode == DAQ::Bug3TTLTriggered && p.bug.altTTL;
+
+    if (trigIndex < 0 || trigThresh < 0) trigIndex = p.idxOfPdChan, trigThresh = p.pdThresh;
 
     switch (p.acqStartEndMode) {
     case DAQ::Timed:  
@@ -1726,16 +1735,19 @@ bool MainApp::detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp)
 	case DAQ::AITriggered: 
     case DAQ::PDStartEnd: {
 
-        if (p.idxOfPdChan < 0) {
+        if (trigIndex < 0) {
             Error() << "INTERNAL ERROR, acqEndMode is PD/AI based but no PD/AI channel specified in DAQ params!";
             return true;
         }
+
+        //Debug() << "detectStop: idx=" << trigIndex << " thresh=" << trigThresh;
+
         if (!isBugAlt) {
-            for (int i = p.idxOfPdChan; i < int(sz); i += p.nVAIChans) {
+            for (int i = trigIndex; i < int(sz); i += p.nVAIChans) {
                 const int16 samp = scans[i];
-                if (samp > p.pdThresh) {
+                if (samp > trigThresh) {
                     if (lastNPDSamples.size() >= p.pdThreshW)
-                        lastSeenPD = firstSamp+u64(i-p.idxOfPdChan)/*, lastNPDSamples.clear()*/;
+                        lastSeenPD = firstSamp+u64(i-trigIndex)/*, lastNPDSamples.clear()*/;
                     else
                         lastNPDSamples.push_back(samp);
                 } else

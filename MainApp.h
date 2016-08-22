@@ -302,11 +302,13 @@ private:
     bool setupStimGLIntegration(bool doQuitOnFail=true);
     bool setupCommandServer(bool doQuitOnFail=true);    
     /// CAREFUL with this function -- it's called from within the DataSavingThread and as such should be fairly thread-safe and not directly touch the GUI
-    bool detectTriggerEvent(const int16 * scans, unsigned sz,  u64 firstSamp, i32 & triggerOffset);
+    bool detectTriggerEvent(const int16 * scans, unsigned sz,  u64 firstSamp, i32 & triggerOffset,
+                            int override_trigIndex=-1, int16 override_trigThresh=-1);
     /// CAREFUL with this function -- it's called from within the DataSavingThread and as such should be fairly thread-safe and not directly touch the GUI
     void triggerTask();
     /// CAREFUL with this function -- it's called from within the DataSavingThread and as such should be fairly thread-safe and not directly touch the GUI
-    bool detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp);
+    bool detectStopTask(const int16 * scans, unsigned sz, u64 firstSamp,
+                        int override_trigIndex = -1, int16 override_thresh = -1);
     /// CAREFUL with this function -- it's called from within the DataSavingThread and as such should be fairly thread-safe and not directly touch the GUI
     static void prependPrebufToScans(const WrapBuffer & wb, std::vector<int16> & scans, int & numAdded, int skip);
     void precreateOneGraph(bool noGLGraph = false);

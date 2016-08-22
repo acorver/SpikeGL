@@ -306,8 +306,8 @@ namespace DAQ
 #endif
     }
     
-    NITask::NITask(const Params & acqParams, QObject *p, const PagedScanReader &psr)
-        : Task(p,"DAQ Task", psr), pleaseStop(false), params(acqParams),
+    NITask::NITask(const Params & acqParams, QObject *p, const PagedScanReader &psr, const QString & taskDescriptiveName)
+        : Task(p,taskDescriptiveName, psr), pleaseStop(false), params(acqParams),
           fast_settle(0), muxMode(false), aoWriteThr(0),
 #ifdef HAVE_NIDAQmx
           taskHandle(0), taskHandle2(0),
@@ -1998,7 +1998,7 @@ namespace DAQ
 		totalReadMut.unlock();
 
         handleAI(samps);
-        handleMissingFCGraph(samps, meta);
+        handleBadDataGraph(samps, meta);
         handleAOPassthru(samps);
 
 		//Debug() << "Enq: " << samps.size() << " samps, firstSamp: " << oldTotalRead;
@@ -2008,14 +2008,31 @@ namespace DAQ
 		if (!oldTotalRead) emit(gotFirstScan());
 	}
 
-    void BugTask::handleMissingFCGraph(std::vector<int16> &samps, const BugTask::BlockMetaData & meta)
+    void BugTask::handleBadDataGraph(std::vector<int16> &samps, const BugTask::BlockMetaData & meta)
     {
        const DAQ::Params & p(params);
-       if (!p.bug.graphMissing) return;
+       if (!p.bug.graphBadData) return;
        const int nchans = int(numChans());
        if (!nchans) return;
        const int nscans = int(samps.size())/nchans;
-       const int16 samp = static_cast<int16>((double(meta.missingFrameCount) / 40.0) * 32767.0);
+
+       const double & BER(meta.BER);
+       double logBER;
+
+       if (BER > 0.0) {
+           logBER = ::log10(BER);
+           if (logBER > 0) logBER = 0;
+           else if (logBER < DAQ::BugTask::MinBER) logBER = DAQ::BugTask::MinBER;
+       } else	{
+           logBER = -100.0;
+       }
+       //Debug() << "logBer=" << logBER;
+       double pt = (logBER+(-MinBER))/(-MinBER);
+       if (pt < 0.) pt = 0.;
+       if (pt > 1.) pt = 1.;
+
+       //const int16 samp = static_cast<int16>((double(meta.missingFrameCount) / 40.0) * 32767.0);
+       const int16 samp(static_cast<int16>(pt*32767.0));
        for (int i = 0; i < nscans; ++i) {
            samps[i*nchans+(nchans-1)] = samp;
        }
@@ -2061,7 +2078,7 @@ namespace DAQ
         }
         if (ais.size()) {
             const int nchans = int(numChans());
-            const int mfc = params.bug.graphMissing ? 1 : 0;
+            const int mfc = params.bug.graphBadData ? 1 : 0;
             const int nscans = int(samps.size())/(nchans>0?nchans:1);
             const int aisz = int(ais.size());
             const int aiscans = aisz/nCh;
@@ -2163,10 +2180,12 @@ namespace DAQ
         num -= TotalTTLChans;
         if (int(num)  < p.bug.aiChans.count()) {
             const QString s(p.bug.aiChans.at(num));
-            return s.split("/").back().toUpper() + (p.bug.aiTrig.compare(s,Qt::CaseInsensitive) == 0 ? " (TRG)" : "");
+            QString trg = (p.bug.aiTrig.compare(s,Qt::CaseInsensitive) == 0 ? " (TRG)" : "");
+            if (!trg.length() && p.bug.backupTrigger > -1 && !num) trg = " (TRG ALT)";
+            return s.split("/").back().toUpper() + trg;
         }
-        if (p.bug.graphMissing && int(num) == p.bug.aiChans.count())
-            return QString("MSNG_FRM");
+        if (p.bug.graphBadData && int(num) == p.bug.aiChans.count())
+            return QString("BER");
         return QString("UNK%1").arg(num);
     }
 	
@@ -2174,8 +2193,8 @@ namespace DAQ
 	/* static */ bool BugTask::isEMGChan(unsigned num) { return int(num) >= TotalNeuralChans && int(num) < TotalNeuralChans+TotalEMGChans; }
 	/* static */ bool BugTask::isAuxChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans; }
 	/* static */ bool BugTask::isTTLChan(unsigned num) { return int(num) >= TotalNeuralChans+TotalEMGChans+TotalAuxChans && int(num) < TotalNeuralChans+TotalEMGChans+TotalAuxChans+TotalTTLChans; }
-    /* static */ bool BugTask::isAIChan(const Params & p, unsigned num) { if (p.bug.graphMissing && p.nVAIChans==(num+1)) return false; return num < p.nVAIChans && int(p.nVAIChans-num) <= p.bug.aiChans.count()+(p.bug.graphMissing?1:0); }
-    /* static */ bool BugTask::isMissingFCChan(const Params & p, unsigned num) { return p.bug.graphMissing && num < p.nVAIChans && int(p.nVAIChans-num) == 1; }
+    /* static */ bool BugTask::isAIChan(const Params & p, unsigned num) { if (p.bug.graphBadData && p.nVAIChans==(num+1)) return false; return num < p.nVAIChans && int(p.nVAIChans-num) <= p.bug.aiChans.count()+(p.bug.graphBadData?1:0); }
+    /* static */ bool BugTask::isMissingFCChan(const Params & p, unsigned num) { return p.bug.graphBadData && num < p.nVAIChans && int(p.nVAIChans-num) == 1; }
 
 	
 	/*-------------------- Framegrabber Task --------------------------------*/
@@ -2806,7 +2825,7 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         p.demuxedBitMap.resize(nCh); p.demuxedBitMap.fill(true);
         p.doCtlChan = 0;
         p.doCtlChanString = "";
-        nitask = new NITask(p, 0, *psr);
+        nitask = new NITask(p, 0, *psr, "MultiChanAIReader NITask Helper");
         Connect(nitask, SIGNAL(taskError(const QString &)), this, SIGNAL(error(const QString &)));
         Connect(nitask, SIGNAL(taskWarning(const QString &)), this, SIGNAL(warning(const QString &)));
         nitask->start();
