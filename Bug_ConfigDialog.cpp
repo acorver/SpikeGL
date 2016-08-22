@@ -494,6 +494,7 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
         extraAI->chan1->setEnabled(true);
     }
     extraAI->trigBackupChk->setDisabled(extraAI->chan1->currentIndex()==0 || dialog->ttlTrigCB->currentIndex()==0 || !extraAI->chan1->isEnabled());
+    if (!extraAI->trigBackupChk->isEnabled()) extraAI->trigBackupChk->setChecked(false);
 }
 
 void Bug_ConfigDialog::aoBufferSizeSliderChanged()
