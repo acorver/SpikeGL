@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>512</width>
-    <height>562</height>
+    <height>614</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -30,7 +30,7 @@
    <property name="geometry">
     <rect>
      <x>330</x>
-     <y>524</y>
+     <y>576</y>
      <width>175</width>
      <height>32</height>
     </rect>
@@ -138,7 +138,7 @@
    <property name="geometry">
     <rect>
      <x>246</x>
-     <y>330</y>
+     <y>382</y>
      <width>261</width>
      <height>22</height>
     </rect>
@@ -333,7 +333,7 @@
    <property name="geometry">
     <rect>
      <x>246</x>
-     <y>353</y>
+     <y>405</y>
      <width>261</width>
      <height>22</height>
     </rect>
@@ -355,7 +355,7 @@
    <property name="geometry">
     <rect>
      <x>123</x>
-     <y>353</y>
+     <y>405</y>
      <width>97</width>
      <height>22</height>
     </rect>
@@ -409,7 +409,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>353</y>
+     <y>405</y>
      <width>104</width>
      <height>22</height>
     </rect>
@@ -630,7 +630,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>26</x>
-     <y>393</y>
+     <y>445</y>
      <width>461</width>
      <height>120</height>
     </rect>
@@ -655,7 +655,7 @@ p, li { white-space: pre-wrap; }
      <x>310</x>
      <y>208</y>
      <width>184</width>
-     <height>115</height>
+     <height>167</height>
     </rect>
    </property>
    <property name="title">
@@ -922,7 +922,7 @@ p, li { white-space: pre-wrap; }
      <x>310</x>
      <y>208</y>
      <width>184</width>
-     <height>115</height>
+     <height>167</height>
     </rect>
    </property>
    <property name="title">
@@ -1190,13 +1190,13 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>33</x>
-     <y>330</y>
+     <y>382</y>
      <width>204</width>
      <height>22</height>
     </rect>
    </property>
    <property name="toolTip">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, the 'bit error rate' parameter reported by the USB telemetry system is graphed on-screen, and saved as the last channel in the data file as a 'virtual channel'. &lt;/p&gt;&lt;p&gt;The possible values of 10&lt;span style=&quot; vertical-align:super;&quot;&gt;-5&lt;/span&gt;-&amp;gt;10&lt;span style=&quot; vertical-align:super;&quot;&gt;0&lt;/span&gt; are scaled logarithmically over 0-&amp;gt;32767 in the output data.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, the 'bit error rate' parameter reported by the USB telemetry system is graphed on-screen, and saved as the last channel in the data file as a 'virtual channel'. &lt;/p&gt;&lt;p&gt;This is a logarithimc value taken from the &amp;quot;log10(bit_err_rate)&amp;quot; data in the Bug3 Popup window.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <property name="layoutDirection">
     <enum>Qt::LeftToRight</enum>

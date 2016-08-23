@@ -36,6 +36,7 @@ Bug_ConfigDialog::Bug_ConfigDialog(DAQ::Params & p, QObject *parent) : QObject(p
     Connect(dialog->ttlTrigCB, SIGNAL(currentIndexChanged(int)), this, SLOT(ttlTrigCBChanged()));
 	Connect(dialog->browseBut, SIGNAL(clicked()), this, SLOT(browseButClicked()));
     Connect(dialog->ttlAltChk, SIGNAL(toggled(bool)), this, SLOT(ttlAltClicked(bool)));
+
 	for (int i = 0; i < DAQ::BugTask::TotalTTLChans; ++i) {
 		ttls[i] = new QCheckBox(QString::number(i), dialog->ttlW);
 		dialog->ttlLayout->addWidget(ttls[i]);
@@ -43,8 +44,9 @@ Bug_ConfigDialog::Bug_ConfigDialog(DAQ::Params & p, QObject *parent) : QObject(p
     extraAIW = new QGroupBox("Bug Extra AI Params", dialogW);
     extraAI = new Ui::Bug_ExtraAIParams;
     extraAI->setupUi(extraAIW);
-    extraAIW->resize(272,115); extraAIW->move(33,208);
+    extraAIW->resize(272,/*115*/167); extraAIW->move(33,208);
     Connect(extraAI->chan1, SIGNAL(activated(int)), this, SLOT(ttlTrigCBChanged()));
+    Connect(extraAI->trigBackupChk, SIGNAL(toggled(bool)), this, SLOT(ttlTrigCBChanged()));
 }
 
 Bug_ConfigDialog::~Bug_ConfigDialog()
@@ -128,8 +130,10 @@ int Bug_ConfigDialog::exec()
 
                 if ((hasAuxTrig || hasTtlTrig)
                         && p.bug.aiChans.count() && extraAI->trigBackupChk->isEnabled()
-                        && extraAI->trigBackupChk->isChecked())
+                        && extraAI->trigBackupChk->isChecked()) {
                     p.bug.backupTrigger = DAQ::BugTask::BaseNChans + numTtls;
+                    p.bug.aithold = extraAI->thresh->value();
+                }
 
 				p.bug.clockEdge = dialog->clkEdgeCB->currentIndex();
 				p.bug.hpf = dialog->hpfChk->isChecked() ? dialog->hpfSB->value(): 0;
@@ -251,6 +255,7 @@ int Bug_ConfigDialog::exec()
                     p.aoPassthruMap.insert(k,v);
                     p.aoPassthruString = p.bug.aoPassthruString = QString("%1=%2").arg(k).arg(v);
                 }
+                p.aiTerm = DAQ::StringToTermConfig(extraAI->terminationCB->currentText());
 
 				saveSettings();
 
@@ -265,8 +270,7 @@ int Bug_ConfigDialog::exec()
 				p.dualDevMode = false;
 				p.stimGlTrigResave = false;
 				p.srate = DAQ::BugTask::SamplingRate;
-				p.aiTerm = DAQ::Default;
-				p.aiString = QString("0:%1").arg(p.nVAIChans-1);
+                p.aiString = QString("0:%1").arg(p.nVAIChans-1);
 				p.customRanges.resize(p.nVAIChans);
 				p.chanDisplayNames.resize(p.nVAIChans);
 				DAQ::Range rminmax(1e9,-1e9);
@@ -296,11 +300,14 @@ int Bug_ConfigDialog::exec()
                             if (!(p.bug.whichTTLs & (0x1<<j))) ++chan_id_for_display, ++lim;
 
                         bool isbak = false;
+                        if ( DAQ::BugTask::isAIChan(p,i))
+                            // HACK TODO FIXME XXX -- hard-code range for now
+                            r.min = -10, r.max = 10.;
 
                         if ( ((hasTtlTrig || hasAITrig) && trigIdx == int(i))
                              || (isbak=((hasTtlTrig || hasAuxTrig) && p.bug.backupTrigger == int(i))) ) {
                             // acq is using TTL line for triggering.. convert Volts from GUI to a sample value for MainApp:taskReadFunc().. note this is ill defined really as TTL lines are always either 0 or 5V
-                            int samp = static_cast<int>(( ( (p.bug.trigThreshV-r.min)/(r.max-r.min) ) * 65535.0 ) - 32768.0);
+                            int samp = static_cast<int>(( ( ( (isbak?p.bug.aithold : p.bug.trigThreshV)-r.min)/(r.max-r.min) ) * 65535.0 ) - 32768.0);
                             if (samp < -32767) samp = -32767;
                             if (samp > 32767) samp = 32767;
                             if (isbak) p.bug.backupTriggerThresh = samp;
@@ -343,6 +350,9 @@ void Bug_ConfigDialog::guiFromSettings()
 		ttls[i]->setChecked(p.bug.whichTTLs & (0x1<<i));
 	}
 
+    int ci = extraAI->terminationCB->findText(DAQ::TermConfigToString(p.aiTerm), Qt::MatchExactly);
+    extraAI->terminationCB->setCurrentIndex(ci > -1 ? ci : 0);
+
     // populate trigger cb with list of all AI channels
     const int ai_trig_offset = DAQ::BugTask::TotalAuxChans+DAQ::BugTask::TotalTTLChans+1;
     int selected_ai_cb_ix = -1;
@@ -372,6 +382,7 @@ void Bug_ConfigDialog::guiFromSettings()
         }
     }
     extraAI->trigBackupChk->setChecked(p.bug.backupTrigger > -1);
+    extraAI->thresh->setValue(p.bug.aithold);
 
     // set the sampling rate cb in the extra ai submenu
     int fctr = qRound(1.0/(p.bug.aiDownsampleFactor > 0. ? p.bug.aiDownsampleFactor : 1.0));
@@ -494,7 +505,13 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
         extraAI->chan1->setEnabled(true);
     }
     extraAI->trigBackupChk->setDisabled(extraAI->chan1->currentIndex()==0 || dialog->ttlTrigCB->currentIndex()==0 || !extraAI->chan1->isEnabled());
-    if (!extraAI->trigBackupChk->isEnabled()) extraAI->trigBackupChk->setChecked(false);
+    bool threshEn = extraAI->trigBackupChk->isEnabled() && extraAI->trigBackupChk->isChecked();
+
+    if (!extraAI->trigBackupChk->isEnabled()) {
+        extraAI->trigBackupChk->setChecked(false);
+    }
+    extraAI->thresh->setEnabled(threshEn);
+    extraAI->threshLbl->setEnabled(threshEn);
 }
 
 void Bug_ConfigDialog::aoBufferSizeSliderChanged()

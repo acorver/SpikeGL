@@ -170,7 +170,8 @@ namespace DAQ
             bool altTTL; ///< if true, use alternate TTL triggering scheme whereby a single TTL pulse has a pre window and a post window surrounding it in the data file
             int backupTrigger; ///< index of channel which is the "backup" trigger, or -1 if no channel is the backup trigger
             int16 backupTriggerThresh; ///< in samps
-            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; aiDownsampleFactor=1.0; graphBadData = false; backupTrigger = -1; backupTriggerThresh = 10000; }
+            double aithold;
+            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; aiDownsampleFactor=1.0; graphBadData = false; backupTrigger = -1; backupTriggerThresh = 10000; aithold = 1.0; }
 		} bug;
 		
 		struct FG { // framegrabber
@@ -308,7 +309,7 @@ namespace DAQ
 
         friend struct DAQPvt;
 
-        static int computeTaskReadFreq(double srate, bool isLowLatency);
+        static int computeTaskReadFreq(double srate);
 		
 		static void mergeDualDevData(std::vector<int16> & output, const std::vector<int16> & data, const std::vector<int16> & data2, int NCHANS1, int NCHANS2, int nExtraChans, int nExtraChans2);
 
@@ -595,7 +596,7 @@ namespace DAQ
     public:
         MultiChanAIReader(QObject *parent=0);
         ~MultiChanAIReader();
-        QString startDAQ(const QStringList & aiDevChans, double srate, double bufsize_secs, unsigned nbufs_total);
+        QString startDAQ(const QStringList & aiDevChans, double srate, double bufsize_secs, unsigned nbufs_total, DAQ::TermConfig aiTerm, const DAQ::Range & range);
         bool readAll(std::vector<int16> & samps);
 
         int nChans() const { return int(fakeParams.nVAIChans); }

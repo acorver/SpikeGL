@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>272</width>
-    <height>115</height>
+    <height>167</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -179,6 +179,110 @@
     <string>1st AI chan.
 is backup 
 trigger</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="aiTerminationLabel">
+   <property name="geometry">
+    <rect>
+     <x>6</x>
+     <y>110</y>
+     <width>121</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>The termination setting to use for the AI channels.  See NI docs for an explanation of these terms.  Default is usually good enough.</string>
+   </property>
+   <property name="text">
+    <string>Termination:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="terminationCB">
+   <property name="geometry">
+    <rect>
+     <x>140</x>
+     <y>110</y>
+     <width>111</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>The termination setting to use for the AI channels.  See NI docs for an explanation of these terms.  Default is usually good enough.</string>
+   </property>
+   <item>
+    <property name="text">
+     <string>Default</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>RSE</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>NRSE</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Differential</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>PseudoDifferential</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLabel" name="threshLbl">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>140</y>
+     <width>111</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Specify the threshold for AI triggering, if using AI as a backup trigger.&lt;/p&gt;&lt;p&gt;Otherwise this parameter is ignored.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Backup Trig Thresh:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QDoubleSpinBox" name="thresh">
+   <property name="geometry">
+    <rect>
+     <x>140</x>
+     <y>140</y>
+     <width>111</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Specify the threshold for AI triggering, if using AI as a backup trigger.&lt;/p&gt;&lt;p&gt;Otherwise this parameter is ignored.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="suffix">
+    <string> V</string>
+   </property>
+   <property name="minimum">
+    <double>-10.000000000000000</double>
+   </property>
+   <property name="maximum">
+    <double>10.000000000000000</double>
+   </property>
+   <property name="singleStep">
+    <double>0.250000000000000</double>
+   </property>
+   <property name="value">
+    <double>1.000000000000000</double>
    </property>
   </widget>
  </widget>

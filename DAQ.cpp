@@ -349,11 +349,11 @@ namespace DAQ
     }
 
     /* static */
-    int NITask::computeTaskReadFreq(double srate_in, bool ll) {
+    int NITask::computeTaskReadFreq(double srate_in) {
         int srate = ceil(srate_in); (void)srate;
-        //return DEF_TASK_READ_FREQ_HZ;
-        if (ll) return DEF_TASK_READ_FREQ_HZ_ * 3;
-        return DEF_TASK_READ_FREQ_HZ_;
+        return DEF_TASK_READ_FREQ_HZ;
+        //if (ll) return DEF_TASK_READ_FREQ_HZ_ * 3;
+        //return DEF_TASK_READ_FREQ_HZ_;
     }
     
 #ifdef FAKEDAQ
@@ -625,6 +625,11 @@ namespace DAQ
              || DAQmxErrChkNoJump (DAQmxCfgSampClkTiming(taskHandle,clockSource,sampleRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,bufferSize)) 
              || DAQmxErrChkNoJump (DAQmxTaskControl(taskHandle, DAQmx_Val_Task_Commit)) )
             return false; 
+        if ( DAQmxErrChkNoJump(DAQmxSetAIMax(taskHandle,chan.toUtf8().constData(),max)) )
+            return false;
+        if ( DAQmxErrChkNoJump(DAQmxSetAIMin(taskHandle,chan.toUtf8().constData(),min)) )
+            return false;
+
         //DAQmxErrChk (DAQmxCfgInputBuffer(taskHandle,dmaBufSize));  //use a 1,000,000 sample DMA buffer per channel
         //DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent (taskHandle, DAQmx_Val_Acquired_Into_Buffer, everyNSamples, 0, DAQPvt::everyNSamples_func, this)); 
         if (p.dualDevMode) {
@@ -792,7 +797,7 @@ namespace DAQ
 
         recomputeAOAITab(aoAITab, aoChan, p);
         
-        const int task_read_freq_hz = computeTaskReadFreq(p.srate,p.lowLatency);
+        const int task_read_freq_hz = computeTaskReadFreq(p.srate);
         
         int fudged_srate = ceil(sampleRate);
         while ((fudged_srate/task_read_freq_hz) % 2) // samples per chan needs to be a multiple of 2
@@ -1801,7 +1806,7 @@ namespace DAQ
 					if (nums.empty()) { 
 						if (!warned) Warning() << "Bug3: Internal problem -- ran out of AUX samples in frame `" << v << "'";
 						warned = true;
-					}
+                    }
 					else nums.pop_front();
 					bool ok = false;
 					int samp = num.toUShort(&ok);
@@ -2026,13 +2031,15 @@ namespace DAQ
        } else	{
            logBER = -100.0;
        }
-       //Debug() << "logBer=" << logBER;
-       double pt = (logBER+(-MinBER))/(-MinBER);
+       const double scale = -MinBER; //5.0
+       double pt = logBER+scale;
        if (pt < 0.) pt = 0.;
-       if (pt > 1.) pt = 1.;
+       if (pt > scale) pt = scale;
 
        //const int16 samp = static_cast<int16>((double(meta.missingFrameCount) / 40.0) * 32767.0);
-       const int16 samp(static_cast<int16>(pt*32767.0));
+
+       const int16 samp(static_cast<int16>((pt/scale)*32767.0));
+       //Debug() << "logBer=" << logBER << " scale=" << scale << " pt=" << pt << " samp=" << samp;
        for (int i = 0; i < nscans; ++i) {
            samps[i*nchans+(nchans-1)] = samp;
        }
@@ -2043,7 +2050,7 @@ namespace DAQ
             aireader = new MultiChanAIReader(0);
             Connect(aireader, SIGNAL(error(const QString &)), this, SIGNAL(taskError(const QString &)));
             Connect(aireader, SIGNAL(warning(const QString &)), this, SIGNAL(taskWarning(const QString &)));
-            QString err = aireader->startDAQ(params.bug.aiChans, params.srate*params.bug.aiDownsampleFactor, 0.010, 1000);
+            QString err = aireader->startDAQ(params.bug.aiChans, params.srate*params.bug.aiDownsampleFactor, 0.010, 1000, params.aiTerm, Range(-10.0,10.0) /* HACK FIXE TODO XXX*/);
             if (!err.isEmpty()) { emit taskError(err); return; }
         }
         if (!aireader) return;
@@ -2783,7 +2790,7 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         return -1;
     }
 
-    QString MultiChanAIReader::startDAQ(const QStringList &devchList, double srate, double bsecs, unsigned nbufs)
+    QString MultiChanAIReader::startDAQ(const QStringList &devchList, double srate, double bsecs, unsigned nbufs, DAQ::TermConfig aiTerm, const DAQ::Range & range)
     {
         reset();
         if (srate < 16.0) return "SinglsChanAIReader: Invalid sampling rate specified. Need at least 16Hz";
@@ -2798,7 +2805,10 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         Debug() << "MultiChanAIReader using " << double(sz_bytes/(1024.0)) << " KB buffer";
         psr = new PagedScanReader(nCh, 0, mem, sz_bytes, bufsamps*sizeof(int16));
         Params & p(fakeParams);
-        p.dualDevMode = false; p.range.min=-5; p.range.max=5; p.mode=AIRegular;
+        p.dualDevMode = false;
+        /*p.range.min=-5; p.range.max=5;*/
+        p.range = range;
+        p.mode=AIRegular;
         p.extClock = false;
         p.srate = srate;
         p.aiChannels.clear();
@@ -2811,11 +2821,14 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
             p.aiString = p.aiString + (p.aiString.length() ? QString(",") : QString("")) + QString::number(chan);
             p.chanDisplayNames.push_back(QString("AI")+QString::number(chan));
         }
-        p.nVAIChans = nCh; p.nVAIChans1 = nCh; p.nVAIChans2 = 0; p.nExtraChans1 = 0;
+        p.nVAIChans = nCh; p.nVAIChans1 = nCh; p.nVAIChans2 = 0; p.nExtraChans1 = 0, p.nExtraChans2 = 0;
         p.aoPassthru = false;
         p.aoDev = "";
         p.acqStartEndMode = Immediate;
-        p.usePD = false;  p.lowLatency = /*true*/false; p.aiTerm = Default; p.auxGain = 1.0;
+        p.usePD = false;  p.lowLatency = true/*false*/;
+        p.aiTerm = aiTerm;
+        //Debug() << "aiterm=" << int(aiTerm);
+        p.auxGain = 1.0;
         p.aiBufferSizeCS = (bsecs*100.0) / 2.0;
         if (p.aiBufferSizeCS < 1) p.aiBufferSizeCS = 1;
         p.autoRetryOnAIOverrun = true;
@@ -2825,6 +2838,7 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         p.demuxedBitMap.resize(nCh); p.demuxedBitMap.fill(true);
         p.doCtlChan = 0;
         p.doCtlChanString = "";
+        p.autoRetryOnAIOverrun = true;
         nitask = new NITask(p, 0, *psr, "MultiChanAIReader NITask Helper");
         Connect(nitask, SIGNAL(taskError(const QString &)), this, SIGNAL(error(const QString &)));
         Connect(nitask, SIGNAL(taskWarning(const QString &)), this, SIGNAL(warning(const QString &)));
@@ -3089,6 +3103,56 @@ extern "C" {
         return DAQmxErrorRequiredDependencyNotFound;        
     }
 
+    //*** Set/Get functions for DAQmx_AI_Max ***
+    int32 __CFUNC DAQmxGetAIMax(TaskHandle taskHandle, const char channel[], float64 *data) {
+        static int32 (__CFUNC *func)(TaskHandle,const char *,float64 *) = 0;
+        const char *fname = "DAQmxGetAIMax";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,channel,data);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }
+    int32 __CFUNC DAQmxSetAIMax(TaskHandle taskHandle, const char channel[], float64 data) {
+        static int32 (__CFUNC *func)(TaskHandle,const char *,float64) = 0;
+        const char *fname = "DAQmxSetAIMax";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,channel,data);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }
+    int32 __CFUNC DAQmxResetAIMax(TaskHandle taskHandle, const char channel[]) {
+        static int32 (__CFUNC *func)(TaskHandle,const char *) = 0;
+        const char *fname = "DAQmxResetAIMax";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,channel);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }
+    //*** Set/Get functions for DAQmx_AI_Min ***
+    int32 __CFUNC DAQmxGetAIMin(TaskHandle taskHandle, const char channel[], float64 *data) {
+        static int32 (__CFUNC *func)(TaskHandle,const char *,float64 *) = 0;
+        const char *fname = "DAQmxGetAIMin";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,channel,data);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }
+    int32 __CFUNC DAQmxSetAIMin(TaskHandle taskHandle, const char channel[], float64 data) {
+        static int32 (__CFUNC *func)(TaskHandle,const char *,float64) = 0;
+        const char *fname = "DAQmxSetAIMin";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,channel,data);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }
+    int32 __CFUNC DAQmxResetAIMin(TaskHandle taskHandle, const char channel[]) {
+        static int32 (__CFUNC *func)(TaskHandle,const char *) = 0;
+        const char *fname = "DAQmxResetAIMin";
+        DAQ::tryLoadFunc(func, fname);
+        //Debug() << fname << " called";
+        if (func) return func(taskHandle,channel);
+        return DAQmxErrorRequiredDependencyNotFound;
+    }
 
     /* Implementation Checklist for DLL decoupling:
              √ DAQmxCfgInputBuffer

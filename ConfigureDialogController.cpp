@@ -889,7 +889,7 @@ ConfigureDialogController::ValidationResult ConfigureDialogController::validateF
     
     QVector<unsigned> subsetChans;
     QString subsetString = dialog->channelSubsetLE->text().trimmed();	
-	if (!subsetString.size()) subsetString = "ALL";
+    if (!subsetString.size() || acqMode == DAQ::AIRegular) subsetString = "ALL";
 	const bool hasAllSubset =  !subsetString.compare("ALL", Qt::CaseInsensitive) || subsetString == "*";
     if (true/*p.mode != DAQ::AIRegular*/) {
         subsetString = parseAIChanString(subsetString, subsetChans, &err, true);
@@ -1174,6 +1174,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
     p.bug.aiDownsampleFactor = settings.value("bug_ai_downsample_factor",1.0).toDouble();
     p.bug.graphBadData = settings.value("bug_graphBad", false).toBool();
     p.bug.backupTrigger = settings.value("bug_backuptrigger", -1).toInt();
+    p.bug.aithold = settings.value("bug_aithold", 1.0).toDouble();
 
 
     p.fg.baud = settings.value("fg_baud", 1).toInt();
@@ -1289,6 +1290,7 @@ void ConfigureDialogController::saveSettings(int sc) const
         settings.setValue("bug_ai_downsample_factor", p.bug.aiDownsampleFactor);
         settings.setValue("bug_graphBad", p.bug.graphBadData);
         settings.setValue("bug_backuptrigger", p.bug.backupTrigger);
+        settings.setValue("bug_aithold", p.bug.aithold);
 
     }
 
