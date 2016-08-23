@@ -740,7 +740,7 @@ namespace DAQ
         const Params & p (params);
 
         // used for auto-retry code .. the following status codes are accepted for auto-retry, if p.autoRetryOnAIOverrun is true
-        acceptableRetryErrors.clear(); acceptableRetryErrors << -200279;
+        acceptableRetryErrors.clear(); acceptableRetryErrors << -200279 <<  -200284;
         nReadRetries = 0;
 
         // Channel spec string for NI driver
