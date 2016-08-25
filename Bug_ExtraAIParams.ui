@@ -28,7 +28,7 @@
   <widget class="QComboBox" name="chan1">
    <property name="geometry">
     <rect>
-     <x>39</x>
+     <x>40</x>
      <y>80</y>
      <width>91</width>
      <height>22</height>
@@ -46,9 +46,9 @@
   <widget class="QLabel" name="chanLbl">
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>10</x>
      <y>60</y>
-     <width>161</width>
+     <width>171</width>
      <height>20</height>
     </rect>
    </property>
@@ -100,9 +100,9 @@
   <widget class="QLabel" name="rateLbl">
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>10</x>
      <y>10</y>
-     <width>161</width>
+     <width>171</width>
      <height>20</height>
     </rect>
    </property>
@@ -132,7 +132,7 @@
   <widget class="QLabel" name="labelai2">
    <property name="geometry">
     <rect>
-     <x>141</x>
+     <x>140</x>
      <y>80</y>
      <width>16</width>
      <height>22</height>
@@ -184,9 +184,9 @@ trigger</string>
   <widget class="QLabel" name="aiTerminationLabel">
    <property name="geometry">
     <rect>
-     <x>6</x>
+     <x>115</x>
      <y>110</y>
-     <width>121</width>
+     <width>31</width>
      <height>22</height>
     </rect>
    </property>
@@ -194,7 +194,7 @@ trigger</string>
     <string>The termination setting to use for the AI channels.  See NI docs for an explanation of these terms.  Default is usually good enough.</string>
    </property>
    <property name="text">
-    <string>Termination:</string>
+    <string>Term:</string>
    </property>
    <property name="alignment">
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -203,7 +203,7 @@ trigger</string>
   <widget class="QComboBox" name="terminationCB">
    <property name="geometry">
     <rect>
-     <x>140</x>
+     <x>150</x>
      <y>110</y>
      <width>111</width>
      <height>22</height>
@@ -283,6 +283,40 @@ trigger</string>
    </property>
    <property name="value">
     <double>1.000000000000000</double>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="rngCB">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>110</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The analog input range setting to use. &lt;/p&gt;&lt;p&gt;This is a minimum &amp;amp; maximum value in volts, and is sent to the NI driver as the configured range for the Ai portion of the acquisition.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <item>
+    <property name="text">
+     <string>-10-10 V</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLabel" name="rngLbl">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>110</y>
+     <width>31</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The analog input range setting to use. &lt;/p&gt;&lt;p&gt;This is a minimum &amp;amp; maximum value in volts, and is sent to the NI driver as the configured range for the Ai portion of the acquisition.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="text">
+    <string>Rng:</string>
    </property>
   </widget>
  </widget>

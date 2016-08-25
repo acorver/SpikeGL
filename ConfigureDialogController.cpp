@@ -1175,6 +1175,7 @@ void ConfigureDialogController::paramsFromSettingsObject(DAQ::Params & p, const 
     p.bug.graphBadData = settings.value("bug_graphBad", false).toBool();
     p.bug.backupTrigger = settings.value("bug_backuptrigger", -1).toInt();
     p.bug.aithold = settings.value("bug_aithold", 1.0).toDouble();
+    p.bug.guiAIRange = settings.value("bug_guiAIRange", "-5-5 V").toString();
 
 
     p.fg.baud = settings.value("fg_baud", 1).toInt();
@@ -1291,6 +1292,7 @@ void ConfigureDialogController::saveSettings(int sc) const
         settings.setValue("bug_graphBad", p.bug.graphBadData);
         settings.setValue("bug_backuptrigger", p.bug.backupTrigger);
         settings.setValue("bug_aithold", p.bug.aithold);
+        settings.setValue("bug_guiAIRange", p.bug.guiAIRange);
 
     }
 

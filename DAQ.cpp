@@ -2050,7 +2050,14 @@ namespace DAQ
             aireader = new MultiChanAIReader(0);
             Connect(aireader, SIGNAL(error(const QString &)), this, SIGNAL(taskError(const QString &)));
             Connect(aireader, SIGNAL(warning(const QString &)), this, SIGNAL(taskWarning(const QString &)));
-            QString err = aireader->startDAQ(params.bug.aiChans, params.srate*params.bug.aiDownsampleFactor, 0.010, 1000, params.aiTerm, Range(-10.0,10.0) /* HACK FIXE TODO XXX*/);
+            Range r(-5.0,5.0);
+            for (int i = 0; i < params.customRanges.size(); ++i) {
+                if (isAIChan(params,i)) {
+                    r = params.customRanges[i];
+                    break;
+                }
+            }
+            QString err = aireader->startDAQ(params.bug.aiChans, params.srate*params.bug.aiDownsampleFactor, 0.010, 1000, params.aiTerm, r);
             if (!err.isEmpty()) { emit taskError(err); return; }
         }
         if (!aireader) return;
@@ -2803,10 +2810,10 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         unsigned long sz_bytes = 0;
         mem = new char[(sz_bytes = sizeof(int16) * bufsamps * nbufs + 4096)];
         Debug() << "MultiChanAIReader using " << double(sz_bytes/(1024.0)) << " KB buffer";
+        Debug() << "MultiChanAIReader using chans: " << devchList.join(",") << " range: " << range.min << "-" << range.max << " V" ;
         psr = new PagedScanReader(nCh, 0, mem, sz_bytes, bufsamps*sizeof(int16));
         Params & p(fakeParams);
         p.dualDevMode = false;
-        /*p.range.min=-5; p.range.max=5;*/
         p.range = range;
         p.mode=AIRegular;
         p.extClock = false;

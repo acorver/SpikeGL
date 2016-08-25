@@ -47,6 +47,7 @@ Bug_ConfigDialog::Bug_ConfigDialog(DAQ::Params & p, QObject *parent) : QObject(p
     extraAIW->resize(272,/*115*/167); extraAIW->move(33,208);
     Connect(extraAI->chan1, SIGNAL(activated(int)), this, SLOT(ttlTrigCBChanged()));
     Connect(extraAI->trigBackupChk, SIGNAL(toggled(bool)), this, SLOT(ttlTrigCBChanged()));
+    Connect(extraAI->chan2, SIGNAL(activated(int)), this, SLOT(ttlTrigCBChanged()));
 }
 
 Bug_ConfigDialog::~Bug_ConfigDialog()
@@ -197,8 +198,21 @@ int Bug_ConfigDialog::exec()
                     p.silenceBeforePD = p.bug.altTTL ? dialog->trigPre_2->value()/1000.0 : dialog->trigPre->value()/1000.0;                   
                 }
 
+                DAQ::Range aiRangeToUse(-5.,5.);
                 if (hasAIChans) {
                     p.bug.aiDownsampleFactor = 1.0 / qPow(2.0,double(extraAI->rate->currentIndex()));
+                    {
+                        QString rstr = extraAI->rngCB->currentText();
+                        if (rstr.length() && 2==::sscanf(rstr.toUtf8().constData(), "%lf-%lf V", &aiRangeToUse.min, &aiRangeToUse.max))
+                        {
+                            // ok..
+//                            Debug() << "Using AI range: " << aiRangeToUse.min << "," << aiRangeToUse.max;
+                            p.bug.guiAIRange = rstr;
+                        } else {
+                            Warning() << "Failed to parse range string from UI: " << rstr;
+                            aiRangeToUse = DAQ::Range(-5.0,5.0);
+                        }
+                    }
                     if (p.bug.aiChans.count() == 2) {
                         const QString c1(p.bug.aiChans.front()), c2(p.bug.aiChans.back());
                         errTit = errMsg = "";
@@ -301,8 +315,7 @@ int Bug_ConfigDialog::exec()
 
                         bool isbak = false;
                         if ( DAQ::BugTask::isAIChan(p,i))
-                            // HACK TODO FIXME XXX -- hard-code range for now
-                            r.min = -10, r.max = 10.;
+                            r=aiRangeToUse;
 
                         if ( ((hasTtlTrig || hasAITrig) && trigIdx == int(i))
                              || (isbak=((hasTtlTrig || hasAuxTrig) && p.bug.backupTrigger == int(i))) ) {
@@ -440,6 +453,14 @@ void Bug_ConfigDialog::guiFromSettings()
     //polish
     aoDeviceCBChanged();
     ttlTrigCBChanged();
+
+    //set range from saved gui
+    for (int i = 0; i < extraAI->rngCB->count(); ++i) {
+        if (p.bug.guiAIRange.compare(extraAI->rngCB->itemText(i)) == 0) {
+            extraAI->rngCB->setCurrentIndex(i);
+            break;
+        }
+    }
 }
 
 void Bug_ConfigDialog::saveSettings()
@@ -512,6 +533,30 @@ void Bug_ConfigDialog::ttlTrigCBChanged()
     }
     extraAI->thresh->setEnabled(threshEn);
     extraAI->threshLbl->setEnabled(threshEn);
+
+    // setup the range setting combo box appropriately
+    if (extraAI->chan1->currentIndex()==0 && extraAI->chan2->currentIndex() == 0) {
+        extraAI->rngCB->setDisabled(true);
+        extraAI->rngLbl->setDisabled(true);
+    } else {
+        QString dev = extraAI->chan1->currentIndex()!=0 ? extraAI->chan1->currentText() : extraAI->chan2->currentText();
+        dev = dev.contains("/") ? dev.split("/").front() : dev;
+        DAQ::DeviceRangeMap rm = DAQ::ProbeAllAIRanges();
+        if (rm.contains(dev)) {
+            QString oldR = extraAI->rngCB->currentText();
+            extraAI->rngCB->clear();
+            int i = 0;
+            for (DAQ::DeviceRangeMap::const_iterator it = rm.find(dev); it != rm.end() && dev.compare(it.key()) == 0; ++it, ++i) {
+                const DAQ::Range & r = it.value();
+                QString item = QString("%1-%2 V").arg(r.min).arg(r.max);
+                extraAI->rngCB->addItem(item);
+                if (item.compare(oldR)==0) extraAI->rngCB->setCurrentIndex(i);
+            }
+        }
+        if (extraAI->rngCB->count()) {
+            extraAI->rngCB->setEnabled(true); extraAI->rngLbl->setEnabled(true);
+        }
+    }
 }
 
 void Bug_ConfigDialog::aoBufferSizeSliderChanged()

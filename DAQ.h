@@ -171,7 +171,8 @@ namespace DAQ
             int backupTrigger; ///< index of channel which is the "backup" trigger, or -1 if no channel is the backup trigger
             int16 backupTriggerThresh; ///< in samps
             double aithold;
-            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; aiDownsampleFactor=1.0; graphBadData = false; backupTrigger = -1; backupTriggerThresh = 10000; aithold = 1.0; }
+            QString guiAIRange;
+            void reset() { rate = 2; whichTTLs = 0; errTol = 6; ttlTrig = -1; auxTrig = -1; aiTrig = ""; clockEdge = 0; hpf = 0; snf = false; enabled = false; altTTL = true; trigThreshV = 3.0; aiDownsampleFactor=1.0; graphBadData = false; backupTrigger = -1; backupTriggerThresh = 10000; aithold = 1.0; guiAIRange="-5-5 V"; }
 		} bug;
 		
 		struct FG { // framegrabber
