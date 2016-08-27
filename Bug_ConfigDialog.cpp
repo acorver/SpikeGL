@@ -302,7 +302,7 @@ int Bug_ConfigDialog::exec()
                         if (hasAuxTrig && trigIdx == (int)i) {
                             // acq is using AUX line for triggering.. convert Volts from GUI to a sample value for MainApp:taskReadFunc()
                             int samp = static_cast<int>(( ( (p.bug.trigThreshV-r.min)/(r.max-r.min) ) * 65535.0 ) - 32768.0);
-                            if (samp < -32767) samp = -32767;
+                            if (samp < -32768) samp = -32768;
                             if (samp > 32767) samp = 32767;
                             p.pdThresh = static_cast<int16>(samp);
                         }
@@ -321,7 +321,7 @@ int Bug_ConfigDialog::exec()
                              || (isbak=((hasTtlTrig || hasAuxTrig) && p.bug.backupTrigger == int(i))) ) {
                             // acq is using TTL line for triggering.. convert Volts from GUI to a sample value for MainApp:taskReadFunc().. note this is ill defined really as TTL lines are always either 0 or 5V
                             int samp = static_cast<int>(( ( ( (isbak?p.bug.aithold : p.bug.trigThreshV)-r.min)/(r.max-r.min) ) * 65535.0 ) - 32768.0);
-                            if (samp < -32767) samp = -32767;
+                            if (samp < -32768) samp = -32768;
                             if (samp > 32767) samp = 32767;
                             if (isbak) p.bug.backupTriggerThresh = samp;
                             else p.pdThresh = static_cast<int16>(samp);

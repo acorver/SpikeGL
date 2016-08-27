@@ -201,7 +201,7 @@ int FG_ConfigDialog::exec()
 					DAQ::Range r;
                     int chan_id_for_display = i;
                     //r.min = -5., r.max = 5.;
-                    r.min = -0.006389565; r.max = 0.006389565; // hardcoded range of framegrabber intan voltages...
+                    r.min = -0.00638976; r.max = 0.006389565; // hardcoded range of framegrabber intan voltages...
 					// since ttl lines may be missing in channel set, renumber the ones that are missing for display purposes
 						
 					if (rminmax.min > r.min) rminmax.min = r.min;
