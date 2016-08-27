@@ -2103,7 +2103,7 @@ namespace DAQ
             }
             if (off > 0) {
                 ais.erase(ais.begin(), ais.begin()+nscans*nCh);
-                if (excessiveDebug) Debug() << "AI reader is long " << ais.size() << " (" << ((ais.size()/params.srate)*1000.0) << "ms) scans";
+                if (excessiveDebug) Debug() << "AI reader is long " << (ais.size()/nCh) << " (" << (((ais.size()/nCh)/params.srate)*1000.0) << "ms) scans";
                 if (int(ais.size()/nCh) > qRound(params.srate/4.0)) {
                     ais.erase(ais.begin(), ais.begin()+( ((ais.size()/nCh)-qRound(params.srate/4.0))*nCh ) );
                 }
