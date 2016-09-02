@@ -12,6 +12,7 @@
 #include <QColor.h>
 #include "StimGL_SpikeGL_Integration.h"
 #include <QMutex>
+#include <QMutexLocker>
 
 class QToolBar;
 class QLabel;
@@ -46,8 +47,12 @@ public:
 
     void selectChansStartingAt(int chan);
 
+    void setGraphTimesSecs(const QVector<double> & times) { QMutexLocker l(&mut); if (times.size() >= nvai) graphTimes = times; }
+
 public slots:
     void setSorting(const QVector<int> & sorting, const QVector<int> & naming);
+    void setGraphTimeSecs(int graphId, double secs) { QMutexLocker l(&mut); if (graphId > -1 && graphId < graphTimes.size()) graphTimes[graphId] = secs; }
+    void setAutoScale(bool);
 
 signals:
 	void channelsSelected(const QVector<unsigned> & ids);
@@ -121,7 +126,7 @@ private:
 	QToolBar *toolBar;
     QPushButton *colorBut;
 	QSpinBox *sbCols, *sbRows;
-    QCheckBox *overlayChk, *ovlFFChk, *unsignedChk;
+    QCheckBox *overlayChk, *ovlFFChk, /**unsignedChk*/ *autoScaleChk;
 	QLabel *ovlAlphaLbl;
 	QPushButton *overlayBut;
 	QSlider *overlayAlpha;
@@ -134,6 +139,15 @@ private:
 	Avg frameDelayAvg;
 	QString fdelayStr;
     QVector<int> sorting, revsorting, naming;
+
+    bool autoScaleColorRange;
+    QVector<double> graphTimes;
+    struct ChanMinMax {
+        int16 smin, smax;
+        double tsMin, tsMax;
+        ChanMinMax() : smin(32767), smax(-32768), tsMin(0.), tsMax(0.) {}
+    };
+    QVector<ChanMinMax> chanMinMaxs;
 
     QMutex mut;    
 };

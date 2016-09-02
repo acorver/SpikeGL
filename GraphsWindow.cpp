@@ -568,7 +568,7 @@ void GraphsWindow::setGraphTimeSecs(int num, double t)
 {
     QMutexLocker l(&graphsMut);
 
-    if (num < 0 || num >= (int)graphs.size()) return;
+    if (num < 0 || num >= (int)graphs.size() || t < 0.0) return;
     graphTimesSecs[num] = t;
     const i64 npts = nptsAll[num] = ( graphs[num] ? i64(ceil(t*params.srate/downsampleRatio)) : 0); // if the graph is not on-screen, make it use 0 points in the points WB to save memory for high-channel-counts
     points[num].reserve(npts);
@@ -587,6 +587,9 @@ void GraphsWindow::setGraphTimeSecs(int num, double t)
 	graphStates[num].max_x = graphStates[num].min_x+t;
     graphStats[num].clear();
     // NOTE: someone should call update_nPtsAllGs() after this!
+
+    // notify potential listener such as spatial vis window which may care about how many points are visible
+    emit graphTimeSecsChanged(num,t);
 }
 
 void GraphsWindow::update_nPtsAllGs()

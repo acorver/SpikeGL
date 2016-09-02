@@ -72,6 +72,9 @@ public:
     const QVector<int> & currentSorting() const { return sorting; }
     const QVector<int> & currentNaming() const { return naming; }
 
+    double getGraphTimeSecs(int i) const { return ( (i > -1 && i < graphTimesSecs.size()) ? graphTimesSecs[i] : 0.0);  }
+    const QVector<double> & getGraphTimesSecs() const { return graphTimesSecs; }
+
     /** Hack for Huai-Ti's emergency 'manual override' button that implicitly saves
      *  all data currently in the on-screen graphs immediately to the new data file.
      *
@@ -89,6 +92,7 @@ signals:
 	void tabChanged(int tabNum);
     void manualTrig(bool);
     void sortingChanged(const QVector<int> & sorting, const QVector<int> & naming);
+    void graphTimeSecsChanged(int graphId, double timeSecs);
 
 public slots:
     void setSGLTrig(bool);

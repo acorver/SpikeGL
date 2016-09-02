@@ -38,6 +38,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
     mouseDownAt = Vec2(-1e6,-1e6);
 	static bool registeredMetaType = false;
     treatDataAsUnsigned = false;
+    autoScaleColorRange = false;
 
 	if (fshare.shm) {
 		Log() << "SpatialVisWindow: " << (fshare.createdByThisInstance ? "Created" : "Attatched to pre-existing") <<  " StimGL 'frame share' memory segment, size: " << (double(fshare.size())/1024.0/1024.0) << "MB.";
@@ -75,7 +76,9 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
 	
     toolBar->addSeparator();
 
-    toolBar->addWidget(unsignedChk = new QCheckBox("Unsigned", toolBar));
+    //toolBar->addWidget(unsignedChk = new QCheckBox("Unsigned", toolBar));
+    toolBar->addWidget(autoScaleChk = new QCheckBox("AutoScale", toolBar));
+    autoScaleChk->setToolTip("If checked, scale the displayed colors' dynamic ranges based on the MIN/MAX values seen in the last few seconds worth of data");
 
     toolBar->addSeparator();
 	
@@ -111,7 +114,8 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
 	ovlAlphaLbl->setFont(f);
 	Connect(overlayBut, SIGNAL(clicked(bool)), this, SLOT(overlayButPushed()));
     Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
-    Connect(unsignedChk, SIGNAL(toggled(bool)), this, SLOT(unsignedChecked(bool)));
+    //Connect(unsignedChk, SIGNAL(toggled(bool)), this, SLOT(unsignedChecked(bool)));
+    Connect(autoScaleChk, SIGNAL(toggled(bool)), this, SLOT(setAutoScale(bool)));
 	
 	toolBar->addWidget(ovlFFChk = new QCheckBox("Full Frame", toolBar));
 	ovlFFChk->setEnabled(!!fshare.shm);
@@ -145,6 +149,8 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
     colors.resize(nvai);
 	chanVolts.resize(nvai);
     chanRawSamps.resize(nvai);
+    graphTimes.resize(nvai);
+    chanMinMaxs.resize(nvai);
 	
     // default sorting
     sorting.resize(nvai); naming.resize(nvai); revsorting.resize(nvai);
@@ -152,6 +158,8 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
 	for (int chanid = 0; chanid < nvai; ++chanid) {
         revsorting[chanid] = sorting[chanid] = naming[chanid] = chanid;
         points[chanid] = chanId2Pos(chanid);
+        graphTimes[chanid] = 3.0;
+        chanMinMaxs[chanid] = ChanMinMax();
 	}
 
 	sbRows->setValue(nby);
@@ -230,6 +238,11 @@ void SpatialVisWindow::setupGridlines()
 	graph->setNumHGridLines(nby);
 }
 
+void SpatialVisWindow::setAutoScale(bool b) {
+    autoScaleColorRange = b;
+    saveSettings();
+}
+
 void SpatialVisWindow::resizeEvent (QResizeEvent * event)
 {
 	updateGlyphSize();
@@ -259,21 +272,54 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
     QMutexLocker l(&mut);
 
 	(void)firstSamp; // unused warning
+
+    if (autoScaleColorRange) {
+        // bookkeeping -- keep track of min/max values seen, per channel for a window of time to determine scale..
+        double now = getTime();
+        // expire old min/max's
+        for (int i = 0; i < chanMinMaxs.size(); ++i) {
+            double t = graphTimes[i];
+            if (now - chanMinMaxs[i].tsMax >= t)
+                chanMinMaxs[i].smax = -32768;
+            if (now - chanMinMaxs[i].tsMin >= t)
+                chanMinMaxs[i].smin = 32767;
+        }
+        // now scan entire data chunk to update chanMinMax state...
+        for (int i = 0; i < (int)scans_size_samps; ++i) {
+            int ch = i % nvai/*, chanId = nocm ? ch : revsorting[ch]*/;
+            if (scans[i] <= chanMinMaxs[ch].smin) chanMinMaxs[ch].smin = scans[i], chanMinMaxs[ch].tsMin = now;
+            if (scans[i] >= chanMinMaxs[ch].smax) chanMinMaxs[ch].smax = scans[i], chanMinMaxs[ch].tsMax = now;
+        }
+    }
+
     int firstidx = scans_size_samps - nvai;
 	if (firstidx < 0) firstidx = 0;
     const bool nocm = params.fg.enabled && params.fg.disableChanMap;
     for (int i = firstidx; i < int(scans_size_samps); ++i) {
-        int chanId = nocm ? i%nvai: revsorting[i % nvai];
+        int ch = i%nvai;
+        int chanId = nocm ? ch : revsorting[ch];
         const QColor color (chanId < nvai-nextra ? fg : fg2);
 #ifdef HEADACHE_PROTECTION
 		double val = .9;
 #else
-        double val;
+        double val, sampval;
+
         if (treatDataAsUnsigned) {
             /// XXX 4/26/2016 Jim Chen complaints testing -- turns out 0x0 is the most negative and 0xffff is the brightest.. this is different from NI!
-            val = static_cast<double>(uint16(scans[i]))/65535.0;
+            val = (sampval=static_cast<double>(uint16(scans[i])))/65535.0;
         } else {
-            val = (double(scans[i])+32767.) / 65535.;
+            val = ((sampval=double(scans[i]))+32768.) / 65535.;
+
+            if (autoScaleColorRange) {
+                double oldval = val;
+                if (chanMinMaxs[ch].smax>chanMinMaxs[ch].smin) {
+                    val = (sampval-double(chanMinMaxs[ch].smin)) / (double(chanMinMaxs[ch].smax) - double(chanMinMaxs[ch].smin));
+                }
+                if (excessiveDebug) {
+                    Debug() << "Channel:" << ch << " sorting:" << chanId << " unscaled_val:" << oldval << " scaled_val:" << val << " sampval: " << sampval << " min:" << chanMinMaxs[ch].smin << " max: " << chanMinMaxs[ch].smax << " secs:" << graphTimes[ch];
+                }
+            }
+
         }
 #endif
         chanRawSamps[chanId] = scans[i];
@@ -581,6 +627,7 @@ void SpatialVisWindow::updateToolBar()
         p.end();
         colorBut->setIcon(QIcon(pm));
     }
+    autoScaleChk->setChecked(autoScaleColorRange);
 }
 
 void SpatialVisWindow::colorButPressed()
@@ -615,6 +662,7 @@ void SpatialVisWindow::saveSettings()
     settings.setValue(QString("layout_%1_rows").arg(nvai), nby);
 	settings.setValue(QString("UseStimGLOverlay"), overlayChk->isChecked());
 	settings.setValue(QString("OverlayFPS"), ovlFps->value());
+    settings.setValue("autoScaleColorRange", autoScaleColorRange);
 	
 	settings.endGroup();
 }
@@ -635,9 +683,11 @@ void SpatialVisWindow::loadSettings()
 		sbCols->setValue(sbcols);
 		if (nbx != sbcols || nby != sbrows)
             chanLayoutChanged();
-	}
+    }
 	overlayChecked(settings.value(QString("UseStimGLOverlay"), false).toBool());
 //	ovlFpsChanged(settings.value(QString("OverlayFPS"), ovlFps->value()).toInt());
+
+    autoScaleColorRange = settings.value("autoScaleColorRange", true).toBool();
 	settings.endGroup();
 }
 
