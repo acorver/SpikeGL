@@ -29,6 +29,7 @@ class SpatialVisWindow;
 class Bug_ConfigDialog;
 class Bug_Popout;
 class FG_ConfigDialog;
+class GenericGrapher;
 
 #include <QApplication>
 #include <QColor>
@@ -421,14 +422,13 @@ private:
     PagedScanReader *reader; ///< used to copy-construct other pagers/readers, among other things
 	
     struct GraphingThread : public QThread {
-        GraphsWindow *g;
-        SpatialVisWindow *s;
+        GenericGrapher *g;
         PagedScanReader reader;
         const DAQ::Params & p;
         volatile bool pleaseStop;
         u64 sampCount;
 
-        GraphingThread(GraphsWindow *g, SpatialVisWindow *s, const PagedScanReader & psr);
+        GraphingThread(GenericGrapher *g, const PagedScanReader & psr, const DAQ::Params &params);
         ~GraphingThread();
     protected:
         void run();
@@ -448,7 +448,7 @@ private:
         void run();
     };
 
-    GraphingThread *gthread;
+    GraphingThread *gthread1, *gthread2;
     DataSavingThread *dthread;
 
     std::vector<int16> save_subset, prebuf_scans; ///< working vars used by taskReadFunc().. it may be faster to keep these around across calls to taskReadFunc()

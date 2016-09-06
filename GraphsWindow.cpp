@@ -600,11 +600,6 @@ void GraphsWindow::update_nPtsAllGs()
     for (int i = 0; i < graphs.size(); ++i) nPtsAllGs += nptsAll[i];
 }
 
-void GraphsWindow::putScans(const std::vector<int16> & data, u64 firstSamp)
-{
-    if (data.size())  putScans(&data[0], unsigned(data.size()), firstSamp);
-}
-
 void GraphsWindow::putScans(const int16 * data, unsigned DSIZE, u64 firstSamp)
 {
     QMutexLocker l(&graphsMut);

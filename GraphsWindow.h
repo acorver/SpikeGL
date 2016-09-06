@@ -11,6 +11,7 @@
 #include "ChanMappingController.h"
 #include <QSet>
 #include <QMutex>
+#include "GenericGrapher.h"
 
 
 class QToolBar;
@@ -27,7 +28,7 @@ class QTimer;
 class QStackedWidget;
 class QComboBox;
 
-class GraphsWindow : public QMainWindow
+class GraphsWindow : public QMainWindow, public GenericGrapher
 {
     Q_OBJECT
 public:
@@ -36,13 +37,13 @@ public:
                  );
     ~GraphsWindow();
 
-    bool threadsafeIsVisible() const { return threadsafe_is_visible; }
-
     /// if false, need to navigate channels using spatial visualiztion click method.
     bool usesTabModeForNavigation() const { return useTabs; }
 
-    void putScans(const std::vector<int16> & scans, u64 firstSamp);
-    void putScans(const int16 *data, unsigned data_size_samps, u64 firstSamp);
+    /* virtual */ void putScans(const int16 *data, unsigned data_size_samps, u64 firstSamp);
+    /* virtual */ bool threadsafeIsVisible() const { return threadsafe_is_visible; }
+    /* virtual */ bool caresAboutSkippedScans() const { return true; }
+    /* virtual */ const char *grapherName() const { return "GraphsWindow"; }
 
     // clear a specific graph's points, or all if negative
     void clearGraph(int which = -1);

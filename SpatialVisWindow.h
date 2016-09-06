@@ -14,6 +14,7 @@
 #include "StimGL_SpikeGL_Integration.h"
 #include <QMutex>
 #include <QMutexLocker>
+#include "GenericGrapher.h"
 
 class QToolBar;
 class QLabel;
@@ -24,7 +25,7 @@ class QSpinBox;
 class QSlider;
 class QCheckBox;
 
-class SpatialVisWindow : public QMainWindow
+class SpatialVisWindow : public QMainWindow, public GenericGrapher
 {
     Q_OBJECT
 public:
@@ -36,10 +37,10 @@ public:
     void setSelectionEnabled(bool en) { click_to_select = en; }
     bool isSelectionEnabled() const { return click_to_select; }
 
-    void putScans(const std::vector<int16> & scans, u64 firstSamp);
-    void putScans(const int16 *scans, unsigned scans_size_samps, u64 firstSamp);
-		
-    bool threadsafeIsVisible() const { return threadsafe_is_visible; }
+    /* virtual */ void putScans(const int16 *data, unsigned data_size_samps, u64 firstSamp);
+    /* virtual */ bool threadsafeIsVisible() const { return threadsafe_is_visible; }
+    /* virtual */ bool caresAboutSkippedScans() const { return false; }
+    /* virtual */ const char *grapherName() const { return "SpatialVisWindow"; }
 
     void setStaticBlockLayout(int ncols, int nrows);
 

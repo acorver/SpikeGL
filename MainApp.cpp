@@ -92,7 +92,7 @@ MainApp::MainApp(int & argc, char ** argv)
 {
     got_sgl_ended = got_sgl_save = got_sgl_started = false;
     reader = 0;
-    gthread = 0;
+    gthread1 = gthread2 = 0;
     dthread = 0;
     samplesBuffer = 0;
     need2FreeSamplesBuffer = false;
@@ -1019,9 +1019,11 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     }
     Debug() << "SamplesSHM Page Size: " << reader->pageSize() << " bytes (" << reader->scansPerPage() << " scans per page), " << reader->nPages() << " total pages";
 
-    if (gthread) delete gthread, gthread = 0;
+    if (gthread1) delete gthread1, gthread1 = 0;
+    if (gthread2) delete gthread2, gthread2 = 0;
     if (dthread) delete dthread, dthread = 0;
-    gthread = new GraphingThread(graphsWindow, spatialWindow, *reader);
+    gthread1 = new GraphingThread(graphsWindow, *reader, params);
+    gthread2 = new GraphingThread(spatialWindow, *reader, params);
 
 	doBugAcqInstead = false;
 	doFGAcqInstead = false;
@@ -1059,7 +1061,8 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     stopAcq->setEnabled(true);
     aoPassthruAct->setEnabled(params.aoPassthru && !bugtask && !fgtask);
     Connect(task, SIGNAL(gotFirstScan()), this, SLOT(gotFirstScan()));
-    if (gthread) gthread->start(QThread::LowPriority);
+    if (gthread1) gthread1->start(QThread::LowPriority);
+    if (gthread2) gthread2->start(QThread::LowestPriority);
     dthread = new DataSavingThread(this);
     dthread->start(QThread::HighPriority);
     task->start();
@@ -1175,7 +1178,8 @@ void MainApp::stopTask()
 	
     if (!task) return;
     if (task->isRunning()) task->stop();
-    if (gthread) delete gthread, gthread = 0;
+    if (gthread1) delete gthread1, gthread1 = 0;
+    if (gthread2) delete gthread2, gthread2 = 0;
     if (dthread) {
         QMessageBox *mb = 0;
         if ((reader->latest() - reader->latestPageRead()) * SAMPLES_SHM_DESIRED_PAGETIME_MS > 500) {
@@ -1339,8 +1343,8 @@ void MainApp::putRestarts(const DAQ::Params & p, u64 firstSamp, u64 restartNumSc
 bool MainApp::sortGraphsByElectrodeId() const { return m_sortGraphsByElectrodeId || (configCtl && configCtl->acceptedParams.bug.enabled); }
 
 
-MainApp::GraphingThread::GraphingThread(GraphsWindow *g, SpatialVisWindow *s, const PagedScanReader & psr)
-    : QThread(g), g(g), s(s), reader(psr), p(g->daqParams()), pleaseStop(false)
+MainApp::GraphingThread::GraphingThread(GenericGrapher *g, const PagedScanReader & psr, const DAQ::Params &p)
+    : QThread(dynamic_cast<QObject *>(g)), g(g), reader(psr), p(p), pleaseStop(false)
 {
     sampCount = 0ULL;
     reader.resetToBeginning();
@@ -1360,7 +1364,7 @@ void MainApp::GraphingThread::run()
     if (sleepms < 1) sleepms = 1;
     if (sleepms > 200) sleepms = 200;
 
-    Debug() << "Graphing thread started, sleeptime_ms = " << sleepms;
+    Debug() << "Graphing thread '" << g->grapherName() << "' started, sleeptime_ms=" << sleepms << ", priority=" << int(priority());
 
     while (!pleaseStop) {
         int skips = 0;
@@ -1369,23 +1373,22 @@ void MainApp::GraphingThread::run()
             msleep(sleepms);
         } else {
             if (skips) {
-                Warning() << "GraphingThread -- dropped " << (skips*nScansPerPage) << " scans! Graphs too slow for acquisition?";
+                if (g->caresAboutSkippedScans()) Warning() << "GraphingThread '" << g->grapherName() << "' -- dropped " << (skips*nScansPerPage) << " scans! Graphs too slow for acquisition?";
                 // TODO FIXME -- report dropped scans in UI permanently in taskbar or something here..
                 int n = skips;
                 if (n > 2) n = 2;
                 sampCount += u64((skips-n)*droppedPageScans.size());
                 for (int i = 0; i < n; ++i) {
-                    if (g->threadsafeIsVisible()) g->putScans(droppedPageScans, sampCount);
+                    if (g->threadsafeIsVisible() && g->caresAboutSkippedScans()) g->putScans(droppedPageScans, sampCount);
                     sampCount += u64(droppedPageScans.size());
                 }
             }
             if (g->threadsafeIsVisible()) g->putScans(scans, nChansPerScan*nScansPerPage, sampCount);
-            if (s->threadsafeIsVisible()) s->putScans(scans, nChansPerScan*nScansPerPage, sampCount);
             sampCount += u64(nChansPerScan*nScansPerPage);
         }
     }
 
-    Debug() << "GraphingThread ending after processing " << (sampCount/nChansPerScan) << " scans.";
+    Debug() << "GraphingThread '" << g->grapherName() << "' ending after processing " << (sampCount/nChansPerScan) << " scans.";
 }
 
 MainApp::DataSavingThread::DataSavingThread(MainApp *mainApp)
@@ -1404,7 +1407,7 @@ void MainApp::DataSavingThread::run()
 {
     unsigned sleeptime_ms = qRound( (((double(app->reader->scansPerPage()) / app->configCtl->acceptedParams.srate) * 1000.0)) / DEF_TASK_READ_FREQ_HZ);
     if (!sleeptime_ms) sleeptime_ms = 1;
-    Debug() << "MainApp::DataSavingThread started, sleeptime_ms=" << sleeptime_ms;
+    Debug() << "MainApp::DataSavingThread started, sleeptime_ms=" << sleeptime_ms << ", priority=" << int(priority());
 
     while (!pleaseStop) {
         if (app->taskReadFunc())
