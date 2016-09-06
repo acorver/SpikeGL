@@ -320,8 +320,6 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
         if (doAutoScale) {
             //double oldval = val;
             if (cmm[ch].smax>cmm[ch].smin) {
-                //const ChanMinMaxs & nowcmm (chunkChanMinMaxs.last());
-                //val = (double(nowcmm[ch].smax)-double(nowcmm[ch].smin)) / ( double(cmm[ch].smax)-double(cmm[ch].smin) );
                 val = (sampval-double(cmm[ch].smin)) / (double(cmm[ch].smax) - double(cmm[ch].smin));
             }
 /*           if (excessiveDebug) {
