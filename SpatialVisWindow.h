@@ -7,6 +7,7 @@
 #include "TypeDefs.h"
 #include "VecWrapBuffer.h"
 #include <QVector>
+#include <QMap>
 #include <vector>
 #include <QSet>
 #include <QColor.h>
@@ -85,7 +86,6 @@ private slots:
 	void ovlFFChecked(bool);
 	void ovlAlphaChanged(int);
 	void ovlFpsChanged(int);
-    void unsignedChecked(bool);
 	
 private:	
 	int pos2ChanId(double x, double y) const;
@@ -111,7 +111,6 @@ private:
     Vec2i selectionDims; // the size of the selection box, in terms of number of channels    
     bool didSelDimsDefine, can_redefine_selection_box, click_to_select;
     Vec2 mouseDownAt;
-    bool treatDataAsUnsigned;
     QVector<Vec2> points;
     QVector<Vec4f> colors;
 	QVector<double> chanVolts;
@@ -126,7 +125,7 @@ private:
 	QToolBar *toolBar;
     QPushButton *colorBut;
 	QSpinBox *sbCols, *sbRows;
-    QCheckBox *overlayChk, *ovlFFChk, /**unsignedChk*/ *autoScaleChk;
+    QCheckBox *overlayChk, *ovlFFChk, *autoScaleChk;
 	QLabel *ovlAlphaLbl;
 	QPushButton *overlayBut;
 	QSlider *overlayAlpha;
@@ -140,14 +139,15 @@ private:
 	QString fdelayStr;
     QVector<int> sorting, revsorting, naming;
 
-    bool autoScaleColorRange;
+    volatile bool autoScaleColorRange;
     QVector<double> graphTimes;
     struct ChanMinMax {
         int16 smin, smax;
-        double tsMin, tsMax;
-        ChanMinMax() : smin(32767), smax(-32768), tsMin(0.), tsMax(0.) {}
+        ChanMinMax() : smin(32767), smax(-32768) {}
     };
-    QVector<ChanMinMax> chanMinMaxs;
+    typedef QVector<ChanMinMax> ChanMinMaxs;
+    typedef QMap<double, ChanMinMaxs> ChunkChanMinMaxs;
+    ChunkChanMinMaxs chunkChanMinMaxs;
 
     QMutex mut;    
 };

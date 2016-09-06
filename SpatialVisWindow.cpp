@@ -37,7 +37,6 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
     click_to_select = false;
     mouseDownAt = Vec2(-1e6,-1e6);
 	static bool registeredMetaType = false;
-    treatDataAsUnsigned = false;
     autoScaleColorRange = false;
 
 	if (fshare.shm) {
@@ -76,7 +75,6 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
 	
     toolBar->addSeparator();
 
-    //toolBar->addWidget(unsignedChk = new QCheckBox("Unsigned", toolBar));
     toolBar->addWidget(autoScaleChk = new QCheckBox("AutoScale", toolBar));
     autoScaleChk->setToolTip("If checked, scale the displayed colors' dynamic ranges based on the MIN/MAX values seen in the last few seconds worth of data");
 
@@ -114,7 +112,6 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
 	ovlAlphaLbl->setFont(f);
 	Connect(overlayBut, SIGNAL(clicked(bool)), this, SLOT(overlayButPushed()));
     Connect(colorBut, SIGNAL(clicked(bool)), this, SLOT(colorButPressed()));
-    //Connect(unsignedChk, SIGNAL(toggled(bool)), this, SLOT(unsignedChecked(bool)));
     Connect(autoScaleChk, SIGNAL(toggled(bool)), this, SLOT(setAutoScale(bool)));
 	
 	toolBar->addWidget(ovlFFChk = new QCheckBox("Full Frame", toolBar));
@@ -150,7 +147,6 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
 	chanVolts.resize(nvai);
     chanRawSamps.resize(nvai);
     graphTimes.resize(nvai);
-    chanMinMaxs.resize(nvai);
 	
     // default sorting
     sorting.resize(nvai); naming.resize(nvai); revsorting.resize(nvai);
@@ -159,7 +155,6 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
         revsorting[chanid] = sorting[chanid] = naming[chanid] = chanid;
         points[chanid] = chanId2Pos(chanid);
         graphTimes[chanid] = 3.0;
-        chanMinMaxs[chanid] = ChanMinMax();
 	}
 
 	sbRows->setValue(nby);
@@ -271,29 +266,49 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
 {
     QMutexLocker l(&mut);
 
-	(void)firstSamp; // unused warning
+    //double t0 = getTime();
+    (void)firstSamp; // unused warning
 
-    if (autoScaleColorRange) {
+    const int downSampleSkips = params.srate >= 1000.0 ? qRound(params.srate/1000.0)-1 : 0;
+
+    ChanMinMaxs cmm; cmm.resize(nvai);
+    const bool doAutoScale = autoScaleColorRange;
+
+    if (doAutoScale) {
         // bookkeeping -- keep track of min/max values seen, per channel for a window of time to determine scale..
-        double now = getTime();
-        // expire old min/max's
-        for (int i = 0; i < chanMinMaxs.size(); ++i) {
-            double t = graphTimes[i];
-            if (now - chanMinMaxs[i].tsMax >= t)
-                chanMinMaxs[i].smax = -32768;
-            if (now - chanMinMaxs[i].tsMin >= t)
-                chanMinMaxs[i].smin = 32767;
+        double  now = double(u64(firstSamp/nvai))/params.srate,
+                maxAge = 0;
+        for (int i = 0; i < graphTimes.size(); ++i) {
+            if (graphTimes[i] > maxAge) maxAge = graphTimes[i];
         }
+        // expire old chunk min/max's
+        while (!chunkChanMinMaxs.empty() && (now-chunkChanMinMaxs.begin().key()) > maxAge)
+            chunkChanMinMaxs.erase(chunkChanMinMaxs.begin());
+
         // now scan entire data chunk to update chanMinMax state...
-        for (int i = 0; i < (int)scans_size_samps; ++i) {
-            int ch = i % nvai/*, chanId = nocm ? ch : revsorting[ch]*/;
-            if (scans[i] <= chanMinMaxs[ch].smin) chanMinMaxs[ch].smin = scans[i], chanMinMaxs[ch].tsMin = now;
-            if (scans[i] >= chanMinMaxs[ch].smax) chanMinMaxs[ch].smax = scans[i], chanMinMaxs[ch].tsMax = now;
+        for (int i = 0, ch = 0; i < (int)scans_size_samps; /*nothing. i is incremented last line of loop below..*/) {
+            if (scans[i] <= cmm[ch].smin) cmm[ch].smin = scans[i];
+            if (scans[i] >= cmm[ch].smax) cmm[ch].smax = scans[i];
+            if ((ch=(++i % nvai))==0)
+                i += nvai*downSampleSkips;  // every Nth scan..
         }
+        chunkChanMinMaxs[now] = cmm;
+
+        // now, get an up-to-date min/max state per channel based on each channel's window size... by looking at all recent chunks
+        for (ChunkChanMinMaxs::iterator it = chunkChanMinMaxs.begin(); it != chunkChanMinMaxs.end() && it.key() < now; ++it) {
+            for (int i = 0; i < nvai; ++i) {
+                if (now-it.key() <= graphTimes[i]) {
+                    const ChanMinMax & v(it.value()[i]);
+                    if (cmm[i].smin > v.smin) cmm[i].smin = v.smin;
+                    if (cmm[i].smax < v.smax) cmm[i].smax = v.smax;
+                }
+            }
+        }
+       // Debug() << " auto-scaling code took: " << (getTime()-t0)*1e3 << " ms, chunksize:"  << (scans_size_samps/nvai) << " scans" <<  " maxage=" << maxAge << " n_chunks_remembered:" << chunkChanMinMaxs.size() << " now=" << now;
     }
 
     int firstidx = scans_size_samps - nvai;
-	if (firstidx < 0) firstidx = 0;
+    if (firstidx < 0) firstidx = 0;
     const bool nocm = params.fg.enabled && params.fg.disableChanMap;
     for (int i = firstidx; i < int(scans_size_samps); ++i) {
         int ch = i%nvai;
@@ -304,22 +319,19 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
 #else
         double val, sampval;
 
-        if (treatDataAsUnsigned) {
-            /// XXX 4/26/2016 Jim Chen complaints testing -- turns out 0x0 is the most negative and 0xffff is the brightest.. this is different from NI!
-            val = (sampval=static_cast<double>(uint16(scans[i])))/65535.0;
-        } else {
-            val = ((sampval=double(scans[i]))+32768.) / 65535.;
+        val = ((sampval=double(scans[i]))+32768.) / 65535.;
 
-            if (autoScaleColorRange) {
-                double oldval = val;
-                if (chanMinMaxs[ch].smax>chanMinMaxs[ch].smin) {
-                    val = (sampval-double(chanMinMaxs[ch].smin)) / (double(chanMinMaxs[ch].smax) - double(chanMinMaxs[ch].smin));
-                }
-                if (excessiveDebug) {
-                    Debug() << "Channel:" << ch << " sorting:" << chanId << " unscaled_val:" << oldval << " scaled_val:" << val << " sampval: " << sampval << " min:" << chanMinMaxs[ch].smin << " max: " << chanMinMaxs[ch].smax << " secs:" << graphTimes[ch];
-                }
+        if (doAutoScale) {
+            //double oldval = val;
+            if (cmm[ch].smax>cmm[ch].smin) {
+                //const ChanMinMaxs & nowcmm (chunkChanMinMaxs.last());
+                //val = (double(nowcmm[ch].smax)-double(nowcmm[ch].smin)) / ( double(cmm[ch].smax)-double(cmm[ch].smin) );
+                val = (sampval-double(cmm[ch].smin)) / (double(cmm[ch].smax) - double(cmm[ch].smin));
             }
-
+/*           if (excessiveDebug) {
+                Debug() << "Channel:" << ch << " sorting:" << chanId << " unscaled_val:" << oldval << " scaled_val:" << val << " sampval: " << sampval << " min:" << cmm[ch].smin << " max: " << cmm[ch].smax << " secs:" << graphTimes[ch];
+            }
+ */
         }
 #endif
         chanRawSamps[chanId] = scans[i];
@@ -329,6 +341,8 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
         colors[chanId].z = color.blueF()*float(val);
         colors[chanId].w = color.alphaF();
 	}
+
+    //Debug() << "SpatialVisWindow::putScans took " << (getTime()-t0)*1e3 << " ms for " << double(scans_size_samps/nvai/params.srate)*1e3 << " ms worth of scans";
 }
 
 SpatialVisWindow::~SpatialVisWindow()
@@ -894,7 +908,3 @@ void SpatialVisWindow::setSorting(const QVector<int> & s, const QVector<int> & n
     }
 }
 
-void SpatialVisWindow::unsignedChecked(bool b)
-{
-    treatDataAsUnsigned = b;
-}
