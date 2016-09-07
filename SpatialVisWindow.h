@@ -55,6 +55,7 @@ public slots:
     void setSorting(const QVector<int> & sorting, const QVector<int> & naming);
     void setGraphTimeSecs(int graphId, double secs) { QMutexLocker l(&mut); if (graphId > -1 && graphId < graphTimes.size()) graphTimes[graphId] = secs; }
     void setAutoScale(bool);
+    void setDownsampleRatio(double ratio);
 
 signals:
 	void channelsSelected(const QVector<unsigned> & ids);
@@ -149,6 +150,7 @@ private:
     typedef QVector<ChanMinMax> ChanMinMaxs;
     typedef QMap<double, ChanMinMaxs> ChunkChanMinMaxs;
     ChunkChanMinMaxs chunkChanMinMaxs;
+    volatile double downsampleRatio;
 
     QMutex mut;    
 };

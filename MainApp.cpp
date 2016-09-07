@@ -929,6 +929,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     spatialWindow = new SpatialVisWindow(params, spatialDims, spatialBoxW, 0, doFGAcqInstead ? params.spatialVisUpdateRate : -1);
     spatialWindow->setSorting(graphsWindow->currentSorting(), graphsWindow->currentNaming());
     spatialWindow->setGraphTimesSecs(graphsWindow->getGraphTimesSecs());
+    spatialWindow->setDownsampleRatio(graphsWindow->getDownsampleRatio());
     spatialWindow->setAttribute(Qt::WA_DeleteOnClose, false);
 	spatialWindow->setWindowIcon(appIcon);
     spatialWindow->installEventFilter(this);
@@ -937,6 +938,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     Connect(graphsWindow, SIGNAL(manualTrig(bool)), this, SLOT(gotManualTrigOverride(bool)));
     Connect(graphsWindow, SIGNAL(sortingChanged(const QVector<int> &, const QVector<int> &)), spatialWindow, SLOT(setSorting(const QVector<int> &, const QVector<int> &)));
     Connect(graphsWindow, SIGNAL(graphTimeSecsChanged(int,double)), spatialWindow, SLOT(setGraphTimeSecs(int,double)));
+    Connect(graphsWindow, SIGNAL(downsampleRatioChanged(double)), spatialWindow, SLOT(setDownsampleRatio(double)));
 
     if (!params.suppressGraphs) {
 		//spatialWindow->show();

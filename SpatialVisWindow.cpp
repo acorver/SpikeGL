@@ -38,6 +38,7 @@ SpatialVisWindow::SpatialVisWindow(DAQ::Params & params, const Vec2i & xy_dims, 
     mouseDownAt = Vec2(-1e6,-1e6);
 	static bool registeredMetaType = false;
     autoScaleColorRange = false;
+    downsampleRatio = 1.0;
 
 	if (fshare.shm) {
 		Log() << "SpatialVisWindow: " << (fshare.createdByThisInstance ? "Created" : "Attatched to pre-existing") <<  " StimGL 'frame share' memory segment, size: " << (double(fshare.size())/1024.0/1024.0) << "MB.";
@@ -257,15 +258,20 @@ void SpatialVisWindow::updateGlyphSize()
 	graph->setGlyphSize(Vec2f(szx,szy));		
 }
 
+void SpatialVisWindow::setDownsampleRatio(double r)
+{
+    QMutexLocker l(&mut);
+    downsampleRatio = r >= 1.0 ? r : 1.0;
+//    Debug() << "SpatialVisWindow got new downsample ratio: " << downsampleRatio;
+}
 
 void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u64 firstSamp)
 {
     QMutexLocker l(&mut);
 
-    //double t0 = getTime();
-    (void)firstSamp; // unused warning
+    //double t0 = getTime(); (void)t0;
 
-    const int downSampleSkips = params.srate >= 1000.0 ? qRound(params.srate/1000.0)-1 : 0;
+    const int downSampleSkips = downsampleRatio > 1.0 ? qRound(downsampleRatio)-1 : 0;//params.srate >= 1000.0 ? qRound(params.srate/1000.0)-1 : 0;
 
     ChanMinMaxs cmm; cmm.resize(nvai);
     const bool doAutoScale = autoScaleColorRange;
@@ -321,6 +327,8 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
             //double oldval = val;
             if (cmm[ch].smax>cmm[ch].smin) {
                 val = (sampval-double(cmm[ch].smin)) / (double(cmm[ch].smax) - double(cmm[ch].smin));
+                if (val < 0.) val = 0.;
+                else if (val > 1.) val = 1.;
             }
 /*           if (excessiveDebug) {
                 Debug() << "Channel:" << ch << " sorting:" << chanId << " unscaled_val:" << oldval << " scaled_val:" << val << " sampval: " << sampval << " min:" << cmm[ch].smin << " max: " << cmm[ch].smax << " secs:" << graphTimes[ch];
@@ -336,7 +344,7 @@ void SpatialVisWindow::putScans(const int16 *scans, unsigned scans_size_samps, u
         colors[chanId].w = color.alphaF();
 	}
 
-    //Debug() << "SpatialVisWindow::putScans took " << (getTime()-t0)*1e3 << " ms for " << double(scans_size_samps/nvai/params.srate)*1e3 << " ms worth of scans";
+    //Debug() << "SpatialVisWindow::putScans took " << (getTime()-t0)*1e3 << " ms for " << double(scans_size_samps/nvai/params.srate)*1e3 << " ms worth of scans, skipped every " << downSampleSkips << " scans." ;
 }
 
 SpatialVisWindow::~SpatialVisWindow()

@@ -11,6 +11,7 @@
 #include "ChanMappingController.h"
 #include <QSet>
 #include <QMutex>
+#include <QMutexLocker>
 #include "GenericGrapher.h"
 
 
@@ -76,6 +77,9 @@ public:
     double getGraphTimeSecs(int i) const { return ( (i > -1 && i < graphTimesSecs.size()) ? graphTimesSecs[i] : 0.0);  }
     const QVector<double> & getGraphTimesSecs() const { return graphTimesSecs; }
 
+    /// downsampling disabled == a return value of 1.0.  Otherwise, if > 1.0, downsampling happens by that ratio
+    double getDownsampleRatio() const { QMutexLocker l(&graphsMut); return downsampleRatio; }
+
     /** Hack for Huai-Ti's emergency 'manual override' button that implicitly saves
      *  all data currently in the on-screen graphs immediately to the new data file.
      *
@@ -94,6 +98,7 @@ signals:
     void manualTrig(bool);
     void sortingChanged(const QVector<int> & sorting, const QVector<int> & naming);
     void graphTimeSecsChanged(int graphId, double timeSecs);
+    void downsampleRatioChanged(double newDownSampleRatio); ///< 1.0 == no downsampling, >1.0 == downsampling by that ratio
 
 public slots:
     void setSGLTrig(bool);
