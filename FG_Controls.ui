@@ -41,71 +41,13 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>70</y>
+     <y>10</y>
      <width>361</width>
-     <height>121</height>
+     <height>181</height>
     </rect>
    </property>
    <property name="textInteractionFlags">
     <set>Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="contAdcBut">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>40</y>
-     <width>171</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Send Continuous ADC </string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="grabFramesBut">
-   <property name="geometry">
-    <rect>
-     <x>200</x>
-     <y>40</y>
-     <width>171</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Grab Frames</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="setupRegsBut">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>10</y>
-     <width>171</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Setup Registers</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="calibAdcBut">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>200</x>
-     <y>10</y>
-     <width>171</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Calibrate ADC</string>
    </property>
   </widget>
   <widget class="QLabel" name="label">
@@ -363,56 +305,6 @@
     <string>0</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="stopGrabBut">
-   <property name="geometry">
-    <rect>
-     <x>200</x>
-     <y>40</y>
-     <width>171</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="palette">
-    <palette>
-     <active>
-      <colorrole role="ButtonText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>170</red>
-         <green>0</green>
-         <blue>0</blue>
-        </color>
-       </brush>
-      </colorrole>
-     </active>
-     <inactive>
-      <colorrole role="ButtonText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>170</red>
-         <green>0</green>
-         <blue>0</blue>
-        </color>
-       </brush>
-      </colorrole>
-     </inactive>
-     <disabled>
-      <colorrole role="ButtonText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>120</red>
-         <green>120</green>
-         <blue>120</blue>
-        </color>
-       </brush>
-      </colorrole>
-     </disabled>
-    </palette>
-   </property>
-   <property name="text">
-    <string>Send STOP</string>
-   </property>
-  </widget>
   <widget class="QLabel" name="timesampLbl_2">
    <property name="geometry">
     <rect>
@@ -442,32 +334,6 @@
     <bool>false</bool>
    </property>
   </widget>
-  <zorder>stopGrabBut</zorder>
-  <zorder>textEdit</zorder>
-  <zorder>contAdcBut</zorder>
-  <zorder>grabFramesBut</zorder>
-  <zorder>setupRegsBut</zorder>
-  <zorder>calibAdcBut</zorder>
-  <zorder>label</zorder>
-  <zorder>pxClk1Lbl</zorder>
-  <zorder>pxClk2Lbl</zorder>
-  <zorder>label_2</zorder>
-  <zorder>pxClk3Lbl</zorder>
-  <zorder>label_3</zorder>
-  <zorder>hsyncLbl</zorder>
-  <zorder>label_4</zorder>
-  <zorder>vsyncLbl</zorder>
-  <zorder>label_5</zorder>
-  <zorder>clkSignalsLbl</zorder>
-  <zorder>clkCtLbl</zorder>
-  <zorder>clkSignalsLbl_2</zorder>
-  <zorder>xferCtLbl</zorder>
-  <zorder>dFrameLbl</zorder>
-  <zorder>scanSkipsLbl</zorder>
-  <zorder>fpsLabel</zorder>
-  <zorder>fpsLbl</zorder>
-  <zorder>timesampLbl_2</zorder>
-  <zorder>timestampLbl</zorder>
  </widget>
  <resources/>
  <connections/>

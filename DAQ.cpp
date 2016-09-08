@@ -2235,12 +2235,12 @@ namespace DAQ
             dialogW = new QDialog(0,Qt::CustomizeWindowHint|Qt::Dialog|Qt::WindowTitleHint);
             dialog = new Ui::FG_Controls;
             dialog->setupUi(dialogW);
-            dialog->stopGrabBut->hide();
+            /*dialog->stopGrabBut->hide();
             Connect(dialog->calibAdcBut, SIGNAL(clicked()), this, SLOT(calibClicked()));
             Connect(dialog->setupRegsBut, SIGNAL(clicked()), this, SLOT(setupRegsClicked()));
             Connect(dialog->contAdcBut, SIGNAL(clicked()), this, SLOT(contAdcClicked()));
             Connect(dialog->grabFramesBut, SIGNAL(clicked()), this, SLOT(grabFramesClicked()));
-            Connect(dialog->stopGrabBut, SIGNAL(clicked()), this, SLOT(stopGrabClicked()));
+            Connect(dialog->stopGrabBut, SIGNAL(clicked()), this, SLOT(stopGrabClicked()));*/
             Connect(this, SIGNAL(gotMsg(QString,QColor)), this, SLOT(appendTE(QString,QColor)));
             Connect(this, SIGNAL(gotClkSignals(int)), this, SLOT(updateClkSignals(int)));
             Connect(this, SIGNAL(gotFPS(int)), this, SLOT(updateFPS(int)));
@@ -2253,6 +2253,10 @@ namespace DAQ
             mainApp()->windowMenuAdd(dialogW);
             dialogW->setAttribute(Qt::WA_DeleteOnClose, false);
             dialogW->installEventFilter(mainApp());
+
+            // now, after subprocess starts, inititate the "Grab Frames" action that would have been done in the GUI
+            // as of Sept 8, 2016.. this happens automatically now.
+            Connect(this, SIGNAL(justStarted()), this, SLOT(doGrabFrames()));
         }
     }
 
@@ -2442,6 +2446,7 @@ namespace DAQ
         dialog->textEdit->setTextColor(origColor);
     }
 
+    /*
     void FGTask::calibClicked() {
         appendTE("Calib clicked.", QColor(Qt::gray));
     }
@@ -2456,6 +2461,7 @@ namespace DAQ
         p.init(6,0,0);
         pushCmd(p);
     }
+    */
 
     /* static */
     bool FGTask::setupCMFromArray(const int *mapping, int which /* 1=calin 0=janelia */, ChanMap *cm_out)
@@ -2652,10 +2658,10 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         return retarray;
     }
 
-    void FGTask::grabFramesClicked() {
-        appendTE("Grab frames clicked.", QColor(Qt::gray));
-        dialog->grabFramesBut->hide();
-        dialog->stopGrabBut->show();
+    void FGTask::doGrabFrames() {
+        appendTE("Grab frames initiated.", QColor(Qt::gray));
+        //dialog->grabFramesBut->hide();
+        //dialog->stopGrabBut->show();
 
         // as per Jim's email 2/18/2016
         XtCmdFPGAProto f;
@@ -2674,6 +2680,7 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         pushCmd(x);
     }
 
+    /*
     void FGTask::stopGrabClicked() {
         appendTE("Stop grab clicked.", QColor(Qt::gray));
         dialog->grabFramesBut->show();
@@ -2684,7 +2691,7 @@ channel #32 & #64  64‐bit           8‐bit 8‐bit 8‐bit 8‐bit 8‐bit 8�
         f.init(8,0,0);
         pushCmd(f);
     }
-
+    */
     /* static */
     QList<FGTask::Hardware> FGTask::probedHardware;
 
