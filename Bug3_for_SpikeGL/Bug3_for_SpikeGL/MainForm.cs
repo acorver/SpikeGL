@@ -125,6 +125,9 @@ namespace Bug3
         private double fileSaveTime;
         private ushort[] rawData = new ushort[Constant.MaxFrameSize * Constant.FramesPerBlock];
 
+        private string perfLogFileName;
+        private StreamWriter fsPerfLog;
+
         // pen colors for auxiliary TTL inputs on FPGA board
         private Pen[] TTLPens = new Pen[11] { Pens.Red, Pens.Orange, Pens.Yellow, Pens.Green, Pens.Blue, Pens.Purple,
                                               Pens.Red, Pens.Orange, Pens.Yellow, Pens.Green, Pens.Blue };
@@ -338,6 +341,20 @@ namespace Bug3
             if (Params.consoleData) doStdinHandler();
         }
 
+        private void LogPerf(double logAvgBER, double avgPower, int totalMissingFrames, int totalFalseFrames)
+        {
+
+            String s = String.Concat(
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "," + 
+                logAvgBER.ToString("F01") + "," + 
+                avgPower.ToString("F01") + "," +
+                totalMissingFrames + "," + 
+                totalFalseFrames + "," );
+
+            fsPerfLog.WriteLine(s);
+            
+        }
+
         private void doStdinHandler()
         {
             BackgroundWorker bw = new BackgroundWorker();
@@ -458,6 +475,7 @@ namespace Bug3
                 binWriter.Flush();
                 binWriter.Close();
                 fs.Close();
+                fsPerfLog.Close();
                 saveMode = false;
             }
 
@@ -979,6 +997,8 @@ namespace Bug3
                    "          recovered voltage: " + avgPower.ToString("F01") + " V " +
                    "          missing frames: " + totalMissingFrames +
                    "          false frames: " + totalFalseFrames);
+
+                LogPerf(logAvgBER, avgPower, totalMissingFrames, totalFalseFrames);
 
                 avgBER = 0.0;
                 avgPower = 0.0;
@@ -1637,6 +1657,26 @@ namespace Bug3
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             this.Close();
+        }
+
+        // Allow user to specify log file to save performance statistics in
+        private void savePerfToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.perfLogFileName = "";
+
+            saveFileDialog1.Title = "Specify Base Filename for performance log data.";
+            saveFileDialog1.Filter = "Log Files (*.telemetry.log)|*.telemetry.log";
+            saveFileDialog1.FilterIndex = 1;
+
+            saveFileDialog1.OverwritePrompt = true;
+
+            if (saveFileDialog1.ShowDialog() != DialogResult.Cancel)
+            {
+                this.perfLogFileName = Path.GetFileNameWithoutExtension(saveFileDialog1.FileName);
+            }
+
+            this.fsPerfLog = new StreamWriter(this.perfLogFileName, true);
+
         }
 
         // About, from menu
