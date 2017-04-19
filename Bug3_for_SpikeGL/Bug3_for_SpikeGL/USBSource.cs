@@ -205,6 +205,8 @@ namespace Bug3
             // Open Opal Kelly XEM3010 board
             myXEM = new okCFrontPanel();
 
+            okCFrontPanel.ErrorCode c = myXEM.OpenBySerial("");
+
             if (myXEM.OpenBySerial("") != okCFrontPanel.ErrorCode.NoError)
             {
                 UsbException e = new UsbException("USB Setup Error: Could not find USB board.");

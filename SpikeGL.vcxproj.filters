@@ -1,0 +1,752 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Form Files">
+      <UniqueIdentifier>{99349809-55BA-4b9d-BF79-8FDBB0286EB3}</UniqueIdentifier>
+      <Extensions>ui</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Form Files">
+      <UniqueIdentifier>{99349809-55BA-4b9d-BF79-8FDBB0286EB3}</UniqueIdentifier>
+      <Extensions>ui</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{71ED8ED8-ACB9-4CE9-BBE1-E00B30144E11}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;moc;h;def;odl;idl;res;</Extensions>
+    </Filter>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{71ED8ED8-ACB9-4CE9-BBE1-E00B30144E11}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;moc;h;def;odl;idl;res;</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{D9D6E242-F8AF-46E4-B9FD-80ECBC20BA3E}</UniqueIdentifier>
+      <Extensions>qrc;*</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{D9D6E242-F8AF-46E4-B9FD-80ECBC20BA3E}</UniqueIdentifier>
+      <Extensions>qrc;*</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Generated Files\Debug">
+      <UniqueIdentifier>{6f9a874d-fb84-40f5-afaa-4f9587b702c8}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="Generated Files\Release">
+      <UniqueIdentifier>{56dbd97c-e864-4b98-ac24-f2b17c8dfe6b}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="AOWriteThread.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Bug_ConfigDialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Bug_Popout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ChanMap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ChanMappingController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ClickableLabel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CommandServer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigureDialogController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsoleWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DAQ.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DataFile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ExportDialogController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FG_ConfigDialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FileViewerWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GLGraph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GLSpatialVis.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphsWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="HPFilter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MainApp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PagedRingBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Par2Window.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Params.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="QLed.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleBufQ.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Sha1VerifyTask.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SockUtil.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SpatialVisWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="StimGL_SpikeGL_Integration.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempDataFile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WrapBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="osdep.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="samplerate\samplerate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sha1.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="samplerate\src_linear.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="samplerate\src_sinc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="samplerate\src_zoh.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_AOWriteThread.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_AOWriteThread.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_Bug_ConfigDialog.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_Bug_ConfigDialog.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_Bug_Popout.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_Bug_Popout.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_ChanMappingController.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_ChanMappingController.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_ClickableLabel.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_ClickableLabel.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_ConfigureDialogController.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_ConfigureDialogController.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_DAQ.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_DAQ.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_ExportDialogController.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_ExportDialogController.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_FG_ConfigDialog.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_FG_ConfigDialog.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_FileViewerWindow.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_FileViewerWindow.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_GLGraph.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_GLGraph.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_GLSpatialVis.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_GLSpatialVis.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_GraphsWindow.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_GraphsWindow.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_MainApp.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_MainApp.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_Par2Window.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_Par2Window.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_QLed.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_QLed.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_Sha1VerifyTask.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_Sha1VerifyTask.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_SpatialVisWindow.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_SpatialVisWindow.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_StimGL_SpikeGL_Integration.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_StimGL_SpikeGL_Integration.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_CommonResources.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_Resources.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_bug3.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_framegrabber.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_qled.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="AOWriteThread.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Bug_ConfigDialog.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Bug_Popout.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="ChanMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="ChanMappingController.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ClickableLabel.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="CommandServer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="ConfigureDialogController.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="ConsoleWindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="DAQ.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="DataFile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="ExportDialogController.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="FG_ConfigDialog.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="FileViewerWindow.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="GLGraph.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="GLSpatialVis.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="GenericGrapher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="GraphsWindow.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="HPFilter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="MainApp.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="PagedRingBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="Par2Window.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="Params.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="QLed.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="SampleBufQ.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="Sha1VerifyTask.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="SockUtil.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="SpatialVisWindow.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="SpikeGL.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="StimGL_SpikeGL_Integration.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="TempDataFile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Thread_Compat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TypeDefs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Vec.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VecWrapBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="WrapBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FrameGrabber\FG_SpikeGL\FG_SpikeGL\XtCmd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="samplerate\fastest_coeffs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="samplerate\float_cast.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="samplerate\high_qual_coeffs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="samplerate\mid_qual_coeffs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="samplerate\samplerate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="samplerate\samplerate_common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="samplerate\samplerate_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sha1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="debug\moc_predefs.h.cbt">
+      <Filter>Generated Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="release\moc_predefs.h.cbt">
+      <Filter>Generated Files</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="AOPassthru.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="AcqPDParams.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="AcqTimedParams.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ApplyDialog.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Bug_ConfigDialog.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Bug_ExtraAIParams.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Bug_Popout.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ChanMapping.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="CommandServerOptions.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ConfigureDialog.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Dialog.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ExportDialog.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="FG_ChanMapDialog.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="FG_ConfigDialog.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="FG_Controls.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="FVW_OptionsDialog.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="FVW_Readme.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Par2Window.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SampleBuf_Dialog.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="StimGLIntegration.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="TempFileDialog.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="TextBrowser.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="AO-Note.html">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="FrameGrabber\B_a2040_FreeRun_8Tap_Default.ccf">
+      <Filter>Resource Files</Filter>
+    </None>
+    <CustomBuild Include="CommonResources.qrc">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <None Include="FrameGrabber\FG_SpikeGL\x64\Release\FG_SpikeGL.exe">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Bug3_for_SpikeGL\Bug3_for_SpikeGL\IntanTitleSmall.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="FrameGrabber\J_2000+_Electrode_8tap_8bit.ccf">
+      <Filter>Resource Files</Filter>
+    </None>
+    <CustomBuild Include="Resources.qrc">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <None Include="FrameGrabber\SapClassBasic75.dll">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="SpikeGL-help-ConfigWindow.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="SpikeGL-help-GraphsWindow.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="SpikeGL-help-manual.html">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="back.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <CustomBuild Include="bug3.qrc">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <None Include="Bug3_for_SpikeGL\Bug3_for_SpikeGL\bin\Release\bug3_spikegl.exe">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Bug3_for_SpikeGL\Bug3_for_SpikeGL\bug3a_receiver_1.bit">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\circle_blue.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\circle_green.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\circle_grey.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\circle_orange.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\circle_purple.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\circle_red.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\circle_yellow.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="dragonfly.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="forward.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <CustomBuild Include="framegrabber.qrc">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <None Include="Bug3_for_SpikeGL\Bug3_for_SpikeGL\libFrontPanel-csharp.dll">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Bug3_for_SpikeGL\Bug3_for_SpikeGL\libFrontPanel-pinv.dll">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="par2.exe">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\qled.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <CustomBuild Include="qled.qrc">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <None Include="resources\round_blue.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\round_green.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\round_grey.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\round_orange.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\round_purple.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\round_red.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\round_yellow.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\square_blue.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\square_green.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\square_grey.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\square_orange.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\square_purple.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\square_red.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\square_yellow.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\triang_blue.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\triang_green.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\triang_grey.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\triang_orange.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\triang_purple.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\triang_red.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\triang_yellow.svg">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="WinResources.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GeneratedFiles\ui_AOPassthru.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_AcqPDParams.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_AcqTimedParams.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_ApplyDialog.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_Bug_ConfigDialog.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_Bug_ExtraAIParams.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_Bug_Popout.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_ChanMapping.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_CommandServerOptions.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_ConfigureDialog.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_Dialog.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_ExportDialog.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_FG_ChanMapDialog.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_FG_ConfigDialog.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_FG_Controls.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_FVW_OptionsDialog.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_FVW_Readme.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_Par2Window.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_SampleBuf_Dialog.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_StimGLIntegration.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_TempFileDialog.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_TextBrowser.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

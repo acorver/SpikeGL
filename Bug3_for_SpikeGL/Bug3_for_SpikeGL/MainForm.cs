@@ -126,7 +126,7 @@ namespace Bug3
         private ushort[] rawData = new ushort[Constant.MaxFrameSize * Constant.FramesPerBlock];
 
         private string perfLogFileName;
-        private StreamWriter fsPerfLog;
+        private StreamWriter fsPerfLog = null;
 
         // pen colors for auxiliary TTL inputs on FPGA board
         private Pen[] TTLPens = new Pen[11] { Pens.Red, Pens.Orange, Pens.Yellow, Pens.Green, Pens.Blue, Pens.Purple,
@@ -292,7 +292,7 @@ namespace Bug3
             {
                 boardName = myUSBSource.Open(dataRate, out boardID, out boardVersion);
             }
-            catch
+            catch (Exception err)
             {
                 this.Text = "Intan Technologies Insect Telemetry Receiver (SIMULATED DATA: Connect board and restart program to record live data)";
                 myUSBSource.SynthDataMode = true;
@@ -344,15 +344,16 @@ namespace Bug3
         private void LogPerf(double logAvgBER, double avgPower, int totalMissingFrames, int totalFalseFrames)
         {
 
-            String s = String.Concat(
-                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "," + 
-                logAvgBER.ToString("F01") + "," + 
-                avgPower.ToString("F01") + "," +
-                totalMissingFrames + "," + 
-                totalFalseFrames + "," );
+            if (fsPerfLog != null) { 
+                String s = String.Concat(
+                    DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "," + 
+                    logAvgBER.ToString("F01") + "," + 
+                    avgPower.ToString("F01") + "," +
+                    totalMissingFrames + "," + 
+                    totalFalseFrames + "," );
 
-            fsPerfLog.WriteLine(s);
-            
+                fsPerfLog.WriteLine(s);
+            }
         }
 
         private void doStdinHandler()
@@ -998,8 +999,6 @@ namespace Bug3
                    "          missing frames: " + totalMissingFrames +
                    "          false frames: " + totalFalseFrames);
 
-                LogPerf(logAvgBER, avgPower, totalMissingFrames, totalFalseFrames);
-
                 avgBER = 0.0;
                 avgPower = 0.0;
                 totalMissingFrames = 0;
@@ -1013,6 +1012,9 @@ namespace Bug3
                 totalMissingFrames += missingFrameCount;
                 avgStatCounter++;
             }
+
+            // Raw performance data not averaged but immediately written to file
+            LogPerf(Math.Log10(BER), avgVunreg, missingFrameCount, falseFrameCount);
 
         }
 
@@ -1662,6 +1664,12 @@ namespace Bug3
         // Allow user to specify log file to save performance statistics in
         private void savePerfToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            if (this.fsPerfLog != null)
+            {
+                this.fsPerfLog.Close();
+                this.fsPerfLog = null;
+            }
+
             this.perfLogFileName = "";
 
             saveFileDialog1.Title = "Specify Base Filename for performance log data.";
@@ -1672,10 +1680,10 @@ namespace Bug3
 
             if (saveFileDialog1.ShowDialog() != DialogResult.Cancel)
             {
-                this.perfLogFileName = Path.GetFileNameWithoutExtension(saveFileDialog1.FileName);
-            }
-
-            this.fsPerfLog = new StreamWriter(this.perfLogFileName, true);
+                // this.perfLogFileName = Path.GetFileNameWithoutExtension(saveFileDialog1.FileName);
+                this.perfLogFileName = saveFileDialog1.FileName;
+                this.fsPerfLog = new StreamWriter(this.perfLogFileName, true);
+            } 
 
         }
 

@@ -1,3 +1,7 @@
+archive/
+.vs/
+.vscode/
+*.db
 *~
 *.bin
 moc_*.cpp
