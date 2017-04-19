@@ -81,6 +81,10 @@ Bug_Popout::Bug_Popout(DAQ::BugTask *task, QWidget *parent)
     Connect(t, SIGNAL(timeout()), this, SLOT(updateDisplay()));
     t->start();
 
+	// Start "time since acquisition onset" timer
+	this->timeSinceStart = new QTime();
+	this->timeSinceStart->start();
+
     plotThread = new Bug_MetaPlotThread(this,task->samplingRate(),task->pagedWriter());
     plotThread->start(QThread::LowPriority);
 }
@@ -90,6 +94,9 @@ Bug_Popout::~Bug_Popout()
     if (plotThread) delete plotThread, plotThread = 0;
 	mainApp()->sortGraphsByElectrodeAct->setEnabled(true);
 	delete ui; ui = 0;
+
+	delete this->timeSinceStart;
+	this->timeSinceStart = 0;
 }
 
 void Bug_Popout::writeMetaToBug3File(const DataFile &df, const DAQ::BugTask::BlockMetaData &m/*, int fudge*/)
@@ -107,6 +114,8 @@ void Bug_Popout::writeMetaToBug3File(const DataFile &df, const DAQ::BugTask::Blo
 	}
 	QTextStream ts(&f);
 	ts << "[ block " << m.blockNum << " ]\n";
+	ts << "millisecondOffset = " << this->timeSinceStart->elapsed() << "\n";
+	ts << "systemClock = " << QTime::currentTime().toString("hh:mm:ss.zzz") << "\n";
 	ts << "framesThisBlock = " << DAQ::BugTask::FramesPerBlock << "\n";
     ts << "spikeGL_DataFile_ScanCount = " << (df.scanCount()/*+u64(fudge/task->numChans())*/) << "\n";
     ts << "spikeGL_DataFile_SampleCount = " << (df.sampleCount()/*+u64(fudge)*/) << "\n";

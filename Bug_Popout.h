@@ -2,6 +2,7 @@
 #define Bug_Popout_H
 
 #include <QWidget>
+#include <QTime>
 #include <QTimer>
 #include <QPair>
 #include <QList>
@@ -38,6 +39,8 @@ private:
 	void setupGraphs();
     void setupAOPassThru();
 	
+	QTime* timeSinceStart;
+
 	DAQ::BugTask *task;
     DAQ::Params::Bug & p;
     DAQ::Params & ap;
