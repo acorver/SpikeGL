@@ -2,6 +2,7 @@ archive/
 .vs/
 .vscode/
 *.db
+*.exe
 *~
 *.bin
 moc_*.cpp
