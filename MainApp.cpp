@@ -795,6 +795,12 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
             errMsg = QString("Could not open data file `%1'!").arg(params.outputFile);
             return false;
         }
+		QString fnameBinLog = params.outputFile.replace(".bin", "").append("_all.bin");
+		if (!dataFileLog.openForWrite(params, fnameBinLog)) {
+			errTitle = "Error Opening File!";
+			errMsg = QString("Could not open data file `%1'!").arg(params.outputFile);
+			return false;
+		}
         if (!queuedParams.isEmpty()) stimGL_SaveParams("", queuedParams);
     }
 
@@ -870,6 +876,7 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
     acqStartingDialog->open();
     // end acq starting dialog block
     
+	// Initialize ephys acquisition circular buffer
     preBuf.clear();
     preBuf.reserve(0);
     if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd
@@ -886,7 +893,23 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 		preBuf.putData(mem, preBuf.capacity());
 		delete [] mem;
     }
-    
+
+	// Size of metadata buffer in megabyte per second of pre-buffer (essentially this buffer size should never be reached...)
+	const int PREBUF_META_BLOCKS_PER_SECOND = (1/0.0006144) / 40 + 1;
+	// Initialize ephys acquisition block metadata circular buffer
+	preBufMeta.clear();
+	if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd
+		|| params.acqStartEndMode == DAQ::AITriggered || params.acqStartEndMode == DAQ::Bug3TTLTriggered)) {
+		const double sil = params.silenceBeforePD > 0. ? params.silenceBeforePD : DEFAULT_PD_SILENCE;
+		preBufMeta.reserve(PREBUF_META_BLOCKS_PER_SECOND * sil * sizeof(DAQ::BugTask::BlockMetaData));
+		// Unlike preBuf, we don't want to add actual data. We only loop over valid data, so invalid 
+		// blocks should not be written.
+		// char *mem = new char[preBufMeta.capacity()];
+		// memset(mem, 0, preBufMeta.capacity());
+		// preBufMeta.putData(mem, preBufMeta.capacity());
+		// delete[] mem;
+	}
+
     if (doFGAcqInstead) {
         if (params.fg.disableChanMap) {
             // for testing 4/26/16 -- we just sort by intan for testing.
@@ -1220,6 +1243,7 @@ void MainApp::stopTask()
     Log() << "Task " << dataFile.fileName() << " stopped.";
     Status() << "Task stopped.";
     dataFile.closeAndFinalize();
+	dataFileLog.closeAndFinalize();
     queuedParams.clear();
     stopAcq->setEnabled(false);
     aoPassthruAct->setEnabled(false);
@@ -1277,28 +1301,26 @@ void MainApp::gotTaskWarning(const QString & e)
 /* static */
 void MainApp::prependPrebufToScans(const WrapBuffer & preBuf, std::vector<int16> & scans, int & num, int skip)
 {
-    if (scans.capacity() < (preBuf.size()/sizeof(int16))) scans.reserve(preBuf.size()/sizeof(int16));
-    void *ptr=0;
-    unsigned lenBytes=0, lenElems = 0;
-    preBuf.dataPtr1(ptr, lenBytes);
+	if (scans.capacity() < (preBuf.size() / sizeof(int16))) scans.reserve(preBuf.size() / sizeof(int16));
+	void *ptr = 0;
+	unsigned lenBytes = 0, lenElems = 0;
+	preBuf.dataPtr1(ptr, lenBytes);
 	lenElems = lenBytes / sizeof(int16);
 	num = 0;
-    if (ptr && skip < (int)lenElems) {
-        scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr) + skip, reinterpret_cast<int16 *>(ptr)+skip+(lenElems-skip));
+	if (ptr && skip < (int)lenElems) {
+		scans.insert(scans.begin(), reinterpret_cast<int16 *>(ptr) + skip, reinterpret_cast<int16 *>(ptr) + skip + (lenElems - skip));
 		num += lenElems - skip;
-    }
+	}
 	skip -= lenElems;
 	if (skip < 0) skip = 0;
-    preBuf.dataPtr2(ptr, lenBytes);
+	preBuf.dataPtr2(ptr, lenBytes);
 	lenElems = lenBytes / sizeof(int16);
-    if (ptr && skip < (int)lenElems) {
-        scans.insert(scans.begin()+num, reinterpret_cast<int16 *>(ptr) + skip, reinterpret_cast<int16 *>(ptr)+skip+(lenElems-skip));
+	if (ptr && skip < (int)lenElems) {
+		scans.insert(scans.begin() + num, reinterpret_cast<int16 *>(ptr) + skip, reinterpret_cast<int16 *>(ptr) + skip + (lenElems - skip));
 		num += lenElems - skip;
-    }
+	}
 	skip -= lenElems;
 }
-
-
 
 void MainApp::putRestarts(const DAQ::Params & p, u64 firstSamp, u64 restartNumScans) const
 {
@@ -1554,6 +1576,41 @@ bool MainApp::taskReadFunc()
                     // indicate bad data in output file..
                     dataFile.pushBadData(dataFile.scanCount(), fakeDataSz/p.nVAIChans);
                 }
+
+				// Write any pre-trigger metadata to file... This is independent of the saved scan subset, hence we do this outside the if-else statements below
+				if (bugWindow) {
+					if (preBufMeta.size() > 0) {
+						// Are there any queued meta frames? If so, write them! Then erase queue, 
+						// so they don't get written twice
+						// This code is derived from MainApp::prependPrebufToScans...
+						void* pMeta = 0;
+						unsigned lenBytes = 0, lenElems = 0;
+						preBufMeta.dataPtr1(pMeta, lenBytes);
+						lenElems = lenBytes / sizeof(DAQ::BugTask::BlockMetaData);
+						if (pMeta) {
+							for (DAQ::BugTask::BlockMetaData* pBlock = (DAQ::BugTask::BlockMetaData*)pMeta;
+								pBlock < ((DAQ::BugTask::BlockMetaData*)pMeta + lenBytes);
+								pBlock += sizeof(DAQ::BugTask::BlockMetaData)) {
+
+								bugWindow->writeMetaToBug3File(dataFile, *pBlock);
+							}
+						}
+						preBufMeta.dataPtr2(pMeta, lenBytes);
+						lenElems = lenBytes / sizeof(DAQ::BugTask::BlockMetaData);
+						if (pMeta) {
+							for (DAQ::BugTask::BlockMetaData* pBlock = (DAQ::BugTask::BlockMetaData*)pMeta;
+								pBlock < ((DAQ::BugTask::BlockMetaData*)pMeta + lenBytes);
+								pBlock += sizeof(DAQ::BugTask::BlockMetaData)) {
+
+								bugWindow->writeMetaToBug3File(dataFile, *pBlock);
+							}
+						}
+						// clear all data
+						preBufMeta.clear();
+					}
+				}
+
+				// Write scans to file
                 if (dataFile.numChans() != p.nVAIChans) {
                     //double ts = getTime();
                     // need to subset the chans in-place here.  a bit costly performance-wise.. we can optimize this further if need be by doing it on multiple cores at once using QConcurrent or somesuch mechanism
@@ -1578,7 +1635,7 @@ bool MainApp::taskReadFunc()
                 } else {
                     dataFile.writeScans(prebuf_scans);
                     //if (prebuf_scans.size()) Debug() << "prebuf: wrote " << prebuf_scans.size()/p.nVAIChans << " prebuf scans";
-                    dataFile.writeScans(scans, n/p.nVAIChans);
+					dataFile.writeScans(scans, n/p.nVAIChans);
                     //if (n != i64(scanSz)) Debug() << "writeScans: n=,scanSz=" << n << "," << scanSz << " difference is " << ((scanSz-n)/p.nVAIChans) << " scans.." << (n%p.nVAIChans ? "NOT ALIGNED" : "ALIGNED") ;
                     if (bugWindow && bugMeta)
                         bugWindow->writeMetaToBug3File(dataFile, *bugMeta); // bugMetaFudge explanation: in order to make sure scan numbers in file line up with scan numbers in data file, make sure to writeScans() to the data file *before* calling this!
@@ -1624,6 +1681,8 @@ bool MainApp::taskReadFunc()
 
         }
 
+		// Log all scans
+		// dataFileLog.writeScans(scans, lastScanSz); // write all scans (DISABLED FOR NOW)
 
         QList<SampleBufQ *> overThresh = SampleBufQ::allQueuesAbove(90.0);
         for (QList<SampleBufQ *>::iterator it = overThresh.begin(); it != overThresh.end(); ++it) {
@@ -1633,6 +1692,9 @@ bool MainApp::taskReadFunc()
 
         // normally *always* pre-buffer the scans since we may need them at any time on a re-trigger event
         preBuf.putData(&scans[0], unsigned(lastScanSz*sizeof(scans[0])));
+
+		// Similarly, pre-buffer bug3 data
+		preBufMeta.putData(bugMeta, sizeof(bugMeta));
 
         firstSamp += reader->scansPerPage()*reader->scanSizeSamps();
     }
@@ -2438,12 +2500,18 @@ void MainApp::toggleSave(bool s)
 				QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(p.outputFile));            
             return;
         }
+		QString pof = p.outputFile;
+		QString fnameBinLog = pof.replace(".bin", "").append("_all.bin");
+		if (!dataFileLog.openForWrite(p, fnameBinLog)) {
+			QMessageBox::critical(0, "Error Opening File!", QString("Could not open data file `%1'!").arg(fnameBinLog));
+		}
         if (!queuedParams.isEmpty()) stimGL_SaveParams("", queuedParams);
         Log() << "Save file: " << dataFile.fileName() << " opened from GUI.";
         //graphsWindow->clearGraph(-1);
         emit do_updateWindowTitles();
     } else if (!s && dataFile.isOpen()) {
-        dataFile.closeAndFinalize();
+		dataFile.closeAndFinalize();
+		dataFileLog.closeAndFinalize();
         Log() << "Save file: " << dataFile.fileName() << " closed from GUI.";
         emit do_updateWindowTitles();
     }

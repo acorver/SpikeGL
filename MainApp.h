@@ -383,6 +383,7 @@ private:
     i64 startScanCt, stopScanCt, lastScanSz, stopRecordAtSamp;
     volatile unsigned long scanSkipCt;
     DataFile_Fn_Shm dataFile; ///< the OUTPUT save file (this member var never used for input)
+	DataFile_Fn_Shm dataFileLog;
     std::vector<int16> lastNPDSamples;
     GraphsWindow *graphsWindow;
 	SpatialVisWindow *spatialWindow;
@@ -393,7 +394,8 @@ private:
     bool fastSettleRunning;
     QDialog *helpWindow;
 
-    WrapBuffer preBuf;
+	WrapBuffer preBuf;
+	WrapBuffer preBufMeta;
     bool noHotKeys, pdWaitingForStimGL;	
     bool dsFacilityEnabled;
     
