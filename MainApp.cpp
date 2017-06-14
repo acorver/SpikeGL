@@ -894,14 +894,14 @@ bool MainApp::startAcq(QString & errTitle, QString & errMsg)
 		delete [] mem;
     }
 
-	// Size of metadata buffer in megabyte per second of pre-buffer (essentially this buffer size should never be reached...)
-	const int PREBUF_META_BLOCKS_PER_SECOND = (1/0.0006144) / 40 + 1;
 	// Initialize ephys acquisition block metadata circular buffer
 	preBufMeta.clear();
+	preBufMeta.reserve(0);
 	if (params.usePD && (params.acqStartEndMode == DAQ::PDStart || params.acqStartEndMode == DAQ::PDStartEnd
 		|| params.acqStartEndMode == DAQ::AITriggered || params.acqStartEndMode == DAQ::Bug3TTLTriggered)) {
 		const double sil = params.silenceBeforePD > 0. ? params.silenceBeforePD : DEFAULT_PD_SILENCE;
-		preBufMeta.reserve(PREBUF_META_BLOCKS_PER_SECOND * sil * sizeof(DAQ::BugTask::BlockMetaData));
+		int szMeta = qCeil(params.srate * sil / DAQ::BugTask::SpikeGLScansPerBlock);
+		preBufMeta.reserve(szMeta * sizeof(DAQ::BugTask::BlockMetaData));
 		// Unlike preBuf, we don't want to add actual data. We only loop over valid data, so invalid 
 		// blocks should not be written.
 		// char *mem = new char[preBufMeta.capacity()];
