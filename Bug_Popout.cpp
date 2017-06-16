@@ -114,6 +114,7 @@ void Bug_Popout::writeMetaToBug3File(const DataFile &df, const DAQ::BugTask::Blo
 	}
 	QTextStream ts(&f);
 	ts << "[ block " << m.blockNum << " ]\n";
+	ts << "scans = " << m.scansSz << "\n";
 	ts << "millisecondOffset = " << this->timeSinceStart->elapsed() << "\n";
 	ts << "systemClock = " << QTime::currentTime().toString("hh:mm:ss.zzz") << "\n";
 	ts << "framesThisBlock = " << DAQ::BugTask::FramesPerBlock << "\n";

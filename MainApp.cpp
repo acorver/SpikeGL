@@ -1478,13 +1478,13 @@ bool MainApp::taskReadFunc()
             putRestarts(p, firstSamp, u64(fakeDataSz/p.nVAIChans));
         }
 
-        const DAQ::BugTask::BlockMetaData *bugMeta = 0;
+        DAQ::BugTask::BlockMetaData *bugMeta = 0;
         int useAltTrigIdx = -1; int16 altTrigThresh = -1;
 
         tNow = getTime();
 
         if (bugWindow && bugTask() && reader->metaDataSizeBytes() >= (int)sizeof(DAQ::BugTask::BlockMetaData) && metaPtr) {
-            bugMeta = reinterpret_cast<const DAQ::BugTask::BlockMetaData *>(metaPtr);
+            bugMeta = reinterpret_cast<DAQ::BugTask::BlockMetaData *>(metaPtr);
             if (p.bug.backupTrigger > -1 && bugMeta && bugMeta->missingFrameCount >= DAQ::BugTask::FramesPerBlock) {
                 useAltTrigIdx = p.bug.backupTrigger, altTrigThresh = p.bug.backupTriggerThresh;
             }
@@ -1595,7 +1595,7 @@ bool MainApp::taskReadFunc()
                     //Debug() << "subsetting took: " << ((getTime()-ts)*1e3) << " ms";
                     dataFile.writeScans(save_subset);
                     if (bugWindow && bugMeta) {
-                        //TODO:Abel bugWindow->writeMetaToBug3File(dataFile, *bugMeta); // bugMetaFudge explanation: in order to make sure scan numbers in file line up with scan numbers in data file, make sure to writeScans() to the data file *before* calling this!
+                        // bugWindow->writeMetaToBug3File(dataFile, *bugMeta); // bugMetaFudge explanation: in order to make sure scan numbers in file line up with scan numbers in data file, make sure to writeScans() to the data file *before* calling this!
                     }
                 } else {
                     dataFile.writeScans(prebuf_scans);
@@ -1603,46 +1603,47 @@ bool MainApp::taskReadFunc()
 					dataFile.writeScans(scans, n/p.nVAIChans);
                     //if (n != i64(scanSz)) Debug() << "writeScans: n=,scanSz=" << n << "," << scanSz << " difference is " << ((scanSz-n)/p.nVAIChans) << " scans.." << (n%p.nVAIChans ? "NOT ALIGNED" : "ALIGNED") ;
                     if (bugWindow && bugMeta) {
-						//TODO:Abel bugWindow->writeMetaToBug3File(dataFile, *bugMeta); // bugMetaFudge explanation: in order to make sure scan numbers in file line up with scan numbers in data file, make sure to writeScans() to the data file *before* calling this!
+						// bugWindow->writeMetaToBug3File(dataFile, *bugMeta); // bugMetaFudge explanation: in order to make sure scan numbers in file line up with scan numbers in data file, make sure to writeScans() to the data file *before* calling this!
 					}
                 }
 
 
 				// Write any pre-trigger metadata to file... This is independent of the saved scan subset, hence we do this outside the if-else statements below
 				if (bugWindow) {
-					if (preBufMeta.size() > 0) {
+					if (triggerOffset >= 0 && preBufMeta.size() > 0) {
 						// Are there any queued meta frames? If so, write them! Then erase queue, 
 						// so they don't get written twice
 						// This code is derived from MainApp::prependPrebufToScans...
+						//    -- First, compute blocks to skip
+						//       "triggerOffset" is specified in samples (i.e. not "set of <channelCount> samples", not frames, but individual numbers...)
+						//       Note that the "skip" number is rounded *down* to ensure complete metadata
+						int skip = triggerOffset / (p.nVAIChans * DAQ::BugTask::SpikeGLScansPerBlock);
+						
 						void* pMeta = 0;
 						unsigned lenBytes = 0, lenElems = 0, totElems = 0;
 						preBufMeta.dataPtr1(pMeta, lenBytes);
 						lenElems = lenBytes / sizeof(DAQ::BugTask::BlockMetaData);
 						void* pMetaEnd = (void*)(unsigned long(pMeta) + lenElems * sizeof(DAQ::BugTask::BlockMetaData));
 						if (pMeta) {
-							for (DAQ::BugTask::BlockMetaData* pBlock = (DAQ::BugTask::BlockMetaData*)pMeta;
+							for (DAQ::BugTask::BlockMetaData* pBlock = ((DAQ::BugTask::BlockMetaData*)pMeta) + skip;
 								pBlock < pMetaEnd; pBlock++) {
 								totElems++;
 								bugWindow->writeMetaToBug3File(dataFile, *pBlock);
 							}
 						}
+						skip -= lenElems;
 						preBufMeta.dataPtr2(pMeta, lenBytes);
 						lenElems = lenBytes / sizeof(DAQ::BugTask::BlockMetaData);
 						pMetaEnd = (void*)(unsigned long(pMeta) + lenElems * sizeof(DAQ::BugTask::BlockMetaData));
 						if (pMeta) {
-							for (DAQ::BugTask::BlockMetaData* pBlock = (DAQ::BugTask::BlockMetaData*)pMeta;
+							for (DAQ::BugTask::BlockMetaData* pBlock = ((DAQ::BugTask::BlockMetaData*)pMeta) + skip;
 								pBlock < pMetaEnd; pBlock++) {
 								totElems++;
 								bugWindow->writeMetaToBug3File(dataFile, *pBlock);
 							}
 						}
 
-						if (totElems > 0) {
-							Debug() << "Wrote " << totElems << " pre-buffered blocks to file.";
-						}
-
-						// clear all data
-						preBufMeta.clear();
+						Log() << "Wrote " << totElems << " pre-buffered blocks to file (skipped " << skip << " elements).";
 					}
 
 					if (bugMeta) {
@@ -1704,6 +1705,7 @@ bool MainApp::taskReadFunc()
         preBuf.putData(&scans[0], unsigned(lastScanSz*sizeof(scans[0])));
 
 		// Similarly, pre-buffer bug3 data
+		bugMeta->scansSz = lastScanSz;
 		preBufMeta.putData(bugMeta, sizeof(DAQ::BugTask::BlockMetaData));
 
         firstSamp += reader->scansPerPage()*reader->scanSizeSamps();

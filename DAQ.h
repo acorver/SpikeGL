@@ -453,6 +453,7 @@ namespace DAQ
 
 		struct BlockMetaData {
 			quint64 blockNum; ///< sequential number. incremented for each new block
+			quint64 scansSz; // Introduced to keep track of number of scans that were saved when this block was saved as well... used for pre-buffering block metadata
 			int boardFrameCounter[FramesPerBlock];
 			int boardFrameTimer[FramesPerBlock];
 			int chipFrameCounter[FramesPerBlock];
