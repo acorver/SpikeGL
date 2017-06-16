@@ -336,7 +336,8 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
     nWritesAvgMax = /*unsigned(sRate/10.)*/10;
     if (!nWritesAvgMax) nWritesAvgMax = 1;
     params["outputFile"] = outputFile;
-    params["dev"] = dp.dev;
+	params["createdOn"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
+	params["dev"] = dp.dev;
 	if (dp.dualDevMode) {
 		params["dev2"] = dp.dev2;
 		params["dualDevMode"] = true;
