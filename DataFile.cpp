@@ -383,6 +383,7 @@ bool DataFile::openForWrite(const DAQ::Params & dp, const QString & filename_ove
 		params["pdThreshW"] = dp.pdThreshW;
 		params["pdPassThruToAO"] = dp.pdPassThruToAO;
 		params["pdStopTime"] = dp.pdStopTime;
+		params["silenceBeforePD"] = dp.silenceBeforePD;
     }
     if (dp.bug.enabled) {
         params["bug_errorTolerance"] = dp.bug.errTol;
